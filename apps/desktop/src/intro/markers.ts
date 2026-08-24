@@ -6,6 +6,8 @@ export interface Chapter {
   title: string;
 }
 
+export type ChapterCue = Omit<Chapter, 'endMs'>;
+
 export interface IntroIdentity {
   durationMs: number;
   episode?: number;
@@ -42,6 +44,22 @@ export function markerFromChapters(chapters: Chapter[], durationMs: number): Int
       validBounds(candidate.startMs, candidate.endMs, durationMs),
   );
   return chapter ? { source: 'chapter', startMs: chapter.startMs, endMs: chapter.endMs } : null;
+}
+
+export function markerFromChapterCues(
+  chapters: ChapterCue[],
+  durationMs: number,
+): IntroMarker | null {
+  const ordered = chapters
+    .filter((chapter) => Number.isFinite(chapter.startMs) && chapter.startMs >= 0)
+    .toSorted((left, right) => left.startMs - right.startMs);
+  return markerFromChapters(
+    ordered.map((chapter, index) => ({
+      ...chapter,
+      endMs: ordered[index + 1]?.startMs ?? durationMs,
+    })),
+    durationMs,
+  );
 }
 
 export function markerFromCommunity(

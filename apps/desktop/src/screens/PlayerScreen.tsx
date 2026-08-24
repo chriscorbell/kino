@@ -6,7 +6,12 @@ import { loadPlayerAction, playerAction, type PlaybackSelection } from '../core/
 import { useCore } from '../core/context';
 import type { PlayerState } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
-import { lookupCommunityIntro, type IntroMarker } from '../intro/markers';
+import {
+  lookupCommunityIntro,
+  markerFromChapterCues,
+  type ChapterCue,
+  type IntroMarker,
+} from '../intro/markers';
 import { connectNativePlayer, nativeShellPresent, type NativePlayer } from '../native/player';
 import type { KinoSettings } from '../settings';
 
@@ -41,6 +46,17 @@ function nativeErrorMessage(code: unknown) {
   return 'The native player could not decode or load this source.';
 }
 
+function nativeChapterCues(value: unknown): ChapterCue[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((candidate): ChapterCue[] => {
+    if (!candidate || typeof candidate !== 'object') return [];
+    const { startMs, title } = candidate as Record<string, unknown>;
+    return typeof startMs === 'number' && Number.isFinite(startMs) && typeof title === 'string'
+      ? [{ startMs, title }]
+      : [];
+  });
+}
+
 export function PlayerScreen({
   onBack,
   selection,
@@ -61,7 +77,6 @@ export function PlayerScreen({
   const playbackRef = useRef({ duration: 0, time: 0 });
   const lastProgressRef = useRef(0);
   const resumeAppliedRef = useRef(false);
-  const autoSkippedRef = useRef(false);
   const autoSkipSuppressedRef = useRef(false);
   const [duration, setDuration] = useState(0);
   const [time, setTime] = useState(0);
@@ -70,13 +85,20 @@ export function PlayerScreen({
   const [buffering, setBuffering] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [nativePlayer, setNativePlayer] = useState<NativePlayer | null>(null);
-  const [marker, setMarker] = useState<IntroMarker | null>(null);
+  const [chapterCues, setChapterCues] = useState<ChapterCue[]>([]);
+  const [communityMarker, setCommunityMarker] = useState<IntroMarker | null>(null);
+  const [automaticSkipComplete, setAutomaticSkipComplete] = useState(false);
   const [automaticNotice, setAutomaticNotice] = useState(false);
   const stream = result.state?.stream?.type === 'Ready' ? result.state.stream.content : null;
   const streamUrl = stream?.url ?? null;
   const resumeTime = result.state?.libraryItem?.state.timeOffset ?? 0;
   const sourceFailed = result.state?.stream?.type === 'Err' || Boolean(result.error || mediaError);
   const nativeShell = nativeShellPresent();
+  const chapterMarker = useMemo(
+    () => markerFromChapterCues(chapterCues, duration),
+    [chapterCues, duration],
+  );
+  const marker = chapterMarker ?? communityMarker;
 
   const updateDuration = useCallback((milliseconds: number) => {
     playbackRef.current.duration = milliseconds;
@@ -216,6 +238,8 @@ export function PlayerScreen({
         setBuffering(payload.active);
       } else if (name === 'ready') {
         setBuffering(false);
+      } else if (name === 'chapters') {
+        setChapterCues(nativeChapterCues(payload.items));
       } else if (name === 'error') {
         setBuffering(false);
         setPaused(true);
@@ -256,10 +280,11 @@ export function PlayerScreen({
   }, [duration, resumeTime, seekTo]);
 
   useEffect(() => {
-    if (!duration) return;
+    if (!duration || chapterMarker) return;
+
     const controller = new AbortController();
     void lookupCommunityIntro(introIdentity(selection, duration), controller.signal)
-      .then(setMarker)
+      .then(setCommunityMarker)
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === 'AbortError') return;
         console.info(
@@ -268,23 +293,31 @@ export function PlayerScreen({
         );
       });
     return () => controller.abort();
-  }, [duration, selection]);
+  }, [chapterMarker, duration, selection]);
 
   useEffect(() => {
     if (
       !marker ||
       !settings.automaticIntroSkipping ||
-      autoSkippedRef.current ||
+      automaticSkipComplete ||
       autoSkipSuppressedRef.current
     )
       return;
     if (time < marker.startMs || time >= marker.endMs) return;
     if (!nativePlayer && !videoRef.current) return;
     seekTo(marker.endMs);
-    autoSkippedRef.current = true;
+    setAutomaticSkipComplete(true);
     setAutomaticNotice(true);
     reportProgress(true);
-  }, [marker, nativePlayer, reportProgress, seekTo, settings.automaticIntroSkipping, time]);
+  }, [
+    automaticSkipComplete,
+    marker,
+    nativePlayer,
+    reportProgress,
+    seekTo,
+    settings.automaticIntroSkipping,
+    time,
+  ]);
 
   useEffect(() => {
     if (!automaticNotice) return;
@@ -410,7 +443,9 @@ export function PlayerScreen({
         <div className={styles.playerStatus}>Buffering…</div>
       ) : null}
 
-      {settings.skipIntroButton && insideIntro && !settings.automaticIntroSkipping ? (
+      {settings.skipIntroButton &&
+      insideIntro &&
+      (!settings.automaticIntroSkipping || automaticSkipComplete) ? (
         <button
           className={styles.skipIntro}
           onClick={() => {
