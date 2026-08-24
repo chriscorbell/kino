@@ -15,13 +15,16 @@ export const enUS = {
     continueWatching: 'Continue Watching',
     continueEmpty: 'Nothing to resume yet.',
     catalogs: 'Catalogs',
-    catalogsEmpty: 'Connect to Stremio to see catalogs from your installed add-ons.',
+    catalogsEmpty: 'No catalogs are available from the installed add-ons.',
+    catalogsUnavailable: 'Installed add-ons are present, but their catalogs returned no items.',
+    catalogsError: 'Catalogs could not be loaded. Check the local log and try again.',
   },
   search: {
     title: 'Search',
     placeholder: 'Search movies and series',
     idle: 'Search across catalogs from your installed add-ons.',
-    disconnected: 'Search will be available after you connect to Stremio.',
+    loading: 'Searching installed add-ons…',
+    error: 'Search could not be completed.',
   },
   discover: {
     title: 'Discover',
@@ -57,11 +60,23 @@ export const enUS = {
     audioStereo: 'Stereo',
     diagnostics: 'Diagnostics',
     localLogging: 'Verbose local logging',
-    localLoggingDescription: 'Stored only on this device with automatic rotation',
+    localLoggingDescription: 'Detailed diagnostics stay on this device',
     active: 'Active',
   },
   status: {
     unavailable: 'Not connected',
+  },
+  actions: {
+    back: 'Back',
+  },
+  details: {
+    loading: 'Loading title details…',
+    error: 'Title details could not be loaded.',
+    episodes: 'Episodes',
+    sources: 'Sources',
+    refreshing: 'Refreshing sources…',
+    noSources: 'No sources were returned for this title.',
+    unavailable: 'Not available',
   },
   errors: {
     title: 'Kino could not render this screen.',

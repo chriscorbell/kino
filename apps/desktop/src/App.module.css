@@ -19,7 +19,8 @@
 }
 
 .logoButton,
-.navButton {
+.navButton,
+.profileButton {
   display: grid;
   width: 42px;
   height: 42px;
@@ -34,6 +35,17 @@
     color var(--kino-duration-fast) ease,
     background-color var(--kino-duration-fast) ease,
     transform var(--kino-duration-fast) var(--kino-ease-out);
+}
+
+.profileButton {
+  width: 30px;
+  height: 30px;
+  margin-top: auto;
+  border-radius: 50%;
+  color: var(--kino-text-muted);
+  background: var(--kino-border);
+  font-size: 11px;
+  font-weight: 650;
 }
 
 .logoButton {
@@ -84,6 +96,751 @@
   width: min(100%, 1500px);
   min-height: 100%;
   padding: 44px var(--kino-page-gutter) 64px;
+}
+
+.homePage {
+  width: min(100%, 1600px);
+  min-height: 100%;
+  padding: 36px var(--kino-page-gutter) 64px;
+}
+
+.homeSection {
+  margin-top: 28px;
+}
+
+.homeSection:first-of-type {
+  margin-top: 0;
+}
+
+.homeSection h2,
+.detailSection h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.sectionHeading,
+.detailSectionHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 8px;
+}
+
+.sectionHeading span,
+.detailSectionHeading > span {
+  color: var(--kino-text-faint);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.mediaRow,
+.continueRow {
+  display: flex;
+  gap: 16px;
+  padding: 8px 2px 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+}
+
+.mediaCard {
+  display: flex;
+  width: 152px;
+  flex: 0 0 auto;
+  flex-direction: column;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  scroll-snap-align: start;
+}
+
+.posterFrame {
+  position: relative;
+  display: grid;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  place-items: center;
+  border-radius: var(--kino-media-radius);
+  background: var(--kino-surface);
+  transition:
+    transform 220ms var(--kino-ease-out),
+    box-shadow 220ms ease;
+}
+
+.mediaCard:hover .posterFrame,
+.mediaCard:focus-visible .posterFrame {
+  transform: scale(1.025);
+  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 50%);
+}
+
+.poster {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.posterFallback {
+  color: var(--kino-text-faint);
+  font-size: 40px;
+  font-weight: 300;
+}
+
+.watchedBadge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 4px 7px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: var(--kino-pill-radius);
+  color: var(--kino-text);
+  background: rgb(10 10 11 / 76%);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.mediaTitle,
+.mediaMeta {
+  width: 100%;
+  text-align: center;
+}
+
+.mediaTitle {
+  margin-top: 10px;
+  overflow: hidden;
+  color: rgb(255 255 255 / 92%);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mediaMeta {
+  margin-top: 3px;
+  color: var(--kino-text-faint);
+  font-size: 12px;
+  text-transform: capitalize;
+}
+
+.mediaSkeleton {
+  width: 152px;
+  flex: 0 0 auto;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--kino-media-radius);
+  background: var(--kino-surface);
+  animation: pulse 1.4s ease-in-out infinite alternate;
+}
+
+.inlineEmpty,
+.loadError {
+  margin: 14px 0 0;
+  color: var(--kino-text-faint);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.loadError {
+  color: var(--kino-danger);
+}
+
+.continueCard {
+  width: 264px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.continueArtwork {
+  position: relative;
+  display: flex;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  align-items: flex-end;
+  border-radius: var(--kino-media-radius);
+  background: var(--kino-surface);
+}
+
+.continueArtwork::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgb(0 0 0 / 70%), transparent 70%);
+  content: '';
+}
+
+.continueArtwork img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.continueLabel {
+  position: relative;
+  z-index: 1;
+  padding: 14px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.progressTrack {
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: rgb(255 255 255 / 16%);
+}
+
+.progressTrack span {
+  display: block;
+  height: 100%;
+  background: var(--kino-accent);
+}
+
+.mediaGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 24px 16px;
+  margin-top: 28px;
+}
+
+.mediaGrid .mediaCard {
+  width: 100%;
+}
+
+.detailPage {
+  min-height: 100%;
+}
+
+.detailHero {
+  position: relative;
+  display: flex;
+  height: 400px;
+  overflow: hidden;
+  align-items: flex-end;
+  background: var(--kino-surface);
+}
+
+.detailBackdrop,
+.detailShade {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.detailBackdrop {
+  object-fit: cover;
+}
+
+.detailShade {
+  background: linear-gradient(
+    to top,
+    var(--kino-bg) 0%,
+    rgb(10 10 11 / 24%) 54%,
+    rgb(10 10 11 / 60%) 100%
+  );
+}
+
+.backButton {
+  position: absolute;
+  top: 28px;
+  left: var(--kino-page-gutter);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 0;
+  border: 0;
+  color: var(--kino-text-muted);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.detailCopy {
+  position: relative;
+  width: min(740px, 100%);
+  padding: 0 var(--kino-page-gutter) 38px;
+}
+
+.detailCopy h1 {
+  margin: 0;
+  font-size: clamp(34px, 5vw, 48px);
+  font-weight: 700;
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+}
+
+.detailMetadata,
+.detailDescription {
+  margin: 10px 0 0;
+}
+
+.detailMetadata {
+  color: var(--kino-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.detailDescription {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #c9c9ce;
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.detailBody {
+  width: min(100%, 1160px);
+  padding: 6px var(--kino-page-gutter) 72px;
+}
+
+.detailSection {
+  margin-top: 34px;
+}
+
+.seasonTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.seasonButton,
+.seasonActive {
+  min-height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--kino-border);
+  border-radius: var(--kino-pill-radius);
+  color: var(--kino-text-muted);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.seasonActive {
+  border-color: var(--kino-accent);
+  color: var(--kino-on-accent);
+  background: var(--kino-accent);
+}
+
+.episodeList,
+.sourceList {
+  border-top: 1px solid var(--kino-border-subtle);
+}
+
+.episodeButton,
+.episodeActive,
+.sourceButton {
+  display: grid;
+  width: 100%;
+  min-height: 64px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--kino-border-subtle);
+  color: var(--kino-text);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.episodeButton,
+.episodeActive {
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  gap: 14px;
+}
+
+.episodeButton:hover,
+.episodeActive,
+.sourceButton:hover:not(:disabled) {
+  background: var(--kino-surface-hover);
+}
+
+.episodeNumber {
+  color: var(--kino-text-faint);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.episodeButton strong,
+.episodeActive strong,
+.episodeButton small,
+.episodeActive small,
+.sourcePrimary strong,
+.sourcePrimary small {
+  display: block;
+}
+
+.episodeButton strong,
+.episodeActive strong,
+.sourcePrimary strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.episodeButton small,
+.episodeActive small {
+  display: -webkit-box;
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--kino-text-faint);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.sourceButton {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+}
+
+.sourceButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.sourcePrimary small {
+  max-width: 74ch;
+  margin-top: 5px;
+  overflow: hidden;
+  color: var(--kino-text-faint);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sourceMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--kino-text-faint);
+  font-size: 11px;
+}
+
+.sourceMeta em {
+  color: var(--kino-danger);
+  font-style: normal;
+}
+
+.player {
+  position: fixed;
+  z-index: var(--kino-layer-dialog);
+  inset: 0;
+  overflow: hidden;
+  color: var(--kino-text);
+  background: #000;
+}
+
+.player video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.playerTopbar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 24px 30px 70px;
+  background: linear-gradient(to bottom, rgb(0 0 0 / 78%), transparent);
+}
+
+.playerTopbar button,
+.controlRow button,
+.skipNotice button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--kino-control-radius);
+  color: var(--kino-text);
+  background: rgb(20 20 23 / 76%);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.playerTopbar > div {
+  display: grid;
+  gap: 3px;
+}
+
+.playerTopbar strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.playerTopbar span {
+  color: var(--kino-text-muted);
+  font-size: 12px;
+}
+
+.playerStatus {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  gap: 6px;
+  color: var(--kino-text-muted);
+  font-size: 13px;
+  text-align: center;
+  transform: translate(-50%, -50%);
+}
+
+.playerStatus strong {
+  color: var(--kino-text);
+  font-size: 16px;
+}
+
+.skipIntro {
+  position: absolute;
+  right: 36px;
+  bottom: 120px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 22px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--kino-on-accent);
+  background: var(--kino-accent);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  animation: enter var(--kino-duration-standard) var(--kino-ease-out);
+}
+
+.skipNotice {
+  position: absolute;
+  right: 36px;
+  bottom: 120px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 8px 8px 16px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: var(--kino-control-radius);
+  background: rgb(10 10 11 / 88%);
+  font-size: 13px;
+}
+
+.skipNotice button {
+  min-height: 30px;
+  color: var(--kino-on-accent);
+  background: var(--kino-accent);
+}
+
+.playerControls {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 68px 30px 24px;
+  background: linear-gradient(to top, rgb(0 0 0 / 86%), transparent);
+}
+
+.timeline {
+  position: relative;
+  height: 18px;
+}
+
+.timeline input {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  margin: 0;
+  accent-color: var(--kino-accent);
+  cursor: pointer;
+}
+
+.introRange {
+  position: absolute;
+  z-index: 1;
+  top: 7px;
+  height: 4px;
+  border-radius: var(--kino-pill-radius);
+  background: #c9a96b;
+}
+
+.controlRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.controlRow button {
+  width: 40px;
+  padding: 0;
+  background: transparent;
+}
+
+.controlRow button:last-child {
+  margin-left: auto;
+}
+
+.timeLabel {
+  color: var(--kino-text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dialogBackdrop {
+  position: fixed;
+  z-index: calc(var(--kino-layer-dialog) + 1);
+  inset: 0;
+  display: grid;
+  padding: 24px;
+  place-items: center;
+  background: rgb(0 0 0 / 72%);
+  backdrop-filter: blur(12px);
+}
+
+.accountDialog {
+  position: relative;
+  width: min(100%, 420px);
+  padding: 34px;
+  border: 1px solid var(--kino-border);
+  border-radius: var(--kino-panel-radius);
+  background: var(--kino-surface);
+  box-shadow: 0 24px 80px rgb(0 0 0 / 48%);
+  animation: enter var(--kino-duration-standard) var(--kino-ease-out);
+}
+
+.accountDialog > img {
+  width: 24px;
+  height: 24px;
+  margin-bottom: 24px;
+}
+
+.accountDialog h1 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: -0.025em;
+}
+
+.accountDialog p {
+  margin: 10px 0 24px;
+  color: var(--kino-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.accountDialog form {
+  display: grid;
+}
+
+.accountDialog label {
+  margin: 14px 0 7px;
+  color: var(--kino-text-muted);
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.accountDialog input {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--kino-border);
+  border-radius: var(--kino-control-radius);
+  outline: 0;
+  color: var(--kino-text);
+  background: var(--kino-bg);
+  font: inherit;
+  font-size: 14px;
+}
+
+.accountDialog input:focus {
+  border-color: var(--kino-text-muted);
+}
+
+.dialogClose {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: var(--kino-control-radius);
+  color: var(--kino-text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.primaryAction,
+.secondaryAction {
+  min-height: 42px;
+  margin-top: 22px;
+  padding: 0 18px;
+  border: 1px solid var(--kino-accent);
+  border-radius: var(--kino-control-radius);
+  color: var(--kino-on-accent);
+  background: var(--kino-accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.secondaryAction {
+  color: var(--kino-text);
+  background: transparent;
+}
+
+.primaryAction:disabled,
+.dialogClose:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.accountDialog .formError {
+  margin: 12px 0 0;
+  color: var(--kino-danger);
+}
+
+@keyframes pulse {
+  from {
+    opacity: 0.55;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .narrowPage {
@@ -329,6 +1086,10 @@
     display: none;
   }
 
+  .profileButton {
+    display: none;
+  }
+
   .navGroup {
     flex-direction: row;
     gap: 4px;
@@ -341,6 +1102,43 @@
   .page {
     padding: 32px 22px 48px;
   }
+
+  .homePage {
+    padding: 28px 22px 48px;
+  }
+
+  .mediaCard,
+  .mediaSkeleton {
+    width: 132px;
+  }
+
+  .detailHero {
+    height: 360px;
+  }
+
+  .detailCopy,
+  .detailBody {
+    padding-right: 22px;
+    padding-left: 22px;
+  }
+
+  .backButton {
+    left: 22px;
+  }
+
+  .detailSectionHeading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .sourceButton {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .sourceMeta {
+    flex-wrap: wrap;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -352,6 +1150,10 @@
   .navButton,
   .switch,
   .switch span {
+    transition: none;
+  }
+
+  .mediaCard .posterFrame {
     transition: none;
   }
 }
