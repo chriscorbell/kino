@@ -84,6 +84,16 @@ MpvItem::MpvItem(QQuickItem *parent)
     }
     connect(this, &MpvItem::renderUpdateRequested, this, qOverload<>(&MpvItem::update),
             Qt::QueuedConnection);
+    hardwareDecoderTimer_.setInterval(5'000);
+    hardwareDecoderTimer_.setSingleShot(true);
+    connect(&hardwareDecoderTimer_, &QTimer::timeout, this, [this]() {
+        if (!active_ || !videoPresent_ || hardwareDecoderActive_) {
+            return;
+        }
+        emitError(QStringLiteral("hardware-decoding-unavailable"));
+        const char *command[] = {"stop", nullptr};
+        mpv_command_async(handle_, 0, command);
+    });
     initialize();
 }
 
@@ -148,10 +158,14 @@ void MpvItem::initialize() {
     mpv_observe_property(handle_, 4, "paused-for-cache", MPV_FORMAT_FLAG);
     mpv_observe_property(handle_, 5, "mute", MPV_FORMAT_FLAG);
     mpv_observe_property(handle_, 6, "hwdec-current", MPV_FORMAT_STRING);
+    mpv_observe_property(handle_, 7, "video-format", MPV_FORMAT_STRING);
 }
 
 void MpvItem::load(const QString &url, bool forceStereo) {
     failed_ = false;
+    hardwareDecoderActive_ = false;
+    hardwareDecoderTimer_.stop();
+    videoPresent_ = false;
     setActive(true);
     QByteArray audioChannels = forceStereo ? QByteArrayLiteral("stereo")
                                            : QByteArrayLiteral("auto-safe");
@@ -188,6 +202,7 @@ void MpvItem::setPaused(bool paused) {
 }
 
 void MpvItem::stop() {
+    hardwareDecoderTimer_.stop();
     const char *command[] = {"stop", nullptr};
     mpv_command_async(handle_, 0, command);
     setActive(false);
@@ -250,14 +265,27 @@ void MpvItem::handleEvent(mpv_event *event) {
                                *static_cast<int *>(property->data) != 0}});
         } else if (name == "hwdec-current") {
             const auto *decoder = static_cast<const char *>(property->data);
-            if (*decoder != '\0') {
+            hardwareDecoderActive_ = decoder && *decoder != '\0';
+            if (hardwareDecoderActive_) {
+                hardwareDecoderTimer_.stop();
                 qInfo("[kino:mpv] hardware decoder active");
+            } else if (videoPresent_) {
+                hardwareDecoderTimer_.start();
+            }
+        } else if (name == "video-format") {
+            const auto *format = static_cast<const char *>(property->data);
+            videoPresent_ = format && *format != '\0';
+            if (videoPresent_ && !hardwareDecoderActive_) {
+                hardwareDecoderTimer_.start();
+            } else if (!videoPresent_) {
+                hardwareDecoderTimer_.stop();
             }
         }
         break;
     }
     case MPV_EVENT_END_FILE: {
         const auto *end = static_cast<mpv_event_end_file *>(event->data);
+        hardwareDecoderTimer_.stop();
         setActive(false);
         if (end && end->reason == MPV_END_FILE_REASON_ERROR) {
             emitError(QStringLiteral("decoder-or-stream-failed"));
@@ -281,6 +309,7 @@ void MpvItem::handleEvent(mpv_event *event) {
 
 void MpvItem::emitError(const QString &code) {
     failed_ = true;
+    hardwareDecoderTimer_.stop();
     setActive(false);
     qCritical("[kino:mpv] playback failed code=%s", qPrintable(code));
     emit playerEvent(QStringLiteral("error"), {{QStringLiteral("code"), code}});

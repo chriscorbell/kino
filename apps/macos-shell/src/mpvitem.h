@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QQuickFramebufferObject>
+#include <QTimer>
 #include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
 
@@ -47,6 +48,9 @@ private:
 
     bool active_ = false;
     bool failed_ = false;
+    bool hardwareDecoderActive_ = false;
+    bool videoPresent_ = false;
     mpv_handle *handle_ = nullptr;
     mpv_render_context *renderContext_ = nullptr;
+    QTimer hardwareDecoderTimer_;
 };
