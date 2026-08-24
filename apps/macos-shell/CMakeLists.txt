@@ -13,6 +13,7 @@ find_package(
   Qt6 6.8
   REQUIRED COMPONENTS
     Core
+    Concurrent
     Gui
     Qml
     Quick
@@ -21,6 +22,7 @@ find_package(
     WebEngineQuick
 )
 pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv)
+find_library(SECURITY_FRAMEWORK Security REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
@@ -34,6 +36,7 @@ qt_add_executable(
   src/logging.cpp
   src/main.cpp
   src/mpvitem.cpp
+  src/securestore.cpp
 )
 
 qt_add_qml_module(
@@ -41,7 +44,9 @@ qt_add_qml_module(
   URI KinoShell
   VERSION 1.0
   QML_FILES qml/Main.qml
-  SOURCES src/mpvitem.h
+  SOURCES
+    src/mpvitem.h
+    src/securestore.h
 )
 
 target_include_directories(Kino PRIVATE src)
@@ -49,6 +54,8 @@ target_link_libraries(
   Kino
   PRIVATE
     PkgConfig::MPV
+    ${SECURITY_FRAMEWORK}
+    Qt6::Concurrent
     Qt6::Core
     Qt6::Gui
     Qt6::Qml

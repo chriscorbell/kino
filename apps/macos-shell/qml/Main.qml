@@ -28,6 +28,10 @@ ApplicationWindow {
         visible: player.active
     }
 
+    SecureStore {
+        id: secureStore
+    }
+
     QtObject {
         id: nativeBridge
 
@@ -72,7 +76,10 @@ ApplicationWindow {
     WebChannel {
         id: channel
 
-        Component.onCompleted: registerObject("kinoNative", nativeBridge)
+        Component.onCompleted: {
+            registerObject("kinoNative", nativeBridge)
+            registerObject("kinoSecureStore", secureStore)
+        }
     }
 
     WebEngineView {

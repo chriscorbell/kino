@@ -28,7 +28,7 @@ pnpm macos:build
 open build/macos/Kino.app
 ```
 
-The shell loads the packaged Kino UI and hands playback to libmpv with VideoToolbox hardware decoding, forced SDR output, and optional stereo downmixing. It is a local validation build, not yet a signed or self-contained distribution. Run the short native launch regression probe with:
+The shell loads the packaged Kino UI, keeps Stremio authentication material in macOS Keychain, and hands playback to libmpv with VideoToolbox hardware decoding, forced SDR output, and optional stereo downmixing. It is a local validation build, not yet a signed or self-contained distribution. Run the short native launch regression probe with:
 
 ```sh
 pnpm macos:check-launch
