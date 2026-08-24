@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kino</title>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;padding:0;background:#0a0a0b;color:#f2f2f3;font-family:'Geist',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#f2f2f3;text-decoration:none} a:hover{color:#ffffff}
+*{box-sizing:border-box}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#26262a;border-radius:5px;border:2px solid #0a0a0b}
+::-webkit-scrollbar-track{background:transparent}
+@keyframes riseIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+input{font-family:'Geist',system-ui,sans-serif}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<template id="tpl">
+<div style="display:flex;height:100vh;overflow:hidden;background:#0a0a0b;color:#f2f2f3">
+  <div data-screen-label="Sidebar" style="width:64px;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;padding:22px 0 20px;border-right:1px solid #1b1b1f">
+    <div title="Kino" style="width:42px;height:42px;margin-bottom:6px;display:flex;align-items:center;justify-content:center">
+      <img src="kino.svg" alt="Kino" style="width:20px;height:20px;display:block">
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div onClick="{{ navHome.go }}" title="Home" style="width:42px;height:42px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:{{ navHome.color }};background:{{ navHome.bg }};transition:color .15s,background .15s" style-hover="color:#ffffff;background:#161619">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+      </div>
+      <div onClick="{{ navSearch.go }}" title="Search" style="width:42px;height:42px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:{{ navSearch.color }};background:{{ navSearch.bg }};transition:color .15s,background .15s" style-hover="color:#ffffff;background:#161619">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+      </div>
+      <div onClick="{{ navDiscover.go }}" title="Discover" style="width:42px;height:42px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:{{ navDiscover.color }};background:{{ navDiscover.bg }};transition:color .15s,background .15s" style-hover="color:#ffffff;background:#161619">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>
+      </div>
+      <div onClick="{{ navLibrary.go }}" title="Library" style="width:42px;height:42px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:{{ navLibrary.color }};background:{{ navLibrary.bg }};transition:color .15s,background .15s" style-hover="color:#ffffff;background:#161619">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"></path><path d="M12 6v14"></path><path d="M8 8v12"></path><path d="M4 4v16"></path></svg>
+      </div>
+    </div>
+    <div style="width:26px;height:1px;background:#26262a;margin:18px 0"></div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div onClick="{{ navAddons.go }}" title="Addons" style="width:42px;height:42px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:{{ navAddons.color }};background:{{ navAddons.bg }};transition:color .15s,background .15s" style-hover="color:#ffffff;background:#161619">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="12" x="3" y="8" rx="1"></rect><path d="M10 8V5c0-.6-.4-1-1-1H6a1 1 0 0 0-1 1v3"></path><path d="M19 8V5c0-.6-.4-1-1-1h-3a1 1 0 0 0-1 1v3"></path></svg>
+      </div>
+      <div onClick="{{ navSettings.go }}" title="Settings" style="width:42px;height:42px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:{{ navSettings.color }};background:{{ navSettings.bg }};transition:color .15s,background .15s" style-hover="color:#ffffff;background:#161619">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="14" y1="4" y2="4"></line><line x1="10" x2="3" y1="4" y2="4"></line><line x1="21" x2="12" y1="12" y2="12"></line><line x1="8" x2="3" y1="12" y2="12"></line><line x1="21" x2="16" y1="20" y2="20"></line><line x1="12" x2="3" y1="20" y2="20"></line><line x1="14" x2="14" y1="2" y2="6"></line><line x1="8" x2="8" y1="10" y2="14"></line><line x1="16" x2="16" y1="18" y2="22"></line></svg>
+      </div>
+    </div>
+    <div style="margin-top:auto;width:30px;height:30px;border-radius:50%;background:#26262a;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#b9b9be" title="Chris">C</div>
+  </div>
+
+  <div id="content" style="flex:1;overflow-y:auto;overflow-x:hidden">
+
+    <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+      <div data-screen-label="Home" style="animation:fadeIn .25s ease">
+        <div style="padding:44px 48px 20px">
+          <div style="font-size:17px;font-weight:600;letter-spacing:-0.01em;margin-bottom:8px">Continue Watching</div>
+          <div style="display:flex;gap:16px;overflow-x:auto;overflow-y:hidden;padding:8px 0">
+            <sc-for list="{{ cw }}" as="c" hint-placeholder-count="4">
+              <div onClick="{{ c.resume }}" style="width:264px;flex:0 0 auto;cursor:pointer">
+                <div style="aspect-ratio:16/9;border-radius:10px;background:{{ c.bg }};position:relative;overflow:hidden;display:flex;align-items:flex-end;transition:transform .22s ease,box-shadow .22s ease" style-hover="transform:scale(1.025);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,0.5)">
+                  <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.55),transparent 60%)"></div>
+                  <sc-if value="{{ c.isUpNext }}" hint-placeholder-val="{{ false }}">
+                    <div style="position:absolute;top:12px;left:14px;display:flex;align-items:center;gap:6px;background:rgba(10,10,11,0.72);border:1px solid rgba(255,255,255,0.14);border-radius:999px;padding:4px 10px 4px 8px;font-size:10.5px;font-weight:600;letter-spacing:0.06em;color:#f2f2f3">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" x2="19" y1="5" y2="19"></line></svg>
+                      UP NEXT
+                    </div>
+                  </sc-if>
+                  <div style="position:relative;padding:12px 14px;width:100%">
+                    <div style="font-size:14px;font-weight:600;margin-bottom:2px">{{ c.t }}</div>
+                    <div style="font-size:11px;color:#a2a2a8">{{ c.sub }}</div>
+                  </div>
+                  <sc-if value="{{ c.notUpNext }}" hint-placeholder-val="{{ true }}">
+                    <div style="position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,0.15)">
+                      <div style="height:100%;width:{{ c.pctW }};background:{{ accent }}"></div>
+                    </div>
+                  </sc-if>
+                </div>
+
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="padding:24px 48px 12px">
+          <div style="font-size:17px;font-weight:600;letter-spacing:-0.01em;margin-bottom:8px">Movies</div>
+          <div style="display:flex;gap:16px;overflow-x:auto;overflow-y:hidden;padding:8px 0">
+            <sc-for list="{{ films }}" as="it" hint-placeholder-count="6">
+              <div onClick="{{ it.open }}" style="width:152px;flex:0 0 auto;cursor:pointer">
+                <div style="aspect-ratio:2/3;border-radius:10px;background:{{ it.bg }};transition:transform .22s ease,box-shadow .22s ease" style-hover="transform:scale(1.035);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,0.5)"></div>
+                <div style="margin-top:10px;font-size:14px;font-weight:600;line-height:1.2;text-align:center;letter-spacing:-0.01em;color:rgba(255,255,255,0.92);text-wrap:pretty">{{ it.t }}</div>
+                <div style="margin-top:3px;font-size:12px;color:#8a8a8f;text-align:center">{{ it.y }}</div>
+              </div>
+            </sc-for>
+            <div onClick="{{ seeMoreMovies }}" style="width:152px;flex:0 0 auto;cursor:pointer;display:flex;flex-direction:column">
+              <div style="aspect-ratio:2/3;border-radius:10px;border:1px dashed #2e2e34;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#8a8a8f;transition:border-color .15s,color .15s" style-hover="border-color:#6a6a70;color:#ffffff">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+                <div style="font-size:13px;font-weight:600">See More</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:24px 48px 48px">
+          <div style="font-size:17px;font-weight:600;letter-spacing:-0.01em;margin-bottom:8px">Series</div>
+          <div style="display:flex;gap:16px;overflow-x:auto;overflow-y:hidden;padding:8px 0">
+            <sc-for list="{{ series }}" as="it" hint-placeholder-count="6">
+              <div onClick="{{ it.open }}" style="width:152px;flex:0 0 auto;cursor:pointer">
+                <div style="aspect-ratio:2/3;border-radius:10px;background:{{ it.bg }};transition:transform .22s ease,box-shadow .22s ease" style-hover="transform:scale(1.035);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,0.5)"></div>
+                <div style="margin-top:10px;font-size:14px;font-weight:600;line-height:1.2;text-align:center;letter-spacing:-0.01em;color:rgba(255,255,255,0.92);text-wrap:pretty">{{ it.t }}</div>
+                <div style="margin-top:3px;font-size:12px;color:#8a8a8f;text-align:center">{{ it.y }}</div>
+              </div>
+            </sc-for>
+            <div onClick="{{ seeMoreSeries }}" style="width:152px;flex:0 0 auto;cursor:pointer;display:flex;flex-direction:column">
+              <div style="aspect-ratio:2/3;border-radius:10px;border:1px dashed #2e2e34;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#8a8a8f;transition:border-color .15s,color .15s" style-hover="border-color:#6a6a70;color:#ffffff">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+                <div style="font-size:13px;font-weight:600">See More</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isDiscover }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Discover" style="padding:44px 48px;animation:fadeIn .25s ease">
+        <div style="font-size:28px;font-weight:700;letter-spacing:-0.02em;margin-bottom:22px">Discover</div>
+        <div style="display:flex;background:#131316;border:1px solid #26262a;border-radius:999px;padding:3px;width:fit-content;margin-bottom:20px">
+          <sc-for list="{{ discKinds }}" as="k" hint-placeholder-count="2">
+            <div onClick="{{ k.sel }}" style="padding:6px 18px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;color:{{ k.color }};background:{{ k.bg }};transition:all .15s">{{ k.label }}</div>
+          </sc-for>
+        </div>
+        <div style="display:flex;align-items:center;margin-bottom:28px">
+          <div style="display:flex;gap:22px">
+            <sc-for list="{{ discSorts }}" as="s" hint-placeholder-count="3">
+              <div onClick="{{ s.sel }}" style="font-size:14px;font-weight:500;cursor:pointer;padding:4px 0;color:{{ s.color }};box-shadow:{{ s.line }};transition:color .15s" style-hover="color:#ffffff">{{ s.label }}</div>
+            </sc-for>
+          </div>
+          <div style="flex:1"></div>
+          <div style="position:relative">
+            <div onClick="{{ toggleGenres }}" style="display:flex;align-items:center;gap:8px;padding:7px 14px;border:1px solid #2a2a2f;border-radius:999px;font-size:13px;font-weight:500;color:#c9c9ce;cursor:pointer;transition:border-color .15s" style-hover="border-color:#5a5a60">
+              {{ genreLabel }}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+            </div>
+            <sc-if value="{{ genresOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;right:0;top:calc(100% + 8px);z-index:20;min-width:170px;background:#141417;border:1px solid #26262a;border-radius:10px;padding:6px;box-shadow:0 12px 32px rgba(0,0,0,0.5);animation:riseIn .15s ease">
+                <sc-for list="{{ genreOptions }}" as="g" hint-placeholder-count="7">
+                  <div onClick="{{ g.sel }}" style="padding:8px 12px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;color:{{ g.color }};transition:background .12s" style-hover="background:#1e1e22;color:#ffffff">{{ g.label }}</div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:20px 16px">
+          <sc-for list="{{ discItems }}" as="it" hint-placeholder-count="8">
+            <div onClick="{{ it.open }}" style="cursor:pointer">
+              <div style="aspect-ratio:2/3;border-radius:10px;background:{{ it.bg }};transition:transform .22s ease,box-shadow .22s ease" style-hover="transform:scale(1.035);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,0.5)"></div>
+              <div style="margin-top:10px;font-size:14px;font-weight:600;line-height:1.2;text-align:center;letter-spacing:-0.01em;color:rgba(255,255,255,0.92);text-wrap:pretty">{{ it.t }}</div>
+              <div style="margin-top:3px;font-size:12px;color:#8a8a8f;text-align:center">{{ it.y }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isSearch }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Search" style="padding:44px 48px;animation:fadeIn .25s ease">
+        <input value="{{ query }}" onChange="{{ setQuery }}" placeholder="Search movies and series" autoFocus="{{ true }}" style="width:100%;max-width:560px;background:transparent;border:none;border-bottom:1px solid #2a2a2f;outline:none;color:#f2f2f3;font-size:28px;font-weight:600;letter-spacing:-0.02em;padding:6px 0 14px;caret-color:#ffffff">
+        <sc-if value="{{ hasQuery }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:12px;font-size:12px;color:#6b6b71">{{ resultCount }} results</div>
+          <div style="margin-top:24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:20px 16px">
+            <sc-for list="{{ results }}" as="it" hint-placeholder-count="4">
+              <div onClick="{{ it.open }}" style="cursor:pointer">
+                <div style="aspect-ratio:2/3;border-radius:10px;background:{{ it.bg }};transition:transform .22s ease,box-shadow .22s ease" style-hover="transform:scale(1.035);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,0.5)"></div>
+                <div style="margin-top:10px;font-size:14px;font-weight:600;line-height:1.2;text-align:center;letter-spacing:-0.01em;color:rgba(255,255,255,0.92);text-wrap:pretty">{{ it.t }}</div>
+                <div style="margin-top:3px;font-size:12px;color:#8a8a8f;text-align:center">{{ it.y }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isLibrary }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Library" style="padding:44px 48px;animation:fadeIn .25s ease">
+        <div style="font-size:28px;font-weight:700;letter-spacing:-0.02em;margin-bottom:22px">Library</div>
+        <div style="display:flex;gap:8px;margin-bottom:28px">
+          <sc-for list="{{ libTabs }}" as="tb" hint-placeholder-count="3">
+            <div onClick="{{ tb.sel }}" style="padding:7px 16px;border-radius:999px;font-size:13px;font-weight:500;cursor:pointer;color:{{ tb.color }};background:{{ tb.bg }};border:1px solid {{ tb.border }};transition:all .15s" style-hover="color:#ffffff">{{ tb.label }}</div>
+          </sc-for>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:20px 16px">
+          <sc-for list="{{ libItems }}" as="it" hint-placeholder-count="4">
+            <div onClick="{{ it.open }}" style="cursor:pointer">
+              <div style="aspect-ratio:2/3;border-radius:10px;background:{{ it.bg }};transition:transform .22s ease,box-shadow .22s ease" style-hover="transform:scale(1.035);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,0.5)"></div>
+              <div style="margin-top:10px;font-size:14px;font-weight:600;line-height:1.2;text-align:center;letter-spacing:-0.01em;color:rgba(255,255,255,0.92);text-wrap:pretty">{{ it.t }}</div>
+                <div style="margin-top:3px;font-size:12px;color:#8a8a8f;text-align:center">{{ it.y }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ libEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="color:#6b6b71;font-size:14px;margin-top:8px">Nothing here yet. Add titles from their detail page.</div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Detail" style="animation:fadeIn .25s ease">
+        <div style="position:relative;height:380px;background:{{ d.bg }};overflow:hidden;display:flex;align-items:flex-end">
+          <div style="position:absolute;inset:0;background:linear-gradient(to top,#0a0a0b 0%,rgba(10,10,11,0.3) 50%,rgba(10,10,11,0.5) 100%)"></div>
+          <div onClick="{{ goBack }}" style="position:absolute;top:28px;left:48px;display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:#b9b9be;cursor:pointer;padding:6px 0;transition:color .15s" style-hover="color:#ffffff"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path></svg>Back</div>
+          <div style="position:relative;padding:0 48px 40px;max-width:720px">
+            <div style="font-size:46px;font-weight:700;letter-spacing:-0.03em;line-height:1.04;margin-bottom:12px">{{ d.t }}</div>
+            <div style="font-size:14px;color:#a8a8ad">{{ d.meta }} · ★ {{ d.rating }}</div>
+          </div>
+        </div>
+        <div style="padding:28px 48px 56px;max-width:860px">
+          <div style="display:flex;gap:12px;margin-bottom:26px">
+            <div onClick="{{ d.playNow }}" style="background:#ffffff;color:#0a0a0b;padding:11px 26px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .15s" style-hover="opacity:0.85"><span style="display:inline-flex;align-items:center;gap:9px"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>{{ d.playLabel }}</span></div>
+            <div onClick="{{ d.toggleLib }}" style="border:1px solid #3a3a40;padding:11px 22px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer;color:{{ d.libColor }};transition:border-color .15s" style-hover="border-color:#6a6a70">{{ d.libLabel }}</div>
+          </div>
+          <div style="font-size:15px;line-height:1.6;color:#c5c5ca;max-width:620px;text-wrap:pretty">{{ d.desc }}</div>
+
+          <sc-if value="{{ d.isSeries }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:40px">
+              <div style="display:flex;gap:8px;margin-bottom:18px">
+                <sc-for list="{{ seasonTabs }}" as="st" hint-placeholder-count="2">
+                  <div onClick="{{ st.sel }}" style="padding:7px 16px;border-radius:999px;font-size:13px;font-weight:500;cursor:pointer;color:{{ st.color }};background:{{ st.bg }};border:1px solid {{ st.border }};transition:all .15s" style-hover="color:#ffffff">{{ st.label }}</div>
+                </sc-for>
+              </div>
+              <div style="display:flex;flex-direction:column">
+                <sc-for list="{{ episodes }}" as="ep" hint-placeholder-count="6">
+                  <div onClick="{{ ep.play }}" style="display:flex;align-items:center;gap:18px;padding:14px 12px;border-bottom:1px solid #17171a;border-radius:6px;cursor:pointer;transition:background .15s" style-hover="background:#131316">
+                    <div style="font-size:12px;color:#6b6b71;width:26px">{{ ep.num }}</div>
+                    <div style="flex:1;font-size:14.5px;font-weight:500">{{ ep.title }}</div>
+                    <div style="font-size:12px;color:#6b6b71">{{ ep.dur }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <div style="margin-top:40px">
+            <div style="font-size:12px;font-weight:500;letter-spacing:0.12em;color:#5b5b61;margin-bottom:14px">SOURCES</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <sc-for list="{{ streams }}" as="s" hint-placeholder-count="3">
+                <div onClick="{{ s.play }}" style="display:flex;align-items:center;gap:16px;padding:13px 16px;border:1px solid #1e1e22;border-radius:7px;cursor:pointer;transition:border-color .15s,background .15s" style-hover="border-color:#3a3a40;background:#101013">
+                  <div style="font-size:13.5px;font-weight:600;width:74px">{{ s.q }}</div>
+                  <div style="font-size:12px;color:#8a8a8f;flex:1">{{ s.tag }} · {{ s.size }}</div>
+                  <div style="font-size:11px;color:#5b5b61;letter-spacing:0.08em">{{ s.src }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isAddons }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Addons" style="padding:44px 48px;animation:fadeIn .25s ease;max-width:760px">
+        <div style="font-size:28px;font-weight:700;letter-spacing:-0.02em;margin-bottom:6px">Addons</div>
+        <div style="font-size:14px;color:#8a8a8f;margin-bottom:30px">Addons provide catalogs, streams and subtitles.</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <sc-for list="{{ addonList }}" as="a" hint-placeholder-count="4">
+            <div style="display:flex;align-items:center;gap:18px;padding:18px 20px;border:1px solid #1e1e22;border-radius:8px">
+              <div style="flex:1">
+                <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:4px">
+                  <div style="font-size:15px;font-weight:600">{{ a.name }}</div>
+                  <div style="font-size:11px;color:#5b5b61">v{{ a.ver }}</div>
+                </div>
+                <div style="font-size:13px;color:#8a8a8f">{{ a.desc }}</div>
+              </div>
+              <div onClick="{{ a.toggle }}" style="padding:8px 18px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;color:{{ a.btnColor }};background:{{ a.btnBg }};border:1px solid {{ a.btnBorder }};transition:all .15s">{{ a.btnLabel }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Settings" style="padding:44px 48px;animation:fadeIn .25s ease;max-width:640px">
+        <div style="font-size:28px;font-weight:700;letter-spacing:-0.02em;margin-bottom:34px">Settings</div>
+        <div style="font-size:12px;font-weight:500;letter-spacing:0.12em;color:#5b5b61;margin-bottom:6px">PLAYBACK</div>
+        <div style="display:flex;flex-direction:column;margin-bottom:34px">
+          <sc-for list="{{ settingRows }}" as="s" hint-placeholder-count="4">
+            <div style="display:flex;align-items:center;gap:20px;padding:16px 0;border-bottom:1px solid #17171a">
+              <div style="flex:1">
+                <div style="font-size:14.5px;font-weight:500;margin-bottom:3px">{{ s.label }}</div>
+                <div style="font-size:12.5px;color:#6b6b71">{{ s.sub }}</div>
+              </div>
+              <div onClick="{{ s.toggle }}" style="width:38px;height:21px;border-radius:11px;background:{{ s.trackBg }};cursor:pointer;position:relative;transition:background .2s;flex:0 0 auto">
+                <div style="position:absolute;top:2px;left:{{ s.knobLeft }};width:17px;height:17px;border-radius:50%;background:{{ s.knobBg }};transition:left .2s"></div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+
+  <sc-if value="{{ inPlayer }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Player" style="position:fixed;inset:0;background:#000000;z-index:50;animation:fadeIn .3s ease">
+      <div style="position:absolute;inset:0;background:{{ p.bg }};opacity:0.5"></div>
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 20%,rgba(0,0,0,0.75) 100%)"></div>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;letter-spacing:0.22em;color:rgba(255,255,255,0.28)">‹ VIDEO STREAM ›</div>
+      <div style="position:absolute;top:0;left:0;right:0;padding:26px 36px;display:flex;align-items:center;gap:18px;background:linear-gradient(to bottom,rgba(0,0,0,0.6),transparent)">
+        <div onClick="{{ closePlayer }}" style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:#c9c9ce;cursor:pointer;transition:color .15s" style-hover="color:#ffffff"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path></svg>Back</div>
+        <div style="font-size:15px;font-weight:600">{{ p.title }}</div>
+        <div style="font-size:12px;color:#8a8a8f">{{ p.sub }}</div>
+      </div>
+      <sc-if value="{{ showSkip }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ skipIntro }}" style="position:absolute;right:36px;bottom:120px;background:#ffffff;color:#0a0a0b;padding:11px 22px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;animation:riseIn .25s ease;transition:opacity .15s" style-hover="opacity:0.85"><span style="display:inline-flex;align-items:center;gap:9px">Skip Intro<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" x2="19" y1="5" y2="19"></line></svg></span></div>
+      </sc-if>
+      <sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;left:50%;bottom:130px;transform:translateX(-50%);background:rgba(20,20,23,0.92);border:1px solid #2a2a2f;padding:9px 18px;border-radius:999px;font-size:13px;color:#e2e2e6;animation:riseIn .25s ease">{{ toast }}</div>
+      </sc-if>
+      <div style="position:absolute;left:0;right:0;bottom:0;padding:22px 36px 26px;background:linear-gradient(to top,rgba(0,0,0,0.7),transparent)">
+        <div onClick="{{ seek }}" style="position:relative;height:14px;display:flex;align-items:center;cursor:pointer;margin-bottom:12px">
+          <div style="position:relative;height:3px;width:100%;background:rgba(255,255,255,0.18);border-radius:2px">
+            <sc-if value="{{ p.hasIntro }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;top:0;bottom:0;left:{{ p.introLeft }};width:{{ p.introW }};background:rgba(255,255,255,0.32);border-radius:2px"></div>
+            </sc-if>
+            <div style="position:absolute;top:0;bottom:0;left:0;width:{{ p.progW }};background:{{ accent }};border-radius:2px"></div>
+            <div style="position:absolute;top:50%;left:{{ p.progW }};transform:translate(-50%,-50%);width:11px;height:11px;border-radius:50%;background:{{ accent }}"></div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:22px">
+          <div onClick="{{ togglePlay }}" style="width:38px;height:38px;border-radius:50%;background:#ffffff;color:#0a0a0b;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;transition:opacity .15s" style-hover="opacity:0.85"><sc-if value="{{ isPlaying }}" hint-placeholder-val="{{ true }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="14" y="4" width="4" height="16" rx="1"></rect><rect x="6" y="4" width="4" height="16" rx="1"></rect></svg></sc-if><sc-if value="{{ isPaused }}" hint-placeholder-val="{{ false }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round" style="margin-left:2px"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg></sc-if></div>
+          <div style="font-size:12.5px;color:#c9c9ce">{{ p.timeLabel }} / {{ p.durLabel }}</div>
+          <div style="flex:1"></div>
+          <div style="font-size:11.5px;color:#8a8a8f;letter-spacing:0.08em">{{ p.quality }}</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</template>
+
+<script>
+
+"use strict";
+class DCLogic {
+  constructor(props) { this.props = props || {}; this.state = {}; }
+  setState(patch, cb) {
+    const p = typeof patch === 'function' ? patch(this.state) : patch;
+    Object.assign(this.state, p);
+    render();
+    if (cb) cb();
+  }
+}
+
+class Component extends DCLogic {
+  state = {
+    screen: 'home', from: 'home', detailId: null, season: 1, query: '', discTab: 'All', discKind: 'Movies', discSort: 'Popular', discGenreOpen: false,
+    lib: ['severance', 'dune2', 'andor', 'pastlives'], libTab: 'All',
+    settings: { skipBtn: true, autoSkip: false, subs: true, hw: true, quality: 'Auto' },
+    addons: { nexus: true, orbit: true, cinemeta: true, helios: false, subhub: false },
+    player: null, toast: null
+  };
+
+  DATA = [
+    { id: 'dune2', t: 'Dune: Part Two', y: 2024, kind: 'movie', hue: 65, tag: 'Sci-Fi', dur: '2h 46m', rating: '8.5', desc: 'Paul Atreides unites with the Fremen while seeking revenge against the conspirators who destroyed his family, facing a choice between the love of his life and the fate of the known universe.' },
+    { id: 'oppenheimer', t: 'Oppenheimer', y: 2023, kind: 'movie', hue: 45, tag: 'Drama', dur: '3h 0m', rating: '8.3', desc: 'The story of J. Robert Oppenheimer and his role in the development of the atomic bomb.' },
+    { id: 'pastlives', t: 'Past Lives', y: 2023, kind: 'movie', hue: 220, tag: 'Drama', dur: '1h 45m', rating: '7.8', desc: 'Two childhood friends are reunited in New York for one fateful week, confronting notions of destiny, love, and the choices that make a life.' },
+    { id: 'zone', t: 'The Zone of Interest', y: 2023, kind: 'movie', hue: 130, tag: 'Drama', dur: '1h 45m', rating: '7.4', desc: 'A commandant and his wife strive to build a dream life for their family in a house beside the camp he oversees.' },
+    { id: 'anatomy', t: 'Anatomy of a Fall', y: 2023, kind: 'movie', hue: 10, tag: 'Thriller', dur: '2h 31m', rating: '7.7', desc: 'A woman is suspected of her husband\u2019s murder; their blind son faces a moral dilemma as the sole witness.' },
+    { id: 'poorthings', t: 'Poor Things', y: 2023, kind: 'movie', hue: 310, tag: 'Comedy', dur: '2h 21m', rating: '7.9', desc: 'Brought back to life by an unorthodox scientist, a young woman runs off on a whirlwind adventure across the continents.' },
+    { id: 'holdovers', t: 'The Holdovers', y: 2023, kind: 'movie', hue: 30, tag: 'Comedy', dur: '2h 13m', rating: '7.9', desc: 'A curmudgeonly instructor remains on campus over the holidays with a troublesome student and the school\u2019s head cook.' },
+    { id: 'aftersun', t: 'Aftersun', y: 2022, kind: 'movie', hue: 200, tag: 'Drama', dur: '1h 42m', rating: '7.6', desc: 'Sophie reflects on the shared joy and private melancholy of a holiday she took with her father twenty years earlier.' },
+    { id: 'severance', t: 'Severance', y: 2022, kind: 'series', hue: 180, tag: 'Thriller', seasons: 2, rating: '8.7', desc: 'Mark leads a team whose memories have been surgically divided between their work and personal lives. A mysterious colleague appears outside of work, beginning a journey to discover the truth.' },
+    { id: 'bear', t: 'The Bear', y: 2022, kind: 'series', hue: 25, tag: 'Drama', seasons: 3, rating: '8.5', desc: 'A young chef from the fine dining world returns to Chicago to run his family\u2019s sandwich shop.' },
+    { id: 'shogun', t: 'Sh\u014dgun', y: 2024, kind: 'series', hue: 250, tag: 'History', seasons: 1, rating: '8.6', desc: 'In 1600s Japan, an English navigator becomes entangled in the plans of a powerful daimyo on the eve of a civil war.' },
+    { id: 'dark', t: 'Dark', y: 2017, kind: 'series', hue: 210, tag: 'Sci-Fi', seasons: 3, rating: '8.7', desc: 'A missing child sets four families on a hunt for answers as they unearth a mind-bending mystery spanning three generations.' },
+    { id: 'andor', t: 'Andor', y: 2022, kind: 'series', hue: 190, tag: 'Sci-Fi', seasons: 2, rating: '8.4', desc: 'In an era filled with danger and intrigue, Cassian Andor embarks on a path destined to turn him into a rebel hero.' },
+    { id: 'mrrobot', t: 'Mr. Robot', y: 2015, kind: 'series', hue: 270, tag: 'Thriller', seasons: 4, rating: '8.5', desc: 'A cybersecurity engineer and vigilante hacker is recruited by a mysterious anarchist to bring down corporate America.' },
+    { id: 'fargo', t: 'Fargo', y: 2014, kind: 'series', hue: 35, tag: 'Crime', seasons: 5, rating: '8.9', desc: 'An anthology of chronicles of deception, intrigue and murder in and around frozen Minnesota, all entwined with true crime.' },
+    { id: 'succession', t: 'Succession', y: 2018, kind: 'series', hue: 230, tag: 'Drama', seasons: 4, rating: '8.9', desc: 'The Roy family controls one of the biggest media conglomerates in the world; its members contemplate a future without their aging patriarch.' }
+  ];
+
+  EP_TITLES = ['The Signal', 'Half Light', 'Glass Houses', 'Undertow', 'The Long Way Home', 'Static', 'Meridian', 'Afterimage'];
+
+  CW = [
+    { id: 'severance', ep: 'S2 E4', pct: 64, left: '26m left' },
+    { id: 'bear', ep: 'S3 E2', pct: 31, left: '19m left' },
+    { id: 'dune2', ep: null, pct: 48, left: '1h 26m left' },
+    { id: 'shogun', ep: 'S1 E8', pct: 0, left: 'Up next · 58m', upNext: true, prev: 'S1 E7' }
+  ];
+
+  componentDidMount() {
+    this._tick = setInterval(() => {
+      const p = this.state.player;
+      if (!p || !p.playing) return;
+      let time = Math.min(p.dur, p.time + 0.5);
+      let toast = this.state.toast, skipped = p.skipped;
+      const autoSkip = this.props.autoSkipIntro ?? this.state.settings.autoSkip;
+      if (autoSkip && p.hasIntro && !skipped && time >= p.introStart && time < p.introEnd) {
+        time = p.introEnd; skipped = true; toast = 'Intro skipped';
+        clearTimeout(this._toastT);
+        this._toastT = setTimeout(() => this.setState({ toast: null }), 2600);
+      }
+      this.setState({ player: { ...p, time, skipped, playing: time < p.dur }, toast });
+    }, 500);
+    this._key = (e) => {
+      if (e.code === 'Space' && this.state.player && e.target.tagName !== 'INPUT') {
+        e.preventDefault();
+        this.setState(s => ({ player: { ...s.player, playing: !s.player.playing } }));
+      }
+    };
+    window.addEventListener('keydown', this._key);
+  }
+  componentWillUnmount() { clearInterval(this._tick); window.removeEventListener('keydown', this._key); clearTimeout(this._toastT); }
+
+  fmt(s) {
+    s = Math.floor(s);
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    const p = (n) => String(n).padStart(2, '0');
+    return h ? `${h}:${p(m)}:${p(sec)}` : `${m}:${p(sec)}`;
+  }
+
+  enrich(it) {
+    return {
+      ...it,
+      bg: `linear-gradient(160deg, oklch(0.34 0.028 ${it.hue}) 0%, oklch(0.16 0.018 ${it.hue}) 55%, oklch(0.10 0.012 ${it.hue}) 100%)`,
+      kindLabel: it.kind === 'movie' ? 'Movie' : 'Series',
+      meta: it.kind === 'movie' ? `${it.y} · ${it.tag} · ${it.dur}` : `${it.y} · ${it.tag} · ${it.seasons} ${it.seasons === 1 ? 'Season' : 'Seasons'}`,
+      open: () => this.setState({ screen: 'detail', detailId: it.id, season: 1, from: this.state.screen === 'detail' ? this.state.from : this.state.screen })
+    };
+  }
+
+  startPlayback(it, sub, resumePct) {
+    const isEp = it.kind === 'series';
+    const dur = isEp ? 3120 : 9900;
+    this.setState({
+      player: {
+        id: it.id, title: it.t, sub: sub || '', dur,
+        time: resumePct ? Math.floor(dur * resumePct / 100) : 4,
+        playing: true, hasIntro: isEp, introStart: 12, introEnd: 96,
+        skipped: resumePct ? true : false,
+        bg: this.enrich(it).bg, quality: '2160P · WEB-DL'
+      }
+    });
+  }
+
+  renderVals() {
+    const st = this.state;
+    const accent = this.props.accent ?? '#ffffff';
+    const all = this.DATA.map(it => this.enrich(it));
+    const byId = (id) => all.find(x => x.id === id);
+    const go = (screen) => () => this.setState({ screen });
+    const navItem = (label, screen) => ({
+      label, go: go(screen),
+      color: st.screen === screen ? '#ffffff' : '#8a8a8f',
+      bg: st.screen === screen ? '#1b1b1f' : 'transparent'
+    });
+    const pill = (label, active, sel) => ({
+      label, sel,
+      color: active ? '#0a0a0b' : '#9a9aa0',
+      bg: active ? '#f2f2f3' : 'transparent',
+      border: active ? '#f2f2f3' : '#2a2a2f'
+    });
+
+    const hero0 = byId('dune2');
+    const hero = { ...hero0, playNow: () => this.startPlayback(hero0, '2160p · Nexus') };
+
+    const cw = this.CW.map(c => {
+      const it = byId(c.id);
+      return {
+        t: it.t, bg: it.bg, pctW: c.pct + '%',
+        sub: (c.ep ? c.ep + ' · ' : '') + c.left,
+        isUpNext: !!c.upNext, notUpNext: !c.upNext,
+        upNextNote: c.upNext ? 'You finished ' + c.prev : '',
+        resume: () => this.startPlayback(it, c.ep ? c.ep + ' · 2160p · Nexus' : '2160p · Nexus', c.pct)
+      };
+    });
+
+    // detail
+    const d0 = st.detailId ? byId(st.detailId) : all[0];
+    const inLib = st.lib.includes(d0.id);
+    const d = {
+      ...d0,
+      isSeries: d0.kind === 'series',
+      playLabel: d0.kind === 'series' ? `Play S${st.season} E1` : 'Play',
+      playNow: () => this.startPlayback(d0, d0.kind === 'series' ? `S${st.season} E1 · 2160p · Nexus` : '2160p · Nexus'),
+      toggleLib: () => this.setState(s => ({ lib: inLib ? s.lib.filter(x => x !== d0.id) : [...s.lib, d0.id] })),
+      libLabel: inLib ? '✓ In Library' : '+ Library',
+      libColor: inLib ? '#8a8a8f' : '#f2f2f3'
+    };
+    const seasonTabs = d.isSeries ? Array.from({ length: d0.seasons }, (_, i) => pill(`Season ${i + 1}`, st.season === i + 1, () => this.setState({ season: i + 1 }))) : [];
+    const episodes = d.isSeries ? this.EP_TITLES.map((title, i) => ({
+      num: String(i + 1).padStart(2, '0'), title, dur: `${44 + ((i * 7 + d0.hue) % 15)}m`,
+      play: () => this.startPlayback(d0, `S${st.season} E${i + 1} · 2160p · Nexus`)
+    })) : [];
+    const streams = [
+      { q: '4K HDR', tag: 'WEB-DL · HEVC', size: '12.4 GB', src: 'NEXUS' },
+      { q: '1080p', tag: 'WEB-DL · x264', size: '4.1 GB', src: 'NEXUS' },
+      { q: '1080p', tag: 'BluRay · x264', size: '8.9 GB', src: 'ORBIT' },
+      { q: '720p', tag: 'WEB · x264', size: '1.9 GB', src: 'ORBIT' }
+    ].map(s => ({ ...s, play: () => this.startPlayback(d0, d.isSeries ? `S${st.season} E1 · ${s.q} · ${s.src.charAt(0) + s.src.slice(1).toLowerCase()}` : `${s.q} · ${s.src.charAt(0) + s.src.slice(1).toLowerCase()}`) }));
+
+    // search
+    const q = st.query.trim().toLowerCase();
+    const results = q ? all.filter(it => (it.t + ' ' + it.tag).toLowerCase().includes(q)) : [];
+
+    // library
+    const libAll = st.lib.map(byId).filter(Boolean);
+    const libItems = libAll.filter(it => st.libTab === 'All' || (st.libTab === 'Movies' ? it.kind === 'movie' : it.kind === 'series'));
+    const libTabs = ['All', 'Movies', 'Series'].map(t => pill(t, st.libTab === t, () => this.setState({ libTab: t })));
+
+    // addons
+    const ADDONS = [
+      { id: 'cinemeta', name: 'Cinemeta', ver: '3.2.1', desc: 'The official catalog of films and series metadata.' },
+      { id: 'nexus', name: 'Nexus', ver: '1.14.0', desc: 'High-quality debrid streams. 4K HDR and Dolby Vision sources.' },
+      { id: 'orbit', name: 'Orbit', ver: '0.9.4', desc: 'Community stream aggregator with broad catalog coverage.' },
+      { id: 'helios', name: 'Helios', ver: '2.0.2', desc: 'Live channels and sports events.' },
+      { id: 'subhub', name: 'SubHub', ver: '1.3.7', desc: 'Subtitles in 60+ languages, synced automatically.' }
+    ];
+    const addonList = ADDONS.filter(a => st.addons[a.id]).map(a => {
+      const on = st.addons[a.id];
+      return {
+        ...a,
+        toggle: () => this.setState(s => ({ addons: { ...s.addons, [a.id]: !on } })),
+        btnLabel: on ? 'Uninstall' : 'Install',
+        btnColor: on ? '#8a8a8f' : '#0a0a0b',
+        btnBg: on ? 'transparent' : '#f2f2f3',
+        btnBorder: on ? '#2a2a2f' : '#f2f2f3'
+      };
+    });
+
+    // settings
+    const togRow = (key, label, sub) => {
+      const on = st.settings[key];
+      return {
+        label, sub,
+        toggle: () => this.setState(s => ({ settings: { ...s.settings, [key]: !on } })),
+        trackBg: on ? '#f2f2f3' : '#2a2a2f',
+        knobLeft: on ? '19px' : '2px',
+        knobBg: on ? '#0a0a0b' : '#8a8a8f'
+      };
+    };
+    const settingRows = [
+      togRow('skipBtn', 'Skip intro button', 'Show a skip button when an episode intro is detected'),
+      togRow('autoSkip', 'Skip intros automatically', 'Jump past detected intros without asking'),
+      togRow('subs', 'Subtitles', 'Load subtitles automatically when available'),
+      togRow('hw', 'Hardware decoding', 'Use the GPU for video decoding')
+    ];
+
+    // player
+    const p0 = st.player;
+    const p = p0 ? {
+      ...p0,
+      progW: (p0.time / p0.dur * 100).toFixed(2) + '%',
+      introLeft: (p0.introStart / p0.dur * 100).toFixed(2) + '%',
+      introW: ((p0.introEnd - p0.introStart) / p0.dur * 100).toFixed(2) + '%',
+      timeLabel: this.fmt(p0.time), durLabel: this.fmt(p0.dur)
+    } : {};
+    const showSkip = !!(p0 && p0.hasIntro && !p0.skipped && st.settings.skipBtn && p0.time >= p0.introStart && p0.time < p0.introEnd && !(this.props.autoSkipIntro ?? st.settings.autoSkip));
+
+    return {
+      accent,
+      navHome: navItem('Home', 'home'), navSearch: navItem('Search', 'search'), navDiscover: navItem('Discover', 'discover'),
+      navLibrary: navItem('Library', 'library'), navAddons: navItem('Addons', 'addons'), navSettings: navItem('Settings', 'settings'),
+      isHome: st.screen === 'home', isSearch: st.screen === 'search', isLibrary: st.screen === 'library', isDiscover: st.screen === 'discover',
+      discKinds: ['Movies', 'Series'].map(k => ({
+        label: k, sel: () => this.setState({ discKind: k }),
+        color: st.discKind === k ? '#0a0a0b' : '#9a9aa0',
+        bg: st.discKind === k ? '#f2f2f3' : 'transparent'
+      })),
+      discSorts: ['Popular', 'New', 'Featured'].map(s => ({
+        label: s, sel: () => this.setState({ discSort: s }),
+        color: st.discSort === s ? '#ffffff' : '#6b6b71',
+        line: st.discSort === s ? 'inset 0 -2px 0 #f2f2f3' : 'none'
+      })),
+      genreLabel: st.discTab === 'All' ? 'All Genres' : st.discTab,
+      genresOpen: st.discGenreOpen,
+      toggleGenres: () => this.setState(s => ({ discGenreOpen: !s.discGenreOpen })),
+      genreOptions: ['All Genres', 'Drama', 'Sci-Fi', 'Thriller', 'Comedy', 'Crime', 'History'].map(g => {
+        const key = g === 'All Genres' ? 'All' : g;
+        return {
+          label: g, sel: () => this.setState({ discTab: key, discGenreOpen: false }),
+          color: st.discTab === key ? '#ffffff' : '#9a9aa0'
+        };
+      }),
+      discItems: (() => {
+        const FEATURED = ['dune2', 'severance', 'shogun', 'pastlives', 'fargo', 'andor', 'poorthings', 'dark'];
+        let items = all.filter(it => (st.discKind === 'Movies' ? it.kind === 'movie' : it.kind === 'series'));
+        if (st.discTab !== 'All') items = items.filter(it => it.tag === st.discTab);
+        if (st.discSort === 'Popular') items = [...items].sort((a, b) => Number(b.rating) - Number(a.rating));
+        else if (st.discSort === 'New') items = [...items].sort((a, b) => b.y - a.y);
+        else items = items.filter(it => FEATURED.includes(it.id)).sort((a, b) => FEATURED.indexOf(a.id) - FEATURED.indexOf(b.id));
+        return items;
+      })(),
+      isDetail: st.screen === 'detail', isAddons: st.screen === 'addons', isSettings: st.screen === 'settings',
+      hero, cw,
+      films: all.filter(x => x.kind === 'movie'),
+      series: all.filter(x => x.kind === 'series'),
+      query: st.query, setQuery: (e) => this.setState({ query: e.target.value }),
+      hasQuery: q.length > 0, results, resultCount: results.length,
+      libTabs, libItems, libEmpty: libItems.length === 0,
+      d, seasonTabs, episodes, streams,
+      seeMoreMovies: () => this.setState({ screen: 'discover', discKind: 'Movies', discTab: 'All' }),
+      seeMoreSeries: () => this.setState({ screen: 'discover', discKind: 'Series', discTab: 'All' }),
+      goBack: () => this.setState({ screen: st.from || 'home' }),
+      addonList, settingRows,
+      inPlayer: !!p0, p, showSkip,
+      skipIntro: () => {
+        clearTimeout(this._toastT);
+        this._toastT = setTimeout(() => this.setState({ toast: null }), 2200);
+        this.setState(s => ({ player: { ...s.player, time: s.player.introEnd, skipped: true }, toast: 'Skipped to 1:36' }));
+      },
+      hasToast: !!st.toast, toast: st.toast,
+      closePlayer: () => this.setState({ player: null }),
+      togglePlay: () => this.setState(s => ({ player: { ...s.player, playing: !s.player.playing } })),
+      isPlaying: !!(p0 && p0.playing), isPaused: !!(p0 && !p0.playing),
+      seek: (e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        const frac = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+        this.setState(s => ({ player: { ...s.player, time: Math.floor(s.player.dur * frac) } }));
+      }
+    };
+  }
+}
+
+/* --- minimal template runtime (replaces the canvas editor's support.js) --- */
+const tpl = document.getElementById('tpl');
+const appRoot = document.getElementById('app');
+
+const hoverClasses = new Map();
+const hoverStyle = document.createElement('style');
+document.head.appendChild(hoverStyle);
+function hoverClass(css) {
+  if (!hoverClasses.has(css)) {
+    const cls = 'hv' + hoverClasses.size;
+    const rules = css.split(';').filter(s => s.trim()).map(s => s.trim() + ' !important').join(';');
+    hoverStyle.textContent += '.' + cls + ':hover{' + rules + '}\n';
+    hoverClasses.set(css, cls);
+  }
+  return hoverClasses.get(css);
+}
+
+const RE = /\{\{\s*([\s\S]*?)\s*\}\}/g;
+function evalExpr(expr, scope) {
+  return new Function('__scope__', 'with(__scope__){return(' + expr + ');}')(scope);
+}
+function interp(str, scope) {
+  return str.replace(RE, (_, e) => {
+    const v = evalExpr(e, scope);
+    return v == null ? '' : String(v);
+  });
+}
+function exprOf(str) {
+  const m = str.match(/^\s*\{\{\s*([\s\S]*?)\s*\}\}\s*$/);
+  return m && m[1];
+}
+
+function renderChildren(node, scope, parent) {
+  for (const child of node.childNodes) {
+    if (child.nodeType === 3) {
+      parent.appendChild(document.createTextNode(
+        child.nodeValue.includes('{{') ? interp(child.nodeValue, scope) : child.nodeValue));
+    } else if (child.nodeType === 1) {
+      renderEl(child, scope, parent);
+    }
+  }
+}
+
+function renderEl(node, scope, parent) {
+  const tag = node.tagName.toLowerCase();
+  if (tag === 'sc-if') {
+    if (evalExpr(exprOf(node.getAttribute('value')), scope)) renderChildren(node, scope, parent);
+    return;
+  }
+  if (tag === 'sc-for') {
+    const list = evalExpr(exprOf(node.getAttribute('list')), scope) || [];
+    const as = node.getAttribute('as');
+    for (const item of list) {
+      const s = Object.create(scope);
+      s[as] = item;
+      renderChildren(node, s, parent);
+    }
+    return;
+  }
+  const el = document.importNode(node, false);
+  for (const attr of [...el.attributes]) {
+    const name = attr.name, value = attr.value;
+    if (name.startsWith('hint-')) { el.removeAttribute(name); continue; }
+    if (name === 'onclick' || name === 'onchange' || name === 'oninput') {
+      el.removeAttribute(name);
+      const fn = evalExpr(exprOf(value), scope);
+      if (name === 'onclick') el.onclick = fn; else el.oninput = fn;
+      continue;
+    }
+    if (name === 'autofocus') {
+      el.removeAttribute(name);
+      if (evalExpr(exprOf(value), scope)) el.setAttribute('data-autofocus', '');
+      continue;
+    }
+    if (name === 'style-hover') {
+      el.removeAttribute(name);
+      el.classList.add(hoverClass(value));
+      continue;
+    }
+    if (value.includes('{{')) el.setAttribute(name, interp(value, scope));
+  }
+  if (tag === 'input' && node.getAttribute('value') != null) {
+    el.value = interp(node.getAttribute('value'), scope);
+  }
+  parent.appendChild(el);
+  renderChildren(node, scope, el);
+}
+
+/* Patch the live DOM in place so unchanged elements keep their state
+   (CSS animations, scroll, focus) across renders. */
+function morph(f, t) {
+  if (f.nodeType !== t.nodeType || (f.nodeType === 1 && f.tagName !== t.tagName)) {
+    f.replaceWith(t);
+    return;
+  }
+  if (f.nodeType === 3) {
+    if (f.nodeValue !== t.nodeValue) f.nodeValue = t.nodeValue;
+    return;
+  }
+  for (const attr of [...f.attributes]) {
+    if (!t.hasAttribute(attr.name)) f.removeAttribute(attr.name);
+  }
+  for (const attr of [...t.attributes]) {
+    if (f.getAttribute(attr.name) !== attr.value) f.setAttribute(attr.name, attr.value);
+  }
+  f.onclick = t.onclick;
+  f.oninput = t.oninput;
+  if (f.tagName === 'INPUT' && f.value !== t.value) f.value = t.value;
+  morphChildren(f, t);
+}
+function morphChildren(from, to) {
+  const fc = [...from.childNodes], tc = [...to.childNodes];
+  const n = Math.max(fc.length, tc.length);
+  for (let i = 0; i < n; i++) {
+    if (!fc[i]) from.appendChild(tc[i]);
+    else if (!tc[i]) from.removeChild(fc[i]);
+    else morph(fc[i], tc[i]);
+  }
+}
+
+let app = null, lastScreen = null;
+function render() {
+  const vals = app.renderVals();
+  const stage = document.createElement('div');
+  renderChildren(tpl.content, vals, stage);
+  morphChildren(appRoot, stage);
+  const screenChanged = app.state.screen !== lastScreen;
+  lastScreen = app.state.screen;
+  const content = document.getElementById('content');
+  if (content && screenChanged) content.scrollTop = 0;
+  if (screenChanged) {
+    const af = appRoot.querySelector('[data-autofocus]');
+    if (af) {
+      af.focus();
+      const end = af.value.length;
+      try { af.setSelectionRange(end, end); } catch (e) {}
+    }
+  }
+}
+
+app = new Component({ autoSkipIntro: false, accent: '#ffffff' });
+render();
+app.componentDidMount();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+:root {
+  color-scheme: dark;
+
+  --kino-bg: #0a0a0b;
+  --kino-surface: #131316;
+  --kino-surface-hover: #19191d;
+  --kino-surface-active: #1b1b1f;
+  --kino-border: #26262a;
+  --kino-border-subtle: #1b1b1f;
+  --kino-text: #f2f2f3;
+  --kino-text-strong: #ffffff;
+  --kino-text-muted: #a2a2a8;
+  --kino-text-faint: #85858b;
+  --kino-accent: #f2f2f3;
+  --kino-on-accent: #0a0a0b;
+  --kino-danger: #e58b8b;
+
+  --kino-sidebar-width: 64px;
+  --kino-page-gutter: 48px;
+  --kino-control-radius: 8px;
+  --kino-media-radius: 10px;
+  --kino-panel-radius: 12px;
+  --kino-pill-radius: 999px;
+
+  --kino-duration-fast: 150ms;
+  --kino-duration-standard: 240ms;
+  --kino-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --kino-layer-navigation: 10;
+  --kino-layer-overlay: 40;
+  --kino-layer-dialog: 50;
+}

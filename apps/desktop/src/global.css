@@ -1,0 +1,60 @@
+@import '@kino/design-tokens/tokens.css';
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-width: 320px;
+  min-height: 100%;
+  margin: 0;
+}
+
+html {
+  background: var(--kino-bg);
+}
+
+body {
+  min-height: 100dvh;
+  color: var(--kino-text);
+  background: var(--kino-bg);
+  font-family: 'Geist Variable', Geist, system-ui, sans-serif;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--kino-text-strong);
+  outline-offset: 3px;
+}
+
+::selection {
+  color: var(--kino-on-accent);
+  background: var(--kino-accent);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid var(--kino-bg);
+  border-radius: var(--kino-pill-radius);
+  background: var(--kino-border);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
