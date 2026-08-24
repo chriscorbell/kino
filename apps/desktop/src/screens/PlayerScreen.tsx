@@ -7,6 +7,7 @@ import { useCore } from '../core/context';
 import type { PlayerState } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { lookupCommunityIntro, type IntroMarker } from '../intro/markers';
+import { connectNativePlayer, nativeShellPresent, type NativePlayer } from '../native/player';
 import type { KinoSettings } from '../settings';
 
 function formatTime(milliseconds: number) {
@@ -30,6 +31,13 @@ function introIdentity(selection: PlaybackSelection, durationMs: number) {
   };
 }
 
+function nativeErrorMessage(code: unknown) {
+  if (code === 'render-context-unavailable') {
+    return 'Kino could not start the native video renderer.';
+  }
+  return 'The native player could not decode or load this source.';
+}
+
 export function PlayerScreen({
   onBack,
   selection,
@@ -47,20 +55,35 @@ export function PlayerScreen({
   );
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const playbackRef = useRef({ duration: 0, time: 0 });
   const lastProgressRef = useRef(0);
+  const resumeAppliedRef = useRef(false);
   const autoSkippedRef = useRef(false);
   const autoSkipSuppressedRef = useRef(false);
   const [duration, setDuration] = useState(0);
   const [time, setTime] = useState(0);
   const [paused, setPaused] = useState(true);
+  const [muted, setMuted] = useState(false);
   const [buffering, setBuffering] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
+  const [nativePlayer, setNativePlayer] = useState<NativePlayer | null>(null);
   const [marker, setMarker] = useState<IntroMarker | null>(null);
   const [automaticNotice, setAutomaticNotice] = useState(false);
   const stream = result.state?.stream?.type === 'Ready' ? result.state.stream.content : null;
   const streamUrl = stream?.url ?? null;
   const resumeTime = result.state?.libraryItem?.state.timeOffset ?? 0;
   const sourceFailed = result.state?.stream?.type === 'Err' || Boolean(result.error || mediaError);
+  const nativeShell = nativeShellPresent();
+
+  const updateDuration = useCallback((milliseconds: number) => {
+    playbackRef.current.duration = milliseconds;
+    setDuration(milliseconds);
+  }, []);
+
+  const updateTime = useCallback((milliseconds: number) => {
+    playbackRef.current.time = milliseconds;
+    setTime(milliseconds);
+  }, []);
 
   const dispatchPlayer = useCallback(
     (action: string, args?: unknown) => {
@@ -78,18 +101,30 @@ export function PlayerScreen({
   const reportProgress = useCallback(
     (isSeek = false) => {
       const video = videoRef.current;
-      if (!video || !Number.isFinite(video.duration)) return;
+      const progressDuration =
+        video && Number.isFinite(video.duration)
+          ? Math.round(video.duration * 1000)
+          : playbackRef.current.duration;
+      const progressTime = video ? Math.round(video.currentTime * 1000) : playbackRef.current.time;
+      if (progressDuration <= 0) return;
       const args = {
-        device: 'kino-web',
-        duration: Math.round(video.duration * 1000),
-        time: Math.round(video.currentTime * 1000),
+        device: nativeShell ? 'kino-macos' : 'kino-web',
+        duration: progressDuration,
+        time: progressTime,
       };
       dispatchPlayer(isSeek ? 'Seek' : 'TimeChanged', args);
     },
-    [dispatchPlayer],
+    [dispatchPlayer, nativeShell],
   );
 
   const togglePlayback = useCallback(() => {
+    if (nativePlayer) {
+      const nextPaused = !paused;
+      setPaused(nextPaused);
+      dispatchPlayer('PausedChanged', { paused: nextPaused });
+      nativePlayer.setPaused(nextPaused);
+      return;
+    }
     const video = videoRef.current;
     if (!video) return;
     if (!video.paused) {
@@ -104,7 +139,118 @@ export function PlayerScreen({
         error instanceof DOMException ? error.name : 'UnknownError',
       );
     });
-  }, []);
+  }, [dispatchPlayer, nativePlayer, paused]);
+
+  const seekTo = useCallback(
+    (milliseconds: number) => {
+      const safeTime = Math.max(0, milliseconds);
+      updateTime(safeTime);
+      if (nativePlayer) {
+        nativePlayer.seek(safeTime / 1000);
+      } else if (videoRef.current) {
+        videoRef.current.currentTime = safeTime / 1000;
+      }
+    },
+    [nativePlayer, updateTime],
+  );
+
+  const toggleMuted = useCallback(() => {
+    const nextMuted = !muted;
+    setMuted(nextMuted);
+    if (nativePlayer) {
+      nativePlayer.setMuted(nextMuted);
+    } else if (videoRef.current) {
+      videoRef.current.muted = nextMuted;
+    }
+  }, [muted, nativePlayer]);
+
+  const enterFullscreen = useCallback(() => {
+    if (nativePlayer) {
+      nativePlayer.setFullscreen(true);
+    } else {
+      void containerRef.current?.requestFullscreen();
+    }
+  }, [nativePlayer]);
+
+  useEffect(() => {
+    if (!nativeShell) return;
+    let disposed = false;
+    void connectNativePlayer()
+      .then((player) => {
+        if (!disposed) setNativePlayer(player);
+      })
+      .catch((error: unknown) => {
+        if (disposed) return;
+        setMediaError('Kino could not connect to the native player.');
+        console.error(
+          '[kino:native] player connection failed',
+          error instanceof Error ? error.message : 'UnknownError',
+        );
+      });
+    return () => {
+      disposed = true;
+    };
+  }, [nativeShell]);
+
+  useEffect(() => {
+    if (!nativePlayer || !streamUrl) return;
+    const onEvent = (name: string, payload: Record<string, unknown>) => {
+      if (name === 'time' && typeof payload.milliseconds === 'number') {
+        const nextTime = payload.milliseconds;
+        updateTime(nextTime);
+        if (nextTime - lastProgressRef.current >= 5_000 || nextTime < lastProgressRef.current) {
+          lastProgressRef.current = nextTime;
+          reportProgress();
+        }
+      } else if (name === 'duration' && typeof payload.milliseconds === 'number') {
+        updateDuration(payload.milliseconds);
+      } else if (name === 'paused' && typeof payload.paused === 'boolean') {
+        setPaused(payload.paused);
+        dispatchPlayer('PausedChanged', { paused: payload.paused });
+      } else if (name === 'muted' && typeof payload.muted === 'boolean') {
+        setMuted(payload.muted);
+      } else if (name === 'buffering' && typeof payload.active === 'boolean') {
+        setBuffering(payload.active);
+      } else if (name === 'ready') {
+        setBuffering(false);
+      } else if (name === 'error') {
+        setBuffering(false);
+        setPaused(true);
+        setMediaError(nativeErrorMessage(payload.code));
+      } else if (name === 'ended') {
+        setBuffering(false);
+        setPaused(true);
+        reportProgress();
+        dispatchPlayer('Ended');
+      }
+    };
+
+    nativePlayer.playerEvent.connect(onEvent);
+    nativePlayer.load(streamUrl, settings.audioOutput === 'stereo');
+
+    return () => {
+      nativePlayer.playerEvent.disconnect(onEvent);
+      nativePlayer.stop();
+    };
+  }, [
+    dispatchPlayer,
+    nativePlayer,
+    reportProgress,
+    settings.audioOutput,
+    streamUrl,
+    updateDuration,
+    updateTime,
+  ]);
+
+  useEffect(() => {
+    if (resumeAppliedRef.current || duration <= 0 || resumeTime <= 0 || resumeTime >= duration)
+      return;
+    const timeout = window.setTimeout(() => {
+      resumeAppliedRef.current = true;
+      seekTo(resumeTime);
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [duration, resumeTime, seekTo]);
 
   useEffect(() => {
     if (!duration) return;
@@ -130,14 +276,12 @@ export function PlayerScreen({
     )
       return;
     if (time < marker.startMs || time >= marker.endMs) return;
-    const video = videoRef.current;
-    if (!video) return;
-    video.currentTime = marker.endMs / 1000;
-    setTime(marker.endMs);
+    if (!nativePlayer && !videoRef.current) return;
+    seekTo(marker.endMs);
     autoSkippedRef.current = true;
     setAutomaticNotice(true);
     reportProgress(true);
-  }, [marker, reportProgress, settings.automaticIntroSkipping, time]);
+  }, [marker, nativePlayer, reportProgress, seekTo, settings.automaticIntroSkipping, time]);
 
   useEffect(() => {
     if (!automaticNotice) return;
@@ -148,26 +292,26 @@ export function PlayerScreen({
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const video = videoRef.current;
-      if (!video) return;
+      if (!nativePlayer && !video) return;
       if (event.code === 'Space' || event.key.toLowerCase() === 'k') {
         event.preventDefault();
         togglePlayback();
       } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
         event.preventDefault();
-        video.currentTime = Math.max(
-          0,
-          video.currentTime + (event.key === 'ArrowRight' ? 10 : -10),
-        );
+        const currentTime = nativePlayer
+          ? playbackRef.current.time
+          : (video?.currentTime ?? 0) * 1000;
+        seekTo(Math.max(0, currentTime + (event.key === 'ArrowRight' ? 10_000 : -10_000)));
         reportProgress(true);
       } else if (event.key.toLowerCase() === 'm') {
-        video.muted = !video.muted;
+        toggleMuted();
       } else if (event.key.toLowerCase() === 'f') {
-        void containerRef.current?.requestFullscreen();
+        enterFullscreen();
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [reportProgress, togglePlayback]);
+  }, [enterFullscreen, nativePlayer, reportProgress, seekTo, toggleMuted, togglePlayback]);
 
   useEffect(() => () => reportProgress(), [reportProgress]);
 
@@ -181,12 +325,15 @@ export function PlayerScreen({
   }, [duration, marker]);
 
   return (
-    <div className={styles.player} ref={containerRef}>
-      {streamUrl ? (
+    <div
+      className={`${styles.player} ${nativeShell ? styles.nativePlayer : ''}`}
+      ref={containerRef}
+    >
+      {streamUrl && !nativeShell ? (
         <video
           autoPlay
           onCanPlay={() => setBuffering(false)}
-          onDurationChange={(event) => setDuration(event.currentTarget.duration * 1000)}
+          onDurationChange={(event) => updateDuration(event.currentTarget.duration * 1000)}
           onEnded={() => {
             setBuffering(false);
             setPaused(true);
@@ -204,10 +351,8 @@ export function PlayerScreen({
           }}
           onLoadedMetadata={(event) => {
             const video = event.currentTarget;
-            setDuration(video.duration * 1000);
+            updateDuration(video.duration * 1000);
             setPaused(video.paused);
-            if (resumeTime > 0 && resumeTime < video.duration * 1000)
-              video.currentTime = resumeTime / 1000;
           }}
           onLoadStart={() => setBuffering(true)}
           onPause={() => {
@@ -224,7 +369,7 @@ export function PlayerScreen({
           onStalled={() => setBuffering(true)}
           onTimeUpdate={(event) => {
             const nextTime = event.currentTarget.currentTime * 1000;
-            setTime(nextTime);
+            updateTime(nextTime);
             if (nextTime - lastProgressRef.current >= 5_000 || nextTime < lastProgressRef.current) {
               lastProgressRef.current = nextTime;
               reportProgress();
@@ -249,6 +394,9 @@ export function PlayerScreen({
       </div>
 
       {result.loading ? <div className={styles.playerStatus}>Preparing source…</div> : null}
+      {nativeShell && !nativePlayer && !sourceFailed ? (
+        <div className={styles.playerStatus}>Preparing native player…</div>
+      ) : null}
       {sourceFailed ? (
         <div className={styles.playerStatus}>
           <strong>Source failed</strong>
@@ -263,10 +411,8 @@ export function PlayerScreen({
         <button
           className={styles.skipIntro}
           onClick={() => {
-            const video = videoRef.current;
-            if (!video || !marker) return;
-            video.currentTime = marker.endMs / 1000;
-            setTime(marker.endMs);
+            if (!marker) return;
+            seekTo(marker.endMs);
             reportProgress(true);
           }}
           type="button"
@@ -281,11 +427,8 @@ export function PlayerScreen({
           <span>Intro skipped</span>
           <button
             onClick={() => {
-              const video = videoRef.current;
-              if (!video) return;
               autoSkipSuppressedRef.current = true;
-              video.currentTime = marker.startMs / 1000;
-              setTime(marker.startMs);
+              seekTo(marker.startMs);
               setAutomaticNotice(false);
               reportProgress(true);
             }}
@@ -305,10 +448,7 @@ export function PlayerScreen({
               max={duration || 1}
               min={0}
               onChange={(event) => {
-                const video = videoRef.current;
-                if (!video) return;
-                video.currentTime = Number(event.target.value) / 1000;
-                setTime(Number(event.target.value));
+                seekTo(Number(event.target.value));
                 reportProgress(true);
               }}
               step={1000}
@@ -324,23 +464,13 @@ export function PlayerScreen({
                 <Pause aria-hidden size={20} weight="fill" />
               )}
             </button>
-            <button
-              aria-label="Mute"
-              onClick={() => {
-                if (videoRef.current) videoRef.current.muted = !videoRef.current.muted;
-              }}
-              type="button"
-            >
+            <button aria-label={muted ? 'Unmute' : 'Mute'} onClick={toggleMuted} type="button">
               <SpeakerHigh aria-hidden size={20} />
             </button>
             <span className={styles.timeLabel}>
               {formatTime(time)} / {formatTime(duration)}
             </span>
-            <button
-              aria-label="Fullscreen"
-              onClick={() => void containerRef.current?.requestFullscreen()}
-              type="button"
-            >
+            <button aria-label="Fullscreen" onClick={enterFullscreen} type="button">
               <ArrowsOut aria-hidden size={20} />
             </button>
           </div>

@@ -1,0 +1,298 @@
+/*
+ * Derived from Stremio/stremio-shell's GPL-3.0 mpv Qt Quick integration and
+ * rewritten for Qt 6, Apple Silicon, and Kino's playback contract.
+ */
+
+#include "mpvitem.h"
+
+#include <QOpenGLContext>
+#include <QOpenGLFramebufferObject>
+#include <QQuickOpenGLUtils>
+
+#include <cmath>
+#include <stdexcept>
+
+namespace {
+
+void *resolveOpenGlSymbol(void *, const char *name) {
+    QOpenGLContext *context = QOpenGLContext::currentContext();
+    if (!context) {
+        return nullptr;
+    }
+    return reinterpret_cast<void *>(context->getProcAddress(QByteArray(name)));
+}
+
+QVariantMap millisecondsPayload(double seconds) {
+    return {{QStringLiteral("milliseconds"), std::llround(seconds * 1000.0)}};
+}
+
+} // namespace
+
+class MpvRenderer final : public QQuickFramebufferObject::Renderer {
+public:
+    explicit MpvRenderer(MpvItem *item) : item_(item) {}
+
+    QOpenGLFramebufferObject *createFramebufferObject(const QSize &size) override {
+        if (!item_->renderContext_) {
+            mpv_opengl_init_params openGlParameters{resolveOpenGlSymbol, nullptr};
+            mpv_render_param parameters[] = {
+                {MPV_RENDER_PARAM_API_TYPE, const_cast<char *>(MPV_RENDER_API_TYPE_OPENGL)},
+                {MPV_RENDER_PARAM_OPENGL_INIT_PARAMS, &openGlParameters},
+                {MPV_RENDER_PARAM_INVALID, nullptr},
+            };
+            const int result = mpv_render_context_create(&item_->renderContext_, item_->handle_,
+                                                         parameters);
+            if (result < 0) {
+                QMetaObject::invokeMethod(item_, [item = item_]() {
+                    item->emitError(QStringLiteral("render-context-unavailable"));
+                });
+            } else {
+                mpv_render_context_set_update_callback(item_->renderContext_,
+                                                       MpvItem::onRenderUpdate, item_);
+            }
+        }
+        return Renderer::createFramebufferObject(size);
+    }
+
+    void render() override {
+        if (!item_->renderContext_) {
+            return;
+        }
+        mpv_render_context_update(item_->renderContext_);
+        QQuickOpenGLUtils::resetOpenGLState();
+        QOpenGLFramebufferObject *target = framebufferObject();
+        mpv_opengl_fbo frameBuffer{static_cast<int>(target->handle()), target->width(),
+                                   target->height(), 0};
+        int flipY = 0;
+        mpv_render_param parameters[] = {
+            {MPV_RENDER_PARAM_OPENGL_FBO, &frameBuffer},
+            {MPV_RENDER_PARAM_FLIP_Y, &flipY},
+            {MPV_RENDER_PARAM_INVALID, nullptr},
+        };
+        mpv_render_context_render(item_->renderContext_, parameters);
+        QQuickOpenGLUtils::resetOpenGLState();
+    }
+
+private:
+    MpvItem *item_;
+};
+
+MpvItem::MpvItem(QQuickItem *parent)
+    : QQuickFramebufferObject(parent), handle_(mpv_create()) {
+    if (!handle_) {
+        throw std::runtime_error("could not create the mpv context");
+    }
+    connect(this, &MpvItem::renderUpdateRequested, this, qOverload<>(&MpvItem::update),
+            Qt::QueuedConnection);
+    initialize();
+}
+
+MpvItem::~MpvItem() {
+    if (renderContext_) {
+        mpv_render_context_free(renderContext_);
+    }
+    if (handle_) {
+        mpv_terminate_destroy(handle_);
+    }
+}
+
+bool MpvItem::active() const {
+    return active_;
+}
+
+QQuickFramebufferObject::Renderer *MpvItem::createRenderer() const {
+    return new MpvRenderer(const_cast<MpvItem *>(this));
+}
+
+void MpvItem::initialize() {
+    const struct Option {
+        const char *name;
+        const char *value;
+    } options[] = {
+        {"config", "no"},
+        {"terminal", "no"},
+        {"input-default-bindings", "no"},
+        {"input-vo-keyboard", "no"},
+        {"osc", "no"},
+        {"vo", "libmpv"},
+        {"hwdec", "videotoolbox"},
+        {"hwdec-codecs", "all"},
+        {"hwdec-software-fallback", "no"},
+        {"vd-lavc-check-hw-profile", "yes"},
+        {"target-trc", "bt.1886"},
+        {"target-prim", "bt.709"},
+        {"tone-mapping", "auto"},
+        {"gamut-mapping-mode", "perceptual"},
+        {"hdr-compute-peak", "auto"},
+        {"cache", "yes"},
+        {"demuxer-readahead-secs", "10"},
+        {"audio-fallback-to-null", "yes"},
+        {"audio-client-name", "Kino"},
+        {"title", "Kino"},
+    };
+
+    for (const Option &option : options) {
+        if (mpv_set_option_string(handle_, option.name, option.value) < 0) {
+            throw std::runtime_error("mpv rejected a required option");
+        }
+    }
+    if (mpv_initialize(handle_) < 0) {
+        throw std::runtime_error("could not initialize mpv");
+    }
+
+    mpv_set_wakeup_callback(handle_, &MpvItem::onWakeup, this);
+    mpv_request_log_messages(handle_, "warn");
+    mpv_observe_property(handle_, 1, "time-pos", MPV_FORMAT_DOUBLE);
+    mpv_observe_property(handle_, 2, "duration", MPV_FORMAT_DOUBLE);
+    mpv_observe_property(handle_, 3, "pause", MPV_FORMAT_FLAG);
+    mpv_observe_property(handle_, 4, "paused-for-cache", MPV_FORMAT_FLAG);
+    mpv_observe_property(handle_, 5, "mute", MPV_FORMAT_FLAG);
+    mpv_observe_property(handle_, 6, "hwdec-current", MPV_FORMAT_STRING);
+}
+
+void MpvItem::load(const QString &url, bool forceStereo) {
+    failed_ = false;
+    setActive(true);
+    QByteArray audioChannels = forceStereo ? QByteArrayLiteral("stereo")
+                                           : QByteArrayLiteral("auto-safe");
+    char *audioChannelsData = audioChannels.data();
+    mpv_set_property_async(handle_, 0, "audio-channels", MPV_FORMAT_STRING,
+                           &audioChannelsData);
+    int unpaused = 0;
+    mpv_set_property_async(handle_, 0, "pause", MPV_FORMAT_FLAG, &unpaused);
+    const QByteArray encodedUrl = url.toUtf8();
+    const char *command[] = {"loadfile", encodedUrl.constData(), "replace", nullptr};
+    const int result = mpv_command_async(handle_, 0, command);
+    if (result < 0) {
+        emitError(QStringLiteral("source-load-failed"));
+        return;
+    }
+    emit playerEvent(QStringLiteral("buffering"), {{QStringLiteral("active"), true}});
+    emit playerEvent(QStringLiteral("paused"), {{QStringLiteral("paused"), false}});
+    qInfo("[kino:mpv] source load requested");
+}
+
+void MpvItem::seek(double seconds) {
+    double safeSeconds = std::max(0.0, seconds);
+    mpv_set_property_async(handle_, 0, "time-pos", MPV_FORMAT_DOUBLE, &safeSeconds);
+}
+
+void MpvItem::setMuted(bool muted) {
+    int value = muted ? 1 : 0;
+    mpv_set_property_async(handle_, 0, "mute", MPV_FORMAT_FLAG, &value);
+}
+
+void MpvItem::setPaused(bool paused) {
+    int value = paused ? 1 : 0;
+    mpv_set_property_async(handle_, 0, "pause", MPV_FORMAT_FLAG, &value);
+}
+
+void MpvItem::stop() {
+    const char *command[] = {"stop", nullptr};
+    mpv_command_async(handle_, 0, command);
+    setActive(false);
+}
+
+void MpvItem::onRenderUpdate(void *context) {
+    emit static_cast<MpvItem *>(context)->renderUpdateRequested();
+}
+
+void MpvItem::onWakeup(void *context) {
+    QMetaObject::invokeMethod(static_cast<MpvItem *>(context), &MpvItem::processEvents,
+                              Qt::QueuedConnection);
+}
+
+void MpvItem::processEvents() {
+    while (handle_) {
+        mpv_event *event = mpv_wait_event(handle_, 0);
+        if (event->event_id == MPV_EVENT_NONE) {
+            return;
+        }
+        handleEvent(event);
+    }
+}
+
+void MpvItem::handleEvent(mpv_event *event) {
+    switch (event->event_id) {
+    case MPV_EVENT_START_FILE:
+        setActive(true);
+        emit playerEvent(QStringLiteral("buffering"), {{QStringLiteral("active"), true}});
+        break;
+    case MPV_EVENT_FILE_LOADED:
+        qInfo("[kino:mpv] source metadata loaded");
+        break;
+    case MPV_EVENT_PLAYBACK_RESTART:
+        emit playerEvent(QStringLiteral("buffering"), {{QStringLiteral("active"), false}});
+        emit playerEvent(QStringLiteral("ready"), {});
+        break;
+    case MPV_EVENT_PROPERTY_CHANGE: {
+        auto *property = static_cast<mpv_event_property *>(event->data);
+        if (!property || !property->data) {
+            break;
+        }
+        const QByteArray name(property->name);
+        if (name == "time-pos" || name == "duration") {
+            const double seconds = *static_cast<double *>(property->data);
+            emit playerEvent(name == "time-pos" ? QStringLiteral("time")
+                                                : QStringLiteral("duration"),
+                             millisecondsPayload(seconds));
+        } else if (name == "pause") {
+            emit playerEvent(QStringLiteral("paused"),
+                             {{QStringLiteral("paused"),
+                               *static_cast<int *>(property->data) != 0}});
+        } else if (name == "paused-for-cache") {
+            emit playerEvent(QStringLiteral("buffering"),
+                             {{QStringLiteral("active"),
+                               *static_cast<int *>(property->data) != 0}});
+        } else if (name == "mute") {
+            emit playerEvent(QStringLiteral("muted"),
+                             {{QStringLiteral("muted"),
+                               *static_cast<int *>(property->data) != 0}});
+        } else if (name == "hwdec-current") {
+            const auto *decoder = static_cast<const char *>(property->data);
+            if (*decoder != '\0') {
+                qInfo("[kino:mpv] hardware decoder active");
+            }
+        }
+        break;
+    }
+    case MPV_EVENT_END_FILE: {
+        const auto *end = static_cast<mpv_event_end_file *>(event->data);
+        setActive(false);
+        if (end && end->reason == MPV_END_FILE_REASON_ERROR) {
+            emitError(QStringLiteral("decoder-or-stream-failed"));
+        } else if (end && end->reason == MPV_END_FILE_REASON_EOF && !failed_) {
+            emit playerEvent(QStringLiteral("ended"), {});
+        }
+        break;
+    }
+    case MPV_EVENT_LOG_MESSAGE: {
+        const auto *entry = static_cast<mpv_event_log_message *>(event->data);
+        if (entry) {
+            qWarning("[kino:mpv] message module=%s level=%s detail=%s", entry->prefix,
+                     entry->level, entry->text);
+        }
+        break;
+    }
+    default:
+        break;
+    }
+}
+
+void MpvItem::emitError(const QString &code) {
+    failed_ = true;
+    setActive(false);
+    qCritical("[kino:mpv] playback failed code=%s", qPrintable(code));
+    emit playerEvent(QStringLiteral("error"), {{QStringLiteral("code"), code}});
+}
+
+void MpvItem::setActive(bool active) {
+    if (active_ == active) {
+        return;
+    }
+    active_ = active;
+    emit activeChanged();
+    if (active_) {
+        update();
+    }
+}

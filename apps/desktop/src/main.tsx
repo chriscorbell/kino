@@ -5,7 +5,10 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { CoreProvider } from './core/CoreProvider';
+import { nativeShellPresent } from './native/player';
 import './global.css';
+
+if (nativeShellPresent()) document.documentElement.dataset.kinoNative = 'true';
 
 const root = document.getElementById('root');
 

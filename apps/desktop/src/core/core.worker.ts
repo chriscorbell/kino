@@ -41,6 +41,6 @@ scope.init = async ({ appVersion, shellVersion }) => {
   scope.decodeStream = core.decode_stream;
   scope.encodeStream = core.encode_stream;
 
-  await core.default(wasmUrl);
+  await core.default({ module_or_path: wasmUrl });
   await core.initialize_runtime((event) => bridge.call(['onCoreEvent'], [event]));
 };

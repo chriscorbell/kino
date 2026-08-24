@@ -16,6 +16,6 @@ declare module '@stremio/stremio-core-web/stremio_core_web.js' {
   export function dispatch(action: unknown, field: unknown, locationHash: string): void;
   export function encode_stream(stream: unknown): string | null;
   export function get_state(field: unknown): unknown;
-  export default function initializeWasm(path: string): Promise<unknown>;
+  export default function initializeWasm(options: { module_or_path: string }): Promise<unknown>;
   export function initialize_runtime(emit: (event: unknown) => void): Promise<void>;
 }

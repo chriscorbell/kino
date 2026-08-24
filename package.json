@@ -16,6 +16,8 @@
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "lint": "eslint .",
+    "macos:build": "./scripts/build-macos.sh",
+    "macos:check-launch": "./scripts/check-macos-launch.sh",
     "test": "pnpm --filter @kino/desktop test",
     "typecheck": "pnpm --filter @kino/desktop typecheck"
   },
