@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { markerFromChapters, markerFromCommunity } from './markers';
+import { markerFromChapterCues, markerFromChapters, markerFromCommunity } from './markers';
 
 describe('intro marker trust', () => {
   it('prefers an explicitly named chapter with safe bounds', () => {
@@ -19,6 +19,19 @@ describe('intro marker trust', () => {
         3_000_000,
       ),
     ).toBeNull();
+  });
+
+  it('ends a named native chapter at the next chapter cue', () => {
+    expect(
+      markerFromChapterCues(
+        [
+          { title: 'Prologue', startMs: 0 },
+          { title: 'Intro', startMs: 20_000 },
+          { title: '', startMs: 87_000 },
+        ],
+        2_400_000,
+      ),
+    ).toEqual({ source: 'chapter', startMs: 20_000, endMs: 87_000 });
   });
 
   it('requires confidence, corroboration, and duration-safe community data', () => {

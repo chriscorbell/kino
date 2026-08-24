@@ -8,6 +8,7 @@
 #include <QOpenGLContext>
 #include <QOpenGLFramebufferObject>
 #include <QQuickOpenGLUtils>
+#include <QVariantList>
 
 #include <cmath>
 #include <stdexcept>
@@ -24,6 +25,43 @@ void *resolveOpenGlSymbol(void *, const char *name) {
 
 QVariantMap millisecondsPayload(double seconds) {
     return {{QStringLiteral("milliseconds"), std::llround(seconds * 1000.0)}};
+}
+
+QVariantList chapterPayload(const mpv_node &root) {
+    QVariantList chapters;
+    if (root.format != MPV_FORMAT_NODE_ARRAY || !root.u.list) {
+        return chapters;
+    }
+
+    for (int index = 0; index < root.u.list->num; ++index) {
+        const mpv_node &chapter = root.u.list->values[index];
+        if (chapter.format != MPV_FORMAT_NODE_MAP || !chapter.u.list) {
+            continue;
+        }
+
+        bool hasTime = false;
+        double time = 0;
+        QString title;
+        for (int field = 0; field < chapter.u.list->num; ++field) {
+            const QByteArray name(chapter.u.list->keys[field]);
+            const mpv_node &value = chapter.u.list->values[field];
+            if (name == "time" && value.format == MPV_FORMAT_DOUBLE) {
+                hasTime = std::isfinite(value.u.double_) && value.u.double_ >= 0;
+                time = value.u.double_;
+            } else if (name == "title" && value.format == MPV_FORMAT_STRING &&
+                       value.u.string) {
+                title = QString::fromUtf8(value.u.string);
+            }
+        }
+
+        if (hasTime) {
+            chapters.append(QVariantMap{
+                {QStringLiteral("startMs"), std::llround(time * 1000.0)},
+                {QStringLiteral("title"), title},
+            });
+        }
+    }
+    return chapters;
 }
 
 } // namespace
@@ -159,6 +197,7 @@ void MpvItem::initialize() {
     mpv_observe_property(handle_, 5, "mute", MPV_FORMAT_FLAG);
     mpv_observe_property(handle_, 6, "hwdec-current", MPV_FORMAT_STRING);
     mpv_observe_property(handle_, 7, "video-format", MPV_FORMAT_STRING);
+    mpv_observe_property(handle_, 8, "chapter-list", MPV_FORMAT_NODE);
 }
 
 void MpvItem::load(const QString &url, bool forceStereo) {
@@ -280,6 +319,11 @@ void MpvItem::handleEvent(mpv_event *event) {
             } else if (!videoPresent_) {
                 hardwareDecoderTimer_.stop();
             }
+        } else if (name == "chapter-list") {
+            const auto *chapters = static_cast<const mpv_node *>(property->data);
+            emit playerEvent(
+                QStringLiteral("chapters"),
+                {{QStringLiteral("items"), chapterPayload(*chapters)}});
         }
         break;
     }
