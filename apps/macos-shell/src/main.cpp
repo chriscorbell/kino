@@ -1,0 +1,62 @@
+#include "logging.h"
+#include "mpvitem.h"
+
+#include <QCoreApplication>
+#include <QDir>
+#include <QGuiApplication>
+#include <QQmlApplicationEngine>
+#include <QQuickWebEngineProfile>
+#include <QQuickWindow>
+#include <QSGRendererInterface>
+#include <QSurfaceFormat>
+#include <QUrl>
+#include <QtWebEngineQuick/qtwebenginequickglobal.h>
+
+#include <clocale>
+
+namespace {
+
+QUrl uiUrl() {
+    const QString overrideUrl = qEnvironmentVariable("KINO_UI_URL");
+    if (!overrideUrl.isEmpty()) {
+        return QUrl::fromUserInput(overrideUrl);
+    }
+    const QDir executableDirectory(QCoreApplication::applicationDirPath());
+    return QUrl::fromLocalFile(executableDirectory.absoluteFilePath(
+        QStringLiteral("../Resources/ui/index.html")));
+}
+
+} // namespace
+
+int main(int argc, char *argv[]) {
+    QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
+    QSurfaceFormat surfaceFormat;
+    surfaceFormat.setDepthBufferSize(24);
+    surfaceFormat.setProfile(QSurfaceFormat::CoreProfile);
+    surfaceFormat.setRenderableType(QSurfaceFormat::OpenGL);
+    surfaceFormat.setVersion(4, 1);
+    QSurfaceFormat::setDefaultFormat(surfaceFormat);
+    QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
+    QtWebEngineQuick::initialize();
+
+    QGuiApplication app(argc, argv);
+    QCoreApplication::setApplicationName(QStringLiteral("Kino"));
+    QCoreApplication::setApplicationVersion(QStringLiteral("0.1.0"));
+    std::setlocale(LC_NUMERIC, "C");
+    installLocalLogger();
+
+    QQmlApplicationEngine engine;
+    auto *webProfile = new QQuickWebEngineProfile(QStringLiteral("kino"), &engine);
+    webProfile->setHttpCacheType(QQuickWebEngineProfile::NoCache);
+    webProfile->setPersistentCookiesPolicy(QQuickWebEngineProfile::ForcePersistentCookies);
+    engine.setInitialProperties({
+        {QStringLiteral("kinoWebProfile"), QVariant::fromValue(webProfile)},
+        {QStringLiteral("kinoUiUrl"), uiUrl()},
+    });
+    QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,
+                     []() { QCoreApplication::exit(1); }, Qt::QueuedConnection);
+    engine.loadFromModule("KinoShell", "Main");
+
+    qInfo("[kino:shell] native shell started architecture=arm64");
+    return app.exec();
+}

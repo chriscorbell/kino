@@ -16,6 +16,12 @@ html {
   background: var(--kino-bg);
 }
 
+html[data-kino-native='true'],
+html[data-kino-native='true'] body,
+html[data-kino-native='true'] #root {
+  background: transparent;
+}
+
 body {
   min-height: 100dvh;
   color: var(--kino-text);

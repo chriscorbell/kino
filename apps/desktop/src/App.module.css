@@ -555,6 +555,10 @@
   background: #000;
 }
 
+.nativePlayer {
+  background: transparent;
+}
+
 .player video {
   width: 100%;
   height: 100%;

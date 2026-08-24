@@ -16,7 +16,23 @@ pnpm install
 pnpm dev
 ```
 
-The browser checkpoint browses, searches, and resolves sources through the real Stremio Core. Torrent playback currently requires a locally running Stremio Service; native macOS playback and service packaging are the next delivery step.
+The client browses, searches, and resolves sources through the real Stremio Core. Torrent playback currently requires a separately installed Stremio Service.
+
+### macOS shell
+
+The native bootstrap currently targets Apple Silicon on macOS 26 and links against local Homebrew libraries. Install CMake, Qt, libmpv, and pkg-config, then build the development app:
+
+```sh
+brew install cmake qt mpv pkgconf
+pnpm macos:build
+open build/macos/Kino.app
+```
+
+The shell loads the packaged Kino UI and hands playback to libmpv with VideoToolbox hardware decoding, forced SDR output, and optional stereo downmixing. It is a local validation build, not yet a signed or self-contained distribution. Run the short native launch regression probe with:
+
+```sh
+pnpm macos:check-launch
+```
 
 Run the complete local validation suite with:
 
