@@ -16,6 +16,8 @@ pnpm install
 pnpm dev
 ```
 
+The browser checkpoint browses, searches, and resolves sources through the real Stremio Core. Torrent playback currently requires a locally running Stremio Service; native macOS playback and service packaging are the next delivery step.
+
 Run the complete local validation suite with:
 
 ```sh

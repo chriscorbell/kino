@@ -11,10 +11,18 @@ import { useEffect, useState } from 'react';
 
 import logo from './assets/kino.svg';
 import styles from './App.module.css';
+import { AccountDialog } from './components/AccountDialog';
+import type { PlaybackSelection } from './core/actions';
+import type { CoreMetaPreview, ProfileState } from './core/types';
+import { useCoreModel } from './core/useCoreModel';
 import { enUS } from './locales/en-US';
+import { HomeScreen } from './screens/HomeScreen';
+import { MetaDetailsScreen } from './screens/MetaDetailsScreen';
+import { PlayerScreen } from './screens/PlayerScreen';
+import { SearchScreen } from './screens/SearchScreen';
 import { defaultSettings, loadSettings, saveSettings, type KinoSettings } from './settings';
 
-type Screen = 'home' | 'search' | 'discover' | 'library' | 'addons' | 'settings';
+type Screen = 'home' | 'search' | 'discover' | 'library' | 'addons' | 'settings' | 'detail';
 
 interface NavigationItem {
   icon: Icon;
@@ -39,47 +47,6 @@ function EmptyState({ children }: { children: string }) {
     <div className={styles.emptyState}>
       <span>{enUS.status.unavailable}</span>
       <p>{children}</p>
-    </div>
-  );
-}
-
-function HomeScreen() {
-  return (
-    <div className={styles.page}>
-      <h1>{enUS.home.title}</h1>
-      <section className={styles.section} aria-labelledby="continue-watching-title">
-        <h2 id="continue-watching-title">{enUS.home.continueWatching}</h2>
-        <EmptyState>{enUS.home.continueEmpty}</EmptyState>
-      </section>
-      <section className={styles.section} aria-labelledby="catalogs-title">
-        <h2 id="catalogs-title">{enUS.home.catalogs}</h2>
-        <EmptyState>{enUS.home.catalogsEmpty}</EmptyState>
-      </section>
-    </div>
-  );
-}
-
-function SearchScreen() {
-  const [query, setQuery] = useState('');
-
-  return (
-    <div className={styles.page}>
-      <h1 className={styles.visuallyHidden}>{enUS.search.title}</h1>
-      <label className={styles.visuallyHidden} htmlFor="catalog-search">
-        {enUS.search.placeholder}
-      </label>
-      <input
-        autoFocus
-        className={styles.searchInput}
-        id="catalog-search"
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder={enUS.search.placeholder}
-        type="search"
-        value={query}
-      />
-      <p className={styles.searchHelp} role="status">
-        {query.trim() ? enUS.search.disconnected : enUS.search.idle}
-      </p>
     </div>
   );
 }
@@ -260,6 +227,11 @@ function NavigationButton({
 
 export function App() {
   const [screen, setScreen] = useState<Screen>('home');
+  const [previousScreen, setPreviousScreen] = useState<Exclude<Screen, 'detail'>>('home');
+  const [detail, setDetail] = useState<CoreMetaPreview | null>(null);
+  const [playback, setPlayback] = useState<PlaybackSelection | null>(null);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const profile = useCoreModel<ProfileState>('ctx', null, 'app-profile');
   const [settings, setSettings] = useState<KinoSettings>(() =>
     typeof window === 'undefined' ? defaultSettings : loadSettings(window.localStorage),
   );
@@ -268,12 +240,24 @@ export function App() {
     saveSettings(window.localStorage, settings);
   }, [settings]);
 
+  const openDetail = (item: CoreMetaPreview) => {
+    if (screen !== 'detail') setPreviousScreen(screen);
+    setDetail(item);
+    setScreen('detail');
+  };
+
+  if (playback) {
+    return (
+      <PlayerScreen onBack={() => setPlayback(null)} selection={playback} settings={settings} />
+    );
+  }
+
   const content = (() => {
     switch (screen) {
       case 'home':
-        return <HomeScreen />;
+        return <HomeScreen onOpen={openDetail} />;
       case 'search':
-        return <SearchScreen />;
+        return <SearchScreen onOpen={openDetail} />;
       case 'discover':
         return <DiscoverScreen />;
       case 'library':
@@ -282,6 +266,16 @@ export function App() {
         return <AddonsScreen />;
       case 'settings':
         return <SettingsScreen onChange={setSettings} settings={settings} />;
+      case 'detail':
+        return detail ? (
+          <MetaDetailsScreen
+            item={detail}
+            onBack={() => setScreen(previousScreen)}
+            onPlay={setPlayback}
+          />
+        ) : (
+          <HomeScreen onOpen={openDetail} />
+        );
     }
   })();
 
@@ -317,10 +311,20 @@ export function App() {
             />
           ))}
         </nav>
+        <button
+          aria-label={profile.state?.profile.auth ? 'Stremio account' : 'Sign in to Stremio'}
+          className={styles.profileButton}
+          onClick={() => setAccountOpen(true)}
+          title={profile.state?.profile.auth ? 'Stremio account' : 'Sign in to Stremio'}
+          type="button"
+        >
+          {profile.state?.profile.auth?.user.name?.slice(0, 1).toUpperCase() || 'G'}
+        </button>
       </aside>
       <main className={styles.content} id="main-content" key={screen}>
         {content}
       </main>
+      {accountOpen ? <AccountDialog onClose={() => setAccountOpen(false)} /> : null}
     </div>
   );
 }

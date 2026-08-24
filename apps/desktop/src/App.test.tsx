@@ -46,4 +46,18 @@ describe('App', () => {
       automaticIntroSkipping: true,
     });
   });
+
+  it('opens and dismisses Stremio sign-in without leaving the current screen', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Sign in to Stremio' }));
+
+    expect(screen.getByRole('dialog', { name: 'Sign in to Stremio' })).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog', { name: 'Sign in to Stremio' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Home' })).toBeInTheDocument();
+  });
 });
