@@ -15,8 +15,19 @@ export interface NativePlayer {
   stop(): void;
 }
 
+export interface NativeSecureStore {
+  clearStremioAuth(): Promise<boolean>;
+  readStremioAuth(): Promise<{ ok: boolean; value: string }>;
+  writeStremioAuth(value: string): Promise<boolean>;
+}
+
+interface NativeShellConnection {
+  player: NativePlayer;
+  secureStore: NativeSecureStore;
+}
+
 interface WebChannelResult {
-  objects: { kinoNative?: NativePlayer };
+  objects: { kinoNative?: NativePlayer; kinoSecureStore?: NativeSecureStore };
 }
 
 interface NativeWindow extends Window {
@@ -24,7 +35,7 @@ interface NativeWindow extends Window {
   qt?: { webChannelTransport?: object };
 }
 
-let connection: Promise<NativePlayer | null> | null = null;
+let connection: Promise<NativeShellConnection | null> | null = null;
 let channelScript: Promise<void> | null = null;
 
 function nativeWindow() {
@@ -50,16 +61,20 @@ function loadChannelScript() {
     });
     document.head.append(script);
   });
+  const pendingScript = channelScript;
+  void pendingScript.catch(() => {
+    if (channelScript === pendingScript) channelScript = null;
+  });
   return channelScript;
 }
 
-export function connectNativePlayer(): Promise<NativePlayer | null> {
+function connectNativeShell(): Promise<NativeShellConnection | null> {
   if (!nativeShellPresent()) return Promise.resolve(null);
   if (connection) return connection;
 
   connection = loadChannelScript().then(
     () =>
-      new Promise<NativePlayer>((resolve, reject) => {
+      new Promise<NativeShellConnection>((resolve, reject) => {
         const target = nativeWindow();
         const transport = target.qt?.webChannelTransport;
         const Channel = target.QWebChannel;
@@ -73,13 +88,27 @@ export function connectNativePlayer(): Promise<NativePlayer | null> {
         );
         new Channel(transport, (channel) => {
           window.clearTimeout(timeout);
-          if (!channel.objects.kinoNative) {
-            reject(new Error('Native player is unavailable.'));
+          const player = channel.objects.kinoNative;
+          const secureStore = channel.objects.kinoSecureStore;
+          if (!player || !secureStore) {
+            reject(new Error('Native shell services are unavailable.'));
             return;
           }
-          resolve(channel.objects.kinoNative);
+          resolve({ player, secureStore });
         });
       }),
   );
+  const pendingConnection = connection;
+  void pendingConnection.catch(() => {
+    if (connection === pendingConnection) connection = null;
+  });
   return connection;
+}
+
+export async function connectNativePlayer() {
+  return (await connectNativeShell())?.player ?? null;
+}
+
+export async function connectNativeSecureStore() {
+  return (await connectNativeShell())?.secureStore ?? null;
 }
