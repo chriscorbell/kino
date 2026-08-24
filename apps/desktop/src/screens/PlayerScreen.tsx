@@ -32,6 +32,9 @@ function introIdentity(selection: PlaybackSelection, durationMs: number) {
 }
 
 function nativeErrorMessage(code: unknown) {
+  if (code === 'hardware-decoding-unavailable') {
+    return 'This source could not be hardware-decoded on this Mac.';
+  }
   if (code === 'render-context-unavailable') {
     return 'Kino could not start the native video renderer.';
   }
