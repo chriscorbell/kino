@@ -1,0 +1,16 @@
+# Validation gates
+
+These are implementation risks, not unresolved product decisions. Kino keeps the agreed behavior and changes the replaceable technical layer when a gate fails.
+
+| Gate                         | Validate early                                                                                                          | Response if it fails                                                                                     |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Stremio Core Web integration | Authentication, guest state, add-ons, catalogs, progress, and source selection in the browser slice                     | Pin a known-good core release and isolate any compatibility adapter in Kino                              |
+| TV account linking           | Confirm Stremio exposes a secure link flow that needs no Kino backend                                                   | Use Stremio's safest supported browser-assisted flow; never invent a Kino credential service             |
+| Apple Silicon shell          | Build Qt, WebEngine, and libmpv natively and package local UI assets on macOS 14+                                       | Modernize only the shell boundary or replace it without rewriting the React client                       |
+| Open torrent engine          | Audit license, dependencies, network exposure, seeking, resource use, and original-media streaming on macOS and Android | Hold the 1.0 compatibility claim until an acceptable open engine exists; never bundle an unverified blob |
+| Android core bridge          | Build the pinned Kotlin/JNI bridge against the selected Stremio Core and current Android toolchain                      | Maintain the smallest bridge changes required in-repo while keeping upstream Core pinned                 |
+| Android HDR-to-SDR           | Exercise HDR10, HLG, and Dolby Vision profiles 5, 7, and 8 on the Shield with hardware decoding                         | Replace only Media3's playback layer with libmpv; reject any input that still cannot render correct SDR  |
+| Subtitle parity              | Test embedded and external SRT, WebVTT, ASS, SSA, and PGS with positioning and timing changes                           | Document backend limitations and prefer the player layer that meets the declared contract                |
+| Lossless audio               | Test passthrough, multichannel PCM, and forced stereo against Shield HDMI capabilities                                  | Fall back to decoded PCM or stereo; never claim passthrough that the negotiated sink cannot accept       |
+| Intro lookup                 | Verify chapter parsing plus TheIntroDB identity, duration matching, availability, and rate behavior                     | Omit Skip Intro when trust cannot be established; playback must never depend on the lookup               |
+| Public identity              | Check the Kino name and logo for release-channel and trademark conflicts                                                | Rebrand before the first public binary without changing the code architecture                            |

@@ -1,0 +1,33 @@
+{
+  "name": "kino",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A Stremio-compatible media client with an original interface.",
+  "license": "GPL-3.0-only",
+  "packageManager": "pnpm@11.23.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "pnpm --filter @kino/desktop build",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "dev": "pnpm --filter @kino/desktop dev",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "lint": "eslint .",
+    "test": "pnpm --filter @kino/desktop test",
+    "typecheck": "pnpm --filter @kino/desktop typecheck"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.13.3",
+    "eslint": "10.9.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-refresh": "0.5.4",
+    "globals": "17.11.0",
+    "prettier": "3.9.6",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.67.0"
+  }
+}

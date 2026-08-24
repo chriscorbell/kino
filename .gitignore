@@ -1,0 +1,12 @@
+.DS_Store
+.claude/
+.env
+.env.*
+!.env.example
+
+node_modules/
+dist/
+coverage/
+*.log
+
+.kino/

@@ -1,0 +1,3 @@
+# Resolve intro markers from metadata and TheIntroDB
+
+Kino will first look for explicit opening-credit metadata or recognized chapter names in the selected media, then perform a read-only TheIntroDB lookup using the media identity and duration. Kino will show Skip Intro only when one of those sources returns a sufficiently confident marker, with strict duration matching for community data. Kino deliberately favors a missing button over a false marker that could skip dialogue. Version one will not run local audio fingerprinting or provide a surface for submitting or correcting community timestamps because those paths add substantial processing, authentication, and moderation work.

@@ -1,0 +1,3 @@
+# Use the Stremio shell for initial desktop releases
+
+Kino's first native desktop releases will use a narrow GPL fork of `stremio-shell` for its Qt window, mpv integration, streaming-engine process lifecycle, and packaging. Kino will modernize the shell for Apple Silicon, replace Stremio branding and release endpoints, and load the original Kino client locally. The fork will not redistribute Stremio's downloaded `server.js` unless its licensing is verified independently. Keeping the React client and streaming engine replaceable accepts short-term Qt maintenance in exchange for proven playback integration.

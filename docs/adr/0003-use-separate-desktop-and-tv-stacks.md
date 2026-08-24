@@ -1,0 +1,3 @@
+# Use separate desktop and TV stacks
+
+The desktop presentation will use React and TypeScript with `stremio-core-web`. Android TV will use Kotlin and Compose with the `stremio-core-kotlin` bridge and native Media3 playback. Kino will prototype Media3 hardware decoding and OpenGL tone mapping on the Shield before committing the TV player layer; if it cannot meet the playback contract, only that layer will change to libmpv. The two stacks will share domain language and design tokens rather than presentation code, accepting some duplicated UI work in exchange for native remote behavior, playback, and a cleaner path to a later SwiftUI Apple TV client.
