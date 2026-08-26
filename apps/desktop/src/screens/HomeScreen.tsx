@@ -128,7 +128,7 @@ export function HomeScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => void
         return (
           <section
             className={styles.homeSection}
-            key={`${catalog.addon.manifest.id}:${catalog.id}`}
+            key={`${catalog.addon.manifest.id}:${catalog.type}:${catalog.id}`}
           >
             <div className={styles.sectionHeading}>
               <h2>{catalog.name}</h2>
