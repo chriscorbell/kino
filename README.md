@@ -40,6 +40,17 @@ Validate the playback contract against generated legal fixtures — codecs, HDR 
 pnpm macos:check-playback
 ```
 
+### Streaming engine
+
+Torrent sources play through a pinned build of the open [stream-server](https://github.com/stremio-native/stream-server) engine, which the shell starts on demand and binds to loopback. It is optional: without it Kino runs normally and reports torrent sources as unavailable. Build and bundle it with:
+
+```sh
+brew install rust libtorrent-rasterbar boost
+pnpm engine:build
+pnpm macos:build
+pnpm macos:check-engine
+```
+
 Run the complete local validation suite with:
 
 ```sh
