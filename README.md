@@ -59,13 +59,13 @@ pnpm check
 
 ### Packaging
 
-Produce a self-contained, signed disk image with checksums. Without a signing identity the build is ad-hoc signed for local validation only:
+Produce a self-contained disk image with checksums:
 
 ```sh
 pnpm macos:package
 ```
 
-Set `KINO_SIGNING_IDENTITY` to a Developer ID Application identity and `KINO_NOTARY_PROFILE` to a `notarytool` keychain profile to produce a distributable, notarized package. Packages are Apple Silicon only for now; see [ADR 0017](docs/adr/0017-ship-apple-silicon-first-and-defer-universal-packages.md).
+The app carries its own Qt, mpv, and torrent stack, so it runs on a Mac without Homebrew. Packages are ad-hoc signed and Apple Silicon only; code signing, notarization, and universal builds wait for a public release channel, as recorded in [ADR 0017](docs/adr/0017-ship-apple-silicon-first-and-defer-universal-packages.md).
 
 ## Project documents
 

@@ -1,12 +1,10 @@
 #!/usr/bin/env node
-// Packages Kino.app for distribution: bundles Qt and the remaining Homebrew
-// libraries into the app so it runs on a clean Mac, signs it, optionally
-// notarizes and staples it, then produces a DMG with SHA-256 checksums.
+// Packages Kino.app: bundles Qt and the remaining Homebrew libraries into the
+// app so it runs on a clean Mac, then produces a DMG with SHA-256 checksums.
 //
-// Signing identity and notary credentials come from the environment and are
-// never stored in the repository:
-//   KINO_SIGNING_IDENTITY  Developer ID Application identity (default: ad-hoc)
-//   KINO_NOTARY_PROFILE    notarytool keychain profile name (skipped if unset)
+// The bundle is ad-hoc signed because rewriting load commands invalidates the
+// existing signatures and Apple Silicon refuses to run the result otherwise.
+// Distribution signing and notarization are deferred (ADR 0017).
 
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -19,8 +17,6 @@ const sourceApp = join(repoRoot, 'build', 'macos', 'Kino.app');
 const distDir = join(repoRoot, 'build', 'dist');
 const stagedApp = join(distDir, 'Kino.app');
 const frameworksDir = join(stagedApp, 'Contents', 'Frameworks');
-const signingIdentity = process.env.KINO_SIGNING_IDENTITY ?? '-';
-const notaryProfile = process.env.KINO_NOTARY_PROFILE ?? '';
 
 function run(command, args, options = {}) {
   return execFileSync(command, args, { encoding: 'utf8', ...options });
@@ -172,9 +168,7 @@ function addRunpath(binary, runpath) {
 }
 
 function sign(target) {
-  // Ad-hoc signatures cannot carry a timestamp or the hardened runtime.
-  const distribution = signingIdentity === '-' ? [] : ['--timestamp', '--options', 'runtime'];
-  run('codesign', ['--force', ...distribution, '--sign', signingIdentity, target]);
+  run('codesign', ['--force', '--sign', '-', target]);
 }
 
 // Rewriting load commands invalidates existing signatures, so everything is
@@ -251,28 +245,9 @@ if (remaining.length > 0) {
   process.exit(1);
 }
 
-console.log(
-  signingIdentity === '-'
-    ? 'Signing ad-hoc (set KINO_SIGNING_IDENTITY for a distributable build)…'
-    : `Signing with ${signingIdentity}…`,
-);
+console.log('Signing ad-hoc…');
 signEverything();
 run('codesign', ['--verify', '--deep', '--strict', stagedApp]);
-
-if (notaryProfile) {
-  if (signingIdentity === '-') {
-    console.error('Notarization requires KINO_SIGNING_IDENTITY to be a Developer ID identity.');
-    process.exit(1);
-  }
-  console.log('Notarizing…');
-  const archive = join(distDir, 'Kino-notarize.zip');
-  run('ditto', ['-c', '-k', '--keepParent', stagedApp, archive]);
-  run('xcrun', ['notarytool', 'submit', archive, '--keychain-profile', notaryProfile, '--wait'], {
-    stdio: 'inherit',
-  });
-  run('xcrun', ['stapler', 'staple', stagedApp], { stdio: 'inherit' });
-  rmSync(archive);
-}
 
 console.log('Building the disk image…');
 const appVersion = version();
@@ -291,13 +266,9 @@ run('hdiutil', [
   '-ov',
   dmgPath,
 ]);
-if (signingIdentity !== '-') sign(dmgPath);
 
 const checksumPath = join(distDir, 'SHA256SUMS');
 writeFileSync(checksumPath, `${checksum(dmgPath)}  ${basename(dmgPath)}\n`);
 
 console.log(`\nPackaged ${dmgPath}`);
 console.log(readFileSync(checksumPath, 'utf8').trim());
-if (!notaryProfile) {
-  console.log('\nNot notarized. Set KINO_NOTARY_PROFILE to notarize and staple.');
-}
