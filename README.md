@@ -57,6 +57,16 @@ Run the complete local validation suite with:
 pnpm check
 ```
 
+### Packaging
+
+Produce a self-contained, signed disk image with checksums. Without a signing identity the build is ad-hoc signed for local validation only:
+
+```sh
+pnpm macos:package
+```
+
+Set `KINO_SIGNING_IDENTITY` to a Developer ID Application identity and `KINO_NOTARY_PROFILE` to a `notarytool` keychain profile to produce a distributable, notarized package. Packages are Apple Silicon only for now; see [ADR 0017](docs/adr/0017-ship-apple-silicon-first-and-defer-universal-packages.md).
+
 ## Project documents
 
 - [Product contract](docs/PRODUCT.md)

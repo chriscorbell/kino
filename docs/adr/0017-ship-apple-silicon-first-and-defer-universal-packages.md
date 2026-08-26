@@ -1,0 +1,5 @@
+# Ship Apple Silicon first and defer universal packages
+
+Kino's first macOS packages are arm64-only rather than universal. The shell links Qt, libmpv, libtorrent, and Boost from Homebrew, which serves only native-architecture bottles, so a universal build needs a second complete x86_64 dependency set built from source — a large amount of work for hardware Kino's Apple Silicon target audience does not use. The packaging pipeline names its output by architecture (`Kino-<version>-arm64.dmg`) so an `x86_64` or `universal` artifact can join it later without changing how releases are published or verified.
+
+Signing and notarization are already wired: `pnpm macos:package` bundles Qt, the QML modules, and every remaining Homebrew library into the app, re-signs it from the inside out, optionally notarizes and staples it, and emits SHA-256 checksums. Credentials never live in the repository — the Developer ID identity comes from `KINO_SIGNING_IDENTITY` and notarization from a `notarytool` keychain profile named by `KINO_NOTARY_PROFILE`. Without them the pipeline produces an ad-hoc signed build for local validation.
