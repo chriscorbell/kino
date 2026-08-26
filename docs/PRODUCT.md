@@ -18,7 +18,7 @@ The first public macOS package will be a signed and notarized universal build fo
 ## Version-one experience
 
 - Sign in with Stremio or continue with a device-local guest profile.
-- Open account creation in the system browser. Send passwords only to Stremio during authentication and store only the resulting auth token in platform secure storage.
+- Open account creation in the system browser. Send passwords only to Stremio during authentication and store only the resulting auth token, in device-local storage readable by the signed-in user account alone.
 - On TV, prefer a QR or device-link flow rather than remote-entered passwords.
 - Keep guest state separate from account state. Never merge or overwrite it implicitly.
 - Provide Home, Discover, Search, Library, media details, source selection, playback, add-on management, and Settings.

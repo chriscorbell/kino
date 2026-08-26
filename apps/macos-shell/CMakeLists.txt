@@ -25,7 +25,6 @@ pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv)
 find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
 find_library(IOKIT_FRAMEWORK IOKit REQUIRED)
 find_library(MEDIAPLAYER_FRAMEWORK MediaPlayer REQUIRED)
-find_library(SECURITY_FRAMEWORK Security REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
@@ -64,7 +63,6 @@ target_link_libraries(
     ${FOUNDATION_FRAMEWORK}
     ${IOKIT_FRAMEWORK}
     ${MEDIAPLAYER_FRAMEWORK}
-    ${SECURITY_FRAMEWORK}
     Qt6::Concurrent
     Qt6::Core
     Qt6::Gui
