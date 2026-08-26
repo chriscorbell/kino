@@ -1,4 +1,11 @@
-import type { CatalogRequest, CoreAction, CoreMetaPreview, CoreStream, CoreVideo } from './types';
+import type {
+  CatalogRequest,
+  CoreAction,
+  CoreMetaPreview,
+  CoreStream,
+  CoreVideo,
+  LibraryRequest,
+} from './types';
 
 export interface PlaybackSelection {
   meta: CoreMetaPreview;
@@ -27,6 +34,16 @@ export function loadCatalogAction(request: CatalogRequest | null): CoreAction {
   return {
     action: 'Load',
     args: { model: 'CatalogWithFilters', args: request ? { request } : null },
+  };
+}
+
+export function loadLibraryAction(request: LibraryRequest | null): CoreAction {
+  return {
+    action: 'Load',
+    args: {
+      model: 'LibraryWithFilters',
+      args: { request: request ?? { page: 1, sort: 'lastwatched', type: null } },
+    },
   };
 }
 
@@ -89,6 +106,14 @@ export function loadPlayerAction(selection: PlaybackSelection): CoreAction {
       },
     },
   };
+}
+
+export function addToLibraryAction(meta: CoreMetaPreview): CoreAction {
+  return { action: 'Ctx', args: { action: 'AddToLibrary', args: meta } };
+}
+
+export function removeFromLibraryAction(id: string): CoreAction {
+  return { action: 'Ctx', args: { action: 'RemoveFromLibrary', args: id } };
 }
 
 export function playerAction(action: string, args?: unknown): CoreAction {

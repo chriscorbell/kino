@@ -1056,6 +1056,28 @@
   background: var(--kino-accent);
 }
 
+.libraryButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  margin-top: 18px;
+  padding: 0 16px;
+  border: 1px solid var(--kino-border);
+  border-radius: var(--kino-pill-radius);
+  color: var(--kino-text);
+  background: rgb(20 20 23 / 76%);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--kino-duration-fast) ease;
+}
+
+.libraryButton:hover {
+  border-color: var(--kino-text-faint);
+}
+
 .discoverFilters {
   display: flex;
   align-items: center;

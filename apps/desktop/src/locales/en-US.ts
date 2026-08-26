@@ -40,10 +40,10 @@ export const enUS = {
   library: {
     title: 'Library',
     empty: 'Nothing here yet. Add titles from their detail page.',
+    error: 'Your library could not be loaded.',
+    loading: 'Loading your library…',
     filterLabel: 'Library filter',
     all: 'All',
-    movies: 'Movies',
-    series: 'Series',
   },
   addons: {
     title: 'Add-ons',
@@ -85,6 +85,8 @@ export const enUS = {
     noSources: 'No sources were returned for this title.',
     unavailable: 'Not available',
     failed: 'Failed',
+    addToLibrary: 'Add to Library',
+    inLibrary: 'In Library',
   },
   player: {
     preparingTorrent: 'Finding peers for this torrent…',

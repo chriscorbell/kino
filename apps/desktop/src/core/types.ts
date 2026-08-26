@@ -183,6 +183,31 @@ export interface PlayerState {
   title?: string | null;
 }
 
+export interface LibraryRequest {
+  page: number;
+  sort: string;
+  type: string | null;
+}
+
+export interface LibraryItem {
+  _id: string;
+  name: string;
+  poster?: string | null;
+  posterShape?: 'Landscape' | 'Poster' | 'Square';
+  progress?: number | null;
+  type: string;
+}
+
+export interface LibraryState {
+  catalog: LibraryItem[];
+  selectable: {
+    nextPage: { request: LibraryRequest } | null;
+    sorts: Array<{ request: LibraryRequest; selected: boolean; sort: string }>;
+    types: Array<{ request: LibraryRequest; selected: boolean; type: string | null }>;
+  } | null;
+  selected: { request: LibraryRequest } | null;
+}
+
 export interface ProfileState {
   profile: {
     addons: Array<{ manifest: { id: string; name: string }; transportUrl: string }>;

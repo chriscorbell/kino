@@ -19,6 +19,7 @@ import { useCoreModel } from './core/useCoreModel';
 import { enUS } from './locales/en-US';
 import { DiscoverScreen } from './screens/DiscoverScreen';
 import { HomeScreen } from './screens/HomeScreen';
+import { LibraryScreen } from './screens/LibraryScreen';
 import { MetaDetailsScreen } from './screens/MetaDetailsScreen';
 import { PlayerScreen } from './screens/PlayerScreen';
 import { SearchScreen } from './screens/SearchScreen';
@@ -49,35 +50,6 @@ function EmptyState({ children }: { children: string }) {
     <div className={styles.emptyState}>
       <span>{enUS.status.unavailable}</span>
       <p>{children}</p>
-    </div>
-  );
-}
-
-function LibraryScreen() {
-  const [filter, setFilter] = useState<'all' | 'movies' | 'series'>('all');
-  const filters = [
-    { key: 'all', label: enUS.library.all },
-    { key: 'movies', label: enUS.library.movies },
-    { key: 'series', label: enUS.library.series },
-  ] as const;
-
-  return (
-    <div className={styles.page}>
-      <h1>{enUS.library.title}</h1>
-      <div className={styles.pills} aria-label={enUS.library.filterLabel} role="group">
-        {filters.map((item) => (
-          <button
-            aria-pressed={filter === item.key}
-            className={filter === item.key ? styles.pillActive : styles.pill}
-            key={item.key}
-            onClick={() => setFilter(item.key)}
-            type="button"
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-      <EmptyState>{enUS.library.empty}</EmptyState>
     </div>
   );
 }
@@ -277,7 +249,7 @@ export function App() {
       case 'discover':
         return <DiscoverScreen onOpen={openDetail} />;
       case 'library':
-        return <LibraryScreen />;
+        return <LibraryScreen onOpen={openDetail} />;
       case 'addons':
         return <AddonsScreen />;
       case 'settings':
