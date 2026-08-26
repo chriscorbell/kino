@@ -1,5 +1,6 @@
 #include "logging.h"
 #include "mpvitem.h"
+#include "playbackprobe.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -44,6 +45,27 @@ int main(int argc, char *argv[]) {
     QCoreApplication::setApplicationVersion(QStringLiteral("0.1.0"));
     std::setlocale(LC_NUMERIC, "C");
     installLocalLogger();
+
+    const QString probeMediaPath = qEnvironmentVariable("KINO_PLAYBACK_PROBE");
+    if (!probeMediaPath.isEmpty()) {
+        QQmlApplicationEngine probeEngine;
+        QObject::connect(&probeEngine, &QQmlApplicationEngine::objectCreationFailed, &app,
+                         []() { QCoreApplication::exit(1); }, Qt::QueuedConnection);
+        probeEngine.loadFromModule("KinoShell", "Probe");
+        auto *player = probeEngine.rootObjects().isEmpty()
+                           ? nullptr
+                           : probeEngine.rootObjects().first()->findChild<MpvItem *>(
+                                 QStringLiteral("probePlayer"));
+        if (!player) {
+            qCritical("[kino:probe] probe scene has no player");
+            return 1;
+        }
+        PlaybackProbe probe(player, probeMediaPath,
+                            qEnvironmentVariable("KINO_PLAYBACK_PROBE_SUBS"), &app);
+        probe.start();
+        qInfo("[kino:probe] playback probe started");
+        return app.exec();
+    }
 
     QQmlApplicationEngine engine;
     auto *webProfile = new QQuickWebEngineProfile(QStringLiteral("kino"), &engine);

@@ -20,10 +20,10 @@ The client browses, searches, and resolves sources through the real Stremio Core
 
 ### macOS shell
 
-The native bootstrap currently targets Apple Silicon on macOS 26 and links against local Homebrew libraries. Install CMake, Qt, libmpv, and pkg-config, then build the development app:
+The native bootstrap currently targets Apple Silicon on macOS 26 and links against local Homebrew libraries. Install CMake, Qt, libmpv, pkg-config, and FFmpeg (used only to generate playback fixtures), then build the development app:
 
 ```sh
-brew install cmake qt mpv pkgconf
+brew install cmake qt mpv pkgconf ffmpeg
 pnpm macos:build
 open build/macos/Kino.app
 ```
@@ -32,6 +32,12 @@ The shell loads the packaged Kino UI, keeps Stremio authentication material in m
 
 ```sh
 pnpm macos:check-launch
+```
+
+Validate the playback contract against generated legal fixtures — codecs, HDR ranges, audio formats, subtitles, chapters, and failure paths — with:
+
+```sh
+pnpm macos:check-playback
 ```
 
 Run the complete local validation suite with:

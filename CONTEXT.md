@@ -40,6 +40,10 @@ _Avoid_: Stereo track, transcoding
 Kino's initial video-output policy. SDR sources render unchanged, while supported HDR, HLG, and Dolby Vision inputs are tone-mapped to SDR before display.
 _Avoid_: HDR passthrough, Dolby Vision output
 
+**Playback fixture**:
+A small, legally synthesized media file that exercises one declared playback behavior, such as a codec, range, audio format, subtitle format, or failure path. The native player must satisfy the playback contract against every fixture before a release.
+_Avoid_: Sample movie, test download
+
 **TV playback**:
 A playback session in the TV presentation. TV playback always occupies the full display rather than sharing space with browsing UI.
 _Avoid_: Embedded player, windowed playback

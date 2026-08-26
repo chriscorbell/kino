@@ -403,6 +403,8 @@ void MpvItem::handleEvent(mpv_event *event) {
         } else if (name == "hwdec-current") {
             const auto *decoder = static_cast<const char *>(property->data);
             hardwareDecoderActive_ = decoder && *decoder != '\0';
+            emit playerEvent(QStringLiteral("hardwareDecoding"),
+                             {{QStringLiteral("active"), hardwareDecoderActive_}});
             if (hardwareDecoderActive_) {
                 hardwareDecoderTimer_.stop();
                 qInfo("[kino:mpv] hardware decoder active");

@@ -40,6 +40,7 @@ qt_add_executable(
   src/main.cpp
   src/mpvitem.cpp
   src/nowplaying.mm
+  src/playbackprobe.cpp
   src/powerguard.cpp
   src/securestore.cpp
 )
@@ -48,7 +49,7 @@ qt_add_qml_module(
   Kino
   URI KinoShell
   VERSION 1.0
-  QML_FILES qml/Main.qml
+  QML_FILES qml/Main.qml qml/Probe.qml
   SOURCES
     src/mpvitem.h
     src/nowplaying.h
