@@ -52,6 +52,7 @@ describe('settings storage', () => {
       subtitlePosition: 90,
       subtitleSize: 100,
       subtitles: false,
+      upNext: true,
     });
   });
 

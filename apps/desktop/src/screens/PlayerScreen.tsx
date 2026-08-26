@@ -15,7 +15,7 @@ import styles from '../App.module.css';
 import { loadPlayerAction, playerAction, type PlaybackSelection } from '../core/actions';
 import { useCore } from '../core/context';
 import { classifySource } from '../core/sources';
-import type { PlayerState } from '../core/types';
+import type { CoreVideo, PlayerState } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import {
   lookupCommunityIntro,
@@ -115,6 +115,7 @@ export function PlayerScreen({
   onBack,
   onSettingsChange,
   onSourceFailure,
+  onUpNext,
   preferredSubtitleLanguage,
   selection,
   settings,
@@ -122,6 +123,7 @@ export function PlayerScreen({
   onBack: () => void;
   onSettingsChange: (settings: KinoSettings) => void;
   onSourceFailure: (message: string) => void;
+  onUpNext: (video: CoreVideo) => void;
   preferredSubtitleLanguage: string | null;
   selection: PlaybackSelection;
   settings: KinoSettings;
@@ -154,6 +156,7 @@ export function PlayerScreen({
   const [addedSubtitleUrls, setAddedSubtitleUrls] = useState<ReadonlySet<string>>(new Set());
   const failureReportedRef = useRef(false);
   const subtitleAutoDoneRef = useRef(false);
+  const [ended, setEnded] = useState(false);
   const [torrentUrl, setTorrentUrl] = useState<string | null>(null);
   const [engineUrl, setEngineUrl] = useState<string | null>(null);
   const stream = result.state?.stream?.type === 'Ready' ? result.state.stream.content : null;
@@ -423,6 +426,7 @@ export function PlayerScreen({
       } else if (name === 'ended') {
         setBuffering(false);
         setPaused(true);
+        setEnded(true);
         reportProgress();
         dispatchPlayer('Ended');
       }
@@ -572,6 +576,7 @@ export function PlayerScreen({
           onEnded={() => {
             setBuffering(false);
             setPaused(true);
+            setEnded(true);
             dispatchPlayer('Ended');
           }}
           onError={(event) => {
@@ -651,6 +656,23 @@ export function PlayerScreen({
           Skip Intro
           <SkipForward aria-hidden size={16} weight="fill" />
         </button>
+      ) : null}
+
+      {ended && settings.upNext && selection.nextVideo ? (
+        <div className={styles.upNext} role="status">
+          <span className={styles.upNextLabel}>{enUS.player.upNext}</span>
+          <strong>
+            {selection.nextVideo.title || `Episode ${selection.nextVideo.episode ?? ''}`.trim()}
+          </strong>
+          <button
+            onClick={() => {
+              if (selection.nextVideo) onUpNext(selection.nextVideo);
+            }}
+            type="button"
+          >
+            {enUS.player.chooseSource}
+          </button>
+        </div>
       ) : null}
 
       {automaticNotice && marker ? (

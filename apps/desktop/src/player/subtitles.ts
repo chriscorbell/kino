@@ -98,3 +98,22 @@ export function addonSubtitleLabel(subtitle: AddonSubtitle) {
     'Unknown language'
   );
 }
+
+// Stremio stores language preferences as ISO 639-2/B codes.
+export const subtitleLanguages = [
+  { label: 'English', value: 'eng' },
+  { label: 'Spanish', value: 'spa' },
+  { label: 'French', value: 'fre' },
+  { label: 'German', value: 'ger' },
+  { label: 'Italian', value: 'ita' },
+  { label: 'Portuguese', value: 'por' },
+  { label: 'Dutch', value: 'dut' },
+  { label: 'Polish', value: 'pol' },
+  { label: 'Russian', value: 'rus' },
+  { label: 'Turkish', value: 'tur' },
+  { label: 'Japanese', value: 'jpn' },
+  { label: 'Korean', value: 'kor' },
+  { label: 'Chinese', value: 'chi' },
+  { label: 'Hindi', value: 'hin' },
+  { label: 'Arabic', value: 'ara' },
+];
