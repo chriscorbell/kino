@@ -271,13 +271,49 @@
 }
 
 .continueCard {
+  position: relative;
   width: 264px;
   flex: 0 0 auto;
+}
+
+.continueOpen {
+  display: block;
+  width: 100%;
   padding: 0;
   border: 0;
   color: inherit;
   background: transparent;
   cursor: pointer;
+}
+
+.continueDismiss {
+  position: absolute;
+  z-index: 1;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 50%;
+  opacity: 0;
+  color: var(--kino-text);
+  background: rgb(10 10 11 / 82%);
+  cursor: pointer;
+  transition:
+    opacity var(--kino-duration-fast) ease,
+    background-color var(--kino-duration-fast) ease;
+}
+
+/* Revealed on hover, and always for keyboard users so it stays reachable. */
+.continueCard:hover .continueDismiss,
+.continueDismiss:focus-visible {
+  opacity: 1;
+}
+
+.continueDismiss:hover {
+  background: var(--kino-danger);
 }
 
 .continueArtwork {
@@ -1584,6 +1620,7 @@
 
   .catalogTab,
   .catalogTabActive,
+  .continueDismiss,
   .genreButton,
   .libraryButton,
   .logoButton,

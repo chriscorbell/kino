@@ -1,8 +1,10 @@
 import { useEffect, useMemo } from 'react';
 
+import { X } from '@phosphor-icons/react';
+
 import styles from '../App.module.css';
 import { MediaCard } from '../components/MediaCard';
-import { loadBoardAction } from '../core/actions';
+import { loadBoardAction, rewindLibraryItemAction } from '../core/actions';
 import { useCore } from '../core/context';
 import type {
   BoardState,
@@ -80,6 +82,16 @@ export function HomeScreen({
     [continueWatching.state],
   );
 
+  const dismissContinueWatching = (id: string) => {
+    if (!core.transport) return;
+    void core.transport.dispatch(rewindLibraryItemAction(id)).catch((error: unknown) => {
+      console.error(
+        '[kino:home] could not dismiss the continue watching item',
+        error instanceof Error ? error.message : error,
+      );
+    });
+  };
+
   return (
     <div className={styles.homePage}>
       <h1 className={styles.visuallyHidden}>{enUS.home.title}</h1>
@@ -92,33 +104,43 @@ export function HomeScreen({
         {continueItems.length > 0 ? (
           <div className={styles.continueRow}>
             {continueItems.map((item) => (
-              <button
-                className={styles.continueCard}
-                key={item._id}
-                onClick={() =>
-                  onOpen(
-                    {
-                      id: item._id,
-                      inLibrary: true,
-                      name: item.name,
-                      ...(item.poster === undefined ? {} : { poster: item.poster }),
-                      posterShape: item.posterShape,
-                      type: item.type,
-                      watched: false,
-                    },
-                    item.state.videoId,
-                  )
-                }
-                type="button"
-              >
-                <span className={styles.continueArtwork}>
-                  {item.poster ? <img alt="" src={item.poster} /> : null}
-                  <span className={styles.continueLabel}>{item.name}</span>
-                  <span className={styles.progressTrack}>
-                    <span style={{ width: `${Math.max(0, Math.min(100, item.progress))}%` }} />
+              <div className={styles.continueCard} key={item._id}>
+                <button
+                  className={styles.continueOpen}
+                  onClick={() =>
+                    onOpen(
+                      {
+                        id: item._id,
+                        inLibrary: true,
+                        name: item.name,
+                        ...(item.poster === undefined ? {} : { poster: item.poster }),
+                        posterShape: item.posterShape,
+                        type: item.type,
+                        watched: false,
+                      },
+                      item.state.videoId,
+                    )
+                  }
+                  type="button"
+                >
+                  <span className={styles.continueArtwork}>
+                    {item.poster ? <img alt="" src={item.poster} /> : null}
+                    <span className={styles.continueLabel}>{item.name}</span>
+                    <span className={styles.progressTrack}>
+                      <span style={{ width: `${Math.max(0, Math.min(100, item.progress))}%` }} />
+                    </span>
                   </span>
-                </span>
-              </button>
+                </button>
+                <button
+                  aria-label={`${enUS.home.dismiss} ${item.name}`}
+                  className={styles.continueDismiss}
+                  onClick={() => dismissContinueWatching(item._id)}
+                  title={enUS.home.dismiss}
+                  type="button"
+                >
+                  <X aria-hidden size={14} weight="bold" />
+                </button>
+              </div>
             ))}
           </div>
         ) : null}
