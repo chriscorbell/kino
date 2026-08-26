@@ -7,12 +7,13 @@ import {
   Toolbox,
   type Icon,
 } from '@phosphor-icons/react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import logo from './assets/kino.svg';
 import styles from './App.module.css';
 import { AccountDialog } from './components/AccountDialog';
 import type { PlaybackSelection } from './core/actions';
+import { sourceKey } from './core/sources';
 import type { CoreMetaPreview, ProfileState } from './core/types';
 import { useCoreModel } from './core/useCoreModel';
 import { enUS } from './locales/en-US';
@@ -230,6 +231,7 @@ export function App() {
   const [previousScreen, setPreviousScreen] = useState<Exclude<Screen, 'detail'>>('home');
   const [detail, setDetail] = useState<CoreMetaPreview | null>(null);
   const [playback, setPlayback] = useState<PlaybackSelection | null>(null);
+  const [failedSources, setFailedSources] = useState<ReadonlyMap<string, string>>(new Map());
   const [accountOpen, setAccountOpen] = useState(false);
   const profile = useCoreModel<ProfileState>('ctx', null, 'app-profile');
   const [settings, setSettings] = useState<KinoSettings>(() =>
@@ -243,12 +245,34 @@ export function App() {
   const openDetail = (item: CoreMetaPreview) => {
     if (screen !== 'detail') setPreviousScreen(screen);
     setDetail(item);
+    setFailedSources(new Map());
     setScreen('detail');
   };
 
+  const closePlayer = useCallback(() => setPlayback(null), []);
+  // Stable across settings re-renders: an unstable identity would restart the
+  // player's load effect while a stream is playing.
+  const reportSourceFailure = useCallback(
+    (message: string) => {
+      if (playback) {
+        const key = sourceKey(playback.stream, playback.streamTransportUrl);
+        setFailedSources((previous) => new Map(previous).set(key, message));
+      }
+      setPlayback(null);
+    },
+    [playback],
+  );
+
   if (playback) {
     return (
-      <PlayerScreen onBack={() => setPlayback(null)} selection={playback} settings={settings} />
+      <PlayerScreen
+        onBack={closePlayer}
+        onSettingsChange={setSettings}
+        onSourceFailure={reportSourceFailure}
+        preferredSubtitleLanguage={profile.state?.profile.settings?.subtitlesLanguage ?? null}
+        selection={playback}
+        settings={settings}
+      />
     );
   }
 
@@ -269,6 +293,7 @@ export function App() {
       case 'detail':
         return detail ? (
           <MetaDetailsScreen
+            failedSources={failedSources}
             item={detail}
             onBack={() => setScreen(previousScreen)}
             onPlay={setPlayback}

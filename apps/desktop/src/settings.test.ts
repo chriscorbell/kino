@@ -38,6 +38,8 @@ describe('settings storage', () => {
         audioOutput: 'surround',
         matchFrameRate: true,
         skipIntroButton: false,
+        subtitlePosition: 90,
+        subtitleSize: 9000,
         subtitles: 'yes',
       }),
     );
@@ -47,6 +49,8 @@ describe('settings storage', () => {
       audioOutput: 'auto',
       matchFrameRate: true,
       skipIntroButton: false,
+      subtitlePosition: 90,
+      subtitleSize: 100,
       subtitles: false,
     });
   });

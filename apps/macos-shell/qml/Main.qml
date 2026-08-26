@@ -26,6 +26,12 @@ ApplicationWindow {
         id: player
         anchors.fill: parent
         visible: player.active
+
+        onActiveChanged: nowPlaying.setActive(player.active)
+    }
+
+    NowPlaying {
+        id: nowPlaying
     }
 
     SecureStore {
@@ -39,6 +45,10 @@ ApplicationWindow {
         readonly property string shellVersion: Qt.application.version
 
         signal playerEvent(string name, var payload)
+
+        function addSubtitles(url, title, lang) {
+            player.addSubtitles(url, title, lang)
+        }
 
         function load(url, forceStereo) {
             player.load(url, forceStereo)
@@ -56,8 +66,28 @@ ApplicationWindow {
             player.setMuted(muted)
         }
 
+        function setNowPlayingMetadata(title, subtitle) {
+            nowPlaying.setMetadata(title, subtitle)
+        }
+
         function setPaused(paused) {
             player.setPaused(paused)
+        }
+
+        function setSubtitleDelay(seconds) {
+            player.setSubtitleDelay(seconds)
+        }
+
+        function setSubtitlePosition(position) {
+            player.setSubtitlePosition(position)
+        }
+
+        function setSubtitleScale(scale) {
+            player.setSubtitleScale(scale)
+        }
+
+        function setSubtitleTrack(id) {
+            player.setSubtitleTrack(id)
         }
 
         function stop() {
@@ -70,6 +100,33 @@ ApplicationWindow {
 
         function onPlayerEvent(name, payload) {
             nativeBridge.playerEvent(name, payload)
+            if (name === "time") {
+                nowPlaying.setPosition(payload.milliseconds / 1000)
+            } else if (name === "duration") {
+                nowPlaying.setDuration(payload.milliseconds / 1000)
+            } else if (name === "paused") {
+                nowPlaying.setPaused(payload.paused)
+            }
+        }
+    }
+
+    Connections {
+        target: nowPlaying
+
+        function onPauseRequested() {
+            player.setPaused(true)
+        }
+
+        function onPlayRequested() {
+            player.setPaused(false)
+        }
+
+        function onSeekRequested(seconds) {
+            player.seek(seconds)
+        }
+
+        function onToggleRequested() {
+            player.togglePaused()
         }
     }
 

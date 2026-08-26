@@ -133,6 +133,7 @@ export interface PlayerState {
   } | null;
   selected: { stream: CoreStream } | null;
   stream: Loadable<CoreStream> | null;
+  subtitles?: unknown;
   title?: string | null;
 }
 
@@ -140,5 +141,6 @@ export interface ProfileState {
   profile: {
     addons: Array<{ manifest: { id: string; name: string }; transportUrl: string }>;
     auth?: { user: { email?: string; name?: string; uid?: string } };
+    settings?: { subtitlesLanguage?: string | null };
   };
 }

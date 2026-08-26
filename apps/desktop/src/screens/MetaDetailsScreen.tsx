@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import styles from '../App.module.css';
 import { loadMetaDetailsAction, type PlaybackSelection } from '../core/actions';
-import { classifySource, sourceDetails, sourceSize, sourceTitle } from '../core/sources';
+import { classifySource, sourceDetails, sourceKey, sourceSize, sourceTitle } from '../core/sources';
 import type {
   CoreMetaItem,
   CoreMetaPreview,
@@ -32,10 +32,12 @@ function defaultVideoId(item: CoreMetaPreview) {
 }
 
 export function MetaDetailsScreen({
+  failedSources,
   item,
   onBack,
   onPlay,
 }: {
+  failedSources: ReadonlyMap<string, string>;
   item: CoreMetaPreview;
   onBack: () => void;
   onPlay: (selection: PlaybackSelection) => void;
@@ -158,6 +160,11 @@ export function MetaDetailsScreen({
             <h2 id="sources-heading">{enUS.details.sources}</h2>
             {result.loading ? <span>{enUS.details.refreshing}</span> : null}
           </div>
+          {failedSources.size > 0 ? (
+            <p className={styles.loadError} role="status">
+              {[...failedSources.values()].at(-1)}
+            </p>
+          ) : null}
           {!result.loading && sources.length === 0 ? (
             <p className={styles.inlineEmpty}>{enUS.details.noSources}</p>
           ) : null}
@@ -166,6 +173,7 @@ export function MetaDetailsScreen({
               const support = classifySource(source.stream);
               const playable =
                 (support === 'direct' || support === 'torrent') && Boolean(source.transportUrl);
+              const failed = failedSources.has(sourceKey(source.stream, source.transportUrl));
               return (
                 <button
                   className={styles.sourceButton}
@@ -191,6 +199,7 @@ export function MetaDetailsScreen({
                     {sourceSize(source.stream) ? <span>{sourceSize(source.stream)}</span> : null}
                     <span>{source.addonName}</span>
                     {!playable ? <em>{enUS.details.unavailable}</em> : null}
+                    {playable && failed ? <em>{enUS.details.failed}</em> : null}
                   </span>
                 </button>
               );
