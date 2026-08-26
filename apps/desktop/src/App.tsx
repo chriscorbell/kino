@@ -156,6 +156,7 @@ export function App() {
         return detail ? (
           <MetaDetailsScreen
             failedSources={failedSources}
+            key={detail.id}
             initialVideoId={detailVideoId}
             item={detail}
             onBack={() => setScreen(previousScreen)}
