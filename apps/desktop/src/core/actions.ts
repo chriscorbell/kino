@@ -1,6 +1,7 @@
 import type {
   CatalogRequest,
   CoreAction,
+  CoreAddon,
   CoreMetaPreview,
   CoreStream,
   CoreVideo,
@@ -106,6 +107,14 @@ export function loadPlayerAction(selection: PlaybackSelection): CoreAction {
       },
     },
   };
+}
+
+export function installAddonAction(addon: CoreAddon): CoreAction {
+  return { action: 'Ctx', args: { action: 'InstallAddon', args: addon } };
+}
+
+export function uninstallAddonAction(addon: CoreAddon): CoreAction {
+  return { action: 'Ctx', args: { action: 'UninstallAddon', args: addon } };
 }
 
 export function addToLibraryAction(meta: CoreMetaPreview): CoreAction {
