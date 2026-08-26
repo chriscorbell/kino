@@ -21,6 +21,7 @@
     "macos:check-engine": "./scripts/check-macos-engine.sh",
     "macos:check-launch": "./scripts/check-macos-launch.sh",
     "macos:check-playback": "node scripts/check-macos-playback.mjs",
+    "macos:package": "node scripts/package-macos.mjs",
     "test": "pnpm --filter @kino/desktop test",
     "typecheck": "pnpm --filter @kino/desktop typecheck"
   },
