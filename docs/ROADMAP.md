@@ -33,7 +33,7 @@ Exit: the native Apple Silicon build completes the vertical slice, passes repres
 
 - Complete Discover, Search, Library, add-on management, Settings, resume, Up Next, and automatic intro skipping.
 - Add accessibility, localization structure, cache management, update prompts, and diagnostic actions.
-- Produce a signed and notarized universal package with checksums.
+- Produce an Apple Silicon package with checksums. Code signing, notarization, and universal builds wait for a public release channel.
 
 Exit: the release meets the product and playback contracts and torrent sources work through the approved engine.
 
