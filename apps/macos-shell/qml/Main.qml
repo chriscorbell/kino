@@ -34,6 +34,12 @@ ApplicationWindow {
         id: nowPlaying
     }
 
+    StreamEngine {
+        id: streamEngine
+
+        onChanged: nativeBridge.streamingEngineChanged(streamEngine.url, streamEngine.error)
+    }
+
     SecureStore {
         id: secureStore
     }
@@ -45,6 +51,15 @@ ApplicationWindow {
         readonly property string shellVersion: Qt.application.version
 
         signal playerEvent(string name, var payload)
+        signal streamingEngineChanged(string url, string error)
+
+        function startStreamingEngine() {
+            if (streamEngine.url || streamEngine.error) {
+                nativeBridge.streamingEngineChanged(streamEngine.url, streamEngine.error)
+                return
+            }
+            streamEngine.start()
+        }
 
         function addSubtitles(url, title, lang) {
             player.addSubtitles(url, title, lang)

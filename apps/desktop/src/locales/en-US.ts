@@ -82,6 +82,8 @@ export const enUS = {
     failed: 'Failed',
   },
   player: {
+    preparingTorrent: 'Finding peers for this torrent…',
+    torrentUnavailable: 'Torrent playback needs the streaming engine, which this build lacks.',
     subtitles: 'Subtitles',
     subtitlesOff: 'Off',
     subtitlesEmbedded: 'From this source',

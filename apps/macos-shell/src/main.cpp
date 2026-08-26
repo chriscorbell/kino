@@ -1,6 +1,7 @@
 #include "logging.h"
 #include "mpvitem.h"
 #include "playbackprobe.h"
+#include "streamengine.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -10,10 +11,12 @@
 #include <QQuickWindow>
 #include <QSGRendererInterface>
 #include <QSurfaceFormat>
+#include <QTimer>
 #include <QUrl>
 #include <QtWebEngineQuick/qtwebenginequickglobal.h>
 
 #include <clocale>
+#include <cstdio>
 
 namespace {
 
@@ -45,6 +48,28 @@ int main(int argc, char *argv[]) {
     QCoreApplication::setApplicationVersion(QStringLiteral("0.1.0"));
     std::setlocale(LC_NUMERIC, "C");
     installLocalLogger();
+
+    if (!qEnvironmentVariableIsEmpty("KINO_ENGINE_PROBE")) {
+        auto *streamEngine = new StreamEngine(&app);
+        QObject::connect(streamEngine, &StreamEngine::changed, &app, [streamEngine]() {
+            if (streamEngine->url().isEmpty() && streamEngine->error().isEmpty()) {
+                return;
+            }
+            std::printf("KINO_ENGINE_PROBE_RESULT %s\n",
+                        qPrintable(streamEngine->url().isEmpty()
+                                       ? QStringLiteral("error: %1").arg(streamEngine->error())
+                                       : streamEngine->url()));
+            std::fflush(stdout);
+            QCoreApplication::exit(streamEngine->url().isEmpty() ? 1 : 0);
+        });
+        QTimer::singleShot(30'000, &app, []() {
+            std::printf("KINO_ENGINE_PROBE_RESULT error: timed out\n");
+            std::fflush(stdout);
+            QCoreApplication::exit(1);
+        });
+        streamEngine->start();
+        return app.exec();
+    }
 
     const QString probeMediaPath = qEnvironmentVariable("KINO_PLAYBACK_PROBE");
     if (!probeMediaPath.isEmpty()) {

@@ -42,6 +42,7 @@ qt_add_executable(
   src/playbackprobe.cpp
   src/powerguard.cpp
   src/securestore.cpp
+  src/streamengine.cpp
 )
 
 qt_add_qml_module(
@@ -53,6 +54,7 @@ qt_add_qml_module(
     src/mpvitem.h
     src/nowplaying.h
     src/securestore.h
+    src/streamengine.h
 )
 
 target_include_directories(Kino PRIVATE src)
@@ -104,3 +106,16 @@ add_custom_target(
   COMMENT "Packaging Kino web UI"
 )
 add_dependencies(kino_package_ui Kino kino_web_ui)
+
+# The streaming engine is optional. Build it with `pnpm engine:build`; without
+# it Kino runs normally and reports torrent sources as unavailable.
+set(KINO_ENGINE_BINARY ${KINO_REPOSITORY_ROOT}/build/engine-target/release/kino-stream-engine)
+add_custom_target(
+  kino_package_engine ALL
+  COMMAND ${CMAKE_COMMAND}
+    -DKINO_ENGINE_BINARY=${KINO_ENGINE_BINARY}
+    -DKINO_ENGINE_DESTINATION=$<TARGET_FILE_DIR:Kino>
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/PackageEngine.cmake
+  COMMENT "Packaging Kino streaming engine"
+)
+add_dependencies(kino_package_engine Kino)

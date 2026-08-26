@@ -97,6 +97,7 @@ export interface CoreStream {
   name?: string | null;
   playerFrameUrl?: string;
   progress?: number | null;
+  sources?: string[];
   url?: string;
   ytId?: string;
 }

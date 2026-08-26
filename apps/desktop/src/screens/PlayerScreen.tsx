@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styles from '../App.module.css';
 import { loadPlayerAction, playerAction, type PlaybackSelection } from '../core/actions';
 import { useCore } from '../core/context';
+import { classifySource } from '../core/sources';
 import type { PlayerState } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import {
@@ -33,6 +34,12 @@ import {
   type AddonSubtitle,
   type SubtitleTrack,
 } from '../player/subtitles';
+import {
+  resolveFileIndex,
+  torrentCreateRequest,
+  torrentMediaUrl,
+  type TorrentStats,
+} from '../player/torrent';
 import { subtitlePositionRange, subtitleSizeRange, type KinoSettings } from '../settings';
 
 function formatTime(milliseconds: number) {
@@ -147,8 +154,11 @@ export function PlayerScreen({
   const [addedSubtitleUrls, setAddedSubtitleUrls] = useState<ReadonlySet<string>>(new Set());
   const failureReportedRef = useRef(false);
   const subtitleAutoDoneRef = useRef(false);
+  const [torrentUrl, setTorrentUrl] = useState<string | null>(null);
+  const [engineUrl, setEngineUrl] = useState<string | null>(null);
   const stream = result.state?.stream?.type === 'Ready' ? result.state.stream.content : null;
-  const streamUrl = stream?.url ?? null;
+  const isTorrent = stream ? classifySource(stream) === 'torrent' : false;
+  const streamUrl = (isTorrent ? torrentUrl : stream?.url) ?? null;
   const resumeTime = result.state?.libraryItem?.state.timeOffset ?? 0;
   const nativeShell = nativeShellPresent();
   const addonSubtitles = useMemo(
@@ -337,6 +347,49 @@ export function PlayerScreen({
       reportFailure('The add-on could not resolve this source.');
     }
   }, [reportFailure, result.error, result.loading, result.state]);
+
+  useEffect(() => {
+    if (!isTorrent || !nativePlayer) return;
+    const onEngine = (url: string, error: string) => {
+      if (error) {
+        reportFailure(error);
+      } else if (url) {
+        setEngineUrl(url);
+      }
+    };
+    nativePlayer.streamingEngineChanged.connect(onEngine);
+    nativePlayer.startStreamingEngine();
+    return () => nativePlayer.streamingEngineChanged.disconnect(onEngine);
+  }, [isTorrent, nativePlayer, reportFailure]);
+
+  useEffect(() => {
+    if (!isTorrent || !engineUrl || !stream || torrentUrl) return;
+    const controller = new AbortController();
+    const request = torrentCreateRequest(engineUrl, stream);
+
+    void fetch(request.createUrl, {
+      body: JSON.stringify(request.body),
+      headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`Engine returned ${response.status}.`);
+        const stats = (await response.json()) as TorrentStats;
+        const fileIndex = resolveFileIndex(stream, stats);
+        if (fileIndex === null) {
+          throw new Error('The engine could not identify a playable file.');
+        }
+        setTorrentUrl(torrentMediaUrl(engineUrl, stream, fileIndex));
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        reportFailure('This torrent source could not be prepared.', {
+          code: error instanceof Error ? error.message : 'UnknownError',
+        });
+      });
+    return () => controller.abort();
+  }, [engineUrl, isTorrent, reportFailure, stream, torrentUrl]);
 
   useEffect(() => {
     if (!nativePlayer || !streamUrl) return;
@@ -577,6 +630,9 @@ export function PlayerScreen({
       {result.loading ? <div className={styles.playerStatus}>Preparing source…</div> : null}
       {nativeShell && !nativePlayer ? (
         <div className={styles.playerStatus}>Preparing native player…</div>
+      ) : null}
+      {isTorrent && nativePlayer && !streamUrl ? (
+        <div className={styles.playerStatus}>{enUS.player.preparingTorrent}</div>
       ) : null}
       {streamUrl && buffering ? <div className={styles.playerStatus}>Buffering…</div> : null}
 

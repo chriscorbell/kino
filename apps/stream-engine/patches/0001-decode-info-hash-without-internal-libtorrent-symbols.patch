@@ -1,0 +1,24 @@
+diff --git a/bindings/libtorrent-sys/cpp/wrapper.cpp b/bindings/libtorrent-sys/cpp/wrapper.cpp
+index b86c063..f25f7e5 100644
+--- a/bindings/libtorrent-sys/cpp/wrapper.cpp
++++ b/bindings/libtorrent-sys/cpp/wrapper.cpp
+@@ -50,9 +50,18 @@ static rust::String sha256_to_hex(const lt::sha256_hash &hash) {
+ }
+ 
+ static lt::sha1_hash hex_to_sha1(rust::Str hex) {
++  // Local hex decode: lt::aux::from_hex is not exported by shared libtorrent.
+   std::string hex_str(hex.data(), hex.size());
+   lt::sha1_hash hash;
+-  lt::aux::from_hex(hex_str, hash.data());
++  auto nibble = [](char c) -> int {
++    if (c >= '0' && c <= '9') return c - '0';
++    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
++    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
++    return 0;
++  };
++  for (int i = 0; i < 20 && i * 2 + 1 < static_cast<int>(hex_str.size()); ++i) {
++    hash[i] = static_cast<char>((nibble(hex_str[i * 2]) << 4) | nibble(hex_str[i * 2 + 1]));
++  }
+   return hash;
+ }
+ 

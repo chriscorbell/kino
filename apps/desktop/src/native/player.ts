@@ -3,6 +3,11 @@ export interface NativePlayerEvent {
   disconnect(listener: (name: string, payload: Record<string, unknown>) => void): void;
 }
 
+export interface NativeEngineEvent {
+  connect(listener: (url: string, error: string) => void): void;
+  disconnect(listener: (url: string, error: string) => void): void;
+}
+
 export interface NativePlayer {
   addSubtitles(url: string, title: string, lang: string): void;
   load(url: string, forceStereo: boolean): void;
@@ -18,7 +23,9 @@ export interface NativePlayer {
   setSubtitleScale(scale: number): void;
   setSubtitleTrack(id: number): void;
   shellVersion: string;
+  startStreamingEngine(): void;
   stop(): void;
+  streamingEngineChanged: NativeEngineEvent;
 }
 
 export interface NativeSecureStore {
