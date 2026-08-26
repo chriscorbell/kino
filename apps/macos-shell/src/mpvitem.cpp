@@ -212,7 +212,6 @@ void MpvItem::initialize() {
         {"target-trc", "bt.1886"},
         {"target-prim", "bt.709"},
         {"tone-mapping", "auto"},
-        {"gamut-mapping-mode", "perceptual"},
         {"hdr-compute-peak", "auto"},
         {"cache", "yes"},
         {"demuxer-readahead-secs", "10"},

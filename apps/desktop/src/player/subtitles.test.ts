@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  labelAddonSubtitles,
   languagesMatch,
   parseAddonSubtitles,
   parseSubtitleTracks,
@@ -61,5 +62,23 @@ describe('subtitle tracks', () => {
         'nonsense',
       ]),
     ).toEqual([{ id: 'a', lang: 'eng', url: 'https://subs.example/a.srt' }]);
+  });
+});
+
+describe('add-on subtitle labels', () => {
+  it('numbers repeats so identical languages stay tellable apart', () => {
+    const subtitles = parseAddonSubtitles([
+      { id: 'a', lang: 'eng', url: 'https://s.example/a.srt' },
+      { id: 'b', lang: 'eng', url: 'https://s.example/b.srt' },
+      { id: 'c', lang: 'spa', url: 'https://s.example/c.srt' },
+      { id: 'd', lang: 'eng', url: 'https://s.example/d.srt' },
+    ]);
+
+    expect(labelAddonSubtitles(subtitles).map((entry) => entry.label)).toEqual([
+      'English',
+      'English 2',
+      'Spanish',
+      'English 3',
+    ]);
   });
 });

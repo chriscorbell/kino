@@ -40,7 +40,11 @@ function RowSkeleton() {
   );
 }
 
-export function HomeScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => void }) {
+export function HomeScreen({
+  onOpen,
+}: {
+  onOpen: (item: CoreMetaPreview, videoId?: string | null) => void;
+}) {
   const core = useCore();
   const board = useCoreModel<BoardState>('board', loadBoardAction, 'board');
   const continueWatching = useCoreModel<ContinueWatchingState>(
@@ -92,15 +96,18 @@ export function HomeScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => void
                 className={styles.continueCard}
                 key={item._id}
                 onClick={() =>
-                  onOpen({
-                    id: item._id,
-                    inLibrary: true,
-                    name: item.name,
-                    ...(item.poster === undefined ? {} : { poster: item.poster }),
-                    posterShape: item.posterShape,
-                    type: item.type,
-                    watched: false,
-                  })
+                  onOpen(
+                    {
+                      id: item._id,
+                      inLibrary: true,
+                      name: item.name,
+                      ...(item.poster === undefined ? {} : { poster: item.poster }),
+                      posterShape: item.posterShape,
+                      type: item.type,
+                      watched: false,
+                    },
+                    item.state.videoId,
+                  )
                 }
                 type="button"
               >

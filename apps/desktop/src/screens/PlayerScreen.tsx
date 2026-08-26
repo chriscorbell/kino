@@ -27,6 +27,7 @@ import { t as enUS } from '../locales';
 import { connectNativePlayer, nativeShellPresent, type NativePlayer } from '../native/player';
 import {
   addonSubtitleLabel,
+  labelAddonSubtitles,
   parseAddonSubtitles,
   parseSubtitleTracks,
   preferredSubtitleTrack,
@@ -152,6 +153,7 @@ export function PlayerScreen({
   const [automaticNotice, setAutomaticNotice] = useState(false);
   const [subtitleTracks, setSubtitleTracks] = useState<SubtitleTrack[]>([]);
   const [subtitleMenuOpen, setSubtitleMenuOpen] = useState(false);
+  const subtitleMenuRef = useRef<HTMLDivElement>(null);
   const [subtitleDelayMs, setSubtitleDelayMs] = useState(0);
   const [addedSubtitleUrls, setAddedSubtitleUrls] = useState<ReadonlySet<string>>(new Set());
   const failureReportedRef = useRef(false);
@@ -297,6 +299,7 @@ export function PlayerScreen({
     subtitleAutoDoneRef.current = true;
     setAddedSubtitleUrls((previous) => new Set(previous).add(subtitle.url));
     nativePlayer.addSubtitles(subtitle.url, addonSubtitleLabel(subtitle), subtitle.lang);
+    setSubtitleMenuOpen(false);
     if (!settings.subtitles) onSettingsChange({ ...settings, subtitles: true });
   };
 
@@ -350,6 +353,22 @@ export function PlayerScreen({
       reportFailure('The add-on could not resolve this source.');
     }
   }, [reportFailure, result.error, result.loading, result.state]);
+
+  useEffect(() => {
+    if (!subtitleMenuOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!subtitleMenuRef.current?.contains(event.target as Node)) setSubtitleMenuOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSubtitleMenuOpen(false);
+    };
+    window.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [subtitleMenuOpen]);
 
   useEffect(() => {
     if (!isTorrent || !nativePlayer) return;
@@ -697,7 +716,11 @@ export function PlayerScreen({
       {streamUrl ? (
         <div className={styles.playerControls}>
           {subtitleMenuOpen && nativePlayer ? (
-            <div aria-label={enUS.player.subtitles} className={styles.subtitlePanel}>
+            <div
+              aria-label={enUS.player.subtitles}
+              className={styles.subtitlePanel}
+              ref={subtitleMenuRef}
+            >
               <div className={styles.subtitleTrackList}>
                 <button
                   aria-pressed={selectedSubtitleId === null}
@@ -719,18 +742,18 @@ export function PlayerScreen({
                 {addonSubtitles.some((subtitle) => !addedSubtitleUrls.has(subtitle.url)) ? (
                   <span className={styles.subtitleGroupLabel}>{enUS.player.subtitlesAddons}</span>
                 ) : null}
-                {addonSubtitles
-                  .filter((subtitle) => !addedSubtitleUrls.has(subtitle.url))
-                  .map((subtitle) => (
-                    <button
-                      aria-pressed={false}
-                      key={subtitle.id}
-                      onClick={() => addAddonSubtitle(subtitle)}
-                      type="button"
-                    >
-                      {addonSubtitleLabel(subtitle)}
-                    </button>
-                  ))}
+                {labelAddonSubtitles(
+                  addonSubtitles.filter((subtitle) => !addedSubtitleUrls.has(subtitle.url)),
+                ).map(({ label, subtitle }) => (
+                  <button
+                    aria-pressed={false}
+                    key={subtitle.id}
+                    onClick={() => addAddonSubtitle(subtitle)}
+                    type="button"
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
               <div className={styles.subtitleAdjust}>
                 <AdjustRow

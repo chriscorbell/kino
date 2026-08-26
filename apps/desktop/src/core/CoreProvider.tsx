@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { ensureGuestCatalog } from './bootstrap';
 import { CoreContext, type CoreContextValue } from './context';
-import type { CoreSession } from './storage';
+import { loadSession, saveSession, type CoreSession } from './storage';
 import { createCoreTransport, type CoreTransport } from './transport';
 
 interface RuntimeState {
@@ -17,7 +17,13 @@ function errorMessage(error: unknown) {
 }
 
 export function CoreProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<CoreSession>('guest');
+  const [session, setSession] = useState<CoreSession>(() =>
+    typeof window === 'undefined' ? 'guest' : loadSession(window.localStorage),
+  );
+
+  useEffect(() => {
+    saveSession(window.localStorage, session);
+  }, [session]);
   const [runtime, setRuntime] = useState<RuntimeState>({
     error: null,
     session: null,

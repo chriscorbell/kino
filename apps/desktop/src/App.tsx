@@ -72,6 +72,15 @@ function NavigationButton({
   );
 }
 
+// A Stremio account often has no display name, so fall back to the email
+// before the guest letter — otherwise a signed-in user looks signed out.
+function accountInitial(profile: ProfileState | null) {
+  const user = profile?.profile.auth?.user;
+  if (!user) return 'G';
+  const source = user.name?.trim() || user.email?.trim() || '';
+  return source.slice(0, 1).toUpperCase() || '?';
+}
+
 export function App() {
   const [screen, setScreen] = useState<Screen>('home');
   const [previousScreen, setPreviousScreen] = useState<Exclude<Screen, 'detail'>>('home');
@@ -89,10 +98,10 @@ export function App() {
     saveSettings(window.localStorage, settings);
   }, [settings]);
 
-  const openDetail = (item: CoreMetaPreview) => {
+  const openDetail = (item: CoreMetaPreview, videoId?: string | null) => {
     if (screen !== 'detail') setPreviousScreen(screen);
     setDetail(item);
-    setDetailVideoId(null);
+    setDetailVideoId(videoId ?? null);
     setFailedSources(new Map());
     setScreen('detail');
   };
@@ -200,7 +209,7 @@ export function App() {
           title={profile.state?.profile.auth ? 'Stremio account' : 'Sign in to Stremio'}
           type="button"
         >
-          {profile.state?.profile.auth?.user.name?.slice(0, 1).toUpperCase() || 'G'}
+          {accountInitial(profile.state)}
         </button>
       </aside>
       <main className={styles.content} id="main-content" key={screen}>
