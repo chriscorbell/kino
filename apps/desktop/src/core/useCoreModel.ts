@@ -16,7 +16,16 @@ interface CoreModelSnapshot<State> extends CoreModelResult<State> {
 }
 
 function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : 'The Stremio model failed to load.';
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string' && error.trim()) return error;
+  // Stremio Core rejects with plain values; keep them legible in the log.
+  try {
+    const serialized = JSON.stringify(error);
+    if (serialized && serialized !== '{}') return serialized;
+  } catch {
+    /* fall through to the generic message */
+  }
+  return 'The Stremio model failed to load.';
 }
 
 export function useCoreModel<State>(

@@ -1,8 +1,14 @@
-import { ArrowLeft, Play } from '@phosphor-icons/react';
+import { ArrowLeft, Check, Play, Plus } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState } from 'react';
 
 import styles from '../App.module.css';
-import { loadMetaDetailsAction, type PlaybackSelection } from '../core/actions';
+import {
+  addToLibraryAction,
+  loadMetaDetailsAction,
+  removeFromLibraryAction,
+  type PlaybackSelection,
+} from '../core/actions';
+import { useCore } from '../core/context';
 import { classifySource, sourceDetails, sourceKey, sourceSize, sourceTitle } from '../core/sources';
 import type {
   CoreMetaItem,
@@ -42,7 +48,9 @@ export function MetaDetailsScreen({
   onBack: () => void;
   onPlay: (selection: PlaybackSelection) => void;
 }) {
+  const { transport } = useCore();
   const [videoId, setVideoId] = useState<string | null>(() => defaultVideoId(item));
+  const [libraryOverride, setLibraryOverride] = useState<boolean | null>(null);
   const result = useCoreModel<MetaDetailsState>(
     'meta_details',
     loadMetaDetailsAction(item, videoId),
@@ -85,6 +93,22 @@ export function MetaDetailsScreen({
     [result.state],
   );
   const display = meta ?? item;
+  const inLibrary = libraryOverride ?? display.inLibrary;
+
+  const toggleLibrary = () => {
+    if (!transport) return;
+    const next = !inLibrary;
+    setLibraryOverride(next);
+    void transport
+      .dispatch(next ? addToLibraryAction(display) : removeFromLibraryAction(display.id))
+      .catch((error: unknown) => {
+        setLibraryOverride(!next);
+        console.error(
+          '[kino:library] update failed',
+          error instanceof Error ? error.message : error,
+        );
+      });
+  };
 
   return (
     <div className={styles.detailPage}>
@@ -103,6 +127,10 @@ export function MetaDetailsScreen({
           {display.description ? (
             <p className={styles.detailDescription}>{display.description}</p>
           ) : null}
+          <button className={styles.libraryButton} onClick={toggleLibrary} type="button">
+            {inLibrary ? <Check aria-hidden size={16} /> : <Plus aria-hidden size={16} />}
+            {inLibrary ? enUS.details.inLibrary : enUS.details.addToLibrary}
+          </button>
         </div>
       </header>
 
