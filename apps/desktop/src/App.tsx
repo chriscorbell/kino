@@ -17,6 +17,7 @@ import { sourceKey } from './core/sources';
 import type { CoreMetaPreview, ProfileState } from './core/types';
 import { useCoreModel } from './core/useCoreModel';
 import { enUS } from './locales/en-US';
+import { AddonsScreen } from './screens/AddonsScreen';
 import { DiscoverScreen } from './screens/DiscoverScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { LibraryScreen } from './screens/LibraryScreen';
@@ -44,25 +45,6 @@ const utilityNavigation: NavigationItem[] = [
   { icon: Toolbox, label: enUS.navigation.addons, screen: 'addons' },
   { icon: SlidersHorizontal, label: enUS.navigation.settings, screen: 'settings' },
 ];
-
-function EmptyState({ children }: { children: string }) {
-  return (
-    <div className={styles.emptyState}>
-      <span>{enUS.status.unavailable}</span>
-      <p>{children}</p>
-    </div>
-  );
-}
-
-function AddonsScreen() {
-  return (
-    <div className={`${styles.page} ${styles.narrowPage}`}>
-      <h1>{enUS.addons.title}</h1>
-      <p className={styles.lede}>{enUS.addons.description}</p>
-      <EmptyState>{enUS.addons.empty}</EmptyState>
-    </div>
-  );
-}
 
 interface SettingSwitchProps {
   checked: boolean;

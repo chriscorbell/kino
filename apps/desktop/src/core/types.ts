@@ -208,9 +208,22 @@ export interface LibraryState {
   selected: { request: LibraryRequest } | null;
 }
 
+export interface CoreAddon {
+  flags?: { official?: boolean; protected?: boolean };
+  manifest: {
+    description?: string | null;
+    id: string;
+    logo?: string | null;
+    name: string;
+    types?: string[];
+    version?: string;
+  };
+  transportUrl: string;
+}
+
 export interface ProfileState {
   profile: {
-    addons: Array<{ manifest: { id: string; name: string }; transportUrl: string }>;
+    addons: CoreAddon[];
     auth?: { user: { email?: string; name?: string; uid?: string } };
     settings?: { subtitlesLanguage?: string | null };
   };

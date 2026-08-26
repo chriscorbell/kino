@@ -1056,6 +1056,132 @@
   background: var(--kino-accent);
 }
 
+.addonForm {
+  display: flex;
+  gap: 10px;
+  margin: 26px 0 8px;
+}
+
+.textField {
+  flex: 1;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--kino-border);
+  border-radius: var(--kino-control-radius);
+  color: var(--kino-text);
+  background: var(--kino-surface);
+  font: inherit;
+  font-size: 13px;
+}
+
+.textField:focus-visible {
+  border-color: var(--kino-accent);
+  outline: none;
+}
+
+.addonForm button {
+  min-height: 38px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--kino-control-radius);
+  color: var(--kino-on-accent);
+  background: var(--kino-accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.addonForm button:disabled {
+  color: var(--kino-text-faint);
+  background: var(--kino-border);
+  cursor: default;
+}
+
+.addonList {
+  display: grid;
+  margin-top: 12px;
+}
+
+.addonRow {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 0;
+  border-top: 1px solid var(--kino-border-subtle);
+}
+
+.addonLogo {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--kino-control-radius);
+  background: var(--kino-border);
+  object-fit: cover;
+}
+
+.addonCopy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.addonCopy strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.addonCopy strong small {
+  margin-left: 6px;
+  color: var(--kino-text-faint);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.addonCopy p {
+  overflow: hidden;
+  margin: 0;
+  color: var(--kino-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.addonTypes {
+  color: var(--kino-text-faint);
+  font-size: 11px;
+  text-transform: capitalize;
+}
+
+.addonBadge {
+  color: var(--kino-text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.addonRemove {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 0;
+  border-radius: var(--kino-control-radius);
+  color: var(--kino-text-muted);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    color var(--kino-duration-fast) ease,
+    background-color var(--kino-duration-fast) ease;
+}
+
+.addonRemove:hover {
+  color: var(--kino-danger);
+  background: var(--kino-border);
+}
+
 .libraryButton {
   display: inline-flex;
   align-items: center;
