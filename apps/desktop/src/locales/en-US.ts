@@ -15,6 +15,7 @@ export const enUS = {
     title: 'Home',
     continueWatching: 'Continue Watching',
     continueEmpty: 'Nothing to resume yet.',
+    dismiss: 'Remove from Continue Watching',
     movies: 'Movies',
     series: 'Series',
     catalogs: 'Catalogs',

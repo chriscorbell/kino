@@ -126,6 +126,10 @@ export function addToLibraryAction(meta: CoreMetaPreview): CoreAction {
   return { action: 'Ctx', args: { action: 'AddToLibrary', args: meta } };
 }
 
+export function rewindLibraryItemAction(id: string): CoreAction {
+  return { action: 'Ctx', args: { action: 'RewindLibraryItem', args: id } };
+}
+
 export function removeFromLibraryAction(id: string): CoreAction {
   return { action: 'Ctx', args: { action: 'RemoveFromLibrary', args: id } };
 }
