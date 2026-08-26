@@ -12,6 +12,27 @@ export interface SecureAuthStorage {
 
 export type CoreSession = 'account' | 'guest';
 
+export const SESSION_STORAGE_KEY = 'kino.session.v1';
+
+// Which session was last active has to outlive the process, otherwise a
+// signed-in user is dropped back to guest on every launch even though their
+// auth is still stored.
+export function loadSession(storage: Pick<Storage, 'getItem'>): CoreSession {
+  try {
+    return storage.getItem(SESSION_STORAGE_KEY) === 'account' ? 'account' : 'guest';
+  } catch {
+    return 'guest';
+  }
+}
+
+export function saveSession(storage: Pick<Storage, 'setItem'>, session: CoreSession) {
+  try {
+    storage.setItem(SESSION_STORAGE_KEY, session);
+  } catch {
+    return;
+  }
+}
+
 export class NamespacedStorage implements KeyValueStorage {
   readonly #prefix: string;
   readonly #storage: KeyValueStorage;

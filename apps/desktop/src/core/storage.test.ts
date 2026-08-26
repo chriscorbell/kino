@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { NamespacedStorage } from './storage';
+import { loadSession, NamespacedStorage, saveSession } from './storage';
 
 describe('core session storage', () => {
   it('keeps guest and account data isolated under the same logical key', () => {
@@ -23,5 +23,29 @@ describe('core session storage', () => {
 
     expect(guest.getItem('profile')).toBeNull();
     expect(account.getItem('profile')).toBe('account-profile');
+  });
+});
+
+describe('session persistence', () => {
+  it('restores the account session so sign-in survives a restart', () => {
+    expect(loadSession({ getItem: () => 'account' })).toBe('account');
+  });
+
+  it('falls back to guest for missing, unknown, or unreadable values', () => {
+    expect(loadSession({ getItem: () => null })).toBe('guest');
+    expect(loadSession({ getItem: () => 'nonsense' })).toBe('guest');
+    expect(
+      loadSession({
+        getItem: () => {
+          throw new Error('unavailable');
+        },
+      }),
+    ).toBe('guest');
+  });
+
+  it('writes the selected session', () => {
+    let stored: string | null = null;
+    saveSession({ setItem: (_key, value) => (stored = value) }, 'account');
+    expect(stored).toBe('account');
   });
 });

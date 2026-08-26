@@ -99,6 +99,18 @@ export function addonSubtitleLabel(subtitle: AddonSubtitle) {
   );
 }
 
+// Add-ons routinely return several subtitles for the same language. Numbering
+// the repeats keeps them tellable apart in the menu.
+export function labelAddonSubtitles(subtitles: AddonSubtitle[]) {
+  const seen = new Map<string, number>();
+  return subtitles.map((subtitle) => {
+    const base = addonSubtitleLabel(subtitle);
+    const count = (seen.get(base) ?? 0) + 1;
+    seen.set(base, count);
+    return { label: count === 1 ? base : `${base} ${count}`, subtitle };
+  });
+}
+
 // Stremio stores language preferences as ISO 639-2/B codes.
 export const subtitleLanguages = [
   { label: 'English', value: 'eng' },

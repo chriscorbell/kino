@@ -13,7 +13,7 @@ export interface KinoSettings {
   upNext: boolean;
 }
 
-export const subtitlePositionRange = { max: 110, min: 50 } as const;
+export const subtitlePositionRange = { max: 94, min: 50 } as const;
 export const subtitleSizeRange = { max: 200, min: 50 } as const;
 
 export const defaultSettings: KinoSettings = {
@@ -21,7 +21,7 @@ export const defaultSettings: KinoSettings = {
   audioOutput: 'auto',
   matchFrameRate: false,
   skipIntroButton: true,
-  subtitlePosition: 100,
+  subtitlePosition: 94,
   subtitleSize: 100,
   subtitles: false,
   upNext: true,
