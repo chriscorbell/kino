@@ -10,6 +10,7 @@
 #include <QQuickOpenGLUtils>
 #include <QVariantList>
 
+#include <algorithm>
 #include <cmath>
 #include <stdexcept>
 
@@ -62,6 +63,47 @@ QVariantList chapterPayload(const mpv_node &root) {
         }
     }
     return chapters;
+}
+
+QVariantList subtitleTrackPayload(const mpv_node &root) {
+    QVariantList tracks;
+    if (root.format != MPV_FORMAT_NODE_ARRAY || !root.u.list) {
+        return tracks;
+    }
+
+    for (int index = 0; index < root.u.list->num; ++index) {
+        const mpv_node &track = root.u.list->values[index];
+        if (track.format != MPV_FORMAT_NODE_MAP || !track.u.list) {
+            continue;
+        }
+
+        bool isSubtitle = false;
+        QVariantMap entry{{QStringLiteral("external"), false},
+                          {QStringLiteral("selected"), false}};
+        for (int field = 0; field < track.u.list->num; ++field) {
+            const QByteArray name(track.u.list->keys[field]);
+            const mpv_node &value = track.u.list->values[field];
+            if (name == "type" && value.format == MPV_FORMAT_STRING && value.u.string) {
+                isSubtitle = qstrcmp(value.u.string, "sub") == 0;
+            } else if (name == "id" && value.format == MPV_FORMAT_INT64) {
+                entry.insert(QStringLiteral("id"),
+                             static_cast<qlonglong>(value.u.int64));
+            } else if (name == "selected" && value.format == MPV_FORMAT_FLAG) {
+                entry.insert(QStringLiteral("selected"), value.u.flag != 0);
+            } else if (name == "external" && value.format == MPV_FORMAT_FLAG) {
+                entry.insert(QStringLiteral("external"), value.u.flag != 0);
+            } else if (value.format == MPV_FORMAT_STRING && value.u.string &&
+                       (name == "title" || name == "lang" || name == "codec")) {
+                entry.insert(QString::fromUtf8(name),
+                             QString::fromUtf8(value.u.string));
+            }
+        }
+
+        if (isSubtitle && entry.contains(QStringLiteral("id"))) {
+            tracks.append(entry);
+        }
+    }
+    return tracks;
 }
 
 } // namespace
@@ -177,6 +219,8 @@ void MpvItem::initialize() {
         {"audio-fallback-to-null", "yes"},
         {"audio-client-name", "Kino"},
         {"title", "Kino"},
+        {"sid", "no"},
+        {"sub-auto", "no"},
     };
 
     for (const Option &option : options) {
@@ -198,12 +242,14 @@ void MpvItem::initialize() {
     mpv_observe_property(handle_, 6, "hwdec-current", MPV_FORMAT_STRING);
     mpv_observe_property(handle_, 7, "video-format", MPV_FORMAT_STRING);
     mpv_observe_property(handle_, 8, "chapter-list", MPV_FORMAT_NODE);
+    mpv_observe_property(handle_, 9, "track-list", MPV_FORMAT_NODE);
 }
 
 void MpvItem::load(const QString &url, bool forceStereo) {
     failed_ = false;
     hardwareDecoderActive_ = false;
     hardwareDecoderTimer_.stop();
+    paused_ = false;
     videoPresent_ = false;
     setActive(true);
     QByteArray audioChannels = forceStereo ? QByteArrayLiteral("stereo")
@@ -211,6 +257,11 @@ void MpvItem::load(const QString &url, bool forceStereo) {
     char *audioChannelsData = audioChannels.data();
     mpv_set_property_async(handle_, 0, "audio-channels", MPV_FORMAT_STRING,
                            &audioChannelsData);
+    QByteArray subtitleTrack = QByteArrayLiteral("no");
+    char *subtitleTrackData = subtitleTrack.data();
+    mpv_set_property_async(handle_, 0, "sid", MPV_FORMAT_STRING, &subtitleTrackData);
+    double subtitleDelay = 0;
+    mpv_set_property_async(handle_, 0, "sub-delay", MPV_FORMAT_DOUBLE, &subtitleDelay);
     int unpaused = 0;
     mpv_set_property_async(handle_, 0, "pause", MPV_FORMAT_FLAG, &unpaused);
     const QByteArray encodedUrl = url.toUtf8();
@@ -223,6 +274,21 @@ void MpvItem::load(const QString &url, bool forceStereo) {
     emit playerEvent(QStringLiteral("buffering"), {{QStringLiteral("active"), true}});
     emit playerEvent(QStringLiteral("paused"), {{QStringLiteral("paused"), false}});
     qInfo("[kino:mpv] source load requested");
+}
+
+void MpvItem::addSubtitles(const QString &url, const QString &title, const QString &lang) {
+    const QByteArray encodedUrl = url.toUtf8();
+    const QByteArray encodedTitle =
+        title.trimmed().isEmpty() ? QByteArrayLiteral("External subtitles")
+                                  : title.trimmed().toUtf8();
+    const QByteArray encodedLang = lang.trimmed().toUtf8();
+    const char *command[] = {"sub-add", encodedUrl.constData(), "select",
+                             encodedTitle.constData(),
+                             encodedLang.isEmpty() ? nullptr : encodedLang.constData(),
+                             nullptr};
+    if (mpv_command_async(handle_, 0, command) < 0) {
+        qWarning("[kino:mpv] external subtitles rejected");
+    }
 }
 
 void MpvItem::seek(double seconds) {
@@ -240,11 +306,42 @@ void MpvItem::setPaused(bool paused) {
     mpv_set_property_async(handle_, 0, "pause", MPV_FORMAT_FLAG, &value);
 }
 
+void MpvItem::setSubtitleDelay(double seconds) {
+    double value = std::clamp(seconds, -60.0, 60.0);
+    mpv_set_property_async(handle_, 0, "sub-delay", MPV_FORMAT_DOUBLE, &value);
+}
+
+void MpvItem::setSubtitlePosition(int position) {
+    int64_t value = std::clamp(position, 0, 150);
+    mpv_set_property_async(handle_, 0, "sub-pos", MPV_FORMAT_INT64, &value);
+}
+
+void MpvItem::setSubtitleScale(double scale) {
+    double value = std::clamp(scale, 0.1, 5.0);
+    mpv_set_property_async(handle_, 0, "sub-scale", MPV_FORMAT_DOUBLE, &value);
+}
+
+void MpvItem::setSubtitleTrack(int id) {
+    if (id > 0) {
+        int64_t value = id;
+        mpv_set_property_async(handle_, 0, "sid", MPV_FORMAT_INT64, &value);
+        return;
+    }
+    QByteArray disabled = QByteArrayLiteral("no");
+    char *disabledData = disabled.data();
+    mpv_set_property_async(handle_, 0, "sid", MPV_FORMAT_STRING, &disabledData);
+}
+
 void MpvItem::stop() {
     hardwareDecoderTimer_.stop();
     const char *command[] = {"stop", nullptr};
     mpv_command_async(handle_, 0, command);
     setActive(false);
+}
+
+void MpvItem::togglePaused() {
+    const char *command[] = {"cycle", "pause", nullptr};
+    mpv_command_async(handle_, 0, command);
 }
 
 void MpvItem::onRenderUpdate(void *context) {
@@ -291,9 +388,10 @@ void MpvItem::handleEvent(mpv_event *event) {
                                                 : QStringLiteral("duration"),
                              millisecondsPayload(seconds));
         } else if (name == "pause") {
+            paused_ = *static_cast<int *>(property->data) != 0;
+            updatePowerGuard();
             emit playerEvent(QStringLiteral("paused"),
-                             {{QStringLiteral("paused"),
-                               *static_cast<int *>(property->data) != 0}});
+                             {{QStringLiteral("paused"), paused_}});
         } else if (name == "paused-for-cache") {
             emit playerEvent(QStringLiteral("buffering"),
                              {{QStringLiteral("active"),
@@ -314,6 +412,7 @@ void MpvItem::handleEvent(mpv_event *event) {
         } else if (name == "video-format") {
             const auto *format = static_cast<const char *>(property->data);
             videoPresent_ = format && *format != '\0';
+            updatePowerGuard();
             if (videoPresent_ && !hardwareDecoderActive_) {
                 hardwareDecoderTimer_.start();
             } else if (!videoPresent_) {
@@ -324,6 +423,11 @@ void MpvItem::handleEvent(mpv_event *event) {
             emit playerEvent(
                 QStringLiteral("chapters"),
                 {{QStringLiteral("items"), chapterPayload(*chapters)}});
+        } else if (name == "track-list") {
+            const auto *tracks = static_cast<const mpv_node *>(property->data);
+            emit playerEvent(
+                QStringLiteral("subtitleTracks"),
+                {{QStringLiteral("items"), subtitleTrackPayload(*tracks)}});
         }
         break;
     }
@@ -364,8 +468,13 @@ void MpvItem::setActive(bool active) {
         return;
     }
     active_ = active;
+    updatePowerGuard();
     emit activeChanged();
     if (active_) {
         update();
     }
+}
+
+void MpvItem::updatePowerGuard() {
+    powerGuard_.setActive(active_ && videoPresent_ && !paused_);
 }

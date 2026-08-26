@@ -1,4 +1,14 @@
-import { ArrowLeft, ArrowsOut, Pause, Play, SkipForward, SpeakerHigh } from '@phosphor-icons/react';
+import {
+  ArrowLeft,
+  ArrowsOut,
+  Minus,
+  Pause,
+  Play,
+  Plus,
+  SkipForward,
+  SpeakerHigh,
+  Subtitles,
+} from '@phosphor-icons/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import styles from '../App.module.css';
@@ -12,8 +22,18 @@ import {
   type ChapterCue,
   type IntroMarker,
 } from '../intro/markers';
+import { enUS } from '../locales/en-US';
 import { connectNativePlayer, nativeShellPresent, type NativePlayer } from '../native/player';
-import type { KinoSettings } from '../settings';
+import {
+  addonSubtitleLabel,
+  parseAddonSubtitles,
+  parseSubtitleTracks,
+  preferredSubtitleTrack,
+  subtitleTrackLabel,
+  type AddonSubtitle,
+  type SubtitleTrack,
+} from '../player/subtitles';
+import { subtitlePositionRange, subtitleSizeRange, type KinoSettings } from '../settings';
 
 function formatTime(milliseconds: number) {
   const seconds = Math.max(0, Math.floor(milliseconds / 1000));
@@ -57,12 +77,45 @@ function nativeChapterCues(value: unknown): ChapterCue[] {
   });
 }
 
+function AdjustRow({
+  label,
+  onDecrease,
+  onIncrease,
+  value,
+}: {
+  label: string;
+  onDecrease: () => void;
+  onIncrease: () => void;
+  value: string;
+}) {
+  return (
+    <div className={styles.subtitleAdjustRow}>
+      <span>{label}</span>
+      <span className={styles.subtitleAdjustControls}>
+        <button aria-label={`${enUS.player.decrease} ${label}`} onClick={onDecrease} type="button">
+          <Minus aria-hidden size={14} />
+        </button>
+        <span className={styles.subtitleAdjustValue}>{value}</span>
+        <button aria-label={`${enUS.player.increase} ${label}`} onClick={onIncrease} type="button">
+          <Plus aria-hidden size={14} />
+        </button>
+      </span>
+    </div>
+  );
+}
+
 export function PlayerScreen({
   onBack,
+  onSettingsChange,
+  onSourceFailure,
+  preferredSubtitleLanguage,
   selection,
   settings,
 }: {
   onBack: () => void;
+  onSettingsChange: (settings: KinoSettings) => void;
+  onSourceFailure: (message: string) => void;
+  preferredSubtitleLanguage: string | null;
   selection: PlaybackSelection;
   settings: KinoSettings;
 }) {
@@ -83,17 +136,26 @@ export function PlayerScreen({
   const [paused, setPaused] = useState(true);
   const [muted, setMuted] = useState(false);
   const [buffering, setBuffering] = useState(false);
-  const [mediaError, setMediaError] = useState<string | null>(null);
   const [nativePlayer, setNativePlayer] = useState<NativePlayer | null>(null);
   const [chapterCues, setChapterCues] = useState<ChapterCue[]>([]);
   const [communityMarker, setCommunityMarker] = useState<IntroMarker | null>(null);
   const [automaticSkipComplete, setAutomaticSkipComplete] = useState(false);
   const [automaticNotice, setAutomaticNotice] = useState(false);
+  const [subtitleTracks, setSubtitleTracks] = useState<SubtitleTrack[]>([]);
+  const [subtitleMenuOpen, setSubtitleMenuOpen] = useState(false);
+  const [subtitleDelayMs, setSubtitleDelayMs] = useState(0);
+  const [addedSubtitleUrls, setAddedSubtitleUrls] = useState<ReadonlySet<string>>(new Set());
+  const failureReportedRef = useRef(false);
+  const subtitleAutoDoneRef = useRef(false);
   const stream = result.state?.stream?.type === 'Ready' ? result.state.stream.content : null;
   const streamUrl = stream?.url ?? null;
   const resumeTime = result.state?.libraryItem?.state.timeOffset ?? 0;
-  const sourceFailed = result.state?.stream?.type === 'Err' || Boolean(result.error || mediaError);
   const nativeShell = nativeShellPresent();
+  const addonSubtitles = useMemo(
+    () => parseAddonSubtitles(result.state?.subtitles),
+    [result.state],
+  );
+  const selectedSubtitleId = subtitleTracks.find((track) => track.selected)?.id ?? null;
   const chapterMarker = useMemo(
     () => markerFromChapterCues(chapterCues, duration),
     [chapterCues, duration],
@@ -142,6 +204,19 @@ export function PlayerScreen({
     [dispatchPlayer, nativeShell],
   );
 
+  // The contract on failure: save progress, record a sanitized diagnostic, mark
+  // the source failed for this selection session, and return to the source list.
+  const reportFailure = useCallback(
+    (message: string, diagnostic: Record<string, unknown> = {}) => {
+      if (failureReportedRef.current) return;
+      failureReportedRef.current = true;
+      reportProgress();
+      console.error('[kino:player] source failed', { message, ...diagnostic });
+      onSourceFailure(message);
+    },
+    [onSourceFailure, reportProgress],
+  );
+
   const togglePlayback = useCallback(() => {
     if (nativePlayer) {
       const nextPaused = !paused;
@@ -158,13 +233,11 @@ export function PlayerScreen({
     }
     void video.play().catch((error: unknown) => {
       setPaused(true);
-      setMediaError('Playback could not start with this source.');
-      console.error(
-        '[kino:player] playback start failed',
-        error instanceof DOMException ? error.name : 'UnknownError',
-      );
+      reportFailure('Playback could not start with this source.', {
+        code: error instanceof DOMException ? error.name : 'UnknownError',
+      });
     });
-  }, [dispatchPlayer, nativePlayer, paused]);
+  }, [dispatchPlayer, nativePlayer, paused, reportFailure]);
 
   const seekTo = useCallback(
     (milliseconds: number) => {
@@ -197,6 +270,47 @@ export function PlayerScreen({
     }
   }, [nativePlayer]);
 
+  const selectSubtitleTrack = (id: number | null) => {
+    if (!nativePlayer) return;
+    subtitleAutoDoneRef.current = true;
+    nativePlayer.setSubtitleTrack(id ?? 0);
+    if (settings.subtitles !== (id !== null)) {
+      onSettingsChange({ ...settings, subtitles: id !== null });
+    }
+  };
+
+  const addAddonSubtitle = (subtitle: AddonSubtitle) => {
+    if (!nativePlayer || addedSubtitleUrls.has(subtitle.url)) return;
+    subtitleAutoDoneRef.current = true;
+    setAddedSubtitleUrls((previous) => new Set(previous).add(subtitle.url));
+    nativePlayer.addSubtitles(subtitle.url, addonSubtitleLabel(subtitle), subtitle.lang);
+    if (!settings.subtitles) onSettingsChange({ ...settings, subtitles: true });
+  };
+
+  const changeSubtitleDelay = (deltaMs: number) => {
+    const next = Math.max(-60_000, Math.min(60_000, subtitleDelayMs + deltaMs));
+    setSubtitleDelayMs(next);
+    nativePlayer?.setSubtitleDelay(next / 1000);
+  };
+
+  const changeSubtitleSize = (delta: number) => {
+    const next = Math.max(
+      subtitleSizeRange.min,
+      Math.min(subtitleSizeRange.max, settings.subtitleSize + delta),
+    );
+    if (next !== settings.subtitleSize) onSettingsChange({ ...settings, subtitleSize: next });
+  };
+
+  const changeSubtitlePosition = (delta: number) => {
+    const next = Math.max(
+      subtitlePositionRange.min,
+      Math.min(subtitlePositionRange.max, settings.subtitlePosition + delta),
+    );
+    if (next !== settings.subtitlePosition) {
+      onSettingsChange({ ...settings, subtitlePosition: next });
+    }
+  };
+
   useEffect(() => {
     if (!nativeShell) return;
     let disposed = false;
@@ -206,16 +320,23 @@ export function PlayerScreen({
       })
       .catch((error: unknown) => {
         if (disposed) return;
-        setMediaError('Kino could not connect to the native player.');
-        console.error(
-          '[kino:native] player connection failed',
-          error instanceof Error ? error.message : 'UnknownError',
-        );
+        reportFailure('Kino could not connect to the native player.', {
+          code: error instanceof Error ? error.message : 'UnknownError',
+        });
       });
     return () => {
       disposed = true;
     };
-  }, [nativeShell]);
+  }, [nativeShell, reportFailure]);
+
+  useEffect(() => {
+    if (result.loading) return;
+    if (result.error) {
+      reportFailure('The source could not be prepared.');
+    } else if (result.state?.stream?.type === 'Err') {
+      reportFailure('The add-on could not resolve this source.');
+    }
+  }, [reportFailure, result.error, result.loading, result.state]);
 
   useEffect(() => {
     if (!nativePlayer || !streamUrl) return;
@@ -240,10 +361,12 @@ export function PlayerScreen({
         setBuffering(false);
       } else if (name === 'chapters') {
         setChapterCues(nativeChapterCues(payload.items));
+      } else if (name === 'subtitleTracks') {
+        setSubtitleTracks(parseSubtitleTracks(payload.items));
       } else if (name === 'error') {
         setBuffering(false);
         setPaused(true);
-        setMediaError(nativeErrorMessage(payload.code));
+        reportFailure(nativeErrorMessage(payload.code), { code: payload.code });
       } else if (name === 'ended') {
         setBuffering(false);
         setPaused(true);
@@ -262,12 +385,35 @@ export function PlayerScreen({
   }, [
     dispatchPlayer,
     nativePlayer,
+    reportFailure,
     reportProgress,
     settings.audioOutput,
     streamUrl,
     updateDuration,
     updateTime,
   ]);
+
+  useEffect(() => {
+    if (!nativePlayer) return;
+    nativePlayer.setSubtitleScale(settings.subtitleSize / 100);
+    nativePlayer.setSubtitlePosition(settings.subtitlePosition);
+  }, [nativePlayer, settings.subtitlePosition, settings.subtitleSize]);
+
+  useEffect(() => {
+    if (!nativePlayer) return;
+    nativePlayer.setNowPlayingMetadata(
+      result.state?.title ?? selection.meta.name,
+      selection.video?.title ?? selection.meta.name,
+    );
+  }, [nativePlayer, result.state?.title, selection]);
+
+  useEffect(() => {
+    if (!nativePlayer || subtitleAutoDoneRef.current || !settings.subtitles) return;
+    const track = preferredSubtitleTrack(subtitleTracks, preferredSubtitleLanguage);
+    if (!track) return;
+    subtitleAutoDoneRef.current = true;
+    nativePlayer.setSubtitleTrack(track.id);
+  }, [nativePlayer, preferredSubtitleLanguage, settings.subtitles, subtitleTracks]);
 
   useEffect(() => {
     if (resumeAppliedRef.current || duration <= 0 || resumeTime <= 0 || resumeTime >= duration)
@@ -378,8 +524,7 @@ export function PlayerScreen({
           onError={(event) => {
             const video = event.currentTarget;
             setBuffering(false);
-            setMediaError('This source could not be decoded or loaded.');
-            console.error('[kino:player] media failure', {
+            reportFailure('This source could not be decoded or loaded.', {
               code: video.error?.code ?? 0,
               networkState: video.networkState,
               readyState: video.readyState,
@@ -430,18 +575,10 @@ export function PlayerScreen({
       </div>
 
       {result.loading ? <div className={styles.playerStatus}>Preparing source…</div> : null}
-      {nativeShell && !nativePlayer && !sourceFailed ? (
+      {nativeShell && !nativePlayer ? (
         <div className={styles.playerStatus}>Preparing native player…</div>
       ) : null}
-      {sourceFailed ? (
-        <div className={styles.playerStatus}>
-          <strong>Source failed</strong>
-          <span>{mediaError ?? 'Return to source selection and choose another option.'}</span>
-        </div>
-      ) : null}
-      {streamUrl && buffering && !sourceFailed ? (
-        <div className={styles.playerStatus}>Buffering…</div>
-      ) : null}
+      {streamUrl && buffering ? <div className={styles.playerStatus}>Buffering…</div> : null}
 
       {settings.skipIntroButton &&
       insideIntro &&
@@ -479,6 +616,64 @@ export function PlayerScreen({
 
       {streamUrl ? (
         <div className={styles.playerControls}>
+          {subtitleMenuOpen && nativePlayer ? (
+            <div aria-label={enUS.player.subtitles} className={styles.subtitlePanel}>
+              <div className={styles.subtitleTrackList}>
+                <button
+                  aria-pressed={selectedSubtitleId === null}
+                  onClick={() => selectSubtitleTrack(null)}
+                  type="button"
+                >
+                  {enUS.player.subtitlesOff}
+                </button>
+                {subtitleTracks.map((track) => (
+                  <button
+                    aria-pressed={track.id === selectedSubtitleId}
+                    key={track.id}
+                    onClick={() => selectSubtitleTrack(track.id)}
+                    type="button"
+                  >
+                    {subtitleTrackLabel(track)}
+                  </button>
+                ))}
+                {addonSubtitles.some((subtitle) => !addedSubtitleUrls.has(subtitle.url)) ? (
+                  <span className={styles.subtitleGroupLabel}>{enUS.player.subtitlesAddons}</span>
+                ) : null}
+                {addonSubtitles
+                  .filter((subtitle) => !addedSubtitleUrls.has(subtitle.url))
+                  .map((subtitle) => (
+                    <button
+                      aria-pressed={false}
+                      key={subtitle.id}
+                      onClick={() => addAddonSubtitle(subtitle)}
+                      type="button"
+                    >
+                      {addonSubtitleLabel(subtitle)}
+                    </button>
+                  ))}
+              </div>
+              <div className={styles.subtitleAdjust}>
+                <AdjustRow
+                  label={enUS.player.subtitleDelay}
+                  onDecrease={() => changeSubtitleDelay(-500)}
+                  onIncrease={() => changeSubtitleDelay(500)}
+                  value={`${subtitleDelayMs >= 0 ? '+' : ''}${(subtitleDelayMs / 1000).toFixed(1)}s`}
+                />
+                <AdjustRow
+                  label={enUS.player.subtitleSize}
+                  onDecrease={() => changeSubtitleSize(-10)}
+                  onIncrease={() => changeSubtitleSize(10)}
+                  value={`${settings.subtitleSize}%`}
+                />
+                <AdjustRow
+                  label={enUS.player.subtitlePosition}
+                  onDecrease={() => changeSubtitlePosition(-5)}
+                  onIncrease={() => changeSubtitlePosition(5)}
+                  value={`${settings.subtitlePosition}%`}
+                />
+              </div>
+            </div>
+          ) : null}
           <div className={styles.timeline}>
             {markerStyle ? <span className={styles.introRange} style={markerStyle} /> : null}
             <input
@@ -508,6 +703,17 @@ export function PlayerScreen({
             <span className={styles.timeLabel}>
               {formatTime(time)} / {formatTime(duration)}
             </span>
+            {nativePlayer ? (
+              <button
+                aria-expanded={subtitleMenuOpen}
+                aria-label={enUS.player.subtitles}
+                className={subtitleMenuOpen ? styles.controlActive : undefined}
+                onClick={() => setSubtitleMenuOpen((open) => !open)}
+                type="button"
+              >
+                <Subtitles aria-hidden size={20} />
+              </button>
+            ) : null}
             <button aria-label="Fullscreen" onClick={enterFullscreen} type="button">
               <ArrowsOut aria-hidden size={20} />
             </button>

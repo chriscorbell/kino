@@ -9,6 +9,10 @@ export function classifySource(stream: CoreStream): SourceSupport {
   return 'unsupported';
 }
 
+export function sourceKey(stream: CoreStream, transportUrl: string) {
+  return `${transportUrl}|${stream.url ?? stream.infoHash ?? 'unknown'}`;
+}
+
 export function sourceTitle(stream: CoreStream) {
   return stream.name?.trim() || stream.description?.split('\n')[0]?.trim() || 'Unnamed source';
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { classifySource, sourceSize } from './sources';
+import { classifySource, sourceKey, sourceSize } from './sources';
 
 const base = { deepLinks: { player: 'stremio:///player/value' } };
 
@@ -15,5 +15,16 @@ describe('source compatibility', () => {
   it('formats binary source size without inventing missing metadata', () => {
     expect(sourceSize({ ...base, behaviorHints: { videoSize: 5 * 1024 ** 3 } })).toBe('5.0 GB');
     expect(sourceSize(base)).toBeNull();
+  });
+
+  it('keys sources by transport and stream identity', () => {
+    const transport = 'https://addon.example/manifest.json';
+    expect(sourceKey({ ...base, url: 'https://example.com/video.mp4' }, transport)).toBe(
+      `${transport}|https://example.com/video.mp4`,
+    );
+    expect(sourceKey({ ...base, infoHash: 'abc' }, transport)).toBe(`${transport}|abc`);
+    expect(sourceKey({ ...base, url: 'https://example.com/video.mp4' }, transport)).not.toBe(
+      sourceKey({ ...base, url: 'https://example.com/other.mp4' }, transport),
+    );
   });
 });

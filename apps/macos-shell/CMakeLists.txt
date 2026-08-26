@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(Kino VERSION 0.1.0 LANGUAGES CXX)
+project(Kino VERSION 0.1.0 LANGUAGES CXX OBJCXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -22,6 +22,9 @@ find_package(
     WebEngineQuick
 )
 pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv)
+find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
+find_library(IOKIT_FRAMEWORK IOKit REQUIRED)
+find_library(MEDIAPLAYER_FRAMEWORK MediaPlayer REQUIRED)
 find_library(SECURITY_FRAMEWORK Security REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.8)
@@ -36,6 +39,8 @@ qt_add_executable(
   src/logging.cpp
   src/main.cpp
   src/mpvitem.cpp
+  src/nowplaying.mm
+  src/powerguard.cpp
   src/securestore.cpp
 )
 
@@ -46,6 +51,7 @@ qt_add_qml_module(
   QML_FILES qml/Main.qml
   SOURCES
     src/mpvitem.h
+    src/nowplaying.h
     src/securestore.h
 )
 
@@ -54,6 +60,9 @@ target_link_libraries(
   Kino
   PRIVATE
     PkgConfig::MPV
+    ${FOUNDATION_FRAMEWORK}
+    ${IOKIT_FRAMEWORK}
+    ${MEDIAPLAYER_FRAMEWORK}
     ${SECURITY_FRAMEWORK}
     Qt6::Concurrent
     Qt6::Core

@@ -4,13 +4,19 @@ export interface NativePlayerEvent {
 }
 
 export interface NativePlayer {
+  addSubtitles(url: string, title: string, lang: string): void;
   load(url: string, forceStereo: boolean): void;
   platform: string;
   playerEvent: NativePlayerEvent;
   seek(seconds: number): void;
   setFullscreen(enabled: boolean): void;
   setMuted(muted: boolean): void;
+  setNowPlayingMetadata(title: string, subtitle: string): void;
   setPaused(paused: boolean): void;
+  setSubtitleDelay(seconds: number): void;
+  setSubtitlePosition(position: number): void;
+  setSubtitleScale(scale: number): void;
+  setSubtitleTrack(id: number): void;
   shellVersion: string;
   stop(): void;
 }

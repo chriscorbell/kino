@@ -77,6 +77,18 @@ export const enUS = {
     refreshing: 'Refreshing sources…',
     noSources: 'No sources were returned for this title.',
     unavailable: 'Not available',
+    failed: 'Failed',
+  },
+  player: {
+    subtitles: 'Subtitles',
+    subtitlesOff: 'Off',
+    subtitlesEmbedded: 'From this source',
+    subtitlesAddons: 'From add-ons',
+    subtitleDelay: 'Delay',
+    subtitleSize: 'Size',
+    subtitlePosition: 'Position',
+    decrease: 'Decrease',
+    increase: 'Increase',
   },
   errors: {
     title: 'Kino could not render this screen.',
