@@ -120,7 +120,6 @@
   letter-spacing: -0.01em;
 }
 
-.sectionHeading,
 .detailSectionHeading {
   display: flex;
   align-items: baseline;
@@ -129,7 +128,6 @@
   margin-bottom: 8px;
 }
 
-.sectionHeading span,
 .detailSectionHeading > span {
   color: var(--kino-text-faint);
   font-size: 11px;

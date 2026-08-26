@@ -14,6 +14,8 @@ export const enUS = {
     title: 'Home',
     continueWatching: 'Continue Watching',
     continueEmpty: 'Nothing to resume yet.',
+    movies: 'Movies',
+    series: 'Series',
     catalogs: 'Catalogs',
     catalogsEmpty: 'No catalogs are available from the installed add-ons.',
     catalogsUnavailable: 'Installed add-ons are present, but their catalogs returned no items.',
