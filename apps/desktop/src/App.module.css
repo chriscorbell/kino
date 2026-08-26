@@ -7,6 +7,26 @@
   background: var(--kino-bg);
 }
 
+.skipLink {
+  position: fixed;
+  z-index: calc(var(--kino-layer-dialog) + 2);
+  top: 12px;
+  left: 12px;
+  padding: 10px 16px;
+  border-radius: var(--kino-control-radius);
+  color: var(--kino-on-accent);
+  background: var(--kino-accent);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-200%);
+  transition: transform var(--kino-duration-fast) var(--kino-ease-out);
+}
+
+.skipLink:focus-visible {
+  transform: translateY(0);
+}
+
 .sidebar {
   position: relative;
   z-index: var(--kino-layer-navigation);
@@ -1554,12 +1574,23 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .content {
+  .accountDialog,
+  .content,
+  .genreList,
+  .skipIntro,
+  .upNext {
     animation: none;
   }
 
+  .catalogTab,
+  .catalogTabActive,
+  .genreButton,
+  .libraryButton,
   .logoButton,
   .navButton,
+  .addonRemove,
+  .secondaryButton,
+  .skipLink,
   .switch,
   .switch span {
     transition: none;
@@ -1567,5 +1598,14 @@
 
   .mediaCard .posterFrame {
     transition: none;
+  }
+
+  .mediaCard:hover .posterFrame,
+  .mediaCard:focus-visible .posterFrame {
+    transform: none;
+  }
+
+  .mediaSkeleton {
+    animation: none;
   }
 }

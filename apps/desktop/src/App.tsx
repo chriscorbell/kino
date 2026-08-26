@@ -16,7 +16,7 @@ import type { PlaybackSelection } from './core/actions';
 import { sourceKey } from './core/sources';
 import type { CoreMetaPreview, ProfileState } from './core/types';
 import { useCoreModel } from './core/useCoreModel';
-import { enUS } from './locales/en-US';
+import { t as enUS } from './locales';
 import { AddonsScreen } from './screens/AddonsScreen';
 import { DiscoverScreen } from './screens/DiscoverScreen';
 import { HomeScreen } from './screens/HomeScreen';
@@ -160,6 +160,9 @@ export function App() {
 
   return (
     <div className={styles.shell}>
+      <a className={styles.skipLink} href="#main-content">
+        {enUS.navigation.skipToContent}
+      </a>
       <aside className={styles.sidebar} aria-label={enUS.navigation.primary}>
         <button
           aria-label={enUS.navigation.kinoHome}

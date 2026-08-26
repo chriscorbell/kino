@@ -3,7 +3,7 @@ import { MediaCard } from '../components/MediaCard';
 import { loadLibraryAction } from '../core/actions';
 import type { CoreMetaPreview, LibraryState, LibraryRequest } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
-import { enUS } from '../locales/en-US';
+import { t as enUS } from '../locales';
 import { useState } from 'react';
 
 function typeLabel(type: string | null) {
@@ -41,11 +41,13 @@ export function LibraryScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => v
         </div>
       ) : null}
 
-      {result.loading ? <p className={styles.inlineEmpty}>{enUS.library.loading}</p> : null}
-      {result.error ? <p className={styles.loadError}>{enUS.library.error}</p> : null}
-      {!result.loading && !result.error && items.length === 0 ? (
-        <p className={styles.inlineEmpty}>{enUS.library.empty}</p>
-      ) : null}
+      <div aria-live="polite">
+        {result.loading ? <p className={styles.inlineEmpty}>{enUS.library.loading}</p> : null}
+        {result.error ? <p className={styles.loadError}>{enUS.library.error}</p> : null}
+        {!result.loading && !result.error && items.length === 0 ? (
+          <p className={styles.inlineEmpty}>{enUS.library.empty}</p>
+        ) : null}
+      </div>
 
       {items.length > 0 ? (
         <div className={styles.mediaGrid}>

@@ -18,7 +18,7 @@ import type {
   MetaDetailsState,
 } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
-import { enUS } from '../locales/en-US';
+import { t as enUS } from '../locales';
 
 interface SourceChoice {
   addonName: string;

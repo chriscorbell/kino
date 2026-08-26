@@ -12,7 +12,7 @@ import type {
   ProfileState,
 } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
-import { enUS } from '../locales/en-US';
+import { t as enUS } from '../locales';
 
 const rowItemLimit = 12;
 

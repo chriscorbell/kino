@@ -9,6 +9,7 @@ export const enUS = {
     addons: 'Add-ons',
     settings: 'Settings',
     kinoHome: 'Kino home',
+    skipToContent: 'Skip to content',
   },
   home: {
     title: 'Home',

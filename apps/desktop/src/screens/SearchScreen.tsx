@@ -6,7 +6,7 @@ import { loadSearchAction } from '../core/actions';
 import { useCore } from '../core/context';
 import type { BoardState, CoreMetaPreview } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
-import { enUS } from '../locales/en-US';
+import { t as enUS } from '../locales';
 
 export function SearchScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => void }) {
   const { transport } = useCore();

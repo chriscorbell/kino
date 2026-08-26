@@ -6,7 +6,7 @@ import { installAddonAction, uninstallAddonAction } from '../core/actions';
 import { useCore } from '../core/context';
 import type { CoreAddon, ProfileState } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
-import { enUS } from '../locales/en-US';
+import { t as enUS } from '../locales';
 
 function isManifest(value: unknown): value is CoreAddon['manifest'] {
   return (
@@ -81,12 +81,13 @@ export function AddonsScreen() {
           {busy ? enUS.addons.installing : enUS.addons.install}
         </button>
       </form>
-      {error ? <p className={styles.loadError}>{error}</p> : null}
-
-      {profile.loading ? <p className={styles.inlineEmpty}>{enUS.addons.loading}</p> : null}
-      {!profile.loading && addons.length === 0 ? (
-        <p className={styles.inlineEmpty}>{enUS.addons.empty}</p>
-      ) : null}
+      <div aria-live="polite">
+        {error ? <p className={styles.loadError}>{error}</p> : null}
+        {profile.loading ? <p className={styles.inlineEmpty}>{enUS.addons.loading}</p> : null}
+        {!profile.loading && addons.length === 0 ? (
+          <p className={styles.inlineEmpty}>{enUS.addons.empty}</p>
+        ) : null}
+      </div>
 
       <div className={styles.addonList}>
         {addons.map((addon) => (
