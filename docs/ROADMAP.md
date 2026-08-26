@@ -23,7 +23,7 @@ Exit: Chris can launch the local client on the Mac and complete the agreed first
 ## Phase 2: native macOS validation
 
 - Introduce the narrow `stremio-shell` fork and load Kino's client from packaged local assets.
-- Rebrand the shell, secure authentication in Keychain, and modernize the build for Apple Silicon.
+- Rebrand the shell, keep authentication material in owner-only local storage, and modernize the build for Apple Silicon.
 - Implement the full SDR, hardware-decoding, audio, subtitle, source-failure, and playback-lifecycle contract.
 - Validate the open torrent engine. A separately installed Stremio Service remains development-only.
 

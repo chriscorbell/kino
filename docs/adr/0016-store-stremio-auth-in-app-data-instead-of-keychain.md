@@ -1,0 +1,3 @@
+# Store Stremio auth in app data instead of Keychain
+
+The macOS shell keeps the Stremio auth key in an owner-only (0600) file under Kino's application data directory rather than the macOS Keychain. Keychain access is tied to the app's code signature, so unsigned development builds re-trigger access prompts on every rebuild, and signed releases would still prompt across updates until users click "Always Allow". The auth key is a revocable session token, never a password, and stock Stremio stores the same token in plain browser storage, so the file's user-account boundary matches the ecosystem's existing protection level. The shell's bridge API (`kinoSecureStore`) is unchanged, keeping the client and any future platform storage backends decoupled from this choice.
