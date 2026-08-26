@@ -18,6 +18,7 @@
     "lint": "eslint .",
     "macos:build": "./scripts/build-macos.sh",
     "macos:check-launch": "./scripts/check-macos-launch.sh",
+    "macos:check-playback": "node scripts/check-macos-playback.mjs",
     "test": "pnpm --filter @kino/desktop test",
     "typecheck": "pnpm --filter @kino/desktop typecheck"
   },
