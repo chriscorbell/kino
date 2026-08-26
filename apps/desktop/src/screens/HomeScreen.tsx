@@ -7,11 +7,28 @@ import { useCore } from '../core/context';
 import type {
   BoardState,
   ContinueWatchingState,
+  CoreCatalog,
   CoreMetaPreview,
   ProfileState,
 } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { enUS } from '../locales/en-US';
+
+const rowItemLimit = 12;
+
+function rowItems(catalogs: CoreCatalog[], type: string) {
+  const seen = new Set<string>();
+  const items: CoreMetaPreview[] = [];
+  for (const catalog of catalogs) {
+    if (catalog.type !== type || catalog.content?.type !== 'Ready') continue;
+    for (const item of catalog.content.content) {
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      items.push(item);
+    }
+  }
+  return items.slice(0, rowItemLimit);
+}
 
 function RowSkeleton() {
   return (
@@ -45,9 +62,10 @@ export function HomeScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => void
     );
   }, [catalogs.length, core.transport]);
 
-  const readyCatalogs = catalogs.filter(
-    (catalog) => catalog.content?.type === 'Ready' && catalog.content.content.length > 0,
-  );
+  const typedRows = [
+    { id: 'home-movies', items: rowItems(catalogs, 'movie'), title: enUS.home.movies },
+    { id: 'home-series', items: rowItems(catalogs, 'series'), title: enUS.home.series },
+  ].filter((row) => row.items.length > 0);
   const failedCatalogs = catalogs.some((catalog) => catalog.content?.type === 'Err');
   const loadingCatalogs = catalogs.filter(
     (catalog) => catalog.content === null || catalog.content?.type === 'Loading',
@@ -99,7 +117,7 @@ export function HomeScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => void
         ) : null}
       </section>
 
-      {catalogsPending && readyCatalogs.length === 0 ? (
+      {catalogsPending && typedRows.length === 0 ? (
         <section className={styles.homeSection} aria-label={enUS.home.catalogs}>
           <h2>{enUS.home.catalogs}</h2>
           <RowSkeleton />
@@ -107,7 +125,7 @@ export function HomeScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => void
       ) : null}
       {board.error ? <p className={styles.loadError}>{enUS.home.catalogsError}</p> : null}
       {core.error ? <p className={styles.loadError}>Stremio Core failed: {core.error}</p> : null}
-      {!catalogsPending && !board.error && readyCatalogs.length === 0 ? (
+      {!catalogsPending && !board.error && typedRows.length === 0 ? (
         <section className={styles.homeSection} aria-label={enUS.home.catalogs}>
           <h2>{enUS.home.catalogs}</h2>
           <p className={styles.inlineEmpty}>
@@ -123,29 +141,16 @@ export function HomeScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => void
           </p>
         </section>
       ) : null}
-      {readyCatalogs.map((catalog) => {
-        const items = catalog.content?.type === 'Ready' ? catalog.content.content : [];
-        return (
-          <section
-            className={styles.homeSection}
-            key={`${catalog.addon.manifest.id}:${catalog.type}:${catalog.id}`}
-          >
-            <div className={styles.sectionHeading}>
-              <h2>{catalog.name}</h2>
-              <span>{catalog.addon.manifest.name}</span>
-            </div>
-            <div className={styles.mediaRow}>
-              {items.map((item) => (
-                <MediaCard
-                  item={item}
-                  key={`${item.type}:${item.id}`}
-                  onOpen={() => onOpen(item)}
-                />
-              ))}
-            </div>
-          </section>
-        );
-      })}
+      {typedRows.map((row) => (
+        <section aria-labelledby={`${row.id}-title`} className={styles.homeSection} key={row.id}>
+          <h2 id={`${row.id}-title`}>{row.title}</h2>
+          <div className={styles.mediaRow}>
+            {row.items.map((item) => (
+              <MediaCard item={item} key={`${item.type}:${item.id}`} onOpen={() => onOpen(item)} />
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }
