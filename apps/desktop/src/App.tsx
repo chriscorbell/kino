@@ -17,6 +17,7 @@ import { sourceKey } from './core/sources';
 import type { CoreMetaPreview, ProfileState } from './core/types';
 import { useCoreModel } from './core/useCoreModel';
 import { enUS } from './locales/en-US';
+import { DiscoverScreen } from './screens/DiscoverScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { MetaDetailsScreen } from './screens/MetaDetailsScreen';
 import { PlayerScreen } from './screens/PlayerScreen';
@@ -48,15 +49,6 @@ function EmptyState({ children }: { children: string }) {
     <div className={styles.emptyState}>
       <span>{enUS.status.unavailable}</span>
       <p>{children}</p>
-    </div>
-  );
-}
-
-function DiscoverScreen() {
-  return (
-    <div className={styles.page}>
-      <h1>{enUS.discover.title}</h1>
-      <EmptyState>{enUS.discover.empty}</EmptyState>
     </div>
   );
 }
@@ -283,7 +275,7 @@ export function App() {
       case 'search':
         return <SearchScreen onOpen={openDetail} />;
       case 'discover':
-        return <DiscoverScreen />;
+        return <DiscoverScreen onOpen={openDetail} />;
       case 'library':
         return <LibraryScreen />;
       case 'addons':
