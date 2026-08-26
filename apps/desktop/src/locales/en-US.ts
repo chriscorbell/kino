@@ -30,7 +30,12 @@ export const enUS = {
   },
   discover: {
     title: 'Discover',
-    empty: 'Catalogs from your installed add-ons will appear here.',
+    empty: 'This catalog returned no titles.',
+    error: 'This catalog could not be loaded.',
+    loading: 'Loading catalog…',
+    typeLabel: 'Media type',
+    catalogLabel: 'Catalog',
+    allGenres: 'All Genres',
   },
   library: {
     title: 'Library',

@@ -1,5 +1,50 @@
 export type CoreModelName =
-  'board' | 'continue_watching_preview' | 'ctx' | 'meta_details' | 'player' | 'search';
+  | 'board'
+  | 'continue_watching_preview'
+  | 'ctx'
+  | 'discover'
+  | 'installed_addons'
+  | 'library'
+  | 'meta_details'
+  | 'player'
+  | 'search';
+
+export interface CatalogRequest {
+  base: string;
+  path: {
+    extra: Array<[string, string]>;
+    id: string;
+    resource: string;
+    type: string;
+  };
+}
+
+interface DiscoverDeepLink {
+  deepLinks?: { discover?: string };
+  selected: boolean;
+}
+
+export interface CatalogWithFiltersState {
+  catalog: {
+    content: Loadable<CoreMetaPreview[], string> | null;
+  } | null;
+  selectable: {
+    catalogs: Array<
+      DiscoverDeepLink & {
+        addon: { manifest: { id: string; name: string } };
+        id: string;
+        name: string;
+      }
+    >;
+    extra: Array<{
+      isRequired: boolean;
+      name: string;
+      options: Array<DiscoverDeepLink & { value: string | null }>;
+    }>;
+    types: Array<DiscoverDeepLink & { type: string }>;
+  } | null;
+  selected: { request: CatalogRequest } | null;
+}
 
 export interface CoreAction {
   action: string;

@@ -1,4 +1,4 @@
-import type { CoreAction, CoreMetaPreview, CoreStream, CoreVideo } from './types';
+import type { CatalogRequest, CoreAction, CoreMetaPreview, CoreStream, CoreVideo } from './types';
 
 export interface PlaybackSelection {
   meta: CoreMetaPreview;
@@ -20,6 +20,13 @@ export function loadSearchAction(query: string): CoreAction {
       model: 'CatalogsWithExtra',
       args: { extra: [['search', query]] },
     },
+  };
+}
+
+export function loadCatalogAction(request: CatalogRequest | null): CoreAction {
+  return {
+    action: 'Load',
+    args: { model: 'CatalogWithFilters', args: request ? { request } : null },
   };
 }
 

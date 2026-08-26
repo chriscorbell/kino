@@ -1056,6 +1056,106 @@
   background: var(--kino-accent);
 }
 
+.discoverFilters {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin-bottom: 4px;
+}
+
+.catalogTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px;
+  margin-right: auto;
+}
+
+.catalogTab,
+.catalogTabActive {
+  padding: 4px 0;
+  border: 0;
+  color: var(--kino-text-faint);
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--kino-duration-fast) ease;
+}
+
+.catalogTab:hover {
+  color: var(--kino-text);
+}
+
+.catalogTabActive {
+  color: var(--kino-text);
+  box-shadow: inset 0 -2px 0 var(--kino-text);
+}
+
+.genreMenu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.genreButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--kino-border);
+  border-radius: var(--kino-pill-radius);
+  color: var(--kino-text-muted);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color var(--kino-duration-fast) ease;
+}
+
+.genreButton:hover {
+  border-color: var(--kino-text-faint);
+}
+
+.genreList {
+  position: absolute;
+  z-index: var(--kino-layer-navigation);
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  overflow-y: auto;
+  min-width: 180px;
+  max-height: 320px;
+  padding: 6px;
+  border: 1px solid var(--kino-border);
+  border-radius: var(--kino-panel-radius);
+  background: var(--kino-surface);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 50%);
+  animation: enter var(--kino-duration-fast) var(--kino-ease-out);
+}
+
+.genreList button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--kino-control-radius);
+  color: var(--kino-text-muted);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.genreList button:hover {
+  color: var(--kino-text);
+  background: var(--kino-border);
+}
+
+.genreList button[aria-pressed='true'] {
+  color: var(--kino-accent);
+}
+
 .settingsGroup {
   margin-top: 34px;
 }
