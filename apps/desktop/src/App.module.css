@@ -644,6 +644,50 @@
   animation: enter var(--kino-duration-standard) var(--kino-ease-out);
 }
 
+.upNext {
+  position: absolute;
+  right: 36px;
+  bottom: 120px;
+  z-index: 2;
+  display: grid;
+  gap: 4px;
+  padding: 16px 18px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: var(--kino-panel-radius);
+  background: rgb(10 10 11 / 92%);
+  backdrop-filter: blur(12px);
+  animation: enter var(--kino-duration-standard) var(--kino-ease-out);
+}
+
+.upNextLabel {
+  color: var(--kino-text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.upNext strong {
+  max-width: 280px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.upNext button {
+  justify-self: start;
+  min-height: 32px;
+  margin-top: 8px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--kino-control-radius);
+  color: var(--kino-on-accent);
+  background: var(--kino-accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .skipNotice {
   position: absolute;
   right: 36px;
@@ -1054,6 +1098,31 @@
   border-color: var(--kino-accent);
   color: var(--kino-on-accent);
   background: var(--kino-accent);
+}
+
+.settingsNote {
+  margin: 0 0 4px;
+  color: var(--kino-text-faint);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.secondaryButton {
+  min-height: 34px;
+  padding: 0 16px;
+  border: 1px solid var(--kino-border);
+  border-radius: var(--kino-control-radius);
+  color: var(--kino-text);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color var(--kino-duration-fast) ease;
+}
+
+.secondaryButton:hover {
+  border-color: var(--kino-text-faint);
 }
 
 .addonForm {

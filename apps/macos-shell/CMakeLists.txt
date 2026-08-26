@@ -35,6 +35,7 @@ qt_add_executable(
   Kino
   MACOSX_BUNDLE
   ${KINO_ICON}
+  src/diagnostics.cpp
   src/logging.cpp
   src/main.cpp
   src/mpvitem.cpp
@@ -51,6 +52,7 @@ qt_add_qml_module(
   VERSION 1.0
   QML_FILES qml/Main.qml qml/Probe.qml
   SOURCES
+    src/diagnostics.h
     src/mpvitem.h
     src/nowplaying.h
     src/securestore.h

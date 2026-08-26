@@ -10,6 +10,7 @@ export interface KinoSettings {
   subtitlePosition: number;
   subtitleSize: number;
   subtitles: boolean;
+  upNext: boolean;
 }
 
 export const subtitlePositionRange = { max: 110, min: 50 } as const;
@@ -23,6 +24,7 @@ export const defaultSettings: KinoSettings = {
   subtitlePosition: 100,
   subtitleSize: 100,
   subtitles: false,
+  upNext: true,
 };
 
 function isAudioOutput(value: unknown): value is AudioOutput {
@@ -88,6 +90,7 @@ export function loadSettings(storage: Pick<Storage, 'getItem'>): KinoSettings {
       ),
       subtitles:
         typeof values.subtitles === 'boolean' ? values.subtitles : defaultSettings.subtitles,
+      upNext: typeof values.upNext === 'boolean' ? values.upNext : defaultSettings.upNext,
     };
   } catch {
     return defaultSettings;

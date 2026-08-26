@@ -28,6 +28,12 @@ export interface NativePlayer {
   streamingEngineChanged: NativeEngineEvent;
 }
 
+export interface NativeDiagnostics {
+  cacheBytes(): Promise<number>;
+  clearCache(): Promise<boolean>;
+  revealLogs(): Promise<boolean>;
+}
+
 export interface NativeSecureStore {
   clearStremioAuth(): Promise<boolean>;
   readStremioAuth(): Promise<{ ok: boolean; value: string }>;
@@ -35,12 +41,17 @@ export interface NativeSecureStore {
 }
 
 interface NativeShellConnection {
+  diagnostics: NativeDiagnostics;
   player: NativePlayer;
   secureStore: NativeSecureStore;
 }
 
 interface WebChannelResult {
-  objects: { kinoNative?: NativePlayer; kinoSecureStore?: NativeSecureStore };
+  objects: {
+    kinoDiagnostics?: NativeDiagnostics;
+    kinoNative?: NativePlayer;
+    kinoSecureStore?: NativeSecureStore;
+  };
 }
 
 interface NativeWindow extends Window {
@@ -101,13 +112,14 @@ function connectNativeShell(): Promise<NativeShellConnection | null> {
         );
         new Channel(transport, (channel) => {
           window.clearTimeout(timeout);
+          const diagnostics = channel.objects.kinoDiagnostics;
           const player = channel.objects.kinoNative;
           const secureStore = channel.objects.kinoSecureStore;
-          if (!player || !secureStore) {
+          if (!diagnostics || !player || !secureStore) {
             reject(new Error('Native shell services are unavailable.'));
             return;
           }
-          resolve({ player, secureStore });
+          resolve({ diagnostics, player, secureStore });
         });
       }),
   );
@@ -120,6 +132,10 @@ function connectNativeShell(): Promise<NativeShellConnection | null> {
 
 export async function connectNativePlayer() {
   return (await connectNativeShell())?.player ?? null;
+}
+
+export async function connectNativeDiagnostics() {
+  return (await connectNativeShell())?.diagnostics ?? null;
 }
 
 export async function connectNativeSecureStore() {

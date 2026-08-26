@@ -44,6 +44,10 @@ ApplicationWindow {
         id: secureStore
     }
 
+    Diagnostics {
+        id: diagnostics
+    }
+
     QtObject {
         id: nativeBridge
 
@@ -151,6 +155,7 @@ ApplicationWindow {
         Component.onCompleted: {
             registerObject("kinoNative", nativeBridge)
             registerObject("kinoSecureStore", secureStore)
+            registerObject("kinoDiagnostics", diagnostics)
         }
     }
 

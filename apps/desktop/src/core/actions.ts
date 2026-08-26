@@ -11,6 +11,7 @@ import type {
 export interface PlaybackSelection {
   meta: CoreMetaPreview;
   metaTransportUrl: string;
+  nextVideo: CoreVideo | null;
   stream: CoreStream;
   streamTransportUrl: string;
   video: CoreVideo | null;
@@ -107,6 +108,10 @@ export function loadPlayerAction(selection: PlaybackSelection): CoreAction {
       },
     },
   };
+}
+
+export function updateProfileSettingsAction(settings: Record<string, unknown>): CoreAction {
+  return { action: 'Ctx', args: { action: 'UpdateSettings', args: settings } };
 }
 
 export function installAddonAction(addon: CoreAddon): CoreAction {

@@ -39,17 +39,21 @@ function defaultVideoId(item: CoreMetaPreview) {
 
 export function MetaDetailsScreen({
   failedSources,
+  initialVideoId,
   item,
   onBack,
   onPlay,
 }: {
   failedSources: ReadonlyMap<string, string>;
+  initialVideoId?: string | null;
   item: CoreMetaPreview;
   onBack: () => void;
   onPlay: (selection: PlaybackSelection) => void;
 }) {
   const { transport } = useCore();
-  const [videoId, setVideoId] = useState<string | null>(() => defaultVideoId(item));
+  const [videoId, setVideoId] = useState<string | null>(
+    () => initialVideoId ?? defaultVideoId(item),
+  );
   const [libraryOverride, setLibraryOverride] = useState<boolean | null>(null);
   const result = useCoreModel<MetaDetailsState>(
     'meta_details',
@@ -93,6 +97,8 @@ export function MetaDetailsScreen({
     [result.state],
   );
   const display = meta ?? item;
+  const activeIndex = activeVideo ? videos.findIndex((video) => video.id === activeVideo.id) : -1;
+  const nextEpisode = activeIndex >= 0 ? (videos[activeIndex + 1] ?? null) : null;
   const inLibrary = libraryOverride ?? display.inLibrary;
 
   const toggleLibrary = () => {
@@ -212,6 +218,7 @@ export function MetaDetailsScreen({
                     onPlay({
                       meta: display,
                       metaTransportUrl: resource.addon.transportUrl,
+                      nextVideo: nextEpisode,
                       stream: source.stream,
                       streamTransportUrl: source.transportUrl,
                       video: activeVideo,

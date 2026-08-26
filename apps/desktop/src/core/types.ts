@@ -225,6 +225,9 @@ export interface ProfileState {
   profile: {
     addons: CoreAddon[];
     auth?: { user: { email?: string; name?: string; uid?: string } };
-    settings?: { subtitlesLanguage?: string | null };
+    settings?: Record<string, unknown> & {
+      audioLanguage?: string | null;
+      subtitlesLanguage?: string | null;
+    };
   };
 }
