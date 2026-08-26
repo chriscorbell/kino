@@ -5,7 +5,7 @@ import { updateProfileSettingsAction } from '../core/actions';
 import { useCore } from '../core/context';
 import type { ProfileState } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
-import { enUS } from '../locales/en-US';
+import { t as enUS } from '../locales';
 import { connectNativeDiagnostics, nativeShellPresent } from '../native/player';
 import { subtitleLanguages } from '../player/subtitles';
 import type { KinoSettings } from '../settings';

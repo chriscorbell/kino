@@ -1,7 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 import logo from '../assets/kino.svg';
-import { enUS } from '../locales/en-US';
+import { t as enUS } from '../locales';
 import styles from './ErrorBoundary.module.css';
 
 interface ErrorBoundaryProps {

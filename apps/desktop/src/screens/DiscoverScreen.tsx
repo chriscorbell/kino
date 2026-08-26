@@ -7,7 +7,7 @@ import { loadCatalogAction } from '../core/actions';
 import { catalogRequestFromDeepLink, catalogRequestKey } from '../core/catalog';
 import type { CatalogRequest, CatalogWithFiltersState, CoreMetaPreview } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
-import { enUS } from '../locales/en-US';
+import { t as enUS } from '../locales';
 
 function typeLabel(type: string) {
   return type.charAt(0).toUpperCase() + type.slice(1);
@@ -42,8 +42,17 @@ export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => 
     const onPointerDown = (event: PointerEvent) => {
       if (!genreRef.current?.contains(event.target as Node)) setGenresOpen(false);
     };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setGenresOpen(false);
+      genreRef.current?.querySelector('button')?.focus();
+    };
     window.addEventListener('pointerdown', onPointerDown);
-    return () => window.removeEventListener('pointerdown', onPointerDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('keydown', onKeyDown);
+    };
   }, [genresOpen]);
 
   return (
@@ -94,7 +103,7 @@ export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => 
                 <CaretDown aria-hidden size={13} />
               </button>
               {genresOpen ? (
-                <div className={styles.genreList}>
+                <div className={styles.genreList} role="listbox">
                   {genreFilter.options.map((option) => (
                     <button
                       aria-pressed={option.selected}
@@ -115,13 +124,15 @@ export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => 
         </div>
       ) : null}
 
-      {result.loading ? <p className={styles.inlineEmpty}>{enUS.discover.loading}</p> : null}
-      {result.error || content?.type === 'Err' ? (
-        <p className={styles.loadError}>{enUS.discover.error}</p>
-      ) : null}
-      {!result.loading && items.length === 0 && content?.type !== 'Err' ? (
-        <p className={styles.inlineEmpty}>{enUS.discover.empty}</p>
-      ) : null}
+      <div aria-live="polite">
+        {result.loading ? <p className={styles.inlineEmpty}>{enUS.discover.loading}</p> : null}
+        {result.error || content?.type === 'Err' ? (
+          <p className={styles.loadError}>{enUS.discover.error}</p>
+        ) : null}
+        {!result.loading && items.length === 0 && content?.type !== 'Err' ? (
+          <p className={styles.inlineEmpty}>{enUS.discover.empty}</p>
+        ) : null}
+      </div>
 
       {items.length > 0 ? (
         <div className={styles.mediaGrid}>

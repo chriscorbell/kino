@@ -23,7 +23,7 @@ import {
   type ChapterCue,
   type IntroMarker,
 } from '../intro/markers';
-import { enUS } from '../locales/en-US';
+import { t as enUS } from '../locales';
 import { connectNativePlayer, nativeShellPresent, type NativePlayer } from '../native/player';
 import {
   addonSubtitleLabel,
@@ -632,14 +632,16 @@ export function PlayerScreen({
         </div>
       </div>
 
-      {result.loading ? <div className={styles.playerStatus}>Preparing source…</div> : null}
-      {nativeShell && !nativePlayer ? (
-        <div className={styles.playerStatus}>Preparing native player…</div>
-      ) : null}
-      {isTorrent && nativePlayer && !streamUrl ? (
-        <div className={styles.playerStatus}>{enUS.player.preparingTorrent}</div>
-      ) : null}
-      {streamUrl && buffering ? <div className={styles.playerStatus}>Buffering…</div> : null}
+      <div aria-live="polite">
+        {result.loading ? <div className={styles.playerStatus}>Preparing source…</div> : null}
+        {nativeShell && !nativePlayer ? (
+          <div className={styles.playerStatus}>Preparing native player…</div>
+        ) : null}
+        {isTorrent && nativePlayer && !streamUrl ? (
+          <div className={styles.playerStatus}>{enUS.player.preparingTorrent}</div>
+        ) : null}
+        {streamUrl && buffering ? <div className={styles.playerStatus}>Buffering…</div> : null}
+      </div>
 
       {settings.skipIntroButton &&
       insideIntro &&
