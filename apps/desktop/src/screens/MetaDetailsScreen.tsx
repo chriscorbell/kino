@@ -1,5 +1,5 @@
 import { ArrowLeft, Check, Play, Plus } from '@phosphor-icons/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import styles from '../App.module.css';
 import {
@@ -61,8 +61,27 @@ export function MetaDetailsScreen({
     `${item.type}:${item.id}:${videoId ?? 'guess'}`,
   );
   const resource = result.state?.metaItem;
-  const meta = resource?.content.type === 'Ready' ? resource.content.content : null;
+  const loadedMeta = resource?.content.type === 'Ready' ? resource.content.content : null;
+  // Choosing an episode reloads the model, and the reloaded state arrives with
+  // its metadata still loading. Without the previous copy the episode list
+  // unmounts, the page collapses to the hero, and the browser discards the
+  // scroll position. The screen is keyed by title, so this cannot leak between
+  // titles, and a title's metadata does not change when only the episode does.
+  const [lastMeta, setLastMeta] = useState<CoreMetaItem | null>(null);
+  if (loadedMeta && loadedMeta !== lastMeta) setLastMeta(loadedMeta);
+  const meta = loadedMeta ?? lastMeta;
   const videos = useMemo(() => meta?.videos ?? [], [meta]);
+  const sourcesRef = useRef<HTMLElement>(null);
+  const episodeChosenRef = useRef(false);
+
+  // Picking an episode is a request to see its sources, so bring them into view.
+  // This waits for the reload to settle: the sources empty while it runs, which
+  // shrinks the page and would clamp an earlier scroll straight back.
+  useEffect(() => {
+    if (!episodeChosenRef.current || result.loading) return;
+    episodeChosenRef.current = false;
+    sourcesRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' });
+  }, [result.loading, videoId]);
 
   useEffect(() => {
     if (item.type !== 'series' || videoId !== null || videos.length === 0) return;
@@ -172,7 +191,10 @@ export function MetaDetailsScreen({
                   aria-current={video.id === videoId ? 'true' : undefined}
                   className={video.id === videoId ? styles.episodeActive : styles.episodeButton}
                   key={video.id}
-                  onClick={() => setVideoId(video.id)}
+                  onClick={() => {
+                    episodeChosenRef.current = true;
+                    setVideoId(video.id);
+                  }}
                   type="button"
                 >
                   <span className={styles.episodeNumber}>
@@ -189,7 +211,11 @@ export function MetaDetailsScreen({
           </section>
         ) : null}
 
-        <section className={styles.detailSection} aria-labelledby="sources-heading">
+        <section
+          aria-labelledby="sources-heading"
+          className={styles.detailSection}
+          ref={sourcesRef}
+        >
           <div className={styles.detailSectionHeading}>
             <h2 id="sources-heading">{enUS.details.sources}</h2>
             {result.loading ? <span>{enUS.details.refreshing}</span> : null}

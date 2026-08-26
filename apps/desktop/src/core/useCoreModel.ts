@@ -97,7 +97,13 @@ export function useCoreModel<State>(
   if (status !== 'ready' || !transport) {
     return { error: null, loading: status === 'loading', state: null };
   }
-  return result.actionKey === actionKey && result.transport === transport
-    ? result
-    : { error: null, loading: true, state: null };
+  if (result.actionKey === actionKey && result.transport === transport) return result;
+  // A new selection reloads the model. Keeping the previous state while that
+  // happens stops the screen collapsing and losing its scroll position; a
+  // different transport is a different session, so that state is dropped.
+  return {
+    error: null,
+    loading: true,
+    state: result.transport === transport ? result.state : null,
+  };
 }
