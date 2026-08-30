@@ -8,8 +8,8 @@
 
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -20,6 +20,25 @@ const frameworksDir = join(stagedApp, 'Contents', 'Frameworks');
 
 function run(command, args, options = {}) {
   return execFileSync(command, args, { encoding: 'utf8', ...options });
+}
+
+function runInstallNameTool(args, options = {}) {
+  const retryDelay = new Int32Array(new SharedArrayBuffer(4));
+
+  // macOS can briefly lock a freshly copied, signed Qt framework while checking it.
+  for (let attempt = 1; attempt <= 10; attempt += 1) {
+    try {
+      return run('install_name_tool', args, options);
+    } catch (error) {
+      const message = `${error.message ?? ''}\n${error.stderr ?? ''}`;
+      if (!message.includes('Operation not permitted') || attempt === 10) throw error;
+
+      if (attempt === 1) {
+        console.warn(`Waiting for macOS to release ${basename(args.at(-1))}…`);
+      }
+      Atomics.wait(retryDelay, 0, 0, 1_000);
+    }
+  }
 }
 
 const qtPrefix = run('brew', ['--prefix', 'qt']).trim();
@@ -104,7 +123,7 @@ function rewriteFrameworks() {
     if (isExternal(ownName)) {
       const ownSuffix = frameworkSuffix(ownName);
       if (ownSuffix) {
-        run('install_name_tool', ['-id', `@rpath/${ownSuffix}`, binary]);
+        runInstallNameTool(['-id', `@rpath/${ownSuffix}`, binary]);
         rewritten += 1;
       }
     }
@@ -121,13 +140,31 @@ function rewriteFrameworks() {
         );
         run('ditto', [sourceFramework, join(frameworksDir, frameworkName)]);
       }
-      run('install_name_tool', ['-change', reference, `@rpath/${suffix}`, binary]);
+      runInstallNameTool(['-change', reference, `@rpath/${suffix}`, binary]);
       touched = true;
       rewritten += 1;
     }
     if (touched) addRunpath(binary, relativeRunpath(binary));
   }
   return rewritten;
+}
+
+function linkWebEngineFrameworks() {
+  const helperContents = join(
+    frameworksDir,
+    'QtWebEngineCore.framework',
+    'Versions',
+    'A',
+    'Helpers',
+    'QtWebEngineProcess.app',
+    'Contents',
+  );
+  const helperFrameworks = join(helperContents, 'Frameworks');
+  if (!existsSync(helperContents) || existsSync(helperFrameworks)) return;
+
+  // Homebrew's Qt libraries use @executable_path. The nested WebEngine helper
+  // needs that path to resolve back to the outer app's bundled frameworks.
+  symlinkSync(relative(helperContents, frameworksDir), helperFrameworks);
 }
 
 function bundleDependencies() {
@@ -148,11 +185,11 @@ function bundleDependencies() {
           run('cp', ['-L', source, target]);
           run('chmod', ['u+w', target]);
         }
-        run('install_name_tool', ['-id', `@rpath/${name}`, target]);
+        runInstallNameTool(['-id', `@rpath/${name}`, target]);
         queue.push(target);
       }
       if (reference !== `@rpath/${name}`) {
-        run('install_name_tool', ['-change', reference, `@rpath/${name}`, binary]);
+        runInstallNameTool(['-change', reference, `@rpath/${name}`, binary]);
       }
     }
   }
@@ -161,9 +198,10 @@ function bundleDependencies() {
 
 function addRunpath(binary, runpath) {
   try {
-    run('install_name_tool', ['-add_rpath', runpath, binary], { stdio: 'pipe' });
-  } catch {
-    // Already present; install_name_tool treats duplicates as an error.
+    runInstallNameTool(['-add_rpath', runpath, binary], { stdio: 'pipe' });
+  } catch (error) {
+    const message = `${error.message ?? ''}\n${error.stderr ?? ''}`;
+    if (!message.includes('would duplicate path')) throw error;
   }
 }
 
@@ -223,6 +261,7 @@ run(
   [stagedApp, '-always-overwrite', `-qmldir=${join(repoRoot, 'apps', 'macos-shell', 'qml')}`],
   { stdio: 'inherit' },
 );
+linkWebEngineFrameworks();
 
 console.log('Bundling remaining libraries…');
 const mainBinary = join(stagedApp, 'Contents', 'MacOS', 'Kino');
