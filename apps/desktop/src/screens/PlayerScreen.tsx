@@ -506,11 +506,19 @@ export function PlayerScreen({
 
     const controller = new AbortController();
     void lookupCommunityIntro(introIdentity(selection, duration), controller.signal)
-      .then(setCommunityMarker)
+      .then((communityMarker) => {
+        setCommunityMarker(communityMarker);
+        console.info(
+          communityMarker
+            ? '[kino:intro] trusted community marker'
+            : '[kino:intro] no trusted community marker',
+          communityMarker ?? '',
+        );
+      })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === 'AbortError') return;
         console.info(
-          '[kino:intro] no trusted community marker',
+          '[kino:intro] community lookup failed',
           error instanceof Error ? error.message : error,
         );
       });

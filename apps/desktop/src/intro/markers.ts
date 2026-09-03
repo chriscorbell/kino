@@ -66,12 +66,11 @@ export function markerFromCommunity(
   candidates: NormalizedSegmentTimestamp[],
   durationMs: number,
 ): IntroMarker | null {
+  // The public API returns one already-weighted segment per type with no
+  // confidence or submission fields, so trust rests on the bounds checks and
+  // on the duration matching the service performs against `duration_ms`.
   const candidate = candidates.find(
-    (segment) =>
-      segment.endMs !== null &&
-      (segment.confidence ?? 0) >= 0.8 &&
-      (segment.submissionCount ?? 0) >= 2 &&
-      validBounds(segment.startMs, segment.endMs, durationMs),
+    (segment) => segment.endMs !== null && validBounds(segment.startMs, segment.endMs, durationMs),
   );
   return candidate?.endMs == null
     ? null
