@@ -34,25 +34,28 @@ describe('intro marker trust', () => {
     ).toEqual({ source: 'chapter', startMs: 20_000, endMs: 87_000 });
   });
 
-  it('requires confidence, corroboration, and duration-safe community data', () => {
-    const base = {
-      durationMs: 80_000,
-      endMs: 92_000,
+  it('trusts a duration-safe community segment and rejects unsafe ones', () => {
+    const segment = {
+      durationMs: 22_000,
+      endMs: 367_458,
       endsAtMediaEnd: false,
-      startMs: 12_000,
+      startMs: 345_458,
       startsAtBeginning: false,
     };
+    expect(markerFromCommunity([segment], 2_940_000)).toEqual({
+      source: 'theintrodb',
+      startMs: 345_458,
+      endMs: 367_458,
+    });
     expect(
       markerFromCommunity(
         [
-          { ...base, confidence: 0.95, submissionCount: 1 },
-          { ...base, confidence: 0.8, submissionCount: 2 },
+          { ...segment, endMs: null, endsAtMediaEnd: true },
+          { ...segment, endMs: 348_000 },
+          { ...segment, endMs: 2_950_000 },
         ],
-        3_000_000,
+        2_940_000,
       ),
-    ).toEqual({ source: 'theintrodb', startMs: 12_000, endMs: 92_000 });
-    expect(
-      markerFromCommunity([{ ...base, confidence: 0.79, submissionCount: 3 }], 3_000_000),
     ).toBeNull();
   });
 });
