@@ -16,7 +16,7 @@ pnpm install
 pnpm dev
 ```
 
-The client browses, searches, and resolves sources through the real Stremio Core.
+The client browses, searches, and resolves sources through the real Stremio Core. Configurable add-ons open their provider's settings page in the system browser. Paste the resulting HTTPS manifest URL or Stremio install link into Add-ons. Kino asks whether to replace existing configurations or keep both, and verifies the new installation before removing an old configuration.
 
 ### macOS shell
 
