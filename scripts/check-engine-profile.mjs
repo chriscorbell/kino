@@ -57,6 +57,7 @@ const env = {
   ...process.env,
   PATH: root,
   KINO_ENGINE_CACHE_DIR: root,
+  KINO_ENGINE_CONFIG_DIR: join(root, 'config'),
   KINO_ENGINE_PORT: '0',
   HTTP_PROXY: proxyUrl,
   HTTPS_PROXY: proxyUrl,

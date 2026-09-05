@@ -133,6 +133,7 @@ try {
     {
       ...process.env,
       KINO_ENGINE_CACHE_DIR: join(root, 'engine'),
+      KINO_ENGINE_CONFIG_DIR: join(root, 'config'),
       KINO_ENGINE_PORT: '0',
       HTTP_PROXY: proxyUrl,
       HTTPS_PROXY: proxyUrl,

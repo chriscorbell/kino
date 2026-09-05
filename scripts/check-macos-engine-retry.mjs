@@ -78,6 +78,7 @@ try {
       KINO_ENGINE_BINARY: helper,
       KINO_ENGINE_FIXTURE_ATTEMPT: join(root, 'attempted'),
       KINO_ENGINE_CACHE_DIR: join(root, 'cache'),
+      KINO_ENGINE_CONFIG_DIR: join(root, 'config'),
     },
     stdio: ['ignore', 'ignore', 'pipe'],
   });

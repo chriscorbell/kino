@@ -16,7 +16,9 @@
 namespace {
 
 QString cacheRoot() {
-    return QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+    return qEnvironmentVariableIsEmpty("KINO_CACHE_DIR")
+        ? QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+        : qEnvironmentVariable("KINO_CACHE_DIR");
 }
 
 QString logDirectory() {
@@ -42,26 +44,40 @@ QFuture<qlonglong> Diagnostics::cacheBytes() {
 }
 
 QFuture<bool> Diagnostics::clearCache() {
+    if (clearingCache_) return cacheClear_;
+    if (!engine_ || (playback_ && playback_->active()))
+        return QtFuture::makeReadyValueFuture(false);
+    clearingCache_ = true;
     const QString path = cacheRoot();
-    return QtConcurrent::run([path]() {
-        QDir directory(path);
-        if (!directory.exists()) {
-            return true;
-        }
-        // Clearing disposable cache never touches authentication, profiles,
-        // library state, progress, add-ons, or Kino settings.
-        bool cleared = true;
-        for (const QString &entry : directory.entryList(QDir::NoDotAndDotDot | QDir::AllEntries)) {
-            const QString target = directory.absoluteFilePath(entry);
-            cleared = (QFileInfo(target).isDir() ? QDir(target).removeRecursively()
-                                                 : QFile::remove(target)) &&
-                      cleared;
-        }
-        if (!cleared) {
-            qWarning("[kino:diagnostics] cache could not be fully cleared");
-        }
+    cacheClear_ = engine_->stopForCacheClear().then(this, [this, path](bool stopped) {
+        if (!stopped || !engine_ || !engine_->preserveConfiguration(path))
+            return QtFuture::makeReadyValueFuture(false);
+        return QtConcurrent::run([path]() {
+            QDir directory(path);
+            if (!directory.exists()) {
+                return true;
+            }
+            // Clearing disposable cache never touches authentication, profiles,
+            // library state, progress, add-ons, or Kino settings.
+            bool cleared = true;
+            for (const QString &entry : directory.entryList(QDir::NoDotAndDotDot | QDir::AllEntries | QDir::Hidden | QDir::System)) {
+                const QString target = directory.absoluteFilePath(entry);
+                const QFileInfo info(target);
+                cleared = (info.isDir() && !info.isSymLink() ? QDir(target).removeRecursively()
+                                                            : QFile::remove(target)) &&
+                          cleared;
+            }
+            if (!cleared) {
+                qWarning("[kino:diagnostics] cache could not be fully cleared");
+            }
+            return cleared;
+        });
+    }).unwrap().then(this, [this](bool cleared) {
+        if (engine_) engine_->finishCacheClear();
+        clearingCache_ = false;
         return cleared;
     });
+    return cacheClear_;
 }
 
 bool Diagnostics::revealLogs() {

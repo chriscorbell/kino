@@ -3,8 +3,11 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
+#include <QFile>
 #include <QStandardPaths>
 #include <QUrl>
+#include <QUuid>
+#include <utility>
 
 namespace {
 
@@ -24,9 +27,17 @@ QString cacheDirectory() {
     if (!overridePath.isEmpty()) {
         return overridePath;
     }
-    const QString base =
-        QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+    const QString base = qEnvironmentVariableIsEmpty("KINO_CACHE_DIR")
+        ? QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+        : qEnvironmentVariable("KINO_CACHE_DIR");
     return QDir(base).absoluteFilePath(QStringLiteral("streaming-engine"));
+}
+
+QString configDirectory() {
+    const QString overridePath = qEnvironmentVariable("KINO_ENGINE_CONFIG_DIR");
+    if (!overridePath.isEmpty()) return overridePath;
+    return QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) +
+           QStringLiteral("/streaming-engine");
 }
 
 QString uiOrigin() {
@@ -52,6 +63,14 @@ QString uiOrigin() {
 } // namespace
 
 StreamEngine::StreamEngine(QObject *parent) : QObject(parent) {
+    stopDeadline_.setSingleShot(true);
+    bool stopConfigured = false;
+    const int stopTimeout = qEnvironmentVariableIntValue("KINO_ENGINE_STOP_TIMEOUT_MS", &stopConfigured);
+    stopDeadline_.setInterval(stopConfigured && stopTimeout > 0 ? qMin(stopTimeout, 5'000) : 5'000);
+    connect(&stopDeadline_, &QTimer::timeout, this, [this]() {
+        pendingFailure_ = QStringLiteral("The streaming engine did not stop cleanly. Cache was not cleared.");
+        process_.kill();
+    });
     startupDeadline_.setSingleShot(true);
     bool configured = false;
     const int timeout = qEnvironmentVariableIntValue("KINO_ENGINE_STARTUP_TIMEOUT_MS", &configured);
@@ -75,17 +94,25 @@ StreamEngine::StreamEngine(QObject *parent) : QObject(parent) {
         startupDeadline_.stop();
         if (process_.state() == QProcess::NotRunning) {
             fail(reason);
+            completeStop(false);
         } else {
             pendingFailure_ = reason;
             process_.kill();
         }
     });
     connect(&process_, &QProcess::finished, this,
-            [this](int exitCode, QProcess::ExitStatus) {
+            [this](int exitCode, QProcess::ExitStatus exitStatus) {
                 startupDeadline_.stop();
                 readReadyLine();
                 readDiagnostics();
                 consumeDiagnostics("\n");
+                if (stopPromise_) {
+                    const bool stopped = pendingFailure_.isEmpty() && exitCode == 0 &&
+                                         exitStatus == QProcess::NormalExit;
+                    if (!stopped) fail(QStringLiteral("The streaming engine did not stop cleanly. Cache was not cleared."));
+                    completeStop(stopped);
+                    return;
+                }
                 if (!pendingFailure_.isEmpty()) {
                     fail(pendingFailure_);
                 } else if (url_.isEmpty()) {
@@ -99,6 +126,7 @@ StreamEngine::StreamEngine(QObject *parent) : QObject(parent) {
 
 StreamEngine::~StreamEngine() {
     startupDeadline_.stop();
+    stopDeadline_.stop();
     disconnect(&process_, nullptr, this, nullptr);
     if (process_.state() == QProcess::NotRunning) {
         return;
@@ -122,6 +150,10 @@ QString StreamEngine::url() const {
 }
 
 void StreamEngine::start() {
+    if (clearingCache_) {
+        restartRequested_ = true;
+        return;
+    }
     if (process_.state() != QProcess::NotRunning || !url_.isEmpty()) {
         return;
     }
@@ -135,6 +167,10 @@ void StreamEngine::start() {
         return;
     }
     const QString cacheDir = cacheDirectory();
+    if (!preserveConfiguration()) {
+        fail(QStringLiteral("The streaming engine settings could not be preserved."));
+        return;
+    }
     if (!QDir().mkpath(cacheDir)) {
         fail(QStringLiteral("The streaming engine cache directory is unavailable."));
         return;
@@ -142,6 +178,7 @@ void StreamEngine::start() {
 
     QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
     environment.insert(QStringLiteral("KINO_ENGINE_CACHE_DIR"), cacheDir);
+    environment.insert(QStringLiteral("KINO_ENGINE_CONFIG_DIR"), configDirectory());
     environment.insert(QStringLiteral("KINO_ENGINE_UI_ORIGIN"), uiOrigin());
     process_.setProcessEnvironment(environment);
     process_.setProcessChannelMode(QProcess::SeparateChannels);
@@ -152,7 +189,7 @@ void StreamEngine::start() {
 }
 
 void StreamEngine::readReadyLine() {
-    if (!pendingFailure_.isEmpty()) return;
+    if (!pendingFailure_.isEmpty() || clearingCache_) return;
     while (process_.canReadLine()) {
         const QByteArray line = process_.readLine().trimmed();
         if (!line.startsWith(kReadyPrefix)) {
@@ -164,6 +201,66 @@ void StreamEngine::readReadyLine() {
         qInfo("[kino:engine] streaming engine ready");
         emit changed();
     }
+}
+
+QFuture<bool> StreamEngine::stopForCacheClear() {
+    if (stopPromise_) return stopPromise_->future();
+    clearingCache_ = true;
+    startupDeadline_.stop();
+    url_.clear();
+    error_.clear();
+    emit changed();
+    stopPromise_ = std::make_unique<QPromise<bool>>();
+    stopPromise_->start();
+    const auto future = stopPromise_->future();
+    if (process_.state() == QProcess::NotRunning) {
+        completeStop(true);
+    } else {
+        stopDeadline_.start();
+        // EOF releases the HTTP server, torrent session, and open file handles.
+        // Never delete files until the child has actually exited successfully.
+        process_.closeWriteChannel();
+    }
+    return future;
+}
+
+void StreamEngine::completeStop(bool stopped) {
+    stopDeadline_.stop();
+    if (!stopPromise_) return;
+    auto promise = std::move(stopPromise_);
+    promise->addResult(stopped);
+    promise->finish();
+}
+
+void StreamEngine::finishCacheClear() {
+    clearingCache_ = false;
+    const bool restart = std::exchange(restartRequested_, false);
+    if (restart) start();
+}
+
+bool StreamEngine::preserveConfiguration(const QString &cacheRoot) {
+    const QString cache = QDir(cacheDirectory()).absolutePath();
+    const QString config = QDir(configDirectory()).absolutePath();
+    // Reject misconfigured overrides that would put persistent settings back
+    // inside a directory about to be purged.
+    for (const QString &root : {cache, cacheRoot}) {
+        if (!root.isEmpty()) {
+            const QString path = QDir(root).absolutePath();
+            if (config == path || config.startsWith(path + '/')) return false;
+        }
+    }
+    if (!QDir().mkpath(config)) return false;
+    const QString previous = cache + QStringLiteral("/settings.json");
+    const QString destination = config + QStringLiteral("/settings.json");
+    if (QFileInfo::exists(previous) && !QFileInfo::exists(destination) &&
+        !QFile::copy(previous, destination)) return false;
+    const QString previousLogs = cache + QStringLiteral("/logs");
+    if (QFileInfo::exists(previousLogs)) {
+        const QString savedLogs = config + QStringLiteral("/legacy-logs-") +
+                                  QUuid::createUuid().toString(QUuid::WithoutBraces);
+        if (!QDir().rename(previousLogs, savedLogs)) return false;
+    }
+    return true;
 }
 
 void StreamEngine::readDiagnostics() {

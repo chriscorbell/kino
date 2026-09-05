@@ -30,4 +30,6 @@ public:
 private:
     QPointer<MpvItem> playback_;
     QPointer<StreamEngine> engine_;
+    QFuture<bool> cacheClear_;
+    bool clearingCache_ = false;
 };

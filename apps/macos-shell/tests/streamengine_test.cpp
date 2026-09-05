@@ -30,6 +30,7 @@ int runHelper(const QString &mode) {
         return 7;
     }
     std::cin.get();
+    if (mode == "ignore-stop") QThread::msleep(5000);
     return 0;
 }
 } // namespace
@@ -41,7 +42,9 @@ private slots:
         QVERIFY(directory_.isValid());
         QFile::remove(directory_.filePath("pid"));
         qputenv("KINO_ENGINE_BINARY", QCoreApplication::applicationFilePath().toUtf8());
-        qputenv("KINO_ENGINE_CACHE_DIR", directory_.path().toUtf8());
+        qputenv("KINO_ENGINE_CACHE_DIR", directory_.filePath("cache").toUtf8());
+        qputenv("KINO_ENGINE_CONFIG_DIR", directory_.filePath("config").toUtf8());
+        qputenv("KINO_ENGINE_STOP_TIMEOUT_MS", "250");
         qputenv("KINO_ENGINE_FIXTURE_PID", directory_.filePath("pid").toUtf8());
         qputenv("KINO_ENGINE_STARTUP_TIMEOUT_MS", "250");
     }
@@ -49,6 +52,8 @@ private slots:
     void cleanup() {
         qunsetenv("KINO_ENGINE_BINARY");
         qunsetenv("KINO_ENGINE_CACHE_DIR");
+        qunsetenv("KINO_ENGINE_CONFIG_DIR");
+        qunsetenv("KINO_ENGINE_STOP_TIMEOUT_MS");
         qunsetenv("KINO_ENGINE_FIXTURE_PID");
         qunsetenv("KINO_ENGINE_FIXTURE_MODE");
         qunsetenv("KINO_ENGINE_STARTUP_TIMEOUT_MS");
@@ -95,6 +100,53 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(changed.count() >= 2, 1500);
         QTRY_VERIFY_WITH_TIMEOUT(!engine.error().isEmpty(), 1500);
         QVERIFY(engine.url().isEmpty());
+    }
+
+    void stopsBeforeClearingAndQueuesRestart() {
+        qputenv("KINO_ENGINE_FIXTURE_MODE", "ready");
+        StreamEngine engine;
+        engine.start();
+        QTRY_VERIFY_WITH_TIMEOUT(!engine.url().isEmpty(), 1500);
+        const auto pid = helperPid();
+        auto stopped = engine.stopForCacheClear();
+        QVERIFY(engine.url().isEmpty());
+        engine.start();
+        QTRY_VERIFY_WITH_TIMEOUT(stopped.isFinished(), 1500);
+        QVERIFY(stopped.result());
+        QVERIFY(::kill(pid, 0) == -1);
+        QVERIFY(engine.url().isEmpty());
+        QVERIFY(engine.error().isEmpty());
+        engine.finishCacheClear();
+        QTRY_VERIFY_WITH_TIMEOUT(!engine.url().isEmpty(), 1500);
+        QVERIFY(helperPid() != pid);
+    }
+
+    void failedShutdownPreventsClearingAndRemainsRestartable() {
+        qputenv("KINO_ENGINE_FIXTURE_MODE", "ignore-stop");
+        StreamEngine engine;
+        engine.start();
+        QTRY_VERIFY_WITH_TIMEOUT(!engine.url().isEmpty(), 1500);
+        auto stopped = engine.stopForCacheClear();
+        QTRY_VERIFY_WITH_TIMEOUT(stopped.isFinished(), 1500);
+        QVERIFY(!stopped.result());
+        QVERIFY(!engine.error().isEmpty());
+        engine.finishCacheClear();
+        qputenv("KINO_ENGINE_FIXTURE_MODE", "ready");
+        engine.start();
+        QTRY_VERIFY_WITH_TIMEOUT(!engine.url().isEmpty(), 1500);
+        QVERIFY(engine.error().isEmpty());
+    }
+
+    void clearingDuringStartupWaitsForTheChild() {
+        qputenv("KINO_ENGINE_FIXTURE_MODE", "ready");
+        StreamEngine engine;
+        engine.start();
+        auto stopped = engine.stopForCacheClear();
+        QTRY_VERIFY_WITH_TIMEOUT(stopped.isFinished(), 1500);
+        QVERIFY(stopped.result());
+        QVERIFY(engine.url().isEmpty());
+        QVERIFY(engine.error().isEmpty());
+        engine.finishCacheClear();
     }
 
     void retriesClearErrorsBeforeReady() {
