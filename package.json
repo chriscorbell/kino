@@ -11,7 +11,8 @@
   },
   "scripts": {
     "build": "pnpm --filter @kino/desktop build",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm engine:check-vendor && pnpm build",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm core:check-streams && pnpm engine:check-vendor && pnpm build",
+    "core:check-streams": "node scripts/check-core-streams.mjs",
     "dev": "pnpm --filter @kino/desktop dev",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
@@ -19,6 +20,7 @@
     "engine:build": "./scripts/build-engine.sh",
     "engine:check-vendor": "node scripts/check-engine-vendor.mjs",
     "engine:check-profile": "node scripts/check-engine-profile.mjs",
+    "engine:check-trackers": "node scripts/check-engine-trackers.mjs",
     "macos:build": "./scripts/build-macos.sh",
     "macos:check-engine": "./scripts/check-macos-engine.sh",
     "macos:check-engine-ui": "node scripts/check-macos-engine-ui.mjs",

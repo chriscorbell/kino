@@ -11,18 +11,35 @@ describe('torrent streaming', () => {
       ...base,
       fileIdx: 1,
       infoHash: 'DD8255ECDC7CA55FB0BBF81323D87062DB1F6D1C',
-      sources: ['tracker:udp://tracker.example:1337/announce', 'dht:abc'],
+      announce: ['tracker:udp://tracker.example:1337/announce', 'dht:abc'],
     });
 
     expect(request.createUrl).toBe(`${engine}/dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c/create`);
-    expect(request.body.announce).toEqual(['udp://tracker.example:1337/announce']);
+    expect(request.body.peerSearch.sources).toEqual(['udp://tracker.example:1337/announce']);
     expect(request.body.guessFileIdx).toBe(false);
   });
 
   it('asks the engine to guess when the source omits a file index', () => {
     const request = torrentCreateRequest(engine, { ...base, infoHash: 'abc' });
     expect(request.body.guessFileIdx).toBe(true);
-    expect(request.body.announce).toEqual([]);
+    expect(request.body.peerSearch.sources).toEqual([]);
+  });
+
+  it('retains bare tracker URLs and removes duplicate or unsupported peer sources', () => {
+    const request = torrentCreateRequest(engine, {
+      ...base,
+      infoHash: 'abc',
+      announce: [
+        'https://tracker.invalid/announce?key=synthetic',
+        'tracker:https://tracker.invalid/announce?key=synthetic',
+        'tracker:',
+        'dht:abc',
+        'file:///invalid',
+      ],
+    });
+    expect(request.body.peerSearch.sources).toEqual([
+      'https://tracker.invalid/announce?key=synthetic',
+    ]);
   });
 
   it('prefers the declared file index over a guess', () => {
