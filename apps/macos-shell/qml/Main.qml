@@ -17,6 +17,14 @@ ApplicationWindow {
     visible: true
     color: "#09090a"
     title: "Kino"
+    onClosing: function(close) {
+        close.accepted = lifecycle.requestClose()
+    }
+
+    CloseCoordinator {
+        id: lifecycle
+        onCloseApproved: root.close()
+    }
 
     function setFullscreen(enabled) {
         root.visibility = enabled ? Window.FullScreen : Window.Windowed
@@ -71,6 +79,10 @@ ApplicationWindow {
 
         function load(url, forceStereo, headers) {
             player.load(url, forceStereo, headers || {})
+        }
+
+        function pauseAndSnapshot() {
+            return player.pauseAndSnapshot()
         }
 
         function seek(seconds) {
@@ -156,6 +168,7 @@ ApplicationWindow {
             registerObject("kinoNative", nativeBridge)
             registerObject("kinoSecureStore", secureStore)
             registerObject("kinoDiagnostics", diagnostics)
+            registerObject("kinoLifecycle", lifecycle)
         }
     }
 

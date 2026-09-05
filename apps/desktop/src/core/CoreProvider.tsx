@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+
+import { connectNativeLifecycle } from '../native/player';
 
 import { ensureGuestCatalog } from './bootstrap';
 import { CoreContext, type CoreContextValue } from './context';
@@ -17,6 +19,8 @@ function errorMessage(error: unknown) {
 }
 
 export function CoreProvider({ children }: { children: ReactNode }) {
+  const teardown = useRef(Promise.resolve());
+  const activeTransport = useRef<CoreTransport | null>(null);
   const [session, setSession] = useState<CoreSession>(() =>
     typeof window === 'undefined' ? 'guest' : loadSession(window.localStorage),
   );
@@ -32,14 +36,45 @@ export function CoreProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
+    let disposed = false;
+    let disconnect = () => {};
+    void connectNativeLifecycle()
+      .then((lifecycle) => {
+        if (!lifecycle || disposed) return;
+        const onClose = (requestId: number) => {
+          void (async () => {
+            await teardown.current;
+            await activeTransport.current?.prepareClose();
+            lifecycle.acknowledgeClose(requestId, true);
+          })().catch(() => lifecycle.acknowledgeClose(requestId, false));
+        };
+        lifecycle.closeRequested.connect(onClose);
+        lifecycle.setReady(true);
+        disconnect = () => {
+          lifecycle.setReady(false);
+          lifecycle.closeRequested.disconnect(onClose);
+        };
+      })
+      .catch(() => console.error('[kino:shutdown] native close service unavailable'));
+    return () => {
+      disposed = true;
+      disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
     if (typeof Worker === 'undefined') return;
 
     let disposed = false;
     const transport = createCoreTransport(session);
-    void transport
-      .init()
+    activeTransport.current = transport;
+    const previousTeardown = teardown.current;
+    void previousTeardown
       .then(async () => {
-        if (session === 'guest') await ensureGuestCatalog(transport);
+        if (!disposed) await transport.init();
+      })
+      .then(async () => {
+        if (!disposed && session === 'guest') await ensureGuestCatalog(transport);
       })
       .then(() => {
         if (!disposed) setRuntime({ error: null, session, status: 'ready', transport });
@@ -53,7 +88,11 @@ export function CoreProvider({ children }: { children: ReactNode }) {
 
     return () => {
       disposed = true;
-      transport.destroy();
+      teardown.current = previousTeardown
+        .then(() => transport.destroy())
+        .catch(() => {
+          console.error('[kino:core] session ended before all data could be saved');
+        });
     };
   }, [session]);
 

@@ -35,6 +35,7 @@ qt_add_executable(
   Kino
   MACOSX_BUNDLE
   ${KINO_ICON}
+  src/closecoordinator.cpp
   src/diagnostics.cpp
   src/logging.cpp
   src/main.cpp
@@ -52,6 +53,7 @@ qt_add_qml_module(
   VERSION 1.0
   QML_FILES qml/Main.qml qml/Probe.qml
   SOURCES
+    src/closecoordinator.h
     src/diagnostics.h
     src/mpvitem.h
     src/nowplaying.h
@@ -149,4 +151,13 @@ if(BUILD_TESTING)
   target_link_libraries(kino_logging_test PRIVATE Qt6::Core Qt6::Qml)
   add_test(NAME diagnostic_logging COMMAND kino_logging_test)
   set_tests_properties(diagnostic_logging PROPERTIES TIMEOUT 30)
+
+  qt_add_executable(
+    kino_closecoordinator_test
+    tests/closecoordinator_test.cpp
+    src/closecoordinator.cpp
+  )
+  target_include_directories(kino_closecoordinator_test PRIVATE src)
+  target_link_libraries(kino_closecoordinator_test PRIVATE Qt6::Qml Qt6::Test)
+  add_test(NAME ordered_shutdown COMMAND kino_closecoordinator_test)
 endif()

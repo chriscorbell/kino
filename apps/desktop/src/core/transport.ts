@@ -13,10 +13,13 @@ import type { CoreAction, CoreModelName, CoreRuntimeEvent } from './types';
 type CoreEventListener = (event: CoreRuntimeEvent) => void;
 
 export interface CoreTransport {
-  destroy(): void;
+  destroy(): Promise<void>;
   dispatch(action: CoreAction, model?: CoreModelName): Promise<void>;
+  flush(): Promise<void>;
   getState<State>(model: CoreModelName): Promise<State>;
   init(): Promise<void>;
+  onBeforeDestroy(callback: () => Promise<void>): () => void;
+  prepareClose(): Promise<void>;
   subscribe(listener: CoreEventListener): () => void;
 }
 
@@ -91,21 +94,42 @@ export function createCoreTransport(session: CoreSession = 'guest'): CoreTranspo
     },
   };
   const bridge = new Bridge(scope, worker);
+  const beforeDestroy = new Set<() => Promise<void>>();
+  let initializing: Promise<void> | null = null;
+  const flush = () => bridge.call<void>(['flush'], []);
+  const prepareClose = async () => {
+    // Closing while Keychain/WASM startup is still running must also wait for
+    // initialization's storage work before terminating the worker.
+    await initializing?.catch(() => undefined);
+    await Promise.all([...beforeDestroy].map((callback) => callback()));
+    await flush();
+  };
+  let destroying: Promise<void> | null = null;
 
   return {
     destroy() {
-      listeners.clear();
-      worker.terminate();
+      destroying ??= prepareClose().finally(() => {
+        listeners.clear();
+        worker.terminate();
+      });
+      return destroying;
     },
     async dispatch(action, model) {
       await bridge.call(['dispatch'], [action, model, currentHash()]);
     },
+    flush,
     getState<State>(model: CoreModelName) {
       return bridge.call<State>(['getState'], [model]);
     },
-    async init() {
-      await bridge.call(['init'], [{ appVersion: '0.0.0', shellVersion: null }]);
+    init() {
+      initializing ??= bridge.call<void>(['init'], [{ appVersion: '0.0.0', shellVersion: null }]);
+      return initializing;
     },
+    onBeforeDestroy(callback) {
+      beforeDestroy.add(callback);
+      return () => beforeDestroy.delete(callback);
+    },
+    prepareClose,
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);

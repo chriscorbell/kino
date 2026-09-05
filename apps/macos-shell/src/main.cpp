@@ -1,4 +1,5 @@
 #include "logging.h"
+#include "closecoordinator.h"
 #include "mpvitem.h"
 #include "playbackprobe.h"
 #include "streamengine.h"
@@ -105,6 +106,21 @@ int main(int argc, char *argv[]) {
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,
                      []() { QCoreApplication::exit(1); }, Qt::QueuedConnection);
     engine.loadFromModule("KinoShell", "Main");
+
+    const QString closeProbe = qEnvironmentVariable("KINO_CLOSE_PROBE");
+    if (!closeProbe.isEmpty() && !engine.rootObjects().isEmpty()) {
+        auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        auto *lifecycle = window ? window->findChild<CloseCoordinator *>() : nullptr;
+        if (!lifecycle || (closeProbe != "window" && closeProbe != "quit")) return 1;
+        QObject::connect(lifecycle, &CloseCoordinator::readyChanged, &app,
+                         [window, lifecycle, closeProbe]() {
+            if (!lifecycle->ready()) return;
+            QTimer::singleShot(0, window, [window, closeProbe]() {
+                if (closeProbe == "quit") QCoreApplication::quit();
+                else window->close();
+            });
+        });
+    }
 
     qInfo("[kino:shell] native shell started architecture=arm64");
     return app.exec();

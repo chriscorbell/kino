@@ -7,7 +7,7 @@ const require = createRequire(new URL('../../apps/desktop/package.json', import.
 
 // Run the pinned WASM serializer with synthetic metadata and in-memory storage.
 // Every Core fetch stays in this fixture; it never contacts an add-on or account.
-export async function initializeCore() {
+export async function initializeCore({ storage = new Map() } = {}) {
   Object.assign(globalThis, {
     WorkerGlobalScope: { [Symbol.hasInstance]: () => true },
     self: globalThis,
@@ -17,7 +17,6 @@ export async function initializeCore() {
     shell_version: null,
     get_location_hash: async () => '',
   });
-  const storage = new Map();
   globalThis.local_storage_get_item = async (key) => storage.get(key) ?? null;
   globalThis.local_storage_set_item = async (key, value) => storage.set(key, value);
   globalThis.local_storage_remove_item = async (key) => storage.delete(key);

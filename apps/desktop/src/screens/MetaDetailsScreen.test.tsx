@@ -62,6 +62,9 @@ function mountDetails(
   const dispatch = vi.fn<CoreTransport['dispatch']>().mockResolvedValue(undefined);
   const transport: CoreTransport = {
     destroy: vi.fn(),
+    flush: vi.fn().mockResolvedValue(undefined),
+    prepareClose: vi.fn().mockResolvedValue(undefined),
+    onBeforeDestroy: () => () => {},
     dispatch,
     init: vi.fn().mockResolvedValue(undefined),
     getState: async <State,>() => state as State,
