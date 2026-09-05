@@ -6,6 +6,8 @@ import styles from '../App.module.css';
 import { useCore } from '../core/context';
 import type { CoreRuntimeEvent, ProfileState } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
+import { t as enUS } from '../locales';
+import { nativeShellPresent, openAccountCreation } from '../native/player';
 
 function authError(event: CoreRuntimeEvent) {
   return event.name === 'CoreEvent' && event.args.event === 'Error';
@@ -18,6 +20,8 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [creationError, setCreationError] = useState(false);
+  const [openingRegistration, setOpeningRegistration] = useState(false);
   const user = profile.state?.profile.auth?.user;
   const signedIn = Boolean(user);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -203,6 +207,31 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
           >
             {status !== 'ready' ? 'Preparing account…' : submitting ? 'Signing in…' : 'Sign in'}
           </button>
+          <a
+            aria-describedby={creationError ? 'account-creation-error' : undefined}
+            aria-disabled={openingRegistration || undefined}
+            className={styles.accountCreate}
+            href="https://www.stremio.com/register"
+            onClick={(event) => {
+              if (!nativeShellPresent()) return;
+              event.preventDefault();
+              if (openingRegistration) return;
+              setCreationError(false);
+              setOpeningRegistration(true);
+              void openAccountCreation()
+                .catch(() => setCreationError(true))
+                .finally(() => setOpeningRegistration(false));
+            }}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            {enUS.account.create}
+          </a>
+          {creationError ? (
+            <p className={styles.formError} id="account-creation-error" role="alert">
+              {enUS.account.createFailed}
+            </p>
+          ) : null}
         </form>
       )}
     </dialog>

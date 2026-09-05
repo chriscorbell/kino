@@ -99,6 +99,7 @@ export function SettingsScreen({
   const profile = useCoreModel<ProfileState>('ctx', null, 'settings-profile');
   const [cacheBytes, setCacheBytes] = useState<number | null>(null);
   const [clearing, setClearing] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle');
   const nativeShell = nativeShellPresent();
   const profileSettings = profile.state?.profile.settings;
 
@@ -146,6 +147,18 @@ export function SettingsScreen({
         setClearing(false);
         readCacheSize();
       });
+  };
+
+  const copyDiagnosticSummary = () => {
+    if (copyStatus === 'copying') return;
+    setCopyStatus('copying');
+    void connectNativeDiagnostics()
+      .then(async (diagnostics) => {
+        setCopyStatus(
+          diagnostics && (await diagnostics.copyDiagnosticSummary()) ? 'copied' : 'failed',
+        );
+      })
+      .catch(() => setCopyStatus('failed'));
   };
 
   const revealLogs = () => {
@@ -245,6 +258,38 @@ export function SettingsScreen({
 
       <section className={styles.settingsGroup} aria-labelledby="diagnostic-settings-title">
         <h2 id="diagnostic-settings-title">{enUS.settings.diagnostics}</h2>
+        <div className={styles.settingRow}>
+          <div>
+            <div className={styles.settingLabel}>{enUS.settings.diagnosticSummary}</div>
+            <div className={styles.settingDescription}>
+              {enUS.settings.diagnosticSummaryDescription}
+            </div>
+          </div>
+          {nativeShell ? (
+            <button
+              aria-label={enUS.settings.copyDiagnosticSummary}
+              aria-busy={copyStatus === 'copying'}
+              className={styles.secondaryButton}
+              disabled={copyStatus === 'copying'}
+              onClick={copyDiagnosticSummary}
+              type="button"
+            >
+              {copyStatus === 'copying' ? enUS.settings.copying : enUS.settings.copy}
+            </button>
+          ) : (
+            <span className={styles.activeValue}>{enUS.settings.desktopOnly}</span>
+          )}
+        </div>
+        {copyStatus === 'copied' ? (
+          <p className={styles.settingsNote} role="status">
+            {enUS.settings.diagnosticSummaryCopied}
+          </p>
+        ) : null}
+        {copyStatus === 'failed' ? (
+          <p className={styles.loadError} role="alert">
+            {enUS.settings.diagnosticSummaryFailed}
+          </p>
+        ) : null}
         <div className={styles.settingRow}>
           <div>
             <div className={styles.settingLabel}>{enUS.settings.localLogging}</div>

@@ -28,6 +28,18 @@ find_library(MEDIAPLAYER_FRAMEWORK MediaPlayer REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+  "${CMAKE_CURRENT_SOURCE_DIR}/../desktop/package.json"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../stream-engine/Cargo.toml"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../stream-engine/engine.lock")
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../desktop/package.json" KINO_DESKTOP_PACKAGE)
+string(JSON KINO_CORE_VERSION GET "${KINO_DESKTOP_PACKAGE}" dependencies "@stremio/stremio-core-web")
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/../stream-engine/Cargo.toml" KINO_ENGINE_VERSION_LINE REGEX "^version = ")
+string(REGEX REPLACE "^version = \"([^\"]+)\".*" "\\1" KINO_ENGINE_VERSION "${KINO_ENGINE_VERSION_LINE}")
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/../stream-engine/engine.lock" KINO_ENGINE_REVISION_LINE REGEX "^KINO_ENGINE_REVISION=")
+string(REPLACE "KINO_ENGINE_REVISION=" "" KINO_ENGINE_REVISION "${KINO_ENGINE_REVISION_LINE}")
+configure_file(cmake/DiagnosticBuildInfo.h.in generated/diagnosticbuildinfo.h @ONLY)
+
 set(KINO_ICON ${CMAKE_CURRENT_SOURCE_DIR}/resources/Kino.icns)
 set_source_files_properties(${KINO_ICON} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
 
@@ -67,7 +79,7 @@ if(NOT DEFINED KINO_RELEASE_VERSION)
   set(KINO_RELEASE_VERSION "${PROJECT_VERSION}")
 endif()
 target_compile_definitions(Kino PRIVATE KINO_VERSION="${KINO_RELEASE_VERSION}")
-target_include_directories(Kino PRIVATE src)
+target_include_directories(Kino PRIVATE src "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_link_libraries(
   Kino
   PRIVATE
@@ -184,6 +196,15 @@ if(BUILD_TESTING)
   target_link_libraries(kino_logging_test PRIVATE Qt6::Core Qt6::Qml)
   add_test(NAME diagnostic_logging COMMAND kino_logging_test)
   set_tests_properties(diagnostic_logging PROPERTIES TIMEOUT 30)
+
+  qt_add_executable(kino_diagnostics_test
+    tests/diagnostics_test.cpp src/diagnostics.cpp src/mpvitem.cpp src/powerguard.cpp
+    src/streamengine.cpp src/logging.cpp)
+  target_include_directories(kino_diagnostics_test PRIVATE src "${CMAKE_CURRENT_BINARY_DIR}/generated")
+  target_link_libraries(kino_diagnostics_test PRIVATE PkgConfig::MPV ${IOKIT_FRAMEWORK}
+    Qt6::Concurrent Qt6::Quick Qt6::WebEngineCore Qt6::Test)
+  add_test(NAME diagnostic_summary COMMAND kino_diagnostics_test)
+  set_tests_properties(diagnostic_summary PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
   qt_add_executable(
     kino_closecoordinator_test

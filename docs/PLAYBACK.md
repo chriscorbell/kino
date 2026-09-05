@@ -23,6 +23,8 @@ If initialization, decoding, or streaming fails, Kino saves progress, records a 
 
 Initial releases always output SDR. SDR sources render without range conversion. HDR10, HLG, Dolby Vision, and other supported 10-bit inputs are hardware-decoded and GPU tone-mapped to SDR. Dolby Vision profiles 5, 7, and 8 are accepted only when the platform produces correct SDR frames. Kino must reject green, washed-out, clipped, or otherwise incorrectly interpreted output.
 
+External source rows identify the destination host. Selecting one shows the complete HTTP or HTTPS URL for confirmation; Cancel or Escape keeps Kino on the details screen without opening anything. Approval opens the system browser, and a failed browser launch can be retried. URLs with credentials and unsupported source types stay disabled with a reason.
+
 Kino never falls back to a software video decoder. If hardware decoding or GPU HDR-to-SDR conversion is unavailable, the source is unsupported. Audio decoding remains allowed.
 
 | Input                            | Contract                                               |
@@ -62,6 +64,12 @@ Continue Watching resumes at saved progress. Media details also offers Start Ove
 Back, source failure, Up Next, window close, and application Quit share the same shutdown sequence. Kino pauses playback, captures the current position, sends the final progress and pause actions to Core, and waits for storage writes and pending library sync requests before unloading the player. The macOS shell keeps WebEngine alive until this sequence acknowledges completion. Failed local saves keep playback open for retry; failed account requests leave the locally saved progress available.
 
 `pnpm core:check-shutdown` runs the pinned Core WASM with guest and synthetic account profiles, delayed storage acknowledgements, and delayed sync response bodies. `pnpm macos:check-shutdown` checks window close and application Quit against a running shell and libmpv using the legal H.264 fixture. Set `KINO_FIXTURES_DIR` when the fixtures are outside `build/fixtures`.
+
+## Up Next
+
+When Up Next is enabled and a next episode exists, Kino offers its source selector during the final two minutes of playback, capped at the final 10% for shorter videos. For example, the offer appears at 28:00 in a 30-minute episode and at 1:48 in a two-minute video. Seeking earlier hides the offer; seeking back into the ending restores it. If the duration is unknown, the offer waits for end-of-file.
+
+The offer never starts playback automatically. Choosing it saves progress and opens the next episode's source selector, where the user must select a source.
 
 ## Intro behavior
 

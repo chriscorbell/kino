@@ -19,31 +19,27 @@ const server = createServer((request, response) => {
     return;
   }
   response.setHeader('Content-Type', 'text/html');
-  response.end(`<!doctype html><meta charset="utf-8"><title>Kino fullscreen check</title>
+  response.end(`<!doctype html><meta charset="utf-8"><title>Kino volume check</title>
 <script src="qrc:///qtwebchannel/qwebchannel.js"></script><script>
 new QWebChannel(qt.webChannelTransport, async channel => {
   const native = channel.objects.kinoNative, lifecycle = channel.objects.kinoLifecycle;
   lifecycle.closeRequested.connect(id => lifecycle.acknowledgeClose(id, true));
-  const result = { initial: native.fullscreen, changes: [] };
+  const result = { changes: [] };
   try {
-    if (typeof native.fullscreen !== 'boolean' || !native.fullscreenChanged)
-      throw new Error('Fullscreen property and change signal are required.');
-    for (const enabled of [true, false, true, false]) {
+    if (typeof native.setVolume !== 'function') throw new Error('Volume method is required.');
+    for (const [requested, expected] of [[37.5, 37.5], [0, 0], [100, 100], [-20, 0], [200, 100]]) {
       await new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error('Fullscreen state did not change.')), 5000);
-        const changed = () => {
-          if (native.fullscreen !== enabled) return;
-          result.changes.push(native.fullscreen);
+        const timer = setTimeout(() => reject(new Error('Volume did not change.')), 5000);
+        const changed = (name, payload) => {
+          if (name !== 'volume' || payload.percent !== expected) return;
+          result.changes.push(payload.percent);
           clearTimeout(timer);
-          native.fullscreenChanged.disconnect(changed);
+          native.playerEvent.disconnect(changed);
           resolve();
         };
-        native.fullscreenChanged.connect(changed);
-        native.setFullscreen(enabled);
+        native.playerEvent.connect(changed);
+        native.setVolume(requested);
       });
-      // Qt can report visibility before the macOS Space animation finishes.
-      // This probe checks completed transitions, so leave time before reversing one.
-      await new Promise(resolve => setTimeout(resolve, 2000));
     }
   } catch (error) { result.error = error.message; }
   await fetch('/result', { method: 'POST', body: JSON.stringify(result) });
@@ -68,19 +64,14 @@ try {
   const result = await Promise.race([
     once(child, 'exit'),
     new Promise((_resolve, reject) => {
-      timer = setTimeout(
-        () => reject(new Error(`Fullscreen probe timed out: ${diagnostics}`)),
-        30000,
-      );
+      timer = setTimeout(() => reject(new Error(`Volume probe timed out: ${diagnostics}`)), 30000);
     }),
   ]);
   assert.deepEqual(result, [0, null], `The native shell must close normally: ${diagnostics}`);
-  assert.deepEqual(
-    report,
-    { initial: false, changes: [true, false, true, false] },
-    `Native fullscreen transitions must complete: ${diagnostics}`,
+  assert.deepEqual(report, { changes: [37.5, 0, 100, 0, 100] });
+  console.log(
+    'Native WebChannel sets and observes libmpv volume, including mute level and bounded values.',
   );
-  console.log('Native WebChannel reports actual fullscreen state through repeated entry and exit.');
 } finally {
   clearTimeout(timer);
   if (child && child.exitCode === null && child.signalCode === null) {

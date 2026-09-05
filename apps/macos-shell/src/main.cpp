@@ -1,5 +1,6 @@
 #include "logging.h"
 #include "closecoordinator.h"
+#include "diagnostics.h"
 #include "mpvitem.h"
 #include "playbackprobe.h"
 #include "streamengine.h"
@@ -106,6 +107,13 @@ int main(int argc, char *argv[]) {
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,
                      []() { QCoreApplication::exit(1); }, Qt::QueuedConnection);
     engine.loadFromModule("KinoShell", "Main");
+    if (!engine.rootObjects().isEmpty()) {
+        QObject *root = engine.rootObjects().first();
+        if (auto *diagnostics = root->findChild<Diagnostics *>()) {
+            diagnostics->setSources(root->findChild<MpvItem *>(), root->findChild<StreamEngine *>());
+        }
+    }
+
 
     const QString closeProbe = qEnvironmentVariable("KINO_CLOSE_PROBE");
     if (!closeProbe.isEmpty() && !engine.rootObjects().isEmpty()) {

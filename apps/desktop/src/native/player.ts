@@ -14,6 +14,7 @@ export interface NativePlayer {
     connect(listener: () => void): void;
     disconnect(listener: () => void): void;
   };
+  openAccountCreation(): Promise<boolean>;
   addSubtitles(url: string, title: string, lang: string): void;
   load(url: string, forceStereo: boolean, headers: Record<string, string>): void;
   pauseAndSnapshot(): Promise<{ duration: number; time: number }>;
@@ -22,6 +23,7 @@ export interface NativePlayer {
   seek(seconds: number): void;
   setFullscreen(enabled: boolean): void;
   setMuted(muted: boolean): void;
+  setVolume(percent: number): void;
   setNowPlayingMetadata(title: string, subtitle: string): void;
   setPaused(paused: boolean): void;
   setSubtitleDelay(seconds: number): void;
@@ -39,6 +41,7 @@ export interface NativeExternalNavigation {
 }
 
 export interface NativeDiagnostics {
+  copyDiagnosticSummary(): Promise<boolean>;
   cacheBytes(): Promise<number>;
   clearCache(): Promise<boolean>;
   revealLogs(): Promise<boolean>;
@@ -161,6 +164,13 @@ function connectNativeShell(): Promise<NativeShellConnection | null> {
 
 export async function connectNativePlayer() {
   return (await connectNativeShell())?.player ?? null;
+}
+
+export async function openAccountCreation() {
+  const player = await connectNativePlayer();
+  if (!player || !(await player.openAccountCreation())) {
+    throw new Error('Account creation could not be opened.');
+  }
 }
 
 export async function connectNativeLifecycle() {

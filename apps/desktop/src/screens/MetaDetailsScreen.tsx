@@ -2,6 +2,8 @@ import { ArrowLeft, Check, Play, Plus } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import styles from '../App.module.css';
+import { ExternalSourceDialog } from '../components/ExternalSourceDialog';
+import { ExpandableText } from '../components/ExpandableText';
 import {
   addToLibraryAction,
   loadMetaDetailsAction,
@@ -9,7 +11,15 @@ import {
   type PlaybackSelection,
 } from '../core/actions';
 import { useCore } from '../core/context';
-import { classifySource, sourceDetails, sourceKey, sourceSize, sourceTitle } from '../core/sources';
+import {
+  classifySource,
+  externalWebUrl,
+  sourceDetails,
+  sourceKey,
+  sourceSize,
+  sourceTitle,
+  unsupportedSourceReason,
+} from '../core/sources';
 import type {
   CoreMetaItem,
   CoreMetaPreview,
@@ -55,6 +65,7 @@ export function MetaDetailsScreen({
     () => initialVideoId ?? defaultVideoId(item),
   );
   const [profileTransport, setProfileTransport] = useState(transport);
+  const [startOver, setStartOver] = useState(false);
   const [libraryOverride, setLibraryOverride] = useState<{ value: boolean } | null>(null);
   const result = useCoreModel<MetaDetailsState>(
     'meta_details',
@@ -78,6 +89,7 @@ export function MetaDetailsScreen({
   if (profileTransport !== transport) {
     setProfileTransport(transport);
     setLibraryOverride(null);
+    setStartOver(false);
     setLastMeta(loadedMeta);
   } else if (loadedMeta && loadedMeta !== lastMeta) setLastMeta(loadedMeta);
   const meta = loadedMeta ?? (profileTransport === transport ? lastMeta : null);
@@ -144,6 +156,19 @@ export function MetaDetailsScreen({
   const visibleSourceKeys = new Set(
     sources.map((source) => sourceKey(source.stream, source.transportUrl, sourceSelection)),
   );
+  const [externalChoice, setExternalChoice] = useState<{
+    key: string;
+    url: URL;
+    transport: typeof transport;
+  } | null>(null);
+  const currentExternal =
+    externalChoice &&
+    sourcesCurrent &&
+    externalChoice.transport === transport &&
+    visibleSourceKeys.has(externalChoice.key)
+      ? externalChoice
+      : null;
+  if (externalChoice && !currentExternal) setExternalChoice(null);
   const currentFailure = sourcesCurrent
     ? [...failedSources].findLast(([key]) => visibleSourceKeys.has(key))?.[1]
     : null;
@@ -151,6 +176,19 @@ export function MetaDetailsScreen({
   const nextEpisode = activeIndex >= 0 ? (videos[activeIndex + 1] ?? null) : null;
   const inLibrary = libraryOverride?.value ?? display.inLibrary;
   const libraryReady = Boolean(transport && meta);
+  const savedProgress = result.state?.libraryItem;
+  const canResume =
+    sourcesCurrent &&
+    savedProgress?._id === item.id &&
+    Number.isFinite(savedProgress.state.timeOffset) &&
+    savedProgress.state.timeOffset > 0 &&
+    (savedProgress.state.video_id === (activeVideo?.id ?? item.id) ||
+      (item.type !== 'series' && !savedProgress.state.video_id));
+
+  const chooseVideo = (id: string) => {
+    setStartOver(false);
+    setVideoId(id);
+  };
 
   const toggleLibrary = () => {
     if (!transport || !libraryReady) return;
@@ -185,7 +223,13 @@ export function MetaDetailsScreen({
           <h1>{display.name}</h1>
           <p className={styles.detailMetadata}>{metadata(display as CoreMetaItem)}</p>
           {display.description ? (
-            <p className={styles.detailDescription}>{display.description}</p>
+            <ExpandableText
+              className={styles.detailDescription}
+              key={display.description}
+              label={display.name}
+              lines={3}
+              text={display.description}
+            />
           ) : null}
           <button
             className={styles.libraryButton}
@@ -226,7 +270,7 @@ export function MetaDetailsScreen({
                     key={season}
                     onClick={() => {
                       const first = videos.find((video) => video.season === season);
-                      if (first) setVideoId(first.id);
+                      if (first) chooseVideo(first.id);
                     }}
                     type="button"
                   >
@@ -237,25 +281,35 @@ export function MetaDetailsScreen({
             </div>
             <div className={styles.episodeList}>
               {visibleVideos.map((video: CoreVideo) => (
-                <button
-                  aria-current={video.id === videoId ? 'true' : undefined}
-                  className={video.id === videoId ? styles.episodeActive : styles.episodeButton}
+                <div
+                  className={`${styles.episodeRow} ${video.id === videoId ? styles.episodeActive : ''}`}
                   key={video.id}
-                  onClick={() => {
-                    episodeChosenRef.current = true;
-                    setVideoId(video.id);
-                  }}
-                  type="button"
                 >
-                  <span className={styles.episodeNumber}>
-                    {String(video.episode ?? 0).padStart(2, '0')}
-                  </span>
-                  <span>
+                  <button
+                    aria-current={video.id === videoId ? 'true' : undefined}
+                    className={styles.episodeButton}
+                    onClick={() => {
+                      episodeChosenRef.current = true;
+                      chooseVideo(video.id);
+                    }}
+                    type="button"
+                  >
+                    <span className={styles.episodeNumber}>
+                      {String(video.episode ?? 0).padStart(2, '0')}
+                    </span>
                     <strong>{video.title || `Episode ${video.episode}`}</strong>
-                    {video.overview ? <small>{video.overview}</small> : null}
-                  </span>
-                  <Play aria-hidden size={16} weight="fill" />
-                </button>
+                    <Play aria-hidden size={16} weight="fill" />
+                  </button>
+                  {video.overview ? (
+                    <ExpandableText
+                      className={styles.episodeOverview}
+                      key={video.overview}
+                      label={video.title || `Episode ${video.episode}`}
+                      lines={1}
+                      text={video.overview}
+                    />
+                  ) : null}
+                </div>
               ))}
             </div>
           </section>
@@ -270,6 +324,30 @@ export function MetaDetailsScreen({
             <h2 id="sources-heading">{enUS.details.sources}</h2>
             {!sourcesCurrent && !result.error ? <span>{enUS.details.refreshing}</span> : null}
           </div>
+          {canResume ? (
+            <div
+              className={styles.resumeChoice}
+              role="group"
+              aria-label={enUS.details.playbackStart}
+            >
+              <button
+                aria-pressed={!startOver}
+                className={!startOver ? styles.seasonActive : styles.seasonButton}
+                onClick={() => setStartOver(false)}
+                type="button"
+              >
+                {enUS.details.resume}
+              </button>
+              <button
+                aria-pressed={startOver}
+                className={startOver ? styles.seasonActive : styles.seasonButton}
+                onClick={() => setStartOver(true)}
+                type="button"
+              >
+                {enUS.details.startOver}
+              </button>
+            </div>
+          ) : null}
           {currentFailure ? (
             <p className={styles.loadError} role="status">
               {currentFailure}
@@ -283,17 +361,29 @@ export function MetaDetailsScreen({
               const support = classifySource(source.stream);
               const playable =
                 (support === 'direct' || support === 'torrent') && Boolean(source.transportUrl);
-              const failed = failedSources.has(
-                sourceKey(source.stream, source.transportUrl, sourceSelection),
-              );
+              const external =
+                support === 'external' ? externalWebUrl(source.stream.externalUrl) : null;
+              const selectable = playable || Boolean(external);
+              const key = sourceKey(source.stream, source.transportUrl, sourceSelection);
+              const failed = failedSources.has(key);
+              const unavailable =
+                support === 'direct' || support === 'torrent'
+                  ? enUS.details.sourceUnsupported.addon
+                  : enUS.details.sourceUnsupported[unsupportedSourceReason(source.stream)];
               return (
                 <button
                   className={styles.sourceButton}
-                  disabled={!playable || !sourcesCurrent}
+                  disabled={!selectable || !sourcesCurrent}
                   key={`${source.transportUrl}:${index}`}
                   onClick={() => {
-                    if (!sourcesCurrent || !playable || !resource?.addon.transportUrl) return;
+                    if (!sourcesCurrent) return;
+                    if (external) {
+                      setExternalChoice({ key, url: external, transport });
+                      return;
+                    }
+                    if (!playable || !resource?.addon.transportUrl) return;
                     onPlay({
+                      resumeMode: canResume && startOver ? 'start-over' : 'resume',
                       meta: display,
                       metaTransportUrl: resource.addon.transportUrl,
                       nextVideo: nextEpisode,
@@ -307,11 +397,19 @@ export function MetaDetailsScreen({
                   <span className={styles.sourcePrimary}>
                     <strong>{sourceTitle(source.stream)}</strong>
                     <small>{sourceDetails(source.stream)}</small>
+                    {external ? (
+                      <small className={styles.sourceExplanation}>
+                        {enUS.details.openExternal} · {external.host}
+                      </small>
+                    ) : null}
+                    {!selectable ? (
+                      <small className={styles.sourceExplanation}>{unavailable}</small>
+                    ) : null}
                   </span>
                   <span className={styles.sourceMeta}>
                     {sourceSize(source.stream) ? <span>{sourceSize(source.stream)}</span> : null}
                     <span>{source.addonName}</span>
-                    {!playable ? <em>{enUS.details.unavailable}</em> : null}
+                    {!selectable ? <em>{enUS.details.unavailable}</em> : null}
                     {playable && failed ? <em>{enUS.details.failed}</em> : null}
                   </span>
                 </button>
@@ -320,6 +418,9 @@ export function MetaDetailsScreen({
           </div>
         </section>
       </div>
+      {currentExternal ? (
+        <ExternalSourceDialog url={currentExternal.url} onClose={() => setExternalChoice(null)} />
+      ) : null}
     </div>
   );
 }
