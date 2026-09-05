@@ -33,7 +33,7 @@ The first public macOS package will be a signed and notarized universal build fo
 
 Desktop and TV share terminology, visual rules, and design tokens but use separate presentations. Desktop is designed for pointer and keyboard. TV is designed for a directional remote, visible focus, larger targets, and ten-foot spacing. All TV playback is fullscreen.
 
-Version one is dark-only and English-only, but every visible string begins in locale files. It must provide keyboard access, semantic labels, visible focus, reduced-motion support, AA contrast, and usable interface scaling.
+Version one is dark-only and English-only, but every visible string begins in locale files. It must provide keyboard access, semantic labels, visible focus, reduced-motion support, AA contrast, and usable interface scaling. Desktop Settings offers interface sizes from 100% to 200% in 25% steps, with a reset to 100%. The choice stays on the device and changes the WebEngine page zoom so layouts respond to the enlarged text and controls.
 
 Desktop playback occupies the main window rather than a detached player. Ordinary system fullscreen is supported; picture-in-picture and multiple windows are deferred. Playback continues while the app is minimized or unfocused. Closing the window or quitting stops playback and saves progress. Android TV stops and saves when Kino moves to the background.
 

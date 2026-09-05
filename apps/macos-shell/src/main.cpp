@@ -120,6 +120,7 @@ int main(int argc, char *argv[]) {
         auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
         auto *lifecycle = window ? window->findChild<CloseCoordinator *>() : nullptr;
         if (!lifecycle || (closeProbe != "window" && closeProbe != "quit")) return 1;
+        if (qEnvironmentVariableIsSet("KINO_SCALE_PROBE")) window->resize(window->minimumSize());
         QObject::connect(lifecycle, &CloseCoordinator::readyChanged, &app,
                          [window, lifecycle, closeProbe]() {
             if (!lifecycle->ready()) return;

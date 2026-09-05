@@ -17,6 +17,7 @@ import { sourceKey } from './core/sources';
 import type { CoreMetaPreview, ProfileState } from './core/types';
 import { useCoreModel } from './core/useCoreModel';
 import { t as enUS } from './locales';
+import { useInterfaceScale } from './native/useInterfaceScale';
 import {
   BrowseStateContext,
   initialBrowseState,
@@ -113,6 +114,8 @@ export function App() {
   const [settings, setSettings] = useState<KinoSettings>(() =>
     typeof window === 'undefined' ? defaultSettings : loadSettings(window.localStorage),
   );
+
+  const interfaceScale = useInterfaceScale(settings.interfaceScale);
 
   useEffect(() => {
     saveSettings(window.localStorage, settings);
@@ -215,7 +218,14 @@ export function App() {
       case 'addons':
         return <AddonsScreen />;
       case 'settings':
-        return <SettingsScreen onChange={setSettings} settings={settings} updates={updates} />;
+        return (
+          <SettingsScreen
+            onChange={setSettings}
+            settings={settings}
+            updates={updates}
+            interfaceScale={interfaceScale}
+          />
+        );
     }
   })();
 

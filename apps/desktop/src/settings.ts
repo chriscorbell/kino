@@ -1,10 +1,14 @@
 export const SETTINGS_STORAGE_KEY = 'kino.settings.v1';
 
+export const interfaceScales = [100, 125, 150, 175, 200] as const;
+export type InterfaceScale = (typeof interfaceScales)[number];
+
 export type AudioOutput = 'auto' | 'stereo';
 
 export interface KinoSettings {
   automaticIntroSkipping: boolean;
   audioOutput: AudioOutput;
+  interfaceScale: InterfaceScale;
   skipIntroButton: boolean;
   subtitlePosition: number;
   subtitleSize: number;
@@ -19,6 +23,7 @@ export const subtitleSizeRange = { max: 200, min: 50 } as const;
 export const defaultSettings: KinoSettings = {
   automaticIntroSkipping: false,
   audioOutput: 'auto',
+  interfaceScale: 100,
   skipIntroButton: true,
   subtitlePosition: 94,
   subtitleSize: 100,
@@ -70,6 +75,9 @@ export function loadSettings(storage: Pick<Storage, 'getItem'>): KinoSettings {
       audioOutput: isAudioOutput(values.audioOutput)
         ? values.audioOutput
         : defaultSettings.audioOutput,
+      interfaceScale: interfaceScales.includes(values.interfaceScale as InterfaceScale)
+        ? (values.interfaceScale as InterfaceScale)
+        : defaultSettings.interfaceScale,
       skipIntroButton:
         typeof values.skipIntroButton === 'boolean'
           ? values.skipIntroButton

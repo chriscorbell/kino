@@ -28,6 +28,7 @@
     "macos:check-engine": "./scripts/check-macos-engine.sh",
     "macos:check-engine-ui": "node scripts/check-macos-engine-ui.mjs",
     "macos:check-engine-retry": "node scripts/check-macos-engine-retry.mjs",
+    "macos:check-scale": "node scripts/check-macos-scale.mjs",
     "macos:check-fullscreen": "node scripts/check-macos-fullscreen.mjs",
     "macos:check-volume": "node scripts/check-macos-volume.mjs",
     "macos:check-web-console": "node scripts/check-macos-web-console.mjs",
