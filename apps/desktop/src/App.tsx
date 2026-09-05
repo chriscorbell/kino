@@ -160,7 +160,12 @@ export function App() {
             initialVideoId={detailVideoId}
             item={detail}
             onBack={() => setScreen(previousScreen)}
-            onPlay={setPlayback}
+            onPlay={(selection) => {
+              // Details unmounts during playback. Keep its chosen episode in
+              // navigation state so Back and failure return to the same source list.
+              setDetailVideoId(selection.video?.id ?? null);
+              setPlayback(selection);
+            }}
           />
         ) : (
           <HomeScreen onOpen={openDetail} />
