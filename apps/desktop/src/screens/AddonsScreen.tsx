@@ -3,6 +3,7 @@ import { useState } from 'react';
 
 import styles from '../App.module.css';
 import { installAddonAction, uninstallAddonAction } from '../core/actions';
+import { AddonTransportError, addonTransportIssue, createAddonNetwork } from '../core/addonNetwork';
 import { useCore } from '../core/context';
 import type { CoreAddon, ProfileState } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
@@ -29,24 +30,30 @@ export function AddonsScreen() {
     event.preventDefault();
     const url = manifestUrl.trim();
     if (!transport || !url || busy) return;
-    // ADR 0012 keeps remote add-on transports on HTTPS.
-    if (!url.startsWith('https://')) {
-      setError(enUS.addons.insecure);
+    const issue = addonTransportIssue(url, import.meta.env.DEV);
+    if (issue) {
+      setError(enUS.addons.transportIssues[issue]);
       return;
     }
 
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch(url, { headers: { Accept: 'application/json' } });
+      const response = await createAddonNetwork(fetch, import.meta.env.DEV).fetch(url, {
+        headers: { Accept: 'application/json' },
+      });
       if (!response.ok) throw new Error(`Manifest returned ${response.status}.`);
       const manifest: unknown = await response.json();
       if (!isManifest(manifest)) throw new Error('That URL did not return an add-on manifest.');
       await transport.dispatch(installAddonAction({ flags: {}, manifest, transportUrl: url }));
       setManifestUrl('');
     } catch (cause: unknown) {
-      setError(cause instanceof Error ? cause.message : enUS.addons.installFailed);
-      console.error('[kino:addons] install failed', cause);
+      setError(
+        cause instanceof AddonTransportError
+          ? enUS.addons.transportIssues[cause.issue]
+          : enUS.addons.installFailed,
+      );
+      console.error('[kino:addons] install failed');
     } finally {
       setBusy(false);
     }
@@ -90,37 +97,42 @@ export function AddonsScreen() {
       </div>
 
       <div className={styles.addonList}>
-        {addons.map((addon) => (
-          <div className={styles.addonRow} key={addon.transportUrl}>
-            {addon.manifest.logo ? (
-              <img alt="" className={styles.addonLogo} src={addon.manifest.logo} />
-            ) : (
-              <span className={styles.addonLogo} />
-            )}
-            <div className={styles.addonCopy}>
-              <strong>
-                {addon.manifest.name}
-                {addon.manifest.version ? <small> {addon.manifest.version}</small> : null}
-              </strong>
-              {addon.manifest.description ? <p>{addon.manifest.description}</p> : null}
-              <span className={styles.addonTypes}>
-                {(addon.manifest.types ?? []).join(' · ') || addon.manifest.id}
-              </span>
+        {addons.map((addon) => {
+          const issue =
+            addon.transportIssue ?? addonTransportIssue(addon.transportUrl, import.meta.env.DEV);
+          return (
+            <div className={styles.addonRow} key={addon.transportUrl}>
+              {!issue && addon.manifest.logo ? (
+                <img alt="" className={styles.addonLogo} src={addon.manifest.logo} />
+              ) : (
+                <span className={styles.addonLogo} />
+              )}
+              <div className={styles.addonCopy}>
+                <strong>
+                  {addon.manifest.name}
+                  {addon.manifest.version ? <small> {addon.manifest.version}</small> : null}
+                </strong>
+                {addon.manifest.description ? <p>{addon.manifest.description}</p> : null}
+                {issue ? <p role="status">{enUS.addons.transportIssues[issue]}</p> : null}
+                <span className={styles.addonTypes}>
+                  {(addon.manifest.types ?? []).join(' · ') || addon.manifest.id}
+                </span>
+              </div>
+              {addon.flags?.protected ? (
+                <span className={styles.addonBadge}>{enUS.addons.protectedAddon}</span>
+              ) : (
+                <button
+                  aria-label={`${enUS.addons.remove} ${addon.manifest.name}`}
+                  className={styles.addonRemove}
+                  onClick={() => uninstall(addon)}
+                  type="button"
+                >
+                  <Trash aria-hidden size={16} />
+                </button>
+              )}
             </div>
-            {addon.flags?.protected ? (
-              <span className={styles.addonBadge}>{enUS.addons.protectedAddon}</span>
-            ) : (
-              <button
-                aria-label={`${enUS.addons.remove} ${addon.manifest.name}`}
-                className={styles.addonRemove}
-                onClick={() => uninstall(addon)}
-                type="button"
-              >
-                <Trash aria-hidden size={16} />
-              </button>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

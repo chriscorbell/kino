@@ -11,9 +11,10 @@
   },
   "scripts": {
     "build": "pnpm --filter @kino/desktop build",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm core:check-streams && pnpm core:check-shutdown && pnpm engine:check-vendor && pnpm build",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm core:check-streams && pnpm core:check-shutdown && pnpm core:check-addon-transports && pnpm engine:check-vendor && pnpm build",
     "core:check-streams": "node scripts/check-core-streams.mjs",
     "core:check-shutdown": "node scripts/check-core-shutdown.mjs",
+    "core:check-addon-transports": "node scripts/check-core-addon-transports.mjs",
     "dev": "pnpm --filter @kino/desktop dev",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
@@ -29,6 +30,7 @@
     "macos:check-playback": "node scripts/check-macos-playback.mjs",
     "macos:check-request-headers": "node scripts/check-macos-request-headers.mjs",
     "macos:check-shutdown": "node scripts/check-macos-shutdown.mjs",
+    "macos:check-addon-transports": "node scripts/check-macos-addon-transports.mjs",
     "macos:package": "node scripts/package-macos.mjs",
     "test": "pnpm --filter @kino/desktop test",
     "typecheck": "pnpm --filter @kino/desktop typecheck"

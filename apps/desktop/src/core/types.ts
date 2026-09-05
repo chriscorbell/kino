@@ -1,3 +1,5 @@
+import type { AddonTransportIssue } from './addonNetwork';
+
 export type CoreModelName =
   | 'board'
   | 'continue_watching_preview'
@@ -224,6 +226,7 @@ export interface LibraryState {
 }
 
 export interface CoreAddon {
+  transportIssue?: AddonTransportIssue | null;
   flags?: { official?: boolean; protected?: boolean };
   manifest: {
     description?: string | null;
