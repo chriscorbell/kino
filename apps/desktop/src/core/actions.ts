@@ -9,6 +9,7 @@ import type {
 } from './types';
 
 export interface PlaybackSelection {
+  resumeMode?: 'resume' | 'start-over';
   meta: CoreMetaPreview;
   metaTransportUrl: string;
   nextVideo: CoreVideo | null;

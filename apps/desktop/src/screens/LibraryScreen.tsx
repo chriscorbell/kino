@@ -1,13 +1,14 @@
+import { useState } from 'react';
 import styles from '../App.module.css';
 import { MediaCard } from '../components/MediaCard';
 import { LoadMore } from '../components/LoadMore';
 import { useCore } from '../core/context';
 import type { CoreTransport } from '../core/transport';
 import { loadLibraryAction } from '../core/actions';
-import type { CoreMetaPreview, LibraryState, LibraryRequest } from '../core/types';
+import type { CoreMetaPreview, LibraryState } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
-import { useState } from 'react';
+import { useBrowseState } from '../navigation';
 
 function typeLabel(type: string | null) {
   if (!type) return enUS.library.all;
@@ -16,7 +17,7 @@ function typeLabel(type: string | null) {
 
 export function LibraryScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => void }) {
   const { transport } = useCore();
-  const [request, setRequest] = useState<LibraryRequest | null>(null);
+  const [request, setRequest] = useBrowseState('library');
   const [attempt, setAttempt] = useState(0);
   const filterKey = `${request?.type ?? 'all'}:${request?.sort ?? 'lastwatched'}`;
   const result = useCoreModel<LibraryState>(

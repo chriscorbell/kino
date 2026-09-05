@@ -1,5 +1,9 @@
 export const enUS = {
   appName: 'Kino',
+  account: {
+    create: 'Create account',
+    createFailed: 'The registration page could not be opened. Try again.',
+  },
   navigation: {
     primary: 'Primary navigation',
     home: 'Home',
@@ -39,6 +43,9 @@ export const enUS = {
     catalogLabel: 'Catalog',
     allGenres: 'All Genres',
     genreLabel: 'Genre',
+    yearLabel: 'Year',
+    allYears: 'All years',
+    allValues: 'All',
   },
   pagination: {
     loadMore: 'Load more',
@@ -83,7 +90,7 @@ export const enUS = {
     subtitles: 'Subtitles',
     subtitlesDescription: 'Load preferred subtitles when available',
     upNext: 'Up Next',
-    upNextDescription: 'Offer the next episode when one finishes',
+    upNextDescription: 'Offer the next episode near the ending',
     languages: 'Languages',
     languagesNote: 'Language preferences come from your Stremio profile and sync across devices.',
     subtitleLanguage: 'Subtitle language',
@@ -102,6 +109,13 @@ export const enUS = {
     audioAuto: 'Auto',
     audioStereo: 'Stereo',
     diagnostics: 'Diagnostics',
+    diagnosticSummary: 'Diagnostic summary',
+    diagnosticSummaryDescription: 'App, system, and playback versions for a bug report',
+    copyDiagnosticSummary: 'Copy diagnostic summary',
+    copy: 'Copy',
+    copying: 'Copying…',
+    diagnosticSummaryCopied: 'Diagnostic summary copied.',
+    diagnosticSummaryFailed: 'The summary could not be copied. Try again.',
     localLogging: 'Verbose local logging',
     localLoggingDescription: 'Detailed diagnostics stay on this device',
     active: 'Active',
@@ -110,6 +124,8 @@ export const enUS = {
     unavailable: 'Not connected',
   },
   actions: {
+    readMore: 'Read more',
+    readLess: 'Read less',
     back: 'Back',
   },
   details: {
@@ -117,6 +133,9 @@ export const enUS = {
     error: 'Title details could not be loaded.',
     episodes: 'Episodes',
     sources: 'Sources',
+    playbackStart: 'Playback start',
+    resume: 'Resume',
+    startOver: 'Start over',
     refreshing: 'Refreshing sources…',
     noSources: 'No sources were returned for this title.',
     unavailable: 'Not available',
@@ -126,6 +145,7 @@ export const enUS = {
     inLibrary: 'In Library',
   },
   player: {
+    volume: 'Volume',
     enterFullscreen: 'Enter fullscreen',
     exitFullscreen: 'Exit fullscreen',
     fullscreenFailed: 'Fullscreen could not be changed. Try again.',

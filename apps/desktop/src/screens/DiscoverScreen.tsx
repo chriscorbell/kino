@@ -1,5 +1,5 @@
-import { CaretDown } from '@phosphor-icons/react';
 import { useState } from 'react';
+import { CaretDown } from '@phosphor-icons/react';
 
 import styles from '../App.module.css';
 import { MediaCard } from '../components/MediaCard';
@@ -8,17 +8,29 @@ import { useCore } from '../core/context';
 import type { CoreTransport } from '../core/transport';
 import { loadCatalogAction } from '../core/actions';
 import { catalogRequestFromDeepLink, catalogRequestKey } from '../core/catalog';
-import type { CatalogRequest, CatalogWithFiltersState, CoreMetaPreview } from '../core/types';
+import type { CatalogWithFiltersState, CoreMetaPreview } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
+import { useBrowseState } from '../navigation';
 
 function typeLabel(type: string) {
   return type.charAt(0).toUpperCase() + type.slice(1);
 }
 
+function filterLabel(filter: { name: string; options: Array<{ value: string | null }> }) {
+  const values = filter.options.flatMap((option) => (option.value === null ? [] : [option.value]));
+  if (
+    filter.name === 'year' ||
+    (filter.name === 'genre' && values.length > 0 && values.every((value) => /^\d{4}$/.test(value)))
+  )
+    return enUS.discover.yearLabel;
+  if (filter.name === 'genre') return enUS.discover.genreLabel;
+  return typeLabel(filter.name.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' '));
+}
+
 export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => void }) {
   const { transport } = useCore();
-  const [request, setRequest] = useState<CatalogRequest | null>(null);
+  const [request, setRequest] = useBrowseState('discover');
   const result = useCoreModel<CatalogWithFiltersState>(
     'discover',
     loadCatalogAction(request),
@@ -50,11 +62,7 @@ export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => 
   const selectable = result.state?.selectable;
   const content = result.state?.catalog?.content ?? null;
   const items = content?.type === 'Ready' ? content.content : [];
-  // Add-ons expose genre-style filters under varying names; the first
-  // non-required filter with options is the one worth surfacing.
-  const genreFilter = selectable?.extra.find(
-    (extra) => !extra.isRequired && extra.options.length > 0,
-  );
+  const filters = selectable?.extra.filter((extra) => extra.options.length > 0) ?? [];
 
   const select = (link: string | undefined) => {
     const next = catalogRequestFromDeepLink(link);
@@ -81,7 +89,7 @@ export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => 
         </div>
       ) : null}
 
-      {selectable && selectable.catalogs.length > 0 ? (
+      {selectable && (selectable.catalogs.length > 0 || filters.length > 0) ? (
         <div className={styles.discoverFilters}>
           <div className={styles.catalogTabs} aria-label={enUS.discover.catalogLabel} role="group">
             {selectable.catalogs.map((option) => (
@@ -97,27 +105,45 @@ export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => 
             ))}
           </div>
 
-          {genreFilter ? (
-            <div className={styles.genreMenu}>
-              <select
-                aria-label={enUS.discover.genreLabel}
-                className={styles.genreSelect}
-                onChange={(event) => {
-                  const option = genreFilter.options[Number(event.target.value)];
-                  select(option?.deepLinks?.discover);
-                }}
-                value={Math.max(
-                  0,
-                  genreFilter.options.findIndex((option) => option.selected),
-                )}
-              >
-                {genreFilter.options.map((option, index) => (
-                  <option key={option.value ?? 'all'} value={index}>
-                    {option.value ?? enUS.discover.allGenres}
-                  </option>
-                ))}
-              </select>
-              <CaretDown aria-hidden size={13} />
+          {filters.length > 0 ? (
+            <div className={styles.catalogExtraFilters}>
+              {filters.map((filter) => {
+                const label = filterLabel(filter);
+                return (
+                  <label className={styles.catalogFilter} key={filter.name}>
+                    <span>{label}</span>
+                    <span className={styles.genreMenu}>
+                      <select
+                        className={styles.genreSelect}
+                        onChange={(event) => {
+                          const option = filter.options[Number(event.target.value)];
+                          select(option?.deepLinks?.discover);
+                        }}
+                        value={Math.max(
+                          0,
+                          filter.options.findIndex((option) => option.selected),
+                        )}
+                      >
+                        {filter.options.map((option, index) => (
+                          <option
+                            disabled={!option.deepLinks?.discover}
+                            key={option.value ?? 'all'}
+                            value={index}
+                          >
+                            {option.value ??
+                              (label === enUS.discover.genreLabel
+                                ? enUS.discover.allGenres
+                                : label === enUS.discover.yearLabel
+                                  ? enUS.discover.allYears
+                                  : enUS.discover.allValues)}
+                          </option>
+                        ))}
+                      </select>
+                      <CaretDown aria-hidden size={13} />
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           ) : null}
         </div>
