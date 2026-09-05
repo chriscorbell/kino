@@ -1614,6 +1614,7 @@
   .content,
   .genreList,
   .skipIntro,
+  .subtitlePanel,
   .upNext {
     animation: none;
   }
