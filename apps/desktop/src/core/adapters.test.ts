@@ -351,6 +351,29 @@ describe('sources and playback', () => {
     }
   });
 
+  it('keeps a header named __proto__, which Core carries as an own property', () => {
+    // JSON.parse produces an own property here, exactly as Core's payload does.
+    // Assigning that name would hit Object.prototype's setter and drop the
+    // header before the native player could send it.
+    const request: unknown = JSON.parse('{"__proto__":"synthetic","Authorization":"synthetic"}');
+    const adapted = adaptPlayerState({
+      selected: {
+        stream: {
+          url: 'https://media.invalid/a.mp4',
+          behaviorHints: { proxyHeaders: { request } },
+        },
+      },
+      stream: null,
+    });
+
+    const headers = adapted.selected?.stream.hints.proxyRequestHeaders;
+    expect(Object.keys(headers ?? {})).toEqual(['__proto__', 'Authorization']);
+    expect(Object.getOwnPropertyDescriptor(headers, '__proto__')?.value).toBe('synthetic');
+    expect(headers?.Authorization).toBe('synthetic');
+    // Reading a reserved name must not have changed the record's prototype.
+    expect(Object.getPrototypeOf(headers)).toBe(Object.prototype);
+  });
+
   it('rejects a resume offset that is not a position in the media', () => {
     const withOffset = (timeOffset: unknown) =>
       adaptPlayerState({

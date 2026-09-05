@@ -198,15 +198,21 @@ function optionalTextList(value: unknown, site: Site): string[] | null {
  * Header names and values cross into a native request, so both must be strings.
  * A key is add-on-controlled data and can itself carry a credential, so a
  * rejection reports the entry's position and never the key.
+ *
+ * Building this by assignment would lose a header actually named __proto__:
+ * the name is legal in an HTTP field and Core carries it as an own property,
+ * but assigning it reaches Object.prototype's setter instead. Collecting
+ * entries keeps every own name and leaves the prototype alone.
  */
 function headerRecord(value: unknown, site: Site): Record<string, string> | null {
   const source = optionalRecord(value, site);
   if (!source) return null;
-  const headers: Record<string, string> = {};
-  for (const [index, [name, entry]] of Object.entries(source).entries()) {
-    headers[name] = text(entry, at(site, index));
-  }
-  return headers;
+  return Object.fromEntries(
+    Object.entries(source).map(([name, entry], index): [string, string] => [
+      name,
+      text(entry, at(site, index)),
+    ]),
+  );
 }
 
 function pairList(value: unknown, site: Site): Array<[string, string]> {
