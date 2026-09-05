@@ -100,10 +100,12 @@ QVariantList subtitleTrackPayload(const mpv_node &root) {
             } else if (name == "id" && value.format == MPV_FORMAT_INT64) {
                 entry.insert(QStringLiteral("id"),
                              static_cast<qlonglong>(value.u.int64));
-            } else if (name == "selected" && value.format == MPV_FORMAT_FLAG) {
-                entry.insert(QStringLiteral("selected"), value.u.flag != 0);
-            } else if (name == "external" && value.format == MPV_FORMAT_FLAG) {
-                entry.insert(QStringLiteral("external"), value.u.flag != 0);
+            } else if (value.format == MPV_FORMAT_FLAG &&
+                       (name == "selected" || name == "external" ||
+                        name == "forced" || name == "hearing-impaired")) {
+                const QString key = name == "hearing-impaired"
+                    ? QStringLiteral("hearingImpaired") : QString::fromUtf8(name);
+                entry.insert(key, value.u.flag != 0);
             } else if (value.format == MPV_FORMAT_STRING && value.u.string &&
                        (name == "title" || name == "lang" || name == "codec")) {
                 entry.insert(QString::fromUtf8(name),

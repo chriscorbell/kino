@@ -1,6 +1,10 @@
+import { t as enUS } from '../locales';
+
 export interface SubtitleTrack {
   codec?: string;
   external: boolean;
+  forced?: boolean;
+  hearingImpaired?: boolean;
   id: number;
   lang?: string;
   selected: boolean;
@@ -52,6 +56,10 @@ export function parseSubtitleTracks(value: unknown): SubtitleTrack[] {
       {
         ...(typeof entry.codec === 'string' ? { codec: entry.codec } : {}),
         external: entry.external === true,
+        ...(typeof entry.forced === 'boolean' ? { forced: entry.forced } : {}),
+        ...(typeof entry.hearingImpaired === 'boolean'
+          ? { hearingImpaired: entry.hearingImpaired }
+          : {}),
         id: entry.id,
         ...(typeof entry.lang === 'string' ? { lang: entry.lang } : {}),
         selected: entry.selected === true,
@@ -81,14 +89,52 @@ export function preferredSubtitleTrack(
   return tracks.find((track) => languagesMatch(track.lang, preferredLanguage)) ?? null;
 }
 
+function containsWords(text: string, words: string) {
+  const normalize = (value: string) =>
+    ` ${value
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .trim()} `;
+  return normalize(text).includes(normalize(words));
+}
+
 export function subtitleTrackLabel(track: SubtitleTrack) {
-  const name =
-    (track.lang ? languageName(track.lang.toLowerCase()) : null) ??
-    track.title?.trim() ??
-    track.lang ??
-    `Track ${track.id}`;
-  const codec = track.codec ? codecLabels[track.codec] : undefined;
-  return codec ? `${name} · ${codec}` : name;
+  const lang = track.lang?.trim();
+  const language = lang ? (languageName(lang.toLowerCase()) ?? lang) : null;
+  const suppliedTitle = track.title?.trim();
+  const title = suppliedTitle?.toLowerCase() === lang?.toLowerCase() ? undefined : suppliedTitle;
+  const parts: string[] = [];
+  if (language && (!title || !containsWords(title, language))) parts.push(language);
+  if (title) parts.push(title);
+  if (parts.length === 0) parts.push(`${enUS.player.subtitleTrack} ${track.id}`);
+  const name = parts.join(' · ');
+  if (track.forced && !containsWords(name, enUS.player.subtitleForced))
+    parts.push(enUS.player.subtitleForced);
+  if (
+    track.hearingImpaired &&
+    !containsWords(name, 'SDH') &&
+    !containsWords(name, 'hearing impaired')
+  )
+    parts.push(enUS.player.subtitleSdh);
+  const codec = track.codec?.trim();
+  if (codec) parts.push(codecLabels[codec.toLowerCase()] ?? codec.toUpperCase());
+  return parts.join(' · ');
+}
+
+export function labelSubtitleTracks(tracks: SubtitleTrack[]) {
+  const labels = tracks.map(subtitleTrackLabel);
+  const counts = new Map<string, number>();
+  for (const label of labels)
+    counts.set(label.toLowerCase(), (counts.get(label.toLowerCase()) ?? 0) + 1);
+  return tracks.map((track, index) => {
+    const base = labels[index]!;
+    // IDs stay stable when mpv reorders tracks or adds an external subtitle.
+    const label =
+      counts.get(base.toLowerCase())! > 1
+        ? `${base} · ${enUS.player.subtitleTrack} ${track.id}`
+        : base;
+    return { label, track };
+  });
 }
 
 export function addonSubtitleLabel(subtitle: AddonSubtitle) {

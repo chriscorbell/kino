@@ -32,7 +32,7 @@ import {
   parseAddonSubtitles,
   parseSubtitleTracks,
   preferredSubtitleTrack,
-  subtitleTrackLabel,
+  labelSubtitleTracks,
   type AddonSubtitle,
   type SubtitleTrack,
 } from '../player/subtitles';
@@ -848,14 +848,14 @@ export function PlayerScreen({
                 >
                   {enUS.player.subtitlesOff}
                 </button>
-                {subtitleTracks.map((track) => (
+                {labelSubtitleTracks(subtitleTracks).map(({ label, track }) => (
                   <button
                     aria-pressed={track.id === selectedSubtitleId}
                     key={track.id}
                     onClick={() => selectSubtitleTrack(track.id)}
                     type="button"
                   >
-                    {subtitleTrackLabel(track)}
+                    {label}
                   </button>
                 ))}
                 {addonSubtitles.some((subtitle) => !addedSubtitleUrls.has(subtitle.url)) ? (

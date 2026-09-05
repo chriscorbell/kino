@@ -29,6 +29,54 @@ class MpvItemTest : public QObject {
     }
 
 private slots:
+    void subtitleVariantMetadata_data() {
+        QTest::addColumn<bool>("flag");
+        QTest::newRow("variant") << true;
+        QTest::newRow("ordinary") << false;
+    }
+
+    void subtitleVariantMetadata() {
+        QFETCH(bool, flag);
+        char typeKey[] = "type", idKey[] = "id", titleKey[] = "title";
+        char forcedKey[] = "forced", hearingKey[] = "hearing-impaired";
+        char subtitleType[] = "sub", title[] = "English SDH";
+        char *keys[]{typeKey, idKey, titleKey, forcedKey, hearingKey};
+        mpv_node fields[5]{};
+        fields[0].format = MPV_FORMAT_STRING;
+        fields[0].u.string = subtitleType;
+        fields[1].format = MPV_FORMAT_INT64;
+        fields[1].u.int64 = 7;
+        fields[2].format = MPV_FORMAT_STRING;
+        fields[2].u.string = title;
+        for (int index : {3, 4}) {
+            fields[index].format = MPV_FORMAT_FLAG;
+            fields[index].u.flag = flag ? 1 : 0;
+        }
+        mpv_node_list trackFields{5, fields, keys};
+        mpv_node track{};
+        track.format = MPV_FORMAT_NODE_MAP;
+        track.u.list = &trackFields;
+        mpv_node_list tracks{1, &track, nullptr};
+        mpv_node root{};
+        root.format = MPV_FORMAT_NODE_ARRAY;
+        root.u.list = &tracks;
+
+        MpvItem player;
+        QSignalSpy events(&player, &MpvItem::playerEvent);
+        sendProperty(player, "track-list", MPV_FORMAT_NODE, &root);
+        QCOMPARE(events.size(), 1);
+        QCOMPARE(events.first().first().toString(), QStringLiteral("subtitleTracks"));
+        const auto items = events.first().at(1).toMap().value("items").toList();
+        QCOMPARE(items.size(), 1);
+        const auto item = items.first().toMap();
+        QCOMPARE(item.value("id").toInt(), 7);
+        QCOMPARE(item.value("title").toString(), QStringLiteral("English SDH"));
+        QVERIFY(item.contains("forced"));
+        QVERIFY(item.contains("hearingImpaired"));
+        QCOMPARE(item.value("forced").toBool(), flag);
+        QCOMPARE(item.value("hearingImpaired").toBool(), flag);
+    }
+
     void invalidRequestHeaders_data() {
         QTest::addColumn<QVariantMap>("headers");
         QTest::newRow("header-name-injection") << QVariantMap{{"X-Test\r\nInjected", "value"}};
