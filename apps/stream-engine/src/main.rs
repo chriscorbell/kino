@@ -10,6 +10,7 @@ use std::path::PathBuf;
 
 use tokio::io::AsyncReadExt;
 
+mod api;
 mod logging;
 
 fn port_from_env() -> u16 {
@@ -36,7 +37,14 @@ async fn main() -> std::process::ExitCode {
 }
 
 async fn run() -> anyhow::Result<()> {
+    let access = api::Access::new(
+        &std::env::var("KINO_ENGINE_UI_ORIGIN").unwrap_or_else(|_| "null".to_owned()),
+    )?;
+    let prefix = access.path_prefix();
     let mut cfg = stream_server::ServerConfig::embedded();
+    cfg.router_factory = Some(stream_server::RouterFactory::new(move |state, address| {
+        access.router(state, address)
+    }));
     cfg.http_addr = SocketAddr::from((Ipv4Addr::LOCALHOST, port_from_env()));
     cfg.cache_dir = cache_dir_from_env();
     cfg.config_dir = cfg.cache_dir.clone();
@@ -50,8 +58,9 @@ async fn run() -> anyhow::Result<()> {
     let server = tokio::spawn(stream_server::run(cfg, shutdown_rx, Some(ready_tx)));
 
     let address = ready_rx.await?;
-    // The shell parses this line to learn the ephemeral port.
-    println!("KINO_ENGINE_READY http://{address}");
+    // This private pipe carries the capability to the shell. Never log this
+    // URL or persist it; it changes every time the helper starts.
+    println!("KINO_ENGINE_READY http://{address}{prefix}");
 
     // Closing stdin is the supervisor's graceful stop signal.
     tokio::spawn(async move {

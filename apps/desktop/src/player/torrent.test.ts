@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { resolveFileIndex, torrentCreateRequest, torrentMediaUrl } from './torrent';
 
 const base = { deepLinks: { player: 'stremio:///player/value' } };
-const engine = 'http://127.0.0.1:11470';
+const engine = 'http://127.0.0.1:11470/kino/test-session-capability';
 
 describe('torrent streaming', () => {
   it('builds a create request with trackers and normalized hash', () => {
