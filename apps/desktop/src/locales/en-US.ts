@@ -115,6 +115,8 @@ export const enUS = {
     unavailable: 'Not connected',
   },
   actions: {
+    readMore: 'Read more',
+    readLess: 'Read less',
     back: 'Back',
   },
   details: {
