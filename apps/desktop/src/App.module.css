@@ -842,8 +842,17 @@
 
 .controlRow button {
   width: 40px;
+  flex-shrink: 0;
   padding: 0;
   background: transparent;
+}
+
+.volumeSlider {
+  width: 88px;
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: var(--kino-accent);
+  cursor: pointer;
 }
 
 .timeLabel {
@@ -1624,6 +1633,25 @@
 
   .sourceMeta {
     flex-wrap: wrap;
+  }
+
+  .playerControls {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .controlRow {
+    flex-wrap: wrap;
+  }
+
+  .volumeSlider {
+    width: 64px;
+  }
+
+  .timeLabel {
+    order: 1;
+    flex-basis: 100%;
+    margin: 4px 0 0;
   }
 }
 

@@ -106,6 +106,10 @@ ApplicationWindow {
             nowPlaying.setMetadata(title, subtitle)
         }
 
+        function setVolume(percent) {
+            player.setVolume(percent)
+        }
+
         function setPaused(paused) {
             player.setPaused(paused)
         }

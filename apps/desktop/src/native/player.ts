@@ -23,6 +23,7 @@ export interface NativePlayer {
   seek(seconds: number): void;
   setFullscreen(enabled: boolean): void;
   setMuted(muted: boolean): void;
+  setVolume(percent: number): void;
   setNowPlayingMetadata(title: string, subtitle: string): void;
   setPaused(paused: boolean): void;
   setSubtitleDelay(seconds: number): void;

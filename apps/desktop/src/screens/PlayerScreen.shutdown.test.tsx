@@ -13,6 +13,7 @@ const native = vi.hoisted(() => {
     load: vi.fn(),
     stop: vi.fn(),
     pauseAndSnapshot: vi.fn(),
+    setVolume: vi.fn(),
     setSubtitleScale: vi.fn(),
     setSubtitlePosition: vi.fn(),
     setNowPlayingMetadata: vi.fn(),
