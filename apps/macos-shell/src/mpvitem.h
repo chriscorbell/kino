@@ -23,6 +23,7 @@ public:
     ~MpvItem() override;
 
     bool active() const;
+    QString version() const;
     Renderer *createRenderer() const override;
 
     Q_INVOKABLE void addSubtitles(const QString &url, const QString &title, const QString &lang);
@@ -30,6 +31,7 @@ public:
     Q_INVOKABLE QVariantMap pauseAndSnapshot();
     Q_INVOKABLE void seek(double seconds);
     Q_INVOKABLE void setMuted(bool muted);
+    Q_INVOKABLE void setVolume(double percent);
     Q_INVOKABLE void setPaused(bool paused);
     Q_INVOKABLE void setSubtitleDelay(double seconds);
     Q_INVOKABLE void setSubtitlePosition(int position);

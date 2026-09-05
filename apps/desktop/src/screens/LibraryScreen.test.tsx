@@ -76,3 +76,57 @@ it('uses serialized type options to filter Movies, Series, and All', async () =>
     }
   }
 });
+
+it('loads entries 101-125, retains visible entries on failure, and retries the same page', async () => {
+  let request: LibraryRequest = { page: 1, sort: 'lastwatched', type: null };
+  let failNext = true;
+  const target: CoreTransport = {
+    destroy: async () => {},
+    flush: async () => {},
+    prepareClose: async () => {},
+    init: async () => {},
+    onBeforeDestroy: () => () => {},
+    subscribe: () => () => {},
+    dispatch: vi.fn(async (action) => {
+      if (action.action !== 'Load') return;
+      const next = (action.args as { args: { request: LibraryRequest } }).args.request;
+      if (next.page === 2 && failNext) {
+        failNext = false;
+        throw new Error('Synthetic page failure');
+      }
+      request = next;
+    }),
+    getState: async <State,>() =>
+      ({
+        selected: { request },
+        selectable: { nextPage: request.page === 1, types: [], sorts: [] },
+        catalog: Array.from({ length: request.page === 1 ? 100 : 125 }, (_, i) => ({
+          _id: `title-${i}`,
+          name: `Saved title ${i + 1}`,
+          type: 'movie',
+        })),
+      }) as State,
+  };
+  render(
+    <CoreContext.Provider
+      value={{
+        transport: target,
+        session: 'guest',
+        status: 'ready',
+        error: null,
+        selectSession: vi.fn(),
+      }}
+    >
+      <LibraryScreen onOpen={vi.fn()} />
+    </CoreContext.Provider>,
+  );
+  await screen.findByText('Saved title 100');
+  fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+  await screen.findByRole('alert');
+  expect(screen.getByText('Saved title 100')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+  await screen.findByText('Saved title 125');
+  expect(screen.getAllByRole('button', { name: /Saved title/ })).toHaveLength(125);
+  expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument();
+  expect(request.page).toBe(2);
+});

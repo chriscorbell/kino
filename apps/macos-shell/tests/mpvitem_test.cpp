@@ -35,6 +35,16 @@ private slots:
         std::setlocale(LC_NUMERIC, "C");
     }
 
+    void volumeProperty() {
+        MpvItem player;
+        QSignalSpy events(&player, &MpvItem::playerEvent);
+        double volume = 37.5;
+        sendProperty(player, "volume", MPV_FORMAT_DOUBLE, &volume);
+        QCOMPARE(events.size(), 1);
+        QCOMPARE(events.first().first().toString(), QStringLiteral("volume"));
+        QCOMPARE(events.first().at(1).toMap().value("percent").toDouble(), 37.5);
+    }
+
     void subtitleVariantMetadata_data() {
         QTest::addColumn<bool>("flag");
         QTest::newRow("variant") << true;

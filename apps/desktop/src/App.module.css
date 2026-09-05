@@ -112,6 +112,22 @@
   animation: enter var(--kino-duration-standard) var(--kino-ease-out);
 }
 
+.shell[hidden],
+.content[hidden] {
+  display: none;
+}
+
+.playbackMain {
+  position: fixed;
+  inset: 0;
+}
+
+.content:focus-visible,
+.content h1:focus-visible {
+  outline: 2px solid var(--kino-accent);
+  outline-offset: -2px;
+}
+
 .page {
   width: min(100%, 1500px);
   min-height: 100%;
@@ -240,6 +256,30 @@
   letter-spacing: -0.01em;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.fullMediaTitle {
+  position: absolute;
+  z-index: 1;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  max-height: 100%;
+  padding: 12px;
+  overflow: auto;
+  color: var(--kino-text);
+  background: var(--kino-surface);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  opacity: 0;
+  transition: opacity var(--kino-duration-fast) ease;
+}
+
+.mediaCard:hover .fullMediaTitle,
+.mediaCard:focus-visible .fullMediaTitle {
+  opacity: 1;
 }
 
 .mediaMeta {
@@ -372,6 +412,10 @@
   margin-top: 28px;
 }
 
+.pagination {
+  margin-top: 28px;
+}
+
 .mediaGrid .mediaCard {
   width: 100%;
 }
@@ -383,7 +427,7 @@
 .detailHero {
   position: relative;
   display: flex;
-  height: 400px;
+  min-height: 400px;
   overflow: hidden;
   align-items: flex-end;
   background: var(--kino-surface);
@@ -430,11 +474,12 @@
 .detailCopy {
   position: relative;
   width: min(740px, 100%);
-  padding: 0 var(--kino-page-gutter) 38px;
+  padding: 90px var(--kino-page-gutter) 38px;
 }
 
 .detailCopy h1 {
   margin: 0;
+  overflow-wrap: anywhere;
   font-size: clamp(34px, 5vw, 48px);
   font-weight: 700;
   line-height: 1.04;
@@ -454,13 +499,39 @@
 }
 
 .detailDescription {
-  display: -webkit-box;
-  overflow: hidden;
   color: #c9c9ce;
   font-size: 14px;
   line-height: 1.55;
+}
+
+.expandableText {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.expandableText[data-expanded='false'] {
+  display: -webkit-box;
+  overflow: hidden;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: var(--summary-lines);
+}
+
+.summaryToggle {
+  min-height: 32px;
+  padding: 4px 0;
+  border: 0;
+  color: var(--kino-text-muted);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: color var(--kino-duration-fast) ease;
+}
+
+.summaryToggle:hover {
+  color: var(--kino-text);
 }
 
 .detailBody {
@@ -497,34 +568,55 @@
   background: var(--kino-accent);
 }
 
+.resumeChoice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 16px;
+}
+
+.resumeChoice button {
+  transition:
+    color 150ms ease,
+    border-color 150ms ease,
+    background-color 150ms ease;
+}
+
 .episodeList,
 .sourceList {
   border-top: 1px solid var(--kino-border-subtle);
 }
 
+.episodeRow {
+  min-height: 64px;
+  border-bottom: 1px solid var(--kino-border-subtle);
+}
+
 .episodeButton,
-.episodeActive,
 .sourceButton {
   display: grid;
   width: 100%;
-  min-height: 64px;
+  min-height: 44px;
   align-items: center;
   padding: 10px 12px;
   border: 0;
-  border-bottom: 1px solid var(--kino-border-subtle);
   color: var(--kino-text);
   background: transparent;
   text-align: left;
   cursor: pointer;
 }
 
-.episodeButton,
-.episodeActive {
+.sourceButton {
+  min-height: 64px;
+  border-bottom: 1px solid var(--kino-border-subtle);
+}
+
+.episodeButton {
   grid-template-columns: 38px minmax(0, 1fr) auto;
   gap: 14px;
 }
 
-.episodeButton:hover,
+.episodeRow:hover,
 .episodeActive,
 .sourceButton:hover:not(:disabled) {
   background: var(--kino-surface-hover);
@@ -537,32 +629,24 @@
 }
 
 .episodeButton strong,
-.episodeActive strong,
-.episodeButton small,
-.episodeActive small,
 .sourcePrimary strong,
 .sourcePrimary small {
   display: block;
 }
 
 .episodeButton strong,
-.episodeActive strong,
 .sourcePrimary strong {
   font-size: 14px;
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
-.episodeButton small,
-.episodeActive small {
-  display: -webkit-box;
-  margin-top: 4px;
-  overflow: hidden;
+.episodeOverview {
+  margin: 0 12px 10px 64px;
   color: var(--kino-text-faint);
   font-size: 12px;
   font-weight: 400;
   line-height: 1.4;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
 }
 
 .sourceButton {
@@ -617,6 +701,23 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+.playerTopbar,
+.playerControls {
+  opacity: 1;
+  transition: opacity var(--kino-duration-fast) ease;
+}
+
+.player.controlsHidden,
+.player.controlsHidden * {
+  cursor: none;
+}
+
+.controlsHidden .playerTopbar,
+.controlsHidden .playerControls {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .playerTopbar {
@@ -812,8 +913,17 @@
 
 .controlRow button {
   width: 40px;
+  flex-shrink: 0;
   padding: 0;
   background: transparent;
+}
+
+.volumeSlider {
+  width: 88px;
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: var(--kino-accent);
+  cursor: pointer;
 }
 
 .timeLabel {
@@ -1031,6 +1141,14 @@
 .accountDialog .formError {
   margin: 12px 0 0;
   color: var(--kino-danger);
+}
+
+.accountCreate {
+  justify-self: center;
+  margin-top: 20px;
+  color: var(--kino-text-muted);
+  font-size: 13px;
+  text-underline-offset: 4px;
 }
 
 @keyframes pulse {
@@ -1354,13 +1472,15 @@
 
 .discoverFilters {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  align-items: flex-end;
   gap: 22px;
   margin-bottom: 4px;
 }
 
 .catalogTabs {
   display: flex;
+  flex: 1 1 240px;
   flex-wrap: wrap;
   gap: 22px;
   margin-right: auto;
@@ -1388,13 +1508,29 @@
   box-shadow: inset 0 -2px 0 var(--kino-text);
 }
 
+.catalogExtraFilters {
+  display: flex;
+  max-width: 100%;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.catalogFilter {
+  display: grid;
+  max-width: 100%;
+  gap: 6px;
+  color: var(--kino-text-faint);
+  font-size: 11px;
+}
+
 .genreMenu {
   position: relative;
-  flex: 0 0 auto;
+  max-width: 100%;
 }
 
 .genreSelect {
   appearance: none;
+  max-width: 100%;
   min-height: 32px;
   padding: 0 34px 0 14px;
   border: 1px solid var(--kino-border);
@@ -1542,7 +1678,7 @@
     grid-row: 2;
     flex-direction: row;
     justify-content: center;
-    gap: 4px;
+    gap: 2px;
     padding: 8px 12px;
     border-top: 1px solid var(--kino-border-subtle);
     border-right: 0;
@@ -1553,13 +1689,20 @@
     display: none;
   }
 
+  .navButton {
+    width: 40px;
+    height: 44px;
+  }
+
   .profileButton {
-    display: none;
+    width: 40px;
+    height: 40px;
+    margin-top: 0;
   }
 
   .navGroup {
     flex-direction: row;
-    gap: 4px;
+    gap: 2px;
   }
 
   .content {
@@ -1580,7 +1723,7 @@
   }
 
   .detailHero {
-    height: 360px;
+    min-height: 360px;
   }
 
   .detailCopy,
@@ -1606,6 +1749,25 @@
   .sourceMeta {
     flex-wrap: wrap;
   }
+
+  .playerControls {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .controlRow {
+    flex-wrap: wrap;
+  }
+
+  .volumeSlider {
+    width: 64px;
+  }
+
+  .timeLabel {
+    order: 1;
+    flex-basis: 100%;
+    margin: 4px 0 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1626,12 +1788,17 @@
   .navButton,
   .addonRemove,
   .secondaryButton,
+  .playerTopbar,
+  .playerControls,
+  .resumeChoice button,
   .skipLink,
   .switch,
   .switch span {
     transition: none;
   }
 
+  .summaryToggle,
+  .fullMediaTitle,
   .mediaCard .posterFrame {
     transition: none;
   }

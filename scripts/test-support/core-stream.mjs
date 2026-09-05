@@ -7,7 +7,7 @@ const require = createRequire(new URL('../../apps/desktop/package.json', import.
 
 // Run the pinned WASM serializer with synthetic metadata and in-memory storage.
 // Every Core fetch stays in this fixture; it never contacts an add-on or account.
-export async function initializeCore({ storage = new Map() } = {}) {
+export async function initializeCore({ storage = new Map(), onEvent = () => {} } = {}) {
   Object.assign(globalThis, {
     WorkerGlobalScope: { [Symbol.hasInstance]: () => true },
     self: globalThis,
@@ -27,7 +27,7 @@ export async function initializeCore({ storage = new Map() } = {}) {
       require.resolve('@stremio/stremio-core-web/stremio_core_web_bg.wasm'),
     ),
   });
-  await core.initialize_runtime(() => {});
+  await core.initialize_runtime(onEvent);
   return core;
 }
 

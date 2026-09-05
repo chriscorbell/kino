@@ -63,6 +63,12 @@ Back, source failure, Up Next, window close, and application Quit share the same
 
 `pnpm core:check-shutdown` runs the pinned Core WASM with guest and synthetic account profiles, delayed storage acknowledgements, and delayed sync response bodies. `pnpm macos:check-shutdown` checks window close and application Quit against a running shell and libmpv using the legal H.264 fixture. Set `KINO_FIXTURES_DIR` when the fixtures are outside `build/fixtures`.
 
+## Up Next
+
+When Up Next is enabled and a next episode exists, Kino offers its source selector during the final two minutes of playback, capped at the final 10% for shorter videos. For example, the offer appears at 28:00 in a 30-minute episode and at 1:48 in a two-minute video. Seeking earlier hides the offer; seeking back into the ending restores it. If the duration is unknown, the offer waits for end-of-file.
+
+The offer never starts playback automatically. Choosing it saves progress and opens the next episode's source selector, where the user must select a source.
+
 ## Intro behavior
 
 Marker resolution uses this order:

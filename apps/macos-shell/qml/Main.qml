@@ -70,6 +70,10 @@ ApplicationWindow {
         signal playerEvent(string name, var payload)
         signal streamingEngineChanged(string url, string error)
 
+        function openAccountCreation() {
+            return Qt.openUrlExternally("https://www.stremio.com/register")
+        }
+
         function startStreamingEngine() {
             if (streamEngine.url) {
                 nativeBridge.streamingEngineChanged(streamEngine.url, streamEngine.error)
@@ -104,6 +108,10 @@ ApplicationWindow {
 
         function setNowPlayingMetadata(title, subtitle) {
             nowPlaying.setMetadata(title, subtitle)
+        }
+
+        function setVolume(percent) {
+            player.setVolume(percent)
         }
 
         function setPaused(paused) {
@@ -197,6 +205,10 @@ ApplicationWindow {
         onFullScreenRequested: function(request) {
             root.setFullscreen(request.toggleOn)
             request.accept()
+        }
+
+        onJavaScriptConsoleMessage: function(level, message, lineNumber, sourceID) {
+            diagnostics.logWebMessage(level, message)
         }
 
         onLoadingChanged: function(request) {
