@@ -268,6 +268,8 @@ export const enUS = {
     preparingTorrent: 'Finding peers for this torrent…',
     torrentUnavailable: 'Torrent playback needs the streaming engine, which this build lacks.',
     subtitles: 'Subtitles',
+    audioTracks: 'Audio tracks',
+    audioTrack: (id: number) => `Audio track ${id}`,
     subtitlesOff: 'Off',
     subtitleTrack: 'Track',
     subtitleForced: 'Forced',

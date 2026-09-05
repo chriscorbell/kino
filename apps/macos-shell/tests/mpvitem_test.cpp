@@ -80,7 +80,9 @@ private slots:
         MpvItem player;
         QSignalSpy events(&player, &MpvItem::playerEvent);
         sendProperty(player, "track-list", MPV_FORMAT_NODE, &root);
-        QCOMPARE(events.size(), 1);
+        QCOMPARE(events.size(), 2);
+        QCOMPARE(events.at(1).first().toString(), QStringLiteral("audioTracks"));
+        QVERIFY(events.at(1).at(1).toMap().value("items").toList().isEmpty());
         QCOMPARE(events.first().first().toString(), QStringLiteral("subtitleTracks"));
         const auto items = events.first().at(1).toMap().value("items").toList();
         QCOMPARE(items.size(), 1);

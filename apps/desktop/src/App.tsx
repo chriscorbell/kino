@@ -344,6 +344,7 @@ export function App() {
               setFailedSources(new Map());
               setPlayback(null);
             }}
+            preferredAudioLanguage={profile.state?.profile.settings.audioLanguage ?? null}
             preferredSubtitleLanguage={profile.state?.profile.settings.subtitlesLanguage ?? null}
             selection={playback}
             settings={settings}

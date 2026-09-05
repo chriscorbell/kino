@@ -97,7 +97,11 @@ ApplicationWindow {
         }
 
         function load(url, forceStereo, headers) {
-            player.load(url, forceStereo, headers || {})
+            player.load(url, forceStereo, headers || {}, "")
+        }
+
+        function loadWithAudioLanguage(url, forceStereo, headers, audioLanguage) {
+            player.load(url, forceStereo, headers || {}, audioLanguage || "")
         }
 
         function pauseAndSnapshot() {
@@ -142,6 +146,10 @@ ApplicationWindow {
 
         function setSubtitleTrack(id) {
             player.setSubtitleTrack(id)
+        }
+
+        function setAudioTrack(id) {
+            player.setAudioTrack(id)
         }
 
         function stop() {
