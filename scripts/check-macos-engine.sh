@@ -18,11 +18,11 @@ kino_probe_output="$(KINO_ENGINE_PROBE=1 "${kino_app_binary}" 2>/dev/null |
 kino_engine_url="${kino_probe_output#KINO_ENGINE_PROBE_RESULT }"
 
 if [[ -z "${kino_engine_url}" || "${kino_engine_url}" == error:* ]]; then
-  echo "The shell could not start the streaming engine: ${kino_engine_url:-no result}" >&2
+  echo "The shell could not start the streaming engine. Check Kino's diagnostic log." >&2
   exit 1
 fi
-if [[ "${kino_engine_url}" != http://127.0.0.1:* ]]; then
-  echo "The streaming engine is not bound to loopback: ${kino_engine_url}" >&2
+if [[ ! "${kino_engine_url}" =~ ^http://127\.0\.0\.1:[0-9]+$ ]]; then
+  echo "The engine probe did not return a sanitized loopback address." >&2
   exit 1
 fi
 

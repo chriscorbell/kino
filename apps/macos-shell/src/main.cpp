@@ -58,7 +58,9 @@ int main(int argc, char *argv[]) {
             std::printf("KINO_ENGINE_PROBE_RESULT %s\n",
                         qPrintable(streamEngine->url().isEmpty()
                                        ? QStringLiteral("error: %1").arg(streamEngine->error())
-                                       : streamEngine->url()));
+                                       : QUrl(streamEngine->url()).toString(
+                                             QUrl::RemovePath | QUrl::RemoveQuery |
+                                             QUrl::RemoveFragment | QUrl::RemoveUserInfo)));
             std::fflush(stdout);
             QCoreApplication::exit(streamEngine->url().isEmpty() ? 1 : 0);
         });

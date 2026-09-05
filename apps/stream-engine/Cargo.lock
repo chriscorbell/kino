@@ -4022,9 +4022,15 @@ name = "kino-stream-engine"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "axum",
+ "getrandom 0.4.3",
  "regex",
+ "serde",
+ "serde_json",
  "server",
+ "subtle",
  "tokio",
+ "tower-http 0.7.0",
  "tracing",
  "tracing-subscriber",
 ]

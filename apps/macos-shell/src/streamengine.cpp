@@ -4,6 +4,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QStandardPaths>
+#include <QUrl>
 
 namespace {
 
@@ -19,9 +20,33 @@ QString helperPath() {
 }
 
 QString cacheDirectory() {
+    const QString overridePath = qEnvironmentVariable("KINO_ENGINE_CACHE_DIR");
+    if (!overridePath.isEmpty()) {
+        return overridePath;
+    }
     const QString base =
         QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
     return QDir(base).absoluteFilePath(QStringLiteral("streaming-engine"));
+}
+
+QString uiOrigin() {
+    const QString overrideUrl = qEnvironmentVariable("KINO_UI_URL");
+    if (overrideUrl.isEmpty()) {
+        return QStringLiteral("file://");
+    }
+    QUrl url = QUrl::fromUserInput(overrideUrl);
+    if (url.isLocalFile()) {
+        return QStringLiteral("file://");
+    }
+    if (url.scheme() == "qrc") {
+        return QStringLiteral("qrc://");
+    }
+    if ((url.scheme() == "http" && url.port() == 80) ||
+        (url.scheme() == "https" && url.port() == 443)) {
+        url.setPort(-1);
+    }
+    return url.toString(QUrl::RemoveUserInfo | QUrl::RemovePath |
+                        QUrl::RemoveQuery | QUrl::RemoveFragment);
 }
 
 } // namespace
@@ -86,6 +111,7 @@ void StreamEngine::start() {
     error_.clear();
     QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
     environment.insert(QStringLiteral("KINO_ENGINE_CACHE_DIR"), cacheDir);
+    environment.insert(QStringLiteral("KINO_ENGINE_UI_ORIGIN"), uiOrigin());
     process_.setProcessEnvironment(environment);
     process_.setProcessChannelMode(QProcess::SeparateChannels);
     process_.start(path, {});

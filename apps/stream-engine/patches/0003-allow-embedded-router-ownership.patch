@@ -1,0 +1,63 @@
+--- a/server/src/lib.rs
++++ b/server/src/lib.rs
+@@ -56,9 +56,32 @@
+ 
+ pub use ffmpeg_setup::MissingFfmpegError;
+ 
++// Embedders choose their own HTTP API without starting the standalone router.
++pub mod embedded_handlers {
++    pub use crate::routes::engine::{create_engine, create_magnet, remove_engine};
++    pub use crate::routes::stream::{stream_video, head_stream_video};
++    pub use crate::routes::system::{heartbeat, update_settings};
++}
++
++#[derive(Clone)]
++pub struct RouterFactory(Arc<dyn Fn(AppState, SocketAddr) -> Router + Send + Sync>);
++
++impl RouterFactory {
++    pub fn new(factory: impl Fn(AppState, SocketAddr) -> Router + Send + Sync + 'static) -> Self {
++        Self(Arc::new(factory))
++    }
++}
++
++impl std::fmt::Debug for RouterFactory {
++    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
++        f.write_str("RouterFactory")
++    }
++}
++
+ #[derive(Clone, Debug)]
+ pub struct ServerConfig {
+     pub http_addr: SocketAddr,
++    pub router_factory: Option<RouterFactory>,
+     pub https_addr: Option<SocketAddr>,
+     pub public_base_url: Option<String>,
+     pub config_dir: Option<PathBuf>,
+@@ -89,6 +112,7 @@
+     pub fn embedded() -> Self {
+         Self {
+             http_addr: SocketAddr::from((Ipv4Addr::LOCALHOST, DEFAULT_HTTP_PORT)),
++            router_factory: None,
+             https_addr: None,
+             public_base_url: None,
+             config_dir: None,
+@@ -113,6 +137,7 @@
+     pub fn binary_default() -> Self {
+         Self {
+             http_addr: SocketAddr::from(([0, 0, 0, 0], DEFAULT_HTTP_PORT)),
++            router_factory: None,
+             https_addr: Some(SocketAddr::from(([0, 0, 0, 0], DEFAULT_HTTPS_PORT))),
+             public_base_url: Some(format!("http://127.0.0.1:{DEFAULT_HTTP_PORT}")),
+             config_dir: None,
+@@ -571,7 +596,10 @@
+         tui::start_tui(Arc::new(state.clone()), rx, shutdown_tx);
+     }
+ 
+-    let app = build_router(state);
++    let app = match &cfg.router_factory {
++        Some(factory) => (factory.0)(state, bound_http_addr),
++        None => build_router(state),
++    };
+ 
+     tracing::info!("listening on {}", bound_http_addr);
+     if cfg.print_startup {
