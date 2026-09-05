@@ -11,6 +11,17 @@ function deferred() {
 }
 
 describe('Core persistence barrier', () => {
+  it.each(['/assets/core.wasm', './core.wasm'])(
+    'preserves relative fetch URLs: %s',
+    async (url) => {
+      const response = new Response('wasm fixture');
+      const fetchRequest: typeof fetch = async () => response;
+      const work = new PendingCoreWork();
+      expect(await trackCoreSync(fetchRequest, work)(url)).toBe(response);
+      await expect(work.flush()).resolves.toBeUndefined();
+    },
+  );
+
   it('waits for work spawned after dispatch and after a previous write', async () => {
     const work = new PendingCoreWork();
     const first = deferred();
