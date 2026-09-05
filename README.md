@@ -40,11 +40,18 @@ Validate the playback contract against generated legal fixtures — codecs, HDR 
 pnpm macos:check-playback
 ```
 
-Run the native property-event regression tests after building with:
+Run the native regression tests after building with:
 
 ```sh
 ctest --test-dir build/macos --output-on-failure
 pnpm macos:check-request-headers
+```
+
+The render lifetime test checks the real libmpv calls for the original current OpenGL context, callback removal, and render cleanup before core destruction. It exercises item and window deletion plus repeated scene-graph invalidation on the GUI thread and a dedicated render thread. To include repeated hardware playback and verify rendered frames after reconstruction, generate the fixtures above and run:
+
+```sh
+KINO_LIFETIME_MEDIA="$PWD/build/fixtures/h264-sdr-aac.mp4" \
+  ctest --test-dir build/macos -R render_lifetime --output-on-failure
 ```
 
 Direct media uses the add-on's original HTTPS URL and required request headers in libmpv, independent of any Stremio Service URL saved in the account. TLS certificate verification is required. The native header check drives the production WebChannel and player through a protected media request, external subtitles, and a second source. It verifies literal header values, prevents headers from carrying into subtitles or later sources, rejects header injection and untrusted certificates, and checks diagnostic output for synthetic credentials. It uses `openssl` for the untrusted certificate and generates a short H.264 fixture with `ffmpeg`, or uses `KINO_PLAYBACK_FIXTURE` when provided.

@@ -7,10 +7,12 @@
 
 #include <mpv/client.h>
 #include <mpv/render_gl.h>
+#include <memory>
 
 #include "powerguard.h"
 
 class MpvRenderer;
+struct MpvContext;
 
 class MpvItem : public QQuickFramebufferObject {
     Q_OBJECT
@@ -63,8 +65,8 @@ private:
     bool paused_ = true;
     bool suppressMpvLogDetails_ = false;
     bool videoPresent_ = false;
+    std::shared_ptr<MpvContext> context_;
     mpv_handle *handle_ = nullptr;
-    mpv_render_context *renderContext_ = nullptr;
     PowerGuard powerGuard_;
     QTimer hardwareDecoderTimer_;
 };
