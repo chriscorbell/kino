@@ -46,6 +46,7 @@ import {
 import { subtitlePositionRange, subtitleSizeRange, type KinoSettings } from '../settings';
 import { videoParams } from '../player/videoParams';
 import { useFullscreen } from '../player/useFullscreen';
+import { useIdleControls } from '../player/useIdleControls';
 
 function formatTime(milliseconds: number) {
   const seconds = Math.max(0, Math.floor(milliseconds / 1000));
@@ -136,6 +137,8 @@ export function PlayerScreen({
   const { transport } = useCore();
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const topbarRef = useRef<HTMLDivElement>(null);
+  const controlsRef = useRef<HTMLDivElement>(null);
   const playbackRef = useRef({ duration: 0, time: 0 });
   const closingRef = useRef(false);
   const navigationPendingRef = useRef(false);
@@ -191,6 +194,16 @@ export function PlayerScreen({
   );
   const resumeTime = result.state?.libraryItem?.state.timeOffset ?? 0;
   const nativeShell = nativeShellPresent();
+  const controlsVisible = useIdleControls(
+    topbarRef,
+    controlsRef,
+    paused ||
+      buffering ||
+      subtitleMenuOpen ||
+      result.loading ||
+      !streamUrl ||
+      Boolean(shutdownError || fullscreenError),
+  );
   const addonSubtitles = useMemo(
     () => parseAddonSubtitles(result.state?.subtitles),
     [result.state],
@@ -728,7 +741,7 @@ export function PlayerScreen({
 
   return (
     <div
-      className={`${styles.player} ${nativeShell ? styles.nativePlayer : ''}`}
+      className={`${styles.player} ${nativeShell ? styles.nativePlayer : ''} ${controlsVisible ? '' : styles.controlsHidden}`}
       ref={containerRef}
     >
       {streamUrl && !nativeShell ? (
@@ -788,7 +801,7 @@ export function PlayerScreen({
         />
       ) : null}
 
-      <div className={styles.playerTopbar}>
+      <div className={styles.playerTopbar} ref={topbarRef}>
         <button onClick={() => finishPlayback(onBack)} type="button">
           <ArrowLeft aria-hidden size={18} />
           Back to sources
@@ -868,7 +881,7 @@ export function PlayerScreen({
       ) : null}
 
       {streamUrl ? (
-        <div className={styles.playerControls}>
+        <div className={styles.playerControls} ref={controlsRef}>
           {subtitleMenuOpen && nativePlayer ? (
             <div
               aria-label={enUS.player.subtitles}
