@@ -1626,3 +1626,30 @@
     animation: none;
   }
 }
+
+.scaleRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 14px 0;
+}
+
+.scaleRow > label {
+  flex: 1 1 220px;
+}
+
+.scaleActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.scaleActions :disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.scaleError p {
+  color: var(--kino-danger);
+  font-size: 13px;
+}

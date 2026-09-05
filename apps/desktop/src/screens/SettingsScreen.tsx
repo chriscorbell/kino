@@ -8,7 +8,13 @@ import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
 import { connectNativeDiagnostics, nativeShellPresent } from '../native/player';
 import { subtitleLanguages } from '../player/subtitles';
-import type { KinoSettings } from '../settings';
+import {
+  defaultSettings,
+  interfaceScales,
+  type InterfaceScale,
+  type KinoSettings,
+} from '../settings';
+import type { InterfaceScaleState } from '../native/useInterfaceScale';
 
 interface SettingSwitchProps {
   checked: boolean;
@@ -86,9 +92,11 @@ function formatBytes(bytes: number) {
 export function SettingsScreen({
   onChange,
   settings,
+  interfaceScale,
 }: {
   onChange: (settings: KinoSettings) => void;
   settings: KinoSettings;
+  interfaceScale?: InterfaceScaleState;
 }) {
   const { transport } = useCore();
   const profile = useCoreModel<ProfileState>('ctx', null, 'settings-profile');
@@ -157,6 +165,56 @@ export function SettingsScreen({
   return (
     <div className={`${styles.page} ${styles.settingsPage}`}>
       <h1>{enUS.settings.title}</h1>
+      <section className={styles.settingsGroup} aria-labelledby="appearance-settings-title">
+        <h2 id="appearance-settings-title">{enUS.settings.appearance}</h2>
+        <div className={`${styles.settingRow} ${styles.scaleRow}`}>
+          <label htmlFor="interface-scale">
+            <span className={styles.settingLabel}>{enUS.settings.interfaceScale}</span>
+            <span className={styles.settingDescription}>
+              {enUS.settings.interfaceScaleDescription}
+            </span>
+          </label>
+          <div className={styles.scaleActions}>
+            <select
+              className={styles.select}
+              disabled={!interfaceScale?.available}
+              id="interface-scale"
+              value={settings.interfaceScale}
+              onChange={(event) =>
+                update('interfaceScale', Number(event.target.value) as InterfaceScale)
+              }
+            >
+              {interfaceScales.map((percent) => (
+                <option key={percent} value={percent}>
+                  {percent}%
+                </option>
+              ))}
+            </select>
+            <button
+              className={styles.secondaryButton}
+              disabled={
+                !interfaceScale?.available ||
+                settings.interfaceScale === defaultSettings.interfaceScale
+              }
+              onClick={() => update('interfaceScale', defaultSettings.interfaceScale)}
+              type="button"
+            >
+              {enUS.settings.resetScale}
+            </button>
+          </div>
+        </div>
+        {interfaceScale?.failed ? (
+          <div className={styles.scaleError}>
+            <p role="alert">{enUS.settings.scaleFailed}</p>
+            <button className={styles.secondaryButton} onClick={interfaceScale.retry} type="button">
+              {enUS.settings.retryScale}
+            </button>
+          </div>
+        ) : null}
+        {!interfaceScale?.available ? (
+          <p className={styles.settingsNote}>{enUS.settings.desktopOnly}</p>
+        ) : null}
+      </section>
 
       <section className={styles.settingsGroup} aria-labelledby="playback-settings-title">
         <h2 id="playback-settings-title">{enUS.settings.playback}</h2>

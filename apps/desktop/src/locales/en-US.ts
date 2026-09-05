@@ -69,6 +69,12 @@ export const enUS = {
   },
   settings: {
     title: 'Settings',
+    appearance: 'Appearance',
+    interfaceScale: 'Interface size',
+    interfaceScaleDescription: 'Enlarge text and controls on this device.',
+    resetScale: 'Reset to 100%',
+    scaleFailed: 'The interface size could not be changed. Try again.',
+    retryScale: 'Retry size change',
     playback: 'Playback',
     skipIntroButton: 'Skip intro button',
     skipIntroButtonDescription: 'Show Skip Intro inside a trusted intro segment',

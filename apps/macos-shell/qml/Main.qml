@@ -57,6 +57,16 @@ ApplicationWindow {
     }
 
     QtObject {
+        id: interfaceBridge
+
+        function setScale(percent) {
+            if ([100, 125, 150, 175, 200].indexOf(percent) === -1) return false
+            webView.zoomFactor = percent / 100
+            return true
+        }
+    }
+
+    QtObject {
         id: nativeBridge
 
         readonly property string platform: "macos"
@@ -167,6 +177,7 @@ ApplicationWindow {
 
         Component.onCompleted: {
             registerObject("kinoNative", nativeBridge)
+            registerObject("kinoInterface", interfaceBridge)
             registerObject("kinoSecureStore", secureStore)
             registerObject("kinoDiagnostics", diagnostics)
             registerObject("kinoLifecycle", lifecycle)

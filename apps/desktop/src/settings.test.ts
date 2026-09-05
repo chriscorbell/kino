@@ -36,6 +36,7 @@ describe('settings storage', () => {
       JSON.stringify({
         automaticIntroSkipping: true,
         audioOutput: 'surround',
+        interfaceScale: 300,
         matchFrameRate: true,
         skipIntroButton: false,
         subtitlePosition: 120,
@@ -47,12 +48,19 @@ describe('settings storage', () => {
     expect(loadSettings(storage)).toEqual({
       automaticIntroSkipping: true,
       audioOutput: 'auto',
+      interfaceScale: 100,
       skipIntroButton: false,
       subtitlePosition: 94,
       subtitleSize: 100,
       subtitles: false,
       upNext: true,
     });
+  });
+
+  it('preserves a supported interface scale across reload', () => {
+    const storage = createStorage();
+    saveSettings(storage, { ...defaultSettings, interfaceScale: 175 });
+    expect(loadSettings(storage).interfaceScale).toBe(175);
   });
 
   it('writes the versioned settings record', () => {

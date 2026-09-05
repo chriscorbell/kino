@@ -17,6 +17,7 @@ import { sourceKey } from './core/sources';
 import type { CoreMetaPreview, ProfileState } from './core/types';
 import { useCoreModel } from './core/useCoreModel';
 import { t as enUS } from './locales';
+import { useInterfaceScale } from './native/useInterfaceScale';
 import { AddonsScreen } from './screens/AddonsScreen';
 import { DiscoverScreen } from './screens/DiscoverScreen';
 import { HomeScreen } from './screens/HomeScreen';
@@ -94,6 +95,8 @@ export function App() {
     typeof window === 'undefined' ? defaultSettings : loadSettings(window.localStorage),
   );
 
+  const interfaceScale = useInterfaceScale(settings.interfaceScale);
+
   useEffect(() => {
     saveSettings(window.localStorage, settings);
   }, [settings]);
@@ -151,7 +154,13 @@ export function App() {
       case 'addons':
         return <AddonsScreen />;
       case 'settings':
-        return <SettingsScreen onChange={setSettings} settings={settings} />;
+        return (
+          <SettingsScreen
+            onChange={setSettings}
+            settings={settings}
+            interfaceScale={interfaceScale}
+          />
+        );
       case 'detail':
         return detail ? (
           <MetaDetailsScreen
