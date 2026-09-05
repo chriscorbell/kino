@@ -82,6 +82,25 @@ int main(int argc, char **argv) {
         require(!read(logs + "/kino.log").contains("SENTINEL"), "credential leaked into file");
         require(!read(stderrPath).contains("SENTINEL"), "credential leaked into stderr");
 
+        logWebConsoleMessage(QtInfoMsg, "web-info");
+        logWebConsoleMessage(QtWarningMsg, "web-warning");
+        logWebConsoleMessage(QtCriticalMsg, "web-error");
+        logWebConsoleMessage(QtWarningMsg, "DROP_WEB_URL https://example.invalid/private");
+        logWebConsoleMessage(QtCriticalMsg, "DROP_WEB_AUTH Authorization: Bearer SENTINEL_WEB");
+        logWebConsoleMessage(QtInfoMsg, "DROP_WEB_EMAIL viewer@example.invalid");
+        const QByteArray web = read(logs + "/kino.log");
+        require(web.contains("[INFO] [kino.web]") && web.contains("web-info"),
+                "web info was not recorded");
+        require(web.contains("[WARN] [kino.web]") && web.contains("web-warning"),
+                "web warning was not recorded");
+        require(web.contains("[ERROR] [kino.web]") && web.contains("web-error"),
+                "web error was not recorded");
+        require(!web.contains("DROP_WEB") && !web.contains("SENTINEL_WEB"),
+                "sensitive web messages were not omitted");
+        std::fflush(stderr);
+        require(!read(stderrPath).contains("DROP_WEB") && !read(stderrPath).contains("SENTINEL_WEB"),
+                "sensitive web messages reached stderr");
+
         // One record larger than the file limit must be bounded before write.
         qInfo("%s", QByteArray(11 * 1024 * 1024, 'x').constData());
         require(QFileInfo(logs + "/kino.log").size() <= 10 * 1024 * 1024,
