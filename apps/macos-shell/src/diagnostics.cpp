@@ -1,5 +1,6 @@
 #include "diagnostics.h"
 #include "diagnosticbuildinfo.h"
+#include "logging.h"
 
 #include <QClipboard>
 #include <QDesktopServices>
@@ -105,4 +106,21 @@ bool Diagnostics::copyDiagnosticSummary() {
     }.join(QLatin1Char('\n')) + QLatin1Char('\n');
     clipboard->setText(summary);
     return clipboard->text() == summary;
+}
+
+void Diagnostics::logWebMessage(int level, const QString &message) {
+    // WebEngineView.JavaScriptConsoleMessageLevel uses info=0, warning=1, error=2.
+    switch (level) {
+    case 0:
+        logWebConsoleMessage(QtInfoMsg, message);
+        break;
+    case 1:
+        logWebConsoleMessage(QtWarningMsg, message);
+        break;
+    case 2:
+        logWebConsoleMessage(QtCriticalMsg, message);
+        break;
+    default:
+        break;
+    }
 }

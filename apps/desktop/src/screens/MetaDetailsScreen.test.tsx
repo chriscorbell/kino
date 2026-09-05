@@ -181,3 +181,53 @@ describe('episode source identity', () => {
     expect(onPlay).not.toHaveBeenCalled();
   });
 });
+
+describe('Start Over', () => {
+  function resumableDetails(videoId: string) {
+    return {
+      ...details(videoId),
+      libraryItem: { _id: meta.id, state: { timeOffset: 30_000, video_id: 'ep2' } },
+    };
+  }
+
+  it('starts the explicitly selected source over and preserves its episode', async () => {
+    const { onPlay } = mountDetails(resumableDetails('ep2'), meta, 'ep2');
+    const restart = await screen.findByRole('button', { name: 'Start over' });
+    expect(restart).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(restart);
+    expect(restart).toHaveAttribute('aria-pressed', 'true');
+    expect(onPlay).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /ep2 source/ }));
+    expect(onPlay).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        resumeMode: 'start-over',
+        video: meta.videos[1],
+        stream: expect.objectContaining({ url: 'https://media.invalid/ep2.mp4' }),
+      }),
+    );
+  });
+
+  it('offers progress only for its episode and resets Start Over after changing episodes', async () => {
+    const { onPlay, publish } = mountDetails(resumableDetails('ep1'));
+    await screen.findByRole('button', { name: /ep1 source/ });
+    expect(screen.queryByRole('button', { name: 'Start over' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Episode two/ }));
+    await publish(resumableDetails('ep2'));
+    fireEvent.click(screen.getByRole('button', { name: 'Start over' }));
+    fireEvent.click(screen.getByRole('button', { name: /Episode three/ }));
+    fireEvent.click(screen.getByRole('button', { name: /ep2 source/ }));
+    expect(onPlay).not.toHaveBeenCalled();
+    await publish(resumableDetails('ep3'));
+    expect(screen.queryByRole('button', { name: 'Start over' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Episode two/ }));
+    await publish(resumableDetails('ep2'));
+    expect(screen.getByRole('button', { name: 'Start over' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    fireEvent.click(screen.getByRole('button', { name: /ep2 source/ }));
+    expect(onPlay).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ resumeMode: 'resume', video: meta.videos[1] }),
+    );
+  });
+});

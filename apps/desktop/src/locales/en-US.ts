@@ -1,5 +1,9 @@
 export const enUS = {
   appName: 'Kino',
+  account: {
+    create: 'Create account',
+    createFailed: 'The registration page could not be opened. Try again.',
+  },
   navigation: {
     primary: 'Primary navigation',
     home: 'Home',
@@ -118,6 +122,9 @@ export const enUS = {
     error: 'Title details could not be loaded.',
     episodes: 'Episodes',
     sources: 'Sources',
+    playbackStart: 'Playback start',
+    resume: 'Resume',
+    startOver: 'Start over',
     refreshing: 'Refreshing sources…',
     noSources: 'No sources were returned for this title.',
     unavailable: 'Not available',
@@ -127,6 +134,7 @@ export const enUS = {
     inLibrary: 'In Library',
   },
   player: {
+    volume: 'Volume',
     enterFullscreen: 'Enter fullscreen',
     exitFullscreen: 'Exit fullscreen',
     fullscreenFailed: 'Fullscreen could not be changed. Try again.',

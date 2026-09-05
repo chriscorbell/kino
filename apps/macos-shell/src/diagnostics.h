@@ -20,6 +20,7 @@ public:
     Q_INVOKABLE QFuture<bool> clearCache();
     Q_INVOKABLE bool revealLogs();
     Q_INVOKABLE bool copyDiagnosticSummary();
+    Q_INVOKABLE void logWebMessage(int level, const QString &message);
 
     void setSources(MpvItem *playback, StreamEngine *engine) {
         playback_ = playback;
