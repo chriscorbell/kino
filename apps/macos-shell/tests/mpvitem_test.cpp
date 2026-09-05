@@ -3,6 +3,7 @@
 #include <QSignalSpy>
 #include <QtTest>
 
+#include <clocale>
 #include <cstring>
 
 class MpvItemTest : public QObject {
@@ -29,6 +30,11 @@ class MpvItemTest : public QObject {
     }
 
 private slots:
+    void initTestCase() {
+        // Match the application after Qt initializes the system locale.
+        std::setlocale(LC_NUMERIC, "C");
+    }
+
     void subtitleVariantMetadata_data() {
         QTest::addColumn<bool>("flag");
         QTest::newRow("variant") << true;
