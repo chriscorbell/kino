@@ -1,5 +1,3 @@
-#error KINO_CI_EXPECTED_COMPILE_FAILURE
-
 #include "closecoordinator.h"
 
 #include <QCoreApplication>
