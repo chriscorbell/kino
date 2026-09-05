@@ -587,6 +587,12 @@
   white-space: nowrap;
 }
 
+.sourcePrimary .sourceExplanation {
+  color: var(--kino-text-muted);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .sourceMeta {
   display: flex;
   align-items: center;
@@ -937,6 +943,50 @@
   background: var(--kino-surface);
   box-shadow: 0 24px 80px rgb(0 0 0 / 48%);
   animation: enter var(--kino-duration-standard) var(--kino-ease-out);
+}
+
+.externalDialog {
+  width: min(calc(100% - 32px), 480px);
+  padding: clamp(20px, 4vw, 34px);
+}
+
+.externalDialog h2 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -0.025em;
+}
+
+.externalHost {
+  display: block;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
+.externalDialog .externalUrl {
+  max-height: 24vh;
+  margin: 8px 0 0;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+
+.externalActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.externalActions > * {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.externalActions > :disabled,
+.externalActions > [aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: wait;
 }
 
 .accountDialog > img {

@@ -1,10 +1,14 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CoreContext } from '../core/context';
 import type { CoreTransport } from '../core/transport';
 import type { CoreMetaItem, CoreRuntimeEvent, MetaDetailsState } from '../core/types';
 import { MetaDetailsScreen } from './MetaDetailsScreen';
+
+const openExternalUrl = vi.hoisted(() => vi.fn());
+vi.mock('../native/externalNavigation', () => ({ openExternalUrl }));
+vi.mock('../native/player', () => ({ nativeShellPresent: () => true }));
 
 const meta: CoreMetaItem = {
   id: 'show',
@@ -179,5 +183,119 @@ describe('episode source identity', () => {
     await publish(details('movie', { ...movie, id: 'another-title' }));
     fireEvent.click(screen.getByRole('button', { name: /movie source/ }));
     expect(onPlay).not.toHaveBeenCalled();
+  });
+});
+
+describe('external source approval', () => {
+  beforeAll(() => {
+    Object.defineProperties(HTMLDialogElement.prototype, {
+      showModal: {
+        configurable: true,
+        value(this: HTMLDialogElement) {
+          this.open = true;
+        },
+      },
+      close: {
+        configurable: true,
+        value(this: HTMLDialogElement) {
+          this.open = false;
+        },
+      },
+    });
+  });
+  afterAll(() => {
+    Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal');
+    Reflect.deleteProperty(HTMLDialogElement.prototype, 'close');
+  });
+  beforeEach(() => {
+    openExternalUrl.mockReset().mockResolvedValue(undefined);
+  });
+
+  function externalDetails() {
+    const state = details('ep1');
+    state.streams[0]!.content = {
+      type: 'Ready',
+      content: [
+        {
+          name: 'Watch online',
+          externalUrl: 'https://watch.example/title/123?region=us',
+          deepLinks: { player: '' },
+        },
+        { name: 'Local file', externalUrl: 'file:///tmp/movie', deepLinks: { player: '' } },
+        {
+          name: 'Credentials',
+          externalUrl: 'https://user:password@watch.example/',
+          deepLinks: { player: '' },
+        },
+        { name: 'Video ID', ytId: '123', deepLinks: { player: '' } },
+        { name: 'Frame', playerFrameUrl: 'https://watch.example/frame', deepLinks: { player: '' } },
+        { name: 'FTP stream', url: 'ftp://watch.example/movie', deepLinks: { player: '' } },
+      ],
+    };
+    return state;
+  }
+
+  it('identifies the destination, cancels without opening, and opens only after approval', async () => {
+    const { onPlay } = mountDetails(externalDetails());
+    const source = await screen.findByRole('button', { name: /Watch online/ });
+    expect(source).toBeEnabled();
+    expect(source).toHaveTextContent('Open in browser · watch.example');
+    source.focus();
+    fireEvent.click(source);
+    expect(screen.getByRole('dialog')).toHaveTextContent(
+      'https://watch.example/title/123?region=us',
+    );
+    expect(openExternalUrl).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(source).toHaveFocus();
+    expect(openExternalUrl).not.toHaveBeenCalled();
+    fireEvent.click(source);
+    fireEvent.click(screen.getByRole('link', { name: 'Open in browser' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(openExternalUrl).toHaveBeenCalledExactlyOnceWith(
+      'https://watch.example/title/123?region=us',
+    );
+    expect(onPlay).not.toHaveBeenCalled();
+  });
+
+  it('keeps a failed opening retryable without sending the source to the player', async () => {
+    const { onPlay } = mountDetails(externalDetails());
+    openExternalUrl.mockRejectedValueOnce(new Error('No handler'));
+    fireEvent.click(await screen.findByRole('button', { name: /Watch online/ }));
+    fireEvent.click(screen.getByRole('link', { name: 'Open in browser' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The browser could not be opened. Try again.',
+    );
+    fireEvent.click(screen.getByRole('link', { name: 'Open in browser' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(openExternalUrl).toHaveBeenCalledTimes(2);
+    expect(onPlay).not.toHaveBeenCalled();
+  });
+
+  it('explains disabled source types and discards a confirmation when its snapshot changes', async () => {
+    const { publish } = mountDetails(externalDetails());
+    const source = await screen.findByRole('button', { name: /Watch online/ });
+    for (const name of ['Local file', 'Credentials']) {
+      const button = screen.getByRole('button', { name: new RegExp(name) });
+      expect(button).toBeDisabled();
+      expect(button).toHaveTextContent('Use an HTTP or HTTPS URL without a username or password.');
+    }
+    expect(screen.getByRole('button', { name: /Video ID/ })).toHaveTextContent(
+      'YouTube playback is not supported.',
+    );
+    expect(screen.getByRole('button', { name: /Frame/ })).toHaveTextContent(
+      'Embedded players are not supported.',
+    );
+    expect(screen.getByRole('button', { name: /FTP stream/ })).toHaveTextContent(
+      'This stream protocol is not supported.',
+    );
+    fireEvent.click(source);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    await publish(details('ep2'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await publish(externalDetails());
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(openExternalUrl).not.toHaveBeenCalled();
   });
 });

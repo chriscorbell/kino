@@ -105,6 +105,7 @@ export const enUS = {
   },
   actions: {
     back: 'Back',
+    cancel: 'Cancel',
   },
   details: {
     loading: 'Loading title details…',
@@ -114,6 +115,20 @@ export const enUS = {
     refreshing: 'Refreshing sources…',
     noSources: 'No sources were returned for this title.',
     unavailable: 'Not available',
+    openExternal: 'Open in browser',
+    externalConfirm: 'Open in your browser?',
+    externalDescription: 'This source opens a website. Kino will stay on this screen.',
+    externalOpening: 'Opening…',
+    externalFailed: 'The browser could not be opened. Try again.',
+    sourceUnsupported: {
+      external: 'Use an HTTP or HTTPS URL without a username or password.',
+      youtube: 'YouTube playback is not supported.',
+      embedded: 'Embedded players are not supported.',
+      insecure: 'Direct playback requires an HTTPS stream.',
+      protocol: 'This stream protocol is not supported.',
+      addon: 'This source has no add-on address.',
+      unknown: 'This source has no supported media address.',
+    },
     failed: 'Failed',
     addToLibrary: 'Add to Library',
     loadingLibrary: 'Loading library…',
