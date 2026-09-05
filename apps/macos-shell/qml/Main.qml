@@ -3,12 +3,14 @@ import QtQuick.Controls
 import QtQuick.Window
 import QtWebChannel
 import QtWebEngine
+import "qrc:/kino/NativeLocale.js" as NativeLocale
 
 ApplicationWindow {
     id: root
 
     required property var kinoWebProfile
     required property url kinoUiUrl
+    readonly property var messages: NativeLocale.messages(Qt.locale().uiLanguages)
 
     width: 1280
     height: 800
@@ -261,14 +263,14 @@ ApplicationWindow {
                 color: "#f4f4f5"
                 font.pixelSize: 18
                 font.weight: Font.DemiBold
-                text: "Kino could not load its interface."
+                text: root.messages.interfaceFailed
             }
 
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 color: "#8f8f95"
                 font.pixelSize: 13
-                text: "Check the local Kino log for details."
+                text: root.messages.checkLog
             }
         }
     }

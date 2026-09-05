@@ -1,3 +1,4 @@
+import { t as enUS } from '../locales';
 import { useEffect, useRef, useState } from 'react';
 import type { CoreMetaPreview } from '../core/types';
 import styles from '../App.module.css';
@@ -38,7 +39,7 @@ export function MediaCard({ item, onOpen }: { item: CoreMetaPreview; onOpen: () 
             {item.name}
           </span>
         ) : null}
-        {item.watched ? <span className={styles.watchedBadge}>Watched</span> : null}
+        {item.watched ? <span className={styles.watchedBadge}>{enUS.media.watched}</span> : null}
       </span>
       <span className={styles.mediaTitle} ref={titleRef}>
         {item.name}

@@ -1,3 +1,4 @@
+import { t } from '../locales/index.ts';
 // Core dispatch returns before its WASM futures finish. Track the work that
 // must outlive navigation or shutdown, including the storage bridge reply.
 export class PendingCoreWork {
@@ -19,10 +20,7 @@ export class PendingCoreWork {
   async flush(timeoutMs = 10000): Promise<void> {
     let timeout: ReturnType<typeof setTimeout> | undefined;
     const expired = new Promise<never>((_resolve, reject) => {
-      timeout = setTimeout(
-        () => reject(new Error('Core storage did not finish in time.')),
-        timeoutMs,
-      );
+      timeout = setTimeout(() => reject(new Error(t.core.storageTimeout)), timeoutMs);
     });
     try {
       for (;;) {
@@ -34,7 +32,7 @@ export class PendingCoreWork {
       }
       if (this.#storageFailed) {
         this.#storageFailed = false;
-        throw new Error('Core could not save data on this device.');
+        throw new Error(t.core.storageFailed);
       }
     } finally {
       clearTimeout(timeout);

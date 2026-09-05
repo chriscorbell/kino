@@ -150,7 +150,7 @@ export function AddonsScreen() {
     const url = addonConfigurationUrl(addon, import.meta.env.DEV);
     return url ? (
       <a
-        aria-label={`${enUS.addons.configure} ${addon.manifest.name}`}
+        aria-label={enUS.addons.configureTitle(addon.manifest.name)}
         className={styles.secondaryButton}
         href={url}
         onClick={(event) => {
@@ -201,9 +201,7 @@ export function AddonsScreen() {
       </form>
       {pendingInstall ? (
         <div className={styles.addonConfiguration}>
-          <p>
-            <strong>{pendingInstall.addon.manifest.name}</strong> {enUS.addons.configurationExists}
-          </p>
+          <p>{enUS.addons.configurationExists(pendingInstall.addon.manifest.name)}</p>
           {pendingInstall.previous.some((addon) => addon.flags.protected) ? (
             <p>{enUS.addons.requiredConfigurationProtected}</p>
           ) : null}
@@ -290,7 +288,7 @@ export function AddonsScreen() {
                   <span className={styles.addonBadge}>{enUS.addons.protectedAddon}</span>
                 ) : (
                   <button
-                    aria-label={`${enUS.addons.remove} ${addon.manifest.name}`}
+                    aria-label={enUS.addons.removeTitle(addon.manifest.name)}
                     className={styles.addonRemove}
                     disabled={busy}
                     onClick={() => uninstall(addon)}

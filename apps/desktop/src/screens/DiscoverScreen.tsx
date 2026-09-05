@@ -16,6 +16,7 @@ import { t as enUS } from '../locales';
 import { useBrowseState } from '../navigation';
 
 function typeLabel(type: string) {
+  if (type === 'movie' || type === 'series') return enUS.media[type];
   return type.charAt(0).toUpperCase() + type.slice(1);
 }
 

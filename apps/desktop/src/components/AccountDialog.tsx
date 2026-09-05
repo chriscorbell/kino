@@ -66,7 +66,7 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
         let unsubscribe: () => void = () => undefined;
         const timeout = window.setTimeout(() => {
           unsubscribe();
-          reject(new Error('Sign-in timed out.'));
+          reject(new Error(enUS.account.timeout));
         }, 20_000);
         unsubscribe = transport.subscribe((coreEvent) => {
           if (coreEvent.name === 'CoreEvent' && coreEvent.args.event === 'UserAuthenticated') {
@@ -76,7 +76,7 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
           } else if (authError(coreEvent)) {
             window.clearTimeout(timeout);
             unsubscribe();
-            reject(new Error('Stremio did not accept those credentials.'));
+            reject(new Error(enUS.account.rejected));
           }
         });
         void transport
@@ -90,13 +90,13 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
           .catch((dispatchError: unknown) => {
             window.clearTimeout(timeout);
             unsubscribe();
-            reject(dispatchError instanceof Error ? dispatchError : new Error('Sign-in failed.'));
+            reject(dispatchError instanceof Error ? dispatchError : new Error(enUS.account.failed));
           });
       });
       setPassword('');
       onClose();
     } catch (signInError) {
-      setError(signInError instanceof Error ? signInError.message : 'Sign-in failed.');
+      setError(signInError instanceof Error ? signInError.message : enUS.account.failed);
     } finally {
       setSubmitting(false);
     }
@@ -141,7 +141,7 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
       }}
     >
       <button
-        aria-label="Close"
+        aria-label={enUS.actions.close}
         className={styles.dialogClose}
         disabled={submitting}
         onClick={close}
@@ -154,8 +154,8 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
       <CoreRecovery onGuest={onClose} />
       {user ? (
         <>
-          <h1 id="account-title">Stremio account</h1>
-          <p>{user.email || user.name || 'Signed in'}</p>
+          <h1 id="account-title">{enUS.account.title}</h1>
+          <p>{user.email || user.name || enUS.account.signedIn}</p>
           <button
             className={styles.secondaryAction}
             onClick={() => {
@@ -167,14 +167,14 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
             }}
             type="button"
           >
-            Sign out
+            {enUS.account.signOut}
           </button>
         </>
       ) : (
         <form onSubmit={submit}>
-          <h1 id="account-title">Sign in to Stremio</h1>
-          <p>Your credentials go directly to Stremio. Kino keeps guest activity separate.</p>
-          <label htmlFor="stremio-email">Email</label>
+          <h1 id="account-title">{enUS.account.signInTitle}</h1>
+          <p>{enUS.account.description}</p>
+          <label htmlFor="stremio-email">{enUS.account.email}</label>
           <input
             autoComplete="username"
             aria-describedby={error ? 'account-error' : undefined}
@@ -186,7 +186,7 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
             type="email"
             value={email}
           />
-          <label htmlFor="stremio-password">Password</label>
+          <label htmlFor="stremio-password">{enUS.account.password}</label>
           <input
             aria-describedby={error ? 'account-error' : undefined}
             autoComplete="current-password"
@@ -210,10 +210,10 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
             {status === 'error'
               ? enUS.core.accountUnavailable
               : status !== 'ready'
-                ? 'Preparing account…'
+                ? enUS.account.preparing
                 : submitting
-                  ? 'Signing in…'
-                  : 'Sign in'}
+                  ? enUS.account.submitting
+                  : enUS.account.signIn}
           </button>
           <a
             aria-describedby={creationError ? 'account-creation-error' : undefined}

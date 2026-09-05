@@ -33,7 +33,7 @@ function nativeAuthStorage(): SecureAuthStorage {
   let pending = Promise.resolve();
   const store = async () => {
     const secureStore = await connectNativeSecureStore();
-    if (!secureStore) throw new Error('The macOS secure store is unavailable.');
+    if (!secureStore) throw new Error(t.core.secureStoreUnavailable);
     return secureStore;
   };
   const enqueue = <Result>(operation: () => Promise<Result>) => {
@@ -50,21 +50,21 @@ function nativeAuthStorage(): SecureAuthStorage {
       enqueue(async () => {
         const secureStore = await store();
         const result = await secureStore.readStremioAuth();
-        if (!result.ok) throw new Error('The macOS Keychain could not be read.');
+        if (!result.ok) throw new Error(t.core.keychainReadFailed);
         return result.value || null;
       }),
     remove: () =>
       enqueue(async () => {
         const secureStore = await store();
         if (!(await secureStore.clearStremioAuth())) {
-          throw new Error('The Stremio session could not be removed from macOS Keychain.');
+          throw new Error(t.core.keychainRemoveFailed);
         }
       }),
     write: (value) =>
       enqueue(async () => {
         const secureStore = await store();
         if (!(await secureStore.writeStremioAuth(value))) {
-          throw new Error('The Stremio session could not be saved to macOS Keychain.');
+          throw new Error(t.core.keychainSaveFailed);
         }
       }),
   };

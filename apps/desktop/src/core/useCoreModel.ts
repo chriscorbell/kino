@@ -1,3 +1,4 @@
+import { t } from '../locales';
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
 
 import { useCore } from './context';
@@ -19,7 +20,7 @@ interface CoreModelSnapshot<State> extends Omit<CoreModelResult<State>, 'unload'
   transport: CoreTransport | null;
 }
 
-const modelFailed = 'The Stremio model failed to load.';
+const modelFailed = t.core.modelFailed;
 const failureDetail = (error: unknown) => coreFailureDetail(error, modelFailed);
 // A screen renders this string, so a contract failure reads as locale copy
 // while the model and field path stay in the log above it.

@@ -23,11 +23,11 @@ import { UpdateSettings } from '../updates/UpdateNotice';
 import type { Updates } from '../updates/useUpdates';
 
 function formatBytes(bytes: number) {
-  if (bytes <= 0) return '0 MB';
+  if (bytes <= 0) return enUS.format.megabytes(0);
   const megabytes = bytes / 1024 ** 2;
   if (megabytes < 1024)
-    return `${megabytes < 10 ? megabytes.toFixed(1) : Math.round(megabytes)} MB`;
-  return `${(megabytes / 1024).toFixed(1)} GB`;
+    return enUS.format.megabytes(megabytes < 10 ? megabytes.toFixed(1) : Math.round(megabytes));
+  return enUS.format.gigabytes((megabytes / 1024).toFixed(1));
 }
 
 export function SettingsScreen({
@@ -154,7 +154,7 @@ export function SettingsScreen({
             >
               {interfaceScales.map((percent) => (
                 <option key={percent} value={percent}>
-                  {percent}%
+                  {enUS.format.percent(percent)}
                 </option>
               ))}
             </select>
@@ -267,7 +267,9 @@ export function SettingsScreen({
             >
               {cacheAction.pending
                 ? enUS.settings.clearing
-                : `${enUS.settings.clearCache}${cacheBytes === null ? '' : ` (${formatBytes(cacheBytes)})`}`}
+                : cacheBytes === null
+                  ? enUS.settings.clearCache
+                  : enUS.settings.clearCacheSize(formatBytes(cacheBytes))}
             </button>
           ) : (
             <span className={styles.activeValue}>{enUS.settings.desktopOnly}</span>

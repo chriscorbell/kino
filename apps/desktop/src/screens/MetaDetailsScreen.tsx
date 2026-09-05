@@ -38,7 +38,11 @@ interface SourceChoice {
 }
 
 function metadata(item: CoreMetaPreview) {
-  return [item.releaseInfo, item.runtime, item.type === 'series' ? 'Series' : 'Movie']
+  return [
+    item.releaseInfo,
+    item.runtime,
+    item.type === 'series' ? enUS.media.series : enUS.media.movie,
+  ]
     .filter(Boolean)
     .join(' · ');
 }
@@ -486,7 +490,7 @@ export function MetaDetailsScreen({
                     }}
                     type="button"
                   >
-                    Season {season}
+                    {enUS.details.season(season)}
                   </button>
                 ))}
               </div>
@@ -511,14 +515,14 @@ export function MetaDetailsScreen({
                     <span className={styles.episodeNumber}>
                       {String(video.episode ?? 0).padStart(2, '0')}
                     </span>
-                    <strong>{video.title || `Episode ${video.episode}`}</strong>
+                    <strong>{video.title || enUS.details.episode(video.episode)}</strong>
                     <CaretRight aria-hidden size={16} />
                   </button>
                   {video.overview ? (
                     <ExpandableText
                       className={styles.episodeOverview}
                       key={video.overview}
-                      label={video.title || `Episode ${video.episode}`}
+                      label={video.title || enUS.details.episode(video.episode)}
                       lines={1}
                       text={video.overview}
                     />

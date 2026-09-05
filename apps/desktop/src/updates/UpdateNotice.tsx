@@ -46,12 +46,8 @@ export function UpdateNotice({ updates }: { updates: Updates }) {
   return (
     <aside className={styles.updateNotice} aria-label={t.updates.available}>
       <div role="status">
-        <strong>
-          {t.updates.available} · {state.release.version}
-        </strong>
-        <p>
-          {t.updates.current} {state.currentVersion}
-        </p>
+        <strong>{t.updates.availableVersion(state.release.version)}</strong>
+        <p>{t.updates.currentVersion(state.currentVersion ?? t.updates.unknownVersion)}</p>
       </div>
       <div className={styles.updateActions}>
         <ReleaseDownload key={state.release.version} release={state.release} />
@@ -78,7 +74,7 @@ export function UpdateSettings({ updates }: { updates: Updates | undefined }) {
       <div className={styles.settingRow}>
         <div>
           <div className={styles.settingLabel}>
-            {t.updates.current} {state?.currentVersion ?? t.updates.unknownVersion}
+            {t.updates.currentVersion(state?.currentVersion ?? t.updates.unknownVersion)}
           </div>
           <div className={styles.settingDescription}>{t.updates.description}</div>
         </div>
@@ -109,7 +105,7 @@ export function UpdateSettings({ updates }: { updates: Updates | undefined }) {
       {state?.release ? (
         <div className={styles.settingRow}>
           <div className={styles.settingLabel} role="status">
-            {t.updates.available} · {state.release.version}
+            {t.updates.availableVersion(state.release.version)}
           </div>
           <ReleaseDownload key={state.release.version} release={state.release} />
         </div>

@@ -60,6 +60,21 @@ qt_add_executable(
   src/streamengine.cpp
 )
 
+find_program(NODE_EXECUTABLE node REQUIRED)
+file(GLOB KINO_LOCALE_INPUTS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/../desktop/src/locales/*.ts")
+set(KINO_LOCALE_GENERATOR "${CMAKE_CURRENT_SOURCE_DIR}/../../scripts/generate-native-locale.mjs")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${KINO_LOCALE_INPUTS} "${KINO_LOCALE_GENERATOR}")
+set(KINO_NATIVE_LOCALE "${CMAKE_CURRENT_BINARY_DIR}/generated/NativeLocale.js")
+execute_process(
+  COMMAND ${NODE_EXECUTABLE} "${KINO_LOCALE_GENERATOR}" "${KINO_NATIVE_LOCALE}"
+  COMMAND_ERROR_IS_FATAL ANY
+)
+qt_add_resources(Kino kino_locale
+  PREFIX "/kino"
+  BASE "${CMAKE_CURRENT_BINARY_DIR}/generated"
+  FILES "${KINO_NATIVE_LOCALE}"
+)
+
 qt_add_qml_module(
   Kino
   URI KinoShell

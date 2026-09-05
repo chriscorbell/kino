@@ -1,3 +1,4 @@
+import { t } from '../locales';
 interface KeyValueStorage {
   getItem(key: string): string | null;
   removeItem(key: string): void;
@@ -122,7 +123,7 @@ export class SecureProfileStorage {
 
     if (localAuth !== null && localAuth !== undefined) {
       this.#local.removeItem(key);
-      throw new Error('The stored Stremio session is invalid.');
+      throw new Error(t.core.invalidSession);
     }
 
     return localValue;
@@ -141,7 +142,7 @@ export class SecureProfileStorage {
 
     const profile = jsonObject(value);
     if (!profile || !('auth' in profile)) {
-      throw new Error('Stremio Core returned an invalid account profile.');
+      throw new Error(t.core.invalidProfile);
     }
 
     const auth = profile.auth;
@@ -150,7 +151,7 @@ export class SecureProfileStorage {
     } else if (auth === null) {
       await this.#secure.remove();
     } else {
-      throw new Error('Stremio Core returned an invalid account profile.');
+      throw new Error(t.core.invalidProfile);
     }
     profile.auth = null;
     this.#local.setItem(key, JSON.stringify(profile));
