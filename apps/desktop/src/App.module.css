@@ -1095,6 +1095,7 @@
   font-variant-numeric: tabular-nums;
 }
 
+.sourcePickerDialog::backdrop,
 .accountDialog::backdrop {
   background: rgb(0 0 0 / 72%);
   backdrop-filter: blur(12px);
@@ -1881,6 +1882,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .sourcePickerDialog,
   .accountDialog,
   .content,
   .skipIntro,
@@ -2013,4 +2015,44 @@
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+}
+
+.sourcePickerDialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(704px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--kino-border);
+  border-radius: var(--kino-panel-radius);
+  color: var(--kino-text);
+  background: var(--kino-surface);
+  animation: enter var(--kino-duration-standard) var(--kino-ease-out);
+}
+
+.sourcePickerHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.sourcePickerHeader h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+.sourcePickerHeader .dialogClose {
+  position: static;
+  flex-shrink: 0;
+}
+
+.sourcePickerDialog .detailSection {
+  margin-top: 24px;
 }

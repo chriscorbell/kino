@@ -1,7 +1,8 @@
-import { ArrowLeft, Check, Play, Plus } from '@phosphor-icons/react';
+import { ArrowLeft, CaretRight, Check, Play, Plus } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import styles from '../App.module.css';
+import { SourcePickerDialog } from '../components/SourcePickerDialog';
 import { ActionFeedback } from '../components/ActionFeedback';
 import { useActionFeedback } from '../components/useActionFeedback';
 import { ResourceFailures } from '../components/ResourceFailures';
@@ -89,8 +90,10 @@ export function MetaDetailsScreen({
   } else if (loadedMeta && loadedMeta !== lastMeta) setLastMeta(loadedMeta);
   const meta = loadedMeta ?? (profileTransport === transport ? lastMeta : null);
   const videos = useMemo(() => meta?.videos ?? [], [meta]);
-  const sourcesRef = useRef<HTMLElement>(null);
-  const episodeChosenRef = useRef(false);
+  const selectedEpisodeRef = useRef<HTMLButtonElement>(null);
+  const [sourcePickerOpen, setSourcePickerOpen] = useState(
+    () => item.type === 'series' && Boolean(initialVideoId),
+  );
 
   useEffect(() => {
     if (item.type !== 'series' || videoId !== null || videos.length === 0) return;
@@ -127,13 +130,6 @@ export function MetaDetailsScreen({
     selected.streamPath.type === item.type &&
     selected.streamPath.id === (videoId ?? activeVideo?.id ?? item.id) &&
     selected.streamPath.id === (activeVideo?.id ?? item.id);
-
-  // Wait for this episode's snapshot before moving the source list into view.
-  useEffect(() => {
-    if (!episodeChosenRef.current || !sourcesCurrent) return;
-    episodeChosenRef.current = false;
-    sourcesRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' });
-  }, [sourcesCurrent, videoId]);
 
   const streamInputs = useMemo(
     () =>
@@ -242,6 +238,141 @@ export function MetaDetailsScreen({
     );
   };
 
+  const sourceSection = (
+    <section aria-labelledby="sources-heading" className={styles.detailSection}>
+      <ResourceFailures
+        names={failures}
+        error={result.error ? enUS.details.error : null}
+        pending={sourcesPending}
+        onRetry={result.retry}
+      />
+      <div className={styles.detailSectionHeading}>
+        <h2 id="sources-heading">{enUS.details.sources}</h2>
+        {sourcesPending ? <span role="status">{enUS.details.refreshing}</span> : null}
+      </div>
+      {canResume ? (
+        <div className={styles.resumeChoice} role="group" aria-label={enUS.details.playbackStart}>
+          <button
+            aria-pressed={!startOver}
+            className={!startOver ? styles.seasonActive : styles.seasonButton}
+            onClick={() => setStartOver(false)}
+            type="button"
+          >
+            {enUS.details.resume}
+          </button>
+          <button
+            aria-pressed={startOver}
+            className={startOver ? styles.seasonActive : styles.seasonButton}
+            onClick={() => setStartOver(true)}
+            type="button"
+          >
+            {enUS.details.startOver}
+          </button>
+        </div>
+      ) : null}
+      {currentFailure ? (
+        <p className={styles.loadError} role="status">
+          {currentFailure}
+        </p>
+      ) : null}
+      {sourcesCurrent &&
+      !sourcesPending &&
+      !result.error &&
+      failures.length === 0 &&
+      sources.length === 0 ? (
+        <p role="status" className={styles.inlineEmpty}>
+          {enUS.details.noSources}
+        </p>
+      ) : null}
+      <div className={styles.sourceList}>
+        {sources.map((choice, index) => {
+          const support = classifySource(choice.source.source);
+          const playable =
+            (support === 'direct' || support === 'torrent') && Boolean(choice.transportUrl);
+          const external =
+            choice.source.source.kind === 'external'
+              ? externalWebUrl(choice.source.source.externalUrl)
+              : null;
+          const selectable = playable || Boolean(external);
+          const key = sourceKey(choice.source, choice.transportUrl, sourceSelection);
+          const failed = failedSources.has(key);
+          const unavailable =
+            support === 'direct' || support === 'torrent'
+              ? enUS.details.sourceUnsupported.addon
+              : enUS.details.sourceUnsupported[unsupportedSourceReason(choice.source.source)];
+          const size = sourceSize(choice.source);
+          return (
+            <div className={styles.sourceRow} key={`${choice.transportUrl}:${index}`}>
+              <button
+                className={styles.sourceButton}
+                disabled={!selectable || !sourcesCurrent || !choice.current}
+                onClick={() => {
+                  if (!sourcesCurrent || !choice.current) return;
+                  if (external) {
+                    setExternalChoice({ key, url: external, transport });
+                    return;
+                  }
+                  if (!playable || !resource?.addon.transportUrl) return;
+                  onPlay({
+                    resumeMode: canResume && startOver ? 'start-over' : 'resume',
+                    meta: display,
+                    metaTransportUrl: resource.addon.transportUrl,
+                    nextVideo: nextEpisode,
+                    stream: choice.source,
+                    streamTransportUrl: choice.transportUrl,
+                    video: activeVideo,
+                  });
+                }}
+                type="button"
+              >
+                <span className={styles.sourcePrimary}>
+                  <strong>{sourceTitle(choice.source)}</strong>
+                  <small>{sourceDetails(choice.source)}</small>
+                  {external ? (
+                    <small className={styles.sourceExplanation}>
+                      {enUS.details.openExternal} · {external.host}
+                    </small>
+                  ) : null}
+                  {!selectable ? (
+                    <small className={styles.sourceExplanation}>{unavailable}</small>
+                  ) : null}
+                </span>
+                <span className={styles.sourceMeta}>
+                  {playable ? (
+                    <span className={styles.sourcePlay}>
+                      <Play aria-hidden size={14} weight="fill" />
+                      {enUS.details.playSource}
+                    </span>
+                  ) : null}
+                  {size ? <span>{size}</span> : null}
+                  <span>{choice.addonName}</span>
+                  {!selectable ? <em>{enUS.details.unavailable}</em> : null}
+                  {playable && failed ? <em>{enUS.details.failed}</em> : null}
+                </span>
+              </button>
+              <details className={styles.sourceDisclosure} key={key}>
+                <summary>
+                  {enUS.details.inspectSource}
+                  <span className={styles.visuallyHidden}> {sourceTitle(choice.source)}</span>
+                </summary>
+                <div className={styles.sourceDescription}>
+                  <p>{choice.source.description?.trim() || sourceDetails(choice.source)}</p>
+                  {choice.source.hints.filename ? (
+                    <dl>
+                      <dt>{enUS.details.filename}</dt>
+                      <dd>{choice.source.hints.filename}</dd>
+                    </dl>
+                  ) : null}
+                  {!selectable ? <p>{unavailable}</p> : null}
+                </div>
+              </details>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+
   return (
     <div className={styles.detailPage}>
       <header className={styles.detailHero}>
@@ -295,12 +426,14 @@ export function MetaDetailsScreen({
             {enUS.details.loading}
           </p>
         ) : null}
-        <ResourceFailures
-          names={failures}
-          error={result.error ? enUS.details.error : null}
-          pending={sourcesPending}
-          onRetry={result.retry}
-        />
+        {item.type === 'series' && !sourcePickerOpen ? (
+          <ResourceFailures
+            names={failures}
+            error={result.error ? enUS.details.error : null}
+            pending={sourcesPending}
+            onRetry={result.retry}
+          />
+        ) : null}
         {item.type === 'series' && videos.length > 0 ? (
           <section className={styles.detailSection} aria-labelledby="episodes-heading">
             <div className={styles.detailSectionHeading}>
@@ -330,10 +463,12 @@ export function MetaDetailsScreen({
                 >
                   <button
                     aria-current={video.id === videoId ? 'true' : undefined}
+                    ref={video.id === videoId ? selectedEpisodeRef : undefined}
+                    aria-haspopup="dialog"
                     className={styles.episodeButton}
                     onClick={() => {
-                      episodeChosenRef.current = true;
                       chooseVideo(video.id);
+                      setSourcePickerOpen(true);
                     }}
                     type="button"
                   >
@@ -341,7 +476,7 @@ export function MetaDetailsScreen({
                       {String(video.episode ?? 0).padStart(2, '0')}
                     </span>
                     <strong>{video.title || `Episode ${video.episode}`}</strong>
-                    <Play aria-hidden size={16} weight="fill" />
+                    <CaretRight aria-hidden size={16} />
                   </button>
                   {video.overview ? (
                     <ExpandableText
@@ -358,141 +493,17 @@ export function MetaDetailsScreen({
           </section>
         ) : null}
 
-        <section
-          aria-labelledby="sources-heading"
-          className={styles.detailSection}
-          ref={sourcesRef}
-        >
-          <div className={styles.detailSectionHeading}>
-            <h2 id="sources-heading">{enUS.details.sources}</h2>
-            {sourcesPending ? <span role="status">{enUS.details.refreshing}</span> : null}
-          </div>
-          {canResume ? (
-            <div
-              className={styles.resumeChoice}
-              role="group"
-              aria-label={enUS.details.playbackStart}
-            >
-              <button
-                aria-pressed={!startOver}
-                className={!startOver ? styles.seasonActive : styles.seasonButton}
-                onClick={() => setStartOver(false)}
-                type="button"
-              >
-                {enUS.details.resume}
-              </button>
-              <button
-                aria-pressed={startOver}
-                className={startOver ? styles.seasonActive : styles.seasonButton}
-                onClick={() => setStartOver(true)}
-                type="button"
-              >
-                {enUS.details.startOver}
-              </button>
-            </div>
-          ) : null}
-          {currentFailure ? (
-            <p className={styles.loadError} role="status">
-              {currentFailure}
-            </p>
-          ) : null}
-          {sourcesCurrent &&
-          !sourcesPending &&
-          !result.error &&
-          failures.length === 0 &&
-          sources.length === 0 ? (
-            <p role="status" className={styles.inlineEmpty}>
-              {enUS.details.noSources}
-            </p>
-          ) : null}
-          <div className={styles.sourceList}>
-            {sources.map((choice, index) => {
-              const support = classifySource(choice.source.source);
-              const playable =
-                (support === 'direct' || support === 'torrent') && Boolean(choice.transportUrl);
-              const external =
-                choice.source.source.kind === 'external'
-                  ? externalWebUrl(choice.source.source.externalUrl)
-                  : null;
-              const selectable = playable || Boolean(external);
-              const key = sourceKey(choice.source, choice.transportUrl, sourceSelection);
-              const failed = failedSources.has(key);
-              const unavailable =
-                support === 'direct' || support === 'torrent'
-                  ? enUS.details.sourceUnsupported.addon
-                  : enUS.details.sourceUnsupported[unsupportedSourceReason(choice.source.source)];
-              const size = sourceSize(choice.source);
-              return (
-                <div className={styles.sourceRow} key={`${choice.transportUrl}:${index}`}>
-                  <button
-                    className={styles.sourceButton}
-                    disabled={!selectable || !sourcesCurrent || !choice.current}
-                    onClick={() => {
-                      if (!sourcesCurrent || !choice.current) return;
-                      if (external) {
-                        setExternalChoice({ key, url: external, transport });
-                        return;
-                      }
-                      if (!playable || !resource?.addon.transportUrl) return;
-                      onPlay({
-                        resumeMode: canResume && startOver ? 'start-over' : 'resume',
-                        meta: display,
-                        metaTransportUrl: resource.addon.transportUrl,
-                        nextVideo: nextEpisode,
-                        stream: choice.source,
-                        streamTransportUrl: choice.transportUrl,
-                        video: activeVideo,
-                      });
-                    }}
-                    type="button"
-                  >
-                    <span className={styles.sourcePrimary}>
-                      <strong>{sourceTitle(choice.source)}</strong>
-                      <small>{sourceDetails(choice.source)}</small>
-                      {external ? (
-                        <small className={styles.sourceExplanation}>
-                          {enUS.details.openExternal} · {external.host}
-                        </small>
-                      ) : null}
-                      {!selectable ? (
-                        <small className={styles.sourceExplanation}>{unavailable}</small>
-                      ) : null}
-                    </span>
-                    <span className={styles.sourceMeta}>
-                      {playable ? (
-                        <span className={styles.sourcePlay}>
-                          <Play aria-hidden size={14} weight="fill" />
-                          {enUS.details.playSource}
-                        </span>
-                      ) : null}
-                      {size ? <span>{size}</span> : null}
-                      <span>{choice.addonName}</span>
-                      {!selectable ? <em>{enUS.details.unavailable}</em> : null}
-                      {playable && failed ? <em>{enUS.details.failed}</em> : null}
-                    </span>
-                  </button>
-                  <details className={styles.sourceDisclosure} key={key}>
-                    <summary>
-                      {enUS.details.inspectSource}
-                      <span className={styles.visuallyHidden}> {sourceTitle(choice.source)}</span>
-                    </summary>
-                    <div className={styles.sourceDescription}>
-                      <p>{choice.source.description?.trim() || sourceDetails(choice.source)}</p>
-                      {choice.source.hints.filename ? (
-                        <dl>
-                          <dt>{enUS.details.filename}</dt>
-                          <dd>{choice.source.hints.filename}</dd>
-                        </dl>
-                      ) : null}
-                      {!selectable ? <p>{unavailable}</p> : null}
-                    </div>
-                  </details>
-                </div>
-              );
-            })}
-          </div>
-        </section>
+        {item.type !== 'series' ? sourceSection : null}
       </div>
+      {item.type === 'series' && sourcePickerOpen ? (
+        <SourcePickerDialog
+          returnFocus={selectedEpisodeRef}
+          title={activeVideo?.title || display.name}
+          onClose={() => setSourcePickerOpen(false)}
+        >
+          {sourceSection}
+        </SourcePickerDialog>
+      ) : null}
       {currentExternal ? (
         <ExternalSourceDialog url={currentExternal.url} onClose={() => setExternalChoice(null)} />
       ) : null}
