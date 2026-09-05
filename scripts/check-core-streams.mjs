@@ -2,9 +2,15 @@
 
 import assert from 'node:assert/strict';
 
-import { adaptCoreState } from '../apps/desktop/src/core/adapters.ts';
+import { adaptContinueWatchingState, adaptCoreState } from '../apps/desktop/src/core/adapters.ts';
+import { loadPlayerAction, playerAction } from '../apps/desktop/src/core/actions.ts';
 import { torrentCreateRequest } from '../apps/desktop/src/player/torrent.ts';
-import { initializeCore, resolveCoreStream } from './test-support/core-stream.mjs';
+import {
+  fixturePreview,
+  fixtureSource,
+  initializeCore,
+  resolveCoreStream,
+} from './test-support/core-stream.mjs';
 
 const core = await initializeCore();
 const tracker = 'https://tracker.invalid/announce';
@@ -32,4 +38,54 @@ assert.deepEqual(
 );
 assert.equal(request.body.guessFileIdx, false);
 console.log('Pinned Core torrent resolution preserves trackers in the engine request.');
+
+for (const stream of [
+  fixtureSource({
+    url: 'https://media.invalid/remembered.mp4',
+    behaviorHints: {
+      proxyHeaders: { request: { Referer: 'https://media.invalid/' } },
+    },
+  }),
+  fixtureSource({
+    infoHash: '0123456789abcdef0123456789abcdef01234567',
+    fileIdx: 2,
+    sources: ['tracker:https://tracker.invalid/announce'],
+  }),
+]) {
+  core.dispatch(
+    loadPlayerAction({
+      meta: fixturePreview,
+      metaTransportUrl: 'https://metadata.invalid/manifest.json',
+      streamTransportUrl: 'https://streams.invalid/manifest.json',
+      stream,
+      video: null,
+      nextVideo: null,
+    }),
+    'player',
+    '',
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  core.dispatch(playerAction('VideoParamsChanged', { videoParams: null }), 'player', '');
+  core.dispatch(
+    playerAction('TimeChanged', { time: 30000, duration: 120000, device: 'kino' }),
+    'player',
+    '',
+  );
+  core.dispatch(playerAction('PausedChanged', { paused: true }), 'player', '');
+  await new Promise((resolve) => setImmediate(resolve));
+  core.dispatch({ action: 'Unload' }, 'player', '');
+  await new Promise((resolve) => setImmediate(resolve));
+  const item = adaptContinueWatchingState(
+    core.get_state('continue_watching_preview'),
+    core.decode_stream,
+  ).items[0];
+  assert.equal(item.progress, 25);
+  assert.deepEqual(item.rememberedSource, {
+    stream,
+    transportUrl: 'https://streams.invalid/manifest.json',
+  });
+}
+console.log(
+  'Pinned Core Continue Watching links preserve the last source, headers, add-on, and progress.',
+);
 process.exit(0);

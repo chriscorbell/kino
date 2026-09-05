@@ -14,6 +14,9 @@ import styles from './App.module.css';
 import { CoreRecovery } from './components/CoreRecovery';
 import { AccountDialog } from './components/AccountDialog';
 import type { PlaybackSelection } from './core/actions';
+import { useCore } from './core/context';
+import { savedTitlePreview } from './core/preview';
+import type { ResumeRequest } from './core/resume';
 import { sourceKey } from './core/sources';
 import type { CoreMetaPreview, ProfileState } from './core/types';
 import { useCoreModel } from './core/useCoreModel';
@@ -94,6 +97,7 @@ function accountInitial(profile: ProfileState | null) {
 }
 
 export function App() {
+  const { transport } = useCore();
   const updates = useUpdates();
   const [screen, setScreen] = useState<Screen>('home');
   const [entry, setEntry] = useState<NavigationEntry>(() => ({
@@ -108,6 +112,7 @@ export function App() {
   const previousView = useRef<string | null>(null);
   const [detail, setDetail] = useState<CoreMetaPreview | null>(null);
   const [detailVideoId, setDetailVideoId] = useState<string | null>(null);
+  const [resumeRequest, setResumeRequest] = useState<ResumeRequest | null>(null);
   const [playback, setPlayback] = useState<PlaybackSelection | null>(null);
   const [failedSources, setFailedSources] = useState<ReadonlyMap<string, string>>(new Map());
   const [accountOpen, setAccountOpen] = useState(false);
@@ -152,12 +157,17 @@ export function App() {
       setEntry((previous) => ({ ...previous, scrollTop, focus }));
     }
     setDetail(item);
+    setResumeRequest(null);
     setDetailVideoId(videoId ?? null);
     setFailedSources(new Map());
     setScreen('detail');
   };
 
   const closePlayer = useCallback(() => setPlayback(null), []);
+  const cancelResume = useCallback(() => setResumeRequest(null), []);
+  const resumeUnavailable = useCallback(() => {
+    setResumeRequest((request) => (request ? { ...request, checking: false } : null));
+  }, []);
   // Stable across settings re-renders: an unstable identity would restart the
   // player's load effect while a stream is playing.
   const reportSourceFailure = useCallback(
@@ -209,7 +219,15 @@ export function App() {
   const content = (() => {
     switch (entry.screen) {
       case 'home':
-        return <HomeScreen onOpen={openDetail} />;
+        return (
+          <HomeScreen
+            onOpen={openDetail}
+            onResume={(item) => {
+              openDetail(savedTitlePreview(item), item.videoId);
+              setResumeRequest({ checking: true, item, transport });
+            }}
+          />
+        );
       case 'search':
         return <SearchScreen onOpen={openDetail} />;
       case 'discover':
@@ -317,10 +335,14 @@ export function App() {
               key={`${detail.type}:${detail.id}`}
               initialVideoId={detailVideoId}
               item={detail}
+              resumeRequest={resumeRequest}
+              onCancelResume={cancelResume}
+              onResumeUnavailable={resumeUnavailable}
               onBack={() => setScreen(entry.screen)}
               onPlay={(selection) => {
                 // Details unmounts during playback so Up Next can select a new episode on return.
                 setDetailVideoId(selection.video?.id ?? null);
+                setResumeRequest(null);
                 setPlayback(selection);
               }}
             />

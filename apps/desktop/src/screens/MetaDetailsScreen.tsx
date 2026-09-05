@@ -16,6 +16,7 @@ import {
   type PlaybackSelection,
 } from '../core/actions';
 import { useCore } from '../core/context';
+import { checkResumeSource, type ResumeRequest } from '../core/resume';
 import {
   classifySource,
   externalWebUrl,
@@ -48,12 +49,18 @@ export function MetaDetailsScreen({
   item,
   onBack,
   onPlay,
+  resumeRequest = null,
+  onCancelResume,
+  onResumeUnavailable,
 }: {
   failedSources: ReadonlyMap<string, string>;
   initialVideoId?: string | null;
   item: CoreMetaPreview;
   onBack: () => void;
   onPlay: (selection: PlaybackSelection) => void;
+  resumeRequest?: ResumeRequest | null;
+  onCancelResume?: () => void;
+  onResumeUnavailable?: () => void;
 }) {
   const { transport } = useCore();
   const libraryAction = useActionFeedback(transport);
@@ -68,6 +75,27 @@ export function MetaDetailsScreen({
     loadMetaDetailsAction(item, videoId),
     `${item.type}:${item.id}:${videoId ?? 'guess'}`,
   );
+  const checkedResume = useRef<ResumeRequest | null>(null);
+  const checkingResume = Boolean(resumeRequest?.checking);
+  useEffect(() => {
+    if (!resumeRequest?.checking || checkedResume.current === resumeRequest) return;
+    const decision =
+      resumeRequest.transport === transport
+        ? checkResumeSource(resumeRequest.item, result.state, result.loading, result.error)
+        : 'unavailable';
+    if (decision === 'pending') return;
+    checkedResume.current = resumeRequest;
+    if (decision === 'unavailable') onResumeUnavailable?.();
+    else onPlay(decision);
+  }, [
+    onPlay,
+    onResumeUnavailable,
+    result.error,
+    result.loading,
+    result.state,
+    resumeRequest,
+    transport,
+  ]);
   const resource = result.state?.metaItem;
   const loadedMeta =
     resource?.content.type === 'Ready' &&
@@ -208,6 +236,7 @@ export function MetaDetailsScreen({
       (item.type !== 'series' && !savedProgress.videoId));
 
   const chooseVideo = (id: string) => {
+    onCancelResume?.();
     setStartOver(false);
     setVideoId(id);
   };
@@ -240,6 +269,11 @@ export function MetaDetailsScreen({
 
   const sourceSection = (
     <section aria-labelledby="sources-heading" className={styles.detailSection}>
+      {resumeRequest ? (
+        <p className={styles.inlineEmpty} role="status">
+          {checkingResume ? enUS.details.checkingResume : enUS.details.resumeUnavailable}
+        </p>
+      ) : null}
       <ResourceFailures
         names={failures}
         error={result.error ? enUS.details.error : null}
@@ -254,6 +288,7 @@ export function MetaDetailsScreen({
         <div className={styles.resumeChoice} role="group" aria-label={enUS.details.playbackStart}>
           <button
             aria-pressed={!startOver}
+            disabled={checkingResume}
             className={!startOver ? styles.seasonActive : styles.seasonButton}
             onClick={() => setStartOver(false)}
             type="button"
@@ -262,6 +297,7 @@ export function MetaDetailsScreen({
           </button>
           <button
             aria-pressed={startOver}
+            disabled={checkingResume}
             className={startOver ? styles.seasonActive : styles.seasonButton}
             onClick={() => setStartOver(true)}
             type="button"
@@ -305,7 +341,7 @@ export function MetaDetailsScreen({
             <div className={styles.sourceRow} key={`${choice.transportUrl}:${index}`}>
               <button
                 className={styles.sourceButton}
-                disabled={!selectable || !sourcesCurrent || !choice.current}
+                disabled={checkingResume || !selectable || !sourcesCurrent || !choice.current}
                 onClick={() => {
                   if (!sourcesCurrent || !choice.current) return;
                   if (external) {
@@ -499,7 +535,10 @@ export function MetaDetailsScreen({
         <SourcePickerDialog
           returnFocus={selectedEpisodeRef}
           title={activeVideo?.title || display.name}
-          onClose={() => setSourcePickerOpen(false)}
+          onClose={() => {
+            onCancelResume?.();
+            setSourcePickerOpen(false);
+          }}
         >
           {sourceSection}
         </SourcePickerDialog>
