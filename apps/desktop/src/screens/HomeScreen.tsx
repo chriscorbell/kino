@@ -135,7 +135,7 @@ export function HomeScreen({
                   {enUS.home.resume}
                 </button>
                 <button
-                  aria-label={`${enUS.home.dismiss} ${item.name}`}
+                  aria-label={enUS.home.dismissTitle(item.name)}
                   className={styles.continueDismiss}
                   disabled={dismissal.pending}
                   aria-busy={dismissal.pending}
@@ -169,15 +169,15 @@ export function HomeScreen({
         pending={catalogsPending}
         onRetry={board.retry}
       />
-      {core.error ? <p className={styles.loadError}>Stremio Core failed: {core.error}</p> : null}
+      {core.error ? <p className={styles.loadError}>{enUS.core.failed(core.error)}</p> : null}
       {!catalogsPending && !board.error && !resources.failures.length && typedRows.length === 0 ? (
         <section className={styles.homeSection} aria-label={enUS.home.catalogs}>
           <h2>{enUS.home.catalogs}</h2>
           <p className={styles.inlineEmpty}>
             {context.loading
-              ? 'Loading the guest profile…'
+              ? enUS.core.guestLoading
               : context.error
-                ? `Guest profile failed: ${context.error}`
+                ? enUS.core.guestFailed(context.error)
                 : context.state?.profile.addons.length
                   ? enUS.home.catalogsUnavailable
                   : enUS.home.catalogsEmpty}

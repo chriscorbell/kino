@@ -292,10 +292,10 @@ export function App() {
             ))}
           </nav>
           <button
-            aria-label={profile.state?.profile.auth ? 'Stremio account' : 'Sign in to Stremio'}
+            aria-label={profile.state?.profile.auth ? enUS.account.title : enUS.account.signInTitle}
             className={styles.profileButton}
             onClick={() => setAccountOpen(true)}
-            title={profile.state?.profile.auth ? 'Stremio account' : 'Sign in to Stremio'}
+            title={profile.state?.profile.auth ? enUS.account.title : enUS.account.signInTitle}
             type="button"
           >
             {accountInitial(profile.state)}

@@ -74,12 +74,12 @@ function introIdentity(selection: PlaybackSelection, durationMs: number) {
 
 function nativeErrorMessage(code: unknown) {
   if (code === 'hardware-decoding-unavailable') {
-    return 'This source could not be hardware-decoded on this Mac.';
+    return enUS.player.hardwareDecodingFailed;
   }
   if (code === 'render-context-unavailable') {
-    return 'Kino could not start the native video renderer.';
+    return enUS.player.rendererFailed;
   }
-  return 'The native player could not decode or load this source.';
+  return enUS.player.nativePlaybackFailed;
 }
 
 function nativeChapterCues(value: unknown): ChapterCue[] {
@@ -108,11 +108,11 @@ function AdjustRow({
     <div className={styles.subtitleAdjustRow}>
       <span>{label}</span>
       <span className={styles.subtitleAdjustControls}>
-        <button aria-label={`${enUS.player.decrease} ${label}`} onClick={onDecrease} type="button">
+        <button aria-label={enUS.player.decrease(label)} onClick={onDecrease} type="button">
           <Minus aria-hidden size={14} />
         </button>
         <span className={styles.subtitleAdjustValue}>{value}</span>
-        <button aria-label={`${enUS.player.increase} ${label}`} onClick={onIncrease} type="button">
+        <button aria-label={enUS.player.increase(label)} onClick={onIncrease} type="button">
           <Plus aria-hidden size={14} />
         </button>
       </span>
@@ -387,7 +387,7 @@ export function PlayerScreen({
     }
     void video.play().catch((error: unknown) => {
       setPaused(true);
-      reportFailure('Playback could not start with this source.', {
+      reportFailure(enUS.player.startFailed, {
         code: error instanceof DOMException ? error.name : 'UnknownError',
       });
     });
@@ -489,7 +489,7 @@ export function PlayerScreen({
       })
       .catch((error: unknown) => {
         if (disposed) return;
-        reportFailure('Kino could not connect to the native player.', {
+        reportFailure(enUS.player.connectionFailed, {
           code: error instanceof Error ? error.message : 'UnknownError',
         });
       });
@@ -501,9 +501,9 @@ export function PlayerScreen({
   useEffect(() => {
     if (result.loading) return;
     if (result.error) {
-      reportFailure('The source could not be prepared.');
+      reportFailure(enUS.player.prepareFailed);
     } else if (result.state?.stream?.type === 'Err') {
-      reportFailure('The add-on could not resolve this source.');
+      reportFailure(enUS.player.resolveFailed);
     }
   }, [reportFailure, result.error, result.loading, result.state]);
 
@@ -562,7 +562,7 @@ export function PlayerScreen({
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === 'AbortError') return;
-        reportFailure('This torrent source could not be prepared.', {
+        reportFailure(enUS.player.torrentFailed, {
           code: error instanceof Error ? error.message : 'UnknownError',
         });
       });
@@ -840,7 +840,7 @@ export function PlayerScreen({
           onError={(event) => {
             const video = event.currentTarget;
             setBuffering(false);
-            reportFailure('This source could not be decoded or loaded.', {
+            reportFailure(enUS.player.playbackFailed, {
               code: video.error?.code ?? 0,
               networkState: video.networkState,
               readyState: video.readyState,
@@ -895,11 +895,13 @@ export function PlayerScreen({
       <div className={styles.playerTopbar} ref={topbarRef}>
         <button onClick={() => finishPlayback(onBack)} type="button">
           <ArrowLeft aria-hidden size={18} />
-          Back to sources
+          {enUS.player.backToSources}
         </button>
         <div>
           <strong>{result.state?.title ?? selection.meta.name}</strong>
-          <span>{selection.video?.title ?? selection.stream.name ?? 'Selected source'}</span>
+          <span>
+            {selection.video?.title ?? selection.stream.name ?? enUS.player.selectedSource}
+          </span>
         </div>
       </div>
 
@@ -909,14 +911,18 @@ export function PlayerScreen({
             {shutdownError}
           </div>
         ) : null}
-        {result.loading ? <div className={styles.playerStatus}>Preparing source…</div> : null}
+        {result.loading ? (
+          <div className={styles.playerStatus}>{enUS.player.preparingSource}</div>
+        ) : null}
         {nativeShell && !nativePlayer ? (
-          <div className={styles.playerStatus}>Preparing native player…</div>
+          <div className={styles.playerStatus}>{enUS.player.preparingNative}</div>
         ) : null}
         {torrent && nativePlayer && !streamUrl ? (
           <div className={styles.playerStatus}>{enUS.player.preparingTorrent}</div>
         ) : null}
-        {streamUrl && buffering ? <div className={styles.playerStatus}>Buffering…</div> : null}
+        {streamUrl && buffering ? (
+          <div className={styles.playerStatus}>{enUS.player.buffering}</div>
+        ) : null}
       </div>
 
       {settings.skipIntroButton &&
@@ -931,7 +937,7 @@ export function PlayerScreen({
           }}
           type="button"
         >
-          Skip Intro
+          {enUS.player.skipIntro}
           <SkipForward aria-hidden size={16} weight="fill" />
         </button>
       ) : null}
@@ -940,7 +946,7 @@ export function PlayerScreen({
         <div className={styles.upNext} role="status">
           <span className={styles.upNextLabel}>{enUS.player.upNext}</span>
           <strong>
-            {selection.nextVideo.title || `Episode ${selection.nextVideo.episode ?? ''}`.trim()}
+            {selection.nextVideo.title || enUS.details.episode(selection.nextVideo.episode)}
           </strong>
           <button
             onClick={() => {
@@ -956,7 +962,7 @@ export function PlayerScreen({
 
       {automaticNotice && marker ? (
         <div className={styles.skipNotice} role="status">
-          <span>Intro skipped</span>
+          <span>{enUS.player.introSkipped}</span>
           <button
             onClick={() => {
               autoSkipSuppressedRef.current = true;
@@ -966,7 +972,7 @@ export function PlayerScreen({
             }}
             type="button"
           >
-            Undo
+            {enUS.player.undo}
           </button>
         </div>
       ) : null}
@@ -1018,19 +1024,19 @@ export function PlayerScreen({
                   label={enUS.player.subtitleDelay}
                   onDecrease={() => changeSubtitleDelay(-500)}
                   onIncrease={() => changeSubtitleDelay(500)}
-                  value={`${subtitleDelayMs >= 0 ? '+' : ''}${(subtitleDelayMs / 1000).toFixed(1)}s`}
+                  value={enUS.player.subtitleDelayValue(subtitleDelayMs)}
                 />
                 <AdjustRow
                   label={enUS.player.subtitleSize}
                   onDecrease={() => changeSubtitleSize(-10)}
                   onIncrease={() => changeSubtitleSize(10)}
-                  value={`${settings.subtitleSize}%`}
+                  value={enUS.format.percent(settings.subtitleSize)}
                 />
                 <AdjustRow
                   label={enUS.player.subtitlePosition}
                   onDecrease={() => changeSubtitlePosition(-5)}
                   onIncrease={() => changeSubtitlePosition(5)}
-                  value={`${settings.subtitlePosition}%`}
+                  value={enUS.format.percent(settings.subtitlePosition)}
                 />
               </div>
             </div>
@@ -1043,7 +1049,7 @@ export function PlayerScreen({
           <div className={styles.timeline}>
             {markerStyle ? <span className={styles.introRange} style={markerStyle} /> : null}
             <input
-              aria-label="Playback position"
+              aria-label={enUS.player.playbackPosition}
               max={duration || 1}
               min={0}
               onChange={(event) => {
@@ -1056,14 +1062,22 @@ export function PlayerScreen({
             />
           </div>
           <div className={styles.controlRow}>
-            <button aria-label={paused ? 'Play' : 'Pause'} onClick={togglePlayback} type="button">
+            <button
+              aria-label={paused ? enUS.player.play : enUS.player.pause}
+              onClick={togglePlayback}
+              type="button"
+            >
               {paused ? (
                 <Play aria-hidden size={20} weight="fill" />
               ) : (
                 <Pause aria-hidden size={20} weight="fill" />
               )}
             </button>
-            <button aria-label={muted ? 'Unmute' : 'Mute'} onClick={toggleMuted} type="button">
+            <button
+              aria-label={muted ? enUS.player.unmute : enUS.player.mute}
+              onClick={toggleMuted}
+              type="button"
+            >
               {muted || volume === 0 ? (
                 <SpeakerSlash aria-hidden size={20} />
               ) : (
@@ -1072,7 +1086,7 @@ export function PlayerScreen({
             </button>
             <input
               aria-label={enUS.player.volume}
-              aria-valuetext={`${Math.round(volume)}%`}
+              aria-valuetext={enUS.format.percent(Math.round(volume))}
               className={styles.volumeSlider}
               min={0}
               max={100}

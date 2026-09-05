@@ -1,11 +1,17 @@
-import { enUS } from './en-US';
+import { enUS } from './en-US.ts';
 
-export type Locale = typeof enUS;
+// Preserve message parameters while allowing translations to change the text.
+type Translated<Value> = Value extends string
+  ? string
+  : Value extends (...args: infer Args) => string
+    ? (...args: Args) => string
+    : { [Key in keyof Value]: Translated<Value[Key]> };
+export type Locale = Translated<typeof enUS>;
 
 // Locales are registered here as they are translated. Kino resolves the
 // closest match for the device language and falls back to en-US, so a partial
 // locale set never leaves the interface without strings.
-const locales: Record<string, Locale> = { 'en-US': enUS };
+export const locales: Record<string, Locale> = { 'en-US': enUS };
 const fallbackTag = 'en-US';
 
 export function resolveLocaleTag(preferred: readonly string[]): string {

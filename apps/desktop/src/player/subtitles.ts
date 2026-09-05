@@ -1,4 +1,4 @@
-import { t as enUS } from '../locales';
+import { localeTag, t as enUS } from '../locales';
 import type { AddonSubtitle } from '../core/types';
 
 export type { AddonSubtitle };
@@ -27,7 +27,7 @@ const codecLabels: Record<string, string> = {
 
 function languageName(code: string) {
   try {
-    const resolved = new Intl.DisplayNames(['en'], { type: 'language' }).of(code);
+    const resolved = new Intl.DisplayNames([localeTag], { type: 'language' }).of(code);
     return resolved && resolved.toLowerCase() !== code ? resolved : null;
   } catch {
     return null;
@@ -92,7 +92,7 @@ export function subtitleTrackLabel(track: SubtitleTrack) {
   const parts: string[] = [];
   if (language && (!title || !containsWords(title, language))) parts.push(language);
   if (title) parts.push(title);
-  if (parts.length === 0) parts.push(`${enUS.player.subtitleTrack} ${track.id}`);
+  if (parts.length === 0) parts.push(enUS.player.subtitleTrack(track.id));
   const name = parts.join(' · ');
   if (track.forced && !containsWords(name, enUS.player.subtitleForced))
     parts.push(enUS.player.subtitleForced);
@@ -117,7 +117,7 @@ export function labelSubtitleTracks(tracks: SubtitleTrack[]) {
     // IDs stay stable when mpv reorders tracks or adds an external subtitle.
     const label =
       counts.get(base.toLowerCase())! > 1
-        ? `${base} · ${enUS.player.subtitleTrack} ${track.id}`
+        ? `${base} · ${enUS.player.subtitleTrack(track.id)}`
         : base;
     return { label, track };
   });
@@ -126,8 +126,7 @@ export function labelSubtitleTracks(tracks: SubtitleTrack[]) {
 export function addonSubtitleLabel(subtitle: AddonSubtitle) {
   return (
     (subtitle.lang ? languageName(subtitle.lang.toLowerCase()) : null) ??
-    subtitle.lang ??
-    'Unknown language'
+    (subtitle.lang || enUS.player.unknownLanguage)
   );
 }
 
@@ -139,25 +138,25 @@ export function labelAddonSubtitles(subtitles: AddonSubtitle[]) {
     const base = addonSubtitleLabel(subtitle);
     const count = (seen.get(base) ?? 0) + 1;
     seen.set(base, count);
-    return { label: count === 1 ? base : `${base} ${count}`, subtitle };
+    return { label: count === 1 ? base : enUS.format.numbered(base, count), subtitle };
   });
 }
 
 // Stremio stores language preferences as ISO 639-2/B codes.
 export const subtitleLanguages = [
-  { label: 'English', value: 'eng' },
-  { label: 'Spanish', value: 'spa' },
-  { label: 'French', value: 'fre' },
-  { label: 'German', value: 'ger' },
-  { label: 'Italian', value: 'ita' },
-  { label: 'Portuguese', value: 'por' },
-  { label: 'Dutch', value: 'dut' },
-  { label: 'Polish', value: 'pol' },
-  { label: 'Russian', value: 'rus' },
-  { label: 'Turkish', value: 'tur' },
-  { label: 'Japanese', value: 'jpn' },
-  { label: 'Korean', value: 'kor' },
-  { label: 'Chinese', value: 'chi' },
-  { label: 'Hindi', value: 'hin' },
-  { label: 'Arabic', value: 'ara' },
+  { label: enUS.languages.eng, value: 'eng' },
+  { label: enUS.languages.spa, value: 'spa' },
+  { label: enUS.languages.fre, value: 'fre' },
+  { label: enUS.languages.ger, value: 'ger' },
+  { label: enUS.languages.ita, value: 'ita' },
+  { label: enUS.languages.por, value: 'por' },
+  { label: enUS.languages.dut, value: 'dut' },
+  { label: enUS.languages.pol, value: 'pol' },
+  { label: enUS.languages.rus, value: 'rus' },
+  { label: enUS.languages.tur, value: 'tur' },
+  { label: enUS.languages.jpn, value: 'jpn' },
+  { label: enUS.languages.kor, value: 'kor' },
+  { label: enUS.languages.chi, value: 'chi' },
+  { label: enUS.languages.hin, value: 'hin' },
+  { label: enUS.languages.ara, value: 'ara' },
 ];

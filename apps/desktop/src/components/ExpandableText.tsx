@@ -34,7 +34,7 @@ export function ExpandableText({
         <button
           aria-controls={id}
           aria-expanded={expanded}
-          aria-label={`${expanded ? t.actions.readLess : t.actions.readMore}: ${label}`}
+          aria-label={expanded ? t.actions.readLessTitle(label) : t.actions.readMoreTitle(label)}
           className={styles.summaryToggle}
           onClick={() => setExpanded((previous) => !previous)}
           type="button"

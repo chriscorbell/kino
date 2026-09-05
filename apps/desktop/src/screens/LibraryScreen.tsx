@@ -13,6 +13,7 @@ import { useBrowseState } from '../navigation';
 
 function typeLabel(type: string | null) {
   if (!type) return enUS.library.all;
+  if (type === 'movie' || type === 'series') return enUS.media[type];
   return `${type.charAt(0).toUpperCase()}${type.slice(1)}`;
 }
 

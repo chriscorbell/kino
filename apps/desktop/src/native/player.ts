@@ -1,3 +1,4 @@
+import { t } from '../locales';
 export interface NativePlayerEvent {
   connect(listener: (name: string, payload: Record<string, unknown>) => void): void;
   disconnect(listener: (name: string, payload: Record<string, unknown>) => void): void;
@@ -119,7 +120,7 @@ function loadChannelScript() {
     script.async = true;
     script.src = 'qrc:///qtwebchannel/qwebchannel.js';
     script.addEventListener('load', () => resolve(), { once: true });
-    script.addEventListener('error', () => reject(new Error('Native channel script failed.')), {
+    script.addEventListener('error', () => reject(new Error(t.core.nativeScriptFailed)), {
       once: true,
     });
     document.head.append(script);
@@ -142,20 +143,17 @@ function connectNativeShell(): Promise<NativeShellConnection | null> {
         const transport = target.qt?.webChannelTransport;
         const Channel = target.QWebChannel;
         if (!transport || !Channel) {
-          reject(new Error('Native channel is unavailable.'));
+          reject(new Error(t.core.nativeUnavailable));
           return;
         }
-        const timeout = window.setTimeout(
-          () => reject(new Error('Native channel timed out.')),
-          5_000,
-        );
+        const timeout = window.setTimeout(() => reject(new Error(t.core.nativeTimeout)), 5_000);
         new Channel(transport, (channel) => {
           window.clearTimeout(timeout);
           const diagnostics = channel.objects.kinoDiagnostics;
           const player = channel.objects.kinoNative;
           const secureStore = channel.objects.kinoSecureStore;
           if (!diagnostics || !player || !secureStore) {
-            reject(new Error('Native shell services are unavailable.'));
+            reject(new Error(t.core.nativeServicesUnavailable));
             return;
           }
           resolve({
