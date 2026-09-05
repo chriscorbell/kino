@@ -69,8 +69,8 @@ ApplicationWindow {
             player.addSubtitles(url, title, lang)
         }
 
-        function load(url, forceStereo) {
-            player.load(url, forceStereo)
+        function load(url, forceStereo, headers) {
+            player.load(url, forceStereo, headers || {})
         }
 
         function seek(seconds) {

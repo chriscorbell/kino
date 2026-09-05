@@ -8,6 +8,9 @@
 #include <QOpenGLContext>
 #include <QOpenGLFramebufferObject>
 #include <QQuickOpenGLUtils>
+#include <QRegularExpression>
+#include <QSet>
+#include <QUrl>
 #include <QVariantList>
 
 #include <algorithm>
@@ -223,6 +226,7 @@ void MpvItem::initialize() {
         {"tone-mapping", "auto"},
         {"hdr-compute-peak", "auto"},
         {"cache", "yes"},
+        {"tls-verify", "yes"},
         {"demuxer-readahead-secs", "10"},
         {"audio-fallback-to-null", "yes"},
         {"audio-client-name", "Kino"},
@@ -253,7 +257,47 @@ void MpvItem::initialize() {
     mpv_observe_property(handle_, 9, "track-list", MPV_FORMAT_NODE);
 }
 
-void MpvItem::load(const QString &url, bool forceStereo) {
+void MpvItem::load(const QString &url, bool forceStereo, const QVariantMap &headers) {
+    // mpv can log arbitrary header values. Keep its free-form messages private
+    // for the rest of this instance, including late events from an earlier load.
+    suppressMpvLogDetails_ = suppressMpvLogDetails_ || !headers.isEmpty();
+    static const QRegularExpression headerName(QStringLiteral("^[!#$%&'*+.^_`|~0-9A-Za-z-]+$"));
+    static const QRegularExpression control(QStringLiteral("[\\x00-\\x08\\x0a-\\x1f\\x7f]"));
+    static const QSet<QString> reserved{
+        QStringLiteral("host"), QStringLiteral("range"), QStringLiteral("content-length"),
+        QStringLiteral("transfer-encoding"), QStringLiteral("connection")};
+    QSet<QString> names;
+    QByteArray headerFields;
+    bool valid = headers.size() <= 64;
+    const QString scheme = QUrl(url).scheme();
+    valid = valid && (headers.isEmpty() || scheme == QLatin1String("https") ||
+                      scheme == QLatin1String("http"));
+    for (auto it = headers.cbegin(); valid && it != headers.cend(); ++it) {
+        const QString name = it.key().toLower();
+        const QString value = it.value().toString();
+        valid = it.value().metaType().id() == QMetaType::QString &&
+                headerName.match(it.key()).hasMatch() && !control.match(value).hasMatch() &&
+                !reserved.contains(name) && !names.contains(name);
+        names.insert(name);
+        // loadfile's options map accepts strings. Escape the string-list
+        // separators so commas remain literal. mpv leaves other backslashes
+        // untouched. HTTP whitespace keeps a trailing backslash from escaping
+        // the separator before the next header.
+        QByteArray field = (it.key() + QStringLiteral(": ") + value).toUtf8();
+        field.replace(",", "\\,");
+        if (field.endsWith('\\')) {
+            field.append(' ');
+        }
+        if (!headerFields.isEmpty()) {
+            headerFields.append(',');
+        }
+        headerFields.append(field);
+        valid = valid && headerFields.size() <= 64 * 1024;
+    }
+    if (!valid) {
+        emitError(QStringLiteral("invalid-request-headers"));
+        return;
+    }
     failed_ = false;
     hardwareDecoderActive_ = false;
     hardwareDecoderTimer_.stop();
@@ -272,9 +316,31 @@ void MpvItem::load(const QString &url, bool forceStereo) {
     mpv_set_property_async(handle_, 0, "sub-delay", MPV_FORMAT_DOUBLE, &subtitleDelay);
     int unpaused = 0;
     mpv_set_property_async(handle_, 0, "pause", MPV_FORMAT_FLAG, &unpaused);
-    const QByteArray encodedUrl = url.toUtf8();
-    const char *command[] = {"loadfile", encodedUrl.constData(), "replace", nullptr};
-    const int result = mpv_command_async(handle_, 0, command);
+    QByteArray encodedUrl = url.toUtf8();
+    char loadfile[] = "loadfile";
+    char replace[] = "replace";
+    char headerOption[] = "http-header-fields";
+    char *optionNames[] = {headerOption};
+    mpv_node optionValue{};
+    optionValue.format = MPV_FORMAT_STRING;
+    optionValue.u.string = headerFields.data();
+    mpv_node_list options{1, &optionValue, optionNames};
+    mpv_node arguments[5]{};
+    for (int index = 0; index < 3; ++index) {
+        arguments[index].format = MPV_FORMAT_STRING;
+    }
+    arguments[0].u.string = loadfile;
+    arguments[1].u.string = encodedUrl.data();
+    arguments[2].u.string = replace;
+    arguments[3].format = MPV_FORMAT_INT64;
+    arguments[3].u.int64 = -1;
+    arguments[4].format = MPV_FORMAT_NODE_MAP;
+    arguments[4].u.list = &options;
+    mpv_node_list commandArguments{5, arguments, nullptr};
+    mpv_node command{};
+    command.format = MPV_FORMAT_NODE_ARRAY;
+    command.u.list = &commandArguments;
+    const int result = mpv_command_node_async(handle_, 0, &command);
     if (result < 0) {
         emitError(QStringLiteral("source-load-failed"));
         return;
@@ -378,6 +444,10 @@ void MpvItem::handleEvent(mpv_event *event) {
         emit playerEvent(QStringLiteral("buffering"), {{QStringLiteral("active"), true}});
         break;
     case MPV_EVENT_FILE_LOADED:
+        // The media demuxer owns its request headers after opening. Clear the
+        // option before an external subtitle can open a separate connection.
+        // Auto-loading sidecar subtitles is disabled during initialization.
+        mpv_set_property_string(handle_, "http-header-fields", "");
         qInfo("[kino:mpv] source metadata loaded");
         break;
     case MPV_EVENT_PLAYBACK_RESTART:
@@ -457,7 +527,9 @@ void MpvItem::handleEvent(mpv_event *event) {
     }
     case MPV_EVENT_LOG_MESSAGE: {
         const auto *entry = static_cast<mpv_event_log_message *>(event->data);
-        if (entry) {
+        if (entry && suppressMpvLogDetails_) {
+            qWarning("[kino:mpv] message omitted for media with request headers");
+        } else if (entry) {
             qWarning("[kino:mpv] message module=%s level=%s detail=%s", entry->prefix,
                      entry->level, entry->text);
         }

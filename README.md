@@ -44,7 +44,10 @@ Run the native property-event regression tests after building with:
 
 ```sh
 ctest --test-dir build/macos --output-on-failure
+pnpm macos:check-request-headers
 ```
+
+Direct media uses the add-on's original HTTPS URL and required request headers in libmpv, independent of any Stremio Service URL saved in the account. TLS certificate verification is required. The native header check drives the production WebChannel and player through a protected media request, external subtitles, and a second source. It verifies literal header values, prevents headers from carrying into subtitles or later sources, rejects header injection and untrusted certificates, and checks diagnostic output for synthetic credentials. It uses `openssl` for the untrusted certificate and generates a short H.264 fixture with `ffmpeg`, or uses `KINO_PLAYBACK_FIXTURE` when provided.
 
 ### Streaming engine
 

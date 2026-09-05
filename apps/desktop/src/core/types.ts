@@ -130,6 +130,10 @@ export interface CoreStream {
   behaviorHints?: {
     filename?: string | null;
     notWebReady?: boolean;
+    proxyHeaders?: {
+      request?: Record<string, string>;
+      response?: Record<string, string>;
+    };
     videoHash?: string | null;
     videoSize?: number | null;
   };

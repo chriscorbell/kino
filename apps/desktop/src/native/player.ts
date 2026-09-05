@@ -10,7 +10,7 @@ export interface NativeEngineEvent {
 
 export interface NativePlayer {
   addSubtitles(url: string, title: string, lang: string): void;
-  load(url: string, forceStereo: boolean): void;
+  load(url: string, forceStereo: boolean, headers: Record<string, string>): void;
   platform: string;
   playerEvent: NativePlayerEvent;
   seek(seconds: number): void;
