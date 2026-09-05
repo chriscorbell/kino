@@ -31,16 +31,20 @@ it('renders all required and optional choices and follows requests that preserve
         : [['genre', year]],
     },
   });
+  const snapshots = new Map<string, unknown>();
   model.read.mockImplementation((_name, action) => {
+    const cacheKey = JSON.stringify(action);
+    if (snapshots.has(cacheKey)) return snapshots.get(cacheKey);
     const selected = action.args.args?.request as CatalogRequest | undefined;
     const year = selected?.path.extra.find(([key]) => key === 'genre')?.[1] ?? '2026';
     const language = selected
       ? (selected.path.extra.find(([key]) => key === 'language')?.[1] ?? null)
       : 'English';
-    return {
+    const result = {
       loading: false,
       error: null,
       state: {
+        selected: { request: request(year, language) },
         catalog: { content: { type: 'Ready', content: [] } },
         selectable: {
           nextPage: false,
@@ -78,6 +82,8 @@ it('renders all required and optional choices and follows requests that preserve
         },
       },
     };
+    snapshots.set(cacheKey, result);
+    return result;
   });
   render(<DiscoverScreen onOpen={vi.fn()} />);
   expect(screen.getAllByRole('combobox')).toHaveLength(2);

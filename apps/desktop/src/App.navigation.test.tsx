@@ -56,7 +56,17 @@ function fixture() {
           : model === 'search'
             ? {
                 selected: { extra: [['search', query]], type: null },
-                catalogs: query ? [{ content: { type: 'Ready', content: [item] } }] : [],
+                catalogs: query
+                  ? [
+                      {
+                        addon,
+                        id: 'top',
+                        name: 'Top',
+                        type: 'movie',
+                        content: { type: 'Ready', content: [item] },
+                      },
+                    ]
+                  : [],
               }
             : model === 'meta_details'
               ? {
@@ -73,7 +83,7 @@ function fixture() {
               : model === 'discover'
                 ? {
                     catalog: { content: { type: 'Ready', content: [item] } },
-                    selected: null,
+                    selected: { request: catalogRequest(genre) },
                     selectable: {
                       nextPage: false,
                       types: [],

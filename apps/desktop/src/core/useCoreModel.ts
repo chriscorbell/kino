@@ -10,10 +10,12 @@ interface CoreModelResult<State> {
   loading: boolean;
   state: State | null;
   unload(): Promise<void>;
+  retry(): void;
 }
 
-interface CoreModelSnapshot<State> extends Omit<CoreModelResult<State>, 'unload'> {
+interface CoreModelSnapshot<State> extends Omit<CoreModelResult<State>, 'unload' | 'retry'> {
   actionKey: string | null;
+  revision: number;
   transport: CoreTransport | null;
 }
 
@@ -30,6 +32,8 @@ export function useCoreModel<Model extends CoreModelName>(
   options?: { beforeUnload: (transport: CoreTransport, loaded: Promise<void>) => Promise<void> },
 ): CoreModelResult<CoreStateMap[Model]> {
   type State = CoreStateMap[Model];
+  const [revision, setRevision] = useState(0);
+  const retry = useCallback(() => setRevision((value) => value + 1), []);
   const { error: coreError, status, transport } = useCore();
   const dispatchLoad = useEffectEvent(async (target: CoreTransport, targetModel: CoreModelName) => {
     if (action) await target.dispatch(action, targetModel);
@@ -43,6 +47,7 @@ export function useCoreModel<Model extends CoreModelName>(
   const unload = useCallback(() => release.current(), []);
   const [result, setResult] = useState<CoreModelSnapshot<State>>({
     actionKey: null,
+    revision: -1,
     error: null,
     loading: true,
     state: null,
@@ -56,12 +61,14 @@ export function useCoreModel<Model extends CoreModelName>(
     const read = async () => {
       try {
         const state = await transport.getState(model);
-        if (!disposed) setResult({ actionKey, error: null, loading: false, state, transport });
+        if (!disposed)
+          setResult({ actionKey, revision, error: null, loading: false, state, transport });
       } catch (error) {
         console.error(`[kino:core] ${model} state failed`, failureDetail(error));
         if (!disposed)
           setResult({
             actionKey,
+            revision,
             error: failureMessage(error),
             loading: false,
             state: null,
@@ -107,6 +114,7 @@ export function useCoreModel<Model extends CoreModelName>(
         if (!disposed)
           setResult({
             actionKey,
+            revision,
             error: failureMessage(error),
             loading: false,
             state: null,
@@ -126,13 +134,17 @@ export function useCoreModel<Model extends CoreModelName>(
         void transport.dispatch({ action: 'Unload' }, model).catch(() => undefined);
       }
     };
-  }, [actionKey, managedUnload, model, status, transport]);
+  }, [actionKey, managedUnload, model, revision, status, transport]);
 
   if (status !== 'ready' || !transport) {
-    return { error: coreError, loading: status === 'loading', state: null, unload };
+    return { error: coreError, loading: status === 'loading', state: null, unload, retry };
   }
-  if (result.actionKey === actionKey && result.transport === transport)
-    return { ...result, unload };
+  if (
+    result.actionKey === actionKey &&
+    result.transport === transport &&
+    result.revision === revision
+  )
+    return { ...result, unload, retry };
   // A new selection reloads the model. Keeping the previous state while that
   // happens stops the screen collapsing and losing its scroll position; a
   // different transport is a different session, so that state is dropped.
@@ -141,5 +153,6 @@ export function useCoreModel<Model extends CoreModelName>(
     loading: true,
     state: result.transport === transport ? result.state : null,
     unload,
+    retry,
   };
 }

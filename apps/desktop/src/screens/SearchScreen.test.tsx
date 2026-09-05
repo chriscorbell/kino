@@ -65,6 +65,10 @@ function setup() {
     ...view,
     requests,
     target,
+    publishState(next: BoardState) {
+      state = next;
+      publish();
+    },
     finish(query: string) {
       state = {
         selected: { extra: [['search', query]], type: null },
@@ -136,4 +140,56 @@ it('cancels pending typing when leaving Search', async () => {
   fixture.unmount();
   await act(async () => vi.advanceTimersByTimeAsync(500));
   expect(fixture.requests).toEqual([]);
+});
+
+it('keeps pending resources distinct from empty and retains successful results while retrying failures', async () => {
+  const fixture = setup();
+  await type('matrix', 300);
+  expect(screen.getByRole('status')).toHaveTextContent('Searching installed add-ons');
+  expect(screen.queryByText('0 results')).not.toBeInTheDocument();
+  const catalog = (id: string, content: BoardState['catalogs'][number]['content']) => ({
+    id,
+    name: id,
+    type: 'movie',
+    addon: { manifest: { id, name: id } },
+    content,
+  });
+  const successful = catalog('one', {
+    type: 'Ready',
+    content: [preview({ id: 'matrix', name: 'Matrix result' })],
+  });
+  await act(async () =>
+    fixture.publishState({
+      selected: { extra: [['search', 'matrix']], type: null },
+      catalogs: [
+        successful,
+        catalog('two', { type: 'Loading' }),
+        catalog('three', {
+          type: 'Err',
+          content: { kind: 'Env', message: 'Provider unavailable' },
+        }),
+      ],
+    }),
+  );
+  expect(screen.getByText('Matrix result')).toBeVisible();
+  expect(screen.getByRole('status')).toHaveTextContent('Searching installed add-ons');
+  expect(screen.getByRole('alert')).toHaveTextContent('three');
+  await act(async () =>
+    fixture.publishState({
+      selected: { extra: [['search', 'matrix']], type: null },
+      catalogs: [
+        successful,
+        catalog('two', { type: 'Ready', content: [] }),
+        catalog('three', {
+          type: 'Err',
+          content: { kind: 'Env', message: 'Provider unavailable' },
+        }),
+      ],
+    }),
+  );
+  expect(screen.getByRole('status')).toHaveTextContent('1 result');
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Retry add-ons' })));
+  expect(fixture.requests).toHaveLength(6);
+  expect(screen.getByText('Matrix result')).toBeVisible();
+  expect(screen.getByRole('status')).toHaveTextContent('Searching installed add-ons');
 });

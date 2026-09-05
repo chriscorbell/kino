@@ -378,3 +378,58 @@ describe('Start Over', () => {
     );
   });
 });
+
+it('announces pending and failed stream providers, keeps successful sources, and retries', async () => {
+  const pending = details('ep1');
+  pending.streams[0]!.content = { type: 'Loading' };
+  const test = mountDetails(pending);
+  await waitFor(() =>
+    expect(screen.getByText('Refreshing sources…')).toHaveAttribute('role', 'status'),
+  );
+  expect(screen.queryByText('No sources were returned for this title.')).not.toBeInTheDocument();
+  const partial = details('ep1');
+  partial.streams.push({
+    addon: {
+      ...addon,
+      manifest: { ...addon.manifest, id: 'failed', name: 'Failed provider' },
+      transportUrl: 'https://failed.invalid/manifest.json',
+    },
+    content: { type: 'Err', content: { kind: 'Env', message: 'Unavailable' } },
+  });
+  await test.publish(partial);
+  expect(screen.getByRole('alert')).toHaveTextContent('Failed provider');
+  expect(screen.getByRole('button', { name: /ep1 source/ })).toBeEnabled();
+  expect(screen.queryByText('No sources were returned for this title.')).not.toBeInTheDocument();
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Retry add-ons' })));
+  expect(test.dispatch).toHaveBeenCalledWith({ action: 'Unload' }, 'meta_details');
+  await test.publish({
+    ...pending,
+    metaItem: { addon, content: { type: 'Loading' } },
+    selected: null,
+    streams: [],
+  });
+  expect(screen.getByRole('button', { name: /ep1 source/ })).toBeDisabled();
+  await test.publish(pending);
+  expect(screen.getByRole('button', { name: /ep1 source/ })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: /ep1 source/ }));
+  expect(test.onPlay).not.toHaveBeenCalled();
+  const empty = details('ep1');
+  empty.streams[0]!.content = { type: 'Ready', content: [] };
+  await test.publish(empty);
+  expect(screen.getByText('No sources were returned for this title.')).toHaveAttribute(
+    'role',
+    'status',
+  );
+  expect(screen.queryByRole('button', { name: /ep1 source/ })).not.toBeInTheDocument();
+});
+
+it('identifies metadata provider failure and offers retry without an empty-source claim', async () => {
+  const failed = details('ep1');
+  failed.metaItem!.content = { type: 'Err', content: { kind: 'Env', message: 'Unavailable' } };
+  failed.streams = [];
+  mountDetails(failed);
+  expect(await screen.findByRole('alert')).toHaveTextContent('Test add-on');
+  expect(screen.getByRole('button', { name: 'Retry add-ons' })).toBeEnabled();
+  expect(screen.queryByText('No sources were returned for this title.')).not.toBeInTheDocument();
+  expect(screen.queryByText('Refreshing sources…')).not.toBeInTheDocument();
+});
