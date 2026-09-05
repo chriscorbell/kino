@@ -5,7 +5,11 @@ import { loadCatalogAction } from '../core/actions';
 import type { CatalogRequest } from '../core/types';
 import { DiscoverScreen } from './DiscoverScreen';
 
-const model = vi.hoisted(() => ({ read: vi.fn() }));
+const model = vi.hoisted(() => ({
+  read: vi.fn(),
+  transport: { dispatch: vi.fn().mockResolvedValue(undefined) },
+}));
+vi.mock('../core/context', () => ({ useCore: () => ({ transport: model.transport }) }));
 vi.mock('../core/useCoreModel', () => ({
   useCoreModel: (...args: unknown[]) => model.read(...args),
 }));
