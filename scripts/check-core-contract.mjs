@@ -307,6 +307,37 @@ assert.equal(failed.metaItem.content.content.kind, 'Env');
 assert.equal(failed.streams[0].content.type, 'Err');
 console.log('Pinned Core: a provider failure stays an Err rather than an empty Ready.');
 
+// Env is not the only failure variant. Core tags UnexpectedResponse with a
+// plain string and EmptyContent with no payload at all, and an add-on that
+// returns no streams produces the latter on an ordinary browse.
+const failureKinds = new Set();
+for (const [body, expected] of [
+  [{ streams: [] }, 'EmptyContent'],
+  [{ metas: [] }, 'UnexpectedResponse'],
+]) {
+  globalThis.fetch = async () => Response.json(body);
+  core.dispatch({ action: 'Unload' }, 'meta_details', '');
+  core.dispatch(
+    loadMetaDetailsAction({ ...meta, id: `variant-${expected}` }, 'variant:1:1'),
+    'meta_details',
+    '',
+  );
+  await tick();
+  const raw = core.get_state('meta_details').streams[0].content;
+  assert.equal(raw.type, 'Err');
+  assert.equal(raw.content.type, expected, 'The pinned serializer still emits this variant.');
+  // The adapter must accept it: a wrong resource kind or an empty response is
+  // ordinary provider behaviour, not a Kino contract violation.
+  const adapted = read('meta_details').streams[0].content;
+  assert.equal(adapted.type, 'Err');
+  assert.equal(adapted.content.kind, expected);
+  failureKinds.add(adapted.content.kind);
+}
+assert.deepEqual([...failureKinds].sort(), ['EmptyContent', 'UnexpectedResponse']);
+console.log(
+  'Pinned Core: Env, UnexpectedResponse, and EmptyContent failures all adapt without a model error.',
+);
+
 /* A contradicted contract rejects the read ---------------------------------- */
 
 const corrupted = structuredClone(core.get_state('discover'));

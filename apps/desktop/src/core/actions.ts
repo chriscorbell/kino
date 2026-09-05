@@ -209,7 +209,11 @@ export function addToLibraryAction(meta: CoreMetaPreview): CoreAction {
         ...present('released', meta.released),
         ...present('runtime', meta.runtime),
         links: [],
-        behaviorHints: { ...present('defaultVideoId', meta.defaultVideoId) },
+        behaviorHints: {
+          ...present('defaultVideoId', meta.defaultVideoId),
+          ...present('featuredVideoId', meta.featuredVideoId),
+          hasScheduledVideos: meta.hasScheduledVideos,
+        },
       },
     },
   };

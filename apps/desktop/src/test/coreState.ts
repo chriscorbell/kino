@@ -18,6 +18,8 @@ export function preview(item: Partial<CoreMetaPreview> & Pick<CoreMetaPreview, '
     background: null,
     defaultVideoId: null,
     description: null,
+    featuredVideoId: null,
+    hasScheduledVideos: false,
     inLibrary: false,
     logo: null,
     name: item.id,

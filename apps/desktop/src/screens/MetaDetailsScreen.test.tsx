@@ -104,6 +104,32 @@ describe('episode source identity', () => {
     Element.prototype.scrollIntoView = vi.fn();
   });
 
+  it('gives a seasonless episode no season tab and still lists it', async () => {
+    // Core reports an absent season as null. A tab per distinct season must skip
+    // that, and the episode itself still belongs in the list.
+    const seasonless = metaItem({
+      id: 'show',
+      name: 'Test series',
+      type: 'series',
+      videos: [
+        video({ id: 'only', title: 'Sole episode', episode: 1 }),
+        video({ id: 'other', title: 'Second episode', episode: 2 }),
+      ],
+    });
+    mountDetails(details('only', seasonless), seasonless, 'only');
+
+    expect(await screen.findByRole('button', { name: /Sole episode/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Second episode/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Season/ })).not.toBeInTheDocument();
+  });
+
+  it('lists only the selected season when Core numbered the episodes', async () => {
+    mountDetails();
+    await screen.findByRole('button', { name: /ep1 source/ });
+    expect(screen.getByRole('button', { name: 'Season 1' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /Episode/ })).toHaveLength(3);
+  });
+
   it('prevents playing a retained source while the new Load is pending or still returns old state', async () => {
     const { dispatch, onPlay, publish } = mountDetails();
     const firstSource = await screen.findByRole('button', { name: /ep1 source/ });

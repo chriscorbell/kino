@@ -9,6 +9,7 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
+import { adaptCoreState } from '../apps/desktop/src/core/adapters.ts';
 import { torrentCreateRequest, torrentMediaUrl } from '../apps/desktop/src/player/torrent.ts';
 import { initializeCore, resolveCoreStream } from './test-support/core-stream.mjs';
 
@@ -145,12 +146,25 @@ try {
     /^KINO_ENGINE_READY (http:\/\/127\.0\.0\.1:\d+\/kino\/[a-f0-9]{64})$/m,
   );
   const core = await initializeCore();
-  const stream = await resolveCoreStream(core, {
+  await resolveCoreStream(core, {
     infoHash: hash,
     fileIdx: 0,
     sources: [`tracker:${trackerUrl}`],
   });
+  // The engine helpers take the adapted torrent source the Player screen holds,
+  // so this reads the resolved stream the same way production does. Core emits
+  // the add-on's peer sources as announce.
+  const resolved = adaptCoreState('player', core.get_state('player')).stream;
+  assert.equal(resolved?.type, 'Ready', 'Core must resolve the synthetic torrent.');
+  const stream = resolved.content.source;
+  assert.equal(stream.kind, 'torrent');
+  assert.deepEqual(stream.sources, [`tracker:${trackerUrl}`]);
   const request = torrentCreateRequest(engineUrl, stream);
+  assert.deepEqual(
+    request.body.peerSearch.sources,
+    [trackerUrl],
+    'The add-on tracker must reach the helper in peerSearch.sources.',
+  );
   const created = await fetchEngine(request.createUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

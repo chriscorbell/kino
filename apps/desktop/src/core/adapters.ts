@@ -151,6 +151,19 @@ function wholeNumber(value: unknown, site: Site): number {
   return result;
 }
 
+function positiveWholeNumber(value: unknown, site: Site): number {
+  const result = wholeNumber(value, site);
+  if (result < 1) fail(site, 'expected a whole number of at least one');
+  return result;
+}
+
+/** A saved offset is a duration; a negative one cannot address a position. */
+function nonNegativeNumber(value: unknown, site: Site, fallback: number): number {
+  const result = numberOr(value, site, fallback);
+  if (result < 0) fail(site, 'expected a nonnegative number');
+  return result;
+}
+
 function optionalWholeNumber(value: unknown, site: Site): number | null {
   return absent(value) ? null : wholeNumber(value, site);
 }
@@ -163,12 +176,18 @@ function optionalTextList(value: unknown, site: Site): string[] | null {
   return absent(value) ? null : textList(value, site);
 }
 
-/** Header names and values cross into a native request; both must be strings. */
+/**
+ * Header names and values cross into a native request, so both must be strings.
+ * A key is add-on-controlled data and can itself carry a credential, so a
+ * rejection reports the entry's position and never the key.
+ */
 function headerRecord(value: unknown, site: Site): Record<string, string> | null {
   const source = optionalRecord(value, site);
   if (!source) return null;
   const headers: Record<string, string> = {};
-  for (const [name, entry] of Object.entries(source)) headers[name] = text(entry, at(site, name));
+  for (const [index, [name, entry]] of Object.entries(source).entries()) {
+    headers[name] = text(entry, at(site, index));
+  }
   return headers;
 }
 
@@ -200,9 +219,11 @@ function loadable<Ready>(
 }
 
 /**
- * Board and Search report a resource failure as a string; MetaDetails and Player
- * report a tagged object. Both become the same application value so a failed
- * resource stays distinguishable from an empty one.
+ * A failed resource is ordinary provider behaviour, never a contract violation,
+ * so every shape pinned Core 0.61.0 emits has to survive. Board and Search flatten
+ * the failure to a string. MetaDetails and Player tag it, and the tag's payload is
+ * an object for Env, a plain string for UnexpectedResponse, and absent for
+ * EmptyContent, which is what an add-on returning no streams produces.
  */
 function resourceFailure(value: unknown, site: Site): CoreResourceFailure {
   if (typeof value === 'string') {
@@ -213,8 +234,11 @@ function resourceFailure(value: unknown, site: Site): CoreResourceFailure {
   }
   const source = record(value, site);
   const kind = text(source.type, at(site, 'type'));
-  const detail = optionalRecord(source.content, at(site, 'content'));
-  const message = detail ? optionalText(detail.message, at(site, 'content.message')) : null;
+  const detail = source.content;
+  if (typeof detail === 'string') return { kind, message: detail };
+  const message = absent(detail)
+    ? null
+    : optionalText(record(detail, at(site, 'content')).message, at(site, 'content.message'));
   return { kind, message: message ?? kind };
 }
 
@@ -223,10 +247,26 @@ function resourceFailure(value: unknown, site: Site): CoreResourceFailure {
 const DISCOVER_PREFIX = '#/discover/';
 
 /**
+ * A request base addresses an add-on over the network, so it has to be an
+ * absolute URL. Which schemes and hosts are allowed stays with the add-on
+ * transport policy, which annotates a stored descriptor rather than hiding it.
+ */
+function requestBase(value: unknown, site: Site): string {
+  const base = identity(value, site);
+  try {
+    new URL(base);
+  } catch {
+    fail(site, 'expected an absolute add-on URL');
+  }
+  return base;
+}
+
+/**
  * Core offers catalog selections as deep links, for example
  * "#/discover/{encoded manifest url}/movie/top?genre=Comedy". A choice with no
  * destination is unavailable and stays null; a destination that claims to be a
- * catalog selection but cannot be decoded is a contract violation.
+ * catalog selection but cannot be decoded, or decodes to an unusable add-on,
+ * type, or catalog, is a contract violation.
  */
 function catalogRequestFromLink(value: unknown, site: Site): CatalogRequest | null {
   if (absent(value)) return null;
@@ -238,21 +278,27 @@ function catalogRequestFromLink(value: unknown, site: Site): CatalogRequest | nu
   if (!encodedBase || !encodedType || !encodedId) {
     fail(site, 'expected a catalog link with an add-on, type, and catalog');
   }
+  let decoded: { base: string; id: string; type: string };
   try {
-    const extra: Array<[string, string]> = [];
-    for (const [name, entry] of new URLSearchParams(query ?? '')) extra.push([name, entry]);
-    return {
+    decoded = {
       base: decodeURIComponent(encodedBase),
-      path: {
-        extra,
-        id: decodeURIComponent(encodedId),
-        resource: 'catalog',
-        type: decodeURIComponent(encodedType),
-      },
+      id: decodeURIComponent(encodedId),
+      type: decodeURIComponent(encodedType),
     };
   } catch {
     fail(site, 'expected a decodable catalog link');
   }
+  const extra: Array<[string, string]> = [];
+  for (const [name, entry] of new URLSearchParams(query ?? '')) extra.push([name, entry]);
+  // Decoding can still yield blanks, so the decoded parts go through the same
+  // checks a request Core hands over directly has to pass.
+  return catalogRequest(
+    {
+      base: decoded.base,
+      path: { extra, id: decoded.id, resource: 'catalog', type: decoded.type },
+    },
+    site,
+  );
 }
 
 function catalogPath(value: unknown, site: Site): CatalogPath {
@@ -268,7 +314,7 @@ function catalogPath(value: unknown, site: Site): CatalogPath {
 function catalogRequest(value: unknown, site: Site): CatalogRequest {
   const source = record(value, site);
   return {
-    base: identity(source.base, at(site, 'base')),
+    base: requestBase(source.base, at(site, 'base')),
     path: catalogPath(source.path, at(site, 'path')),
   };
 }
@@ -276,7 +322,8 @@ function catalogRequest(value: unknown, site: Site): CatalogRequest {
 function libraryRequest(value: unknown, site: Site): LibraryRequest {
   const source = record(value, site);
   return {
-    page: wholeNumber(source.page, at(site, 'page')),
+    // Core's library paging starts at one; page zero cannot be loaded.
+    page: positiveWholeNumber(source.page, at(site, 'page')),
     sort: identity(source.sort, at(site, 'sort')),
     type: optionalText(source.type, at(site, 'type')),
   };
@@ -383,10 +430,19 @@ function posterShape(value: unknown, site: Site): PosterShape {
 
 function adaptMetaPreview(value: unknown, site: Site): CoreMetaPreview {
   const source = record(value, site);
-  const hints = optionalRecord(source.behaviorHints, at(site, 'behaviorHints')) ?? {};
+  const hintsSite = at(site, 'behaviorHints');
+  const hints = optionalRecord(source.behaviorHints, hintsSite) ?? {};
   return {
     background: displayText(source.background, at(site, 'background')),
-    defaultVideoId: displayText(hints.defaultVideoId, at(site, 'behaviorHints.defaultVideoId')),
+    // Kino only opens the default video itself, but AddToLibrary rewrites the
+    // stored item, so the hints Core keeps for a title have to survive the trip.
+    defaultVideoId: displayText(hints.defaultVideoId, at(hintsSite, 'defaultVideoId')),
+    featuredVideoId: displayText(hints.featuredVideoId, at(hintsSite, 'featuredVideoId')),
+    hasScheduledVideos: flagOr(
+      hints.hasScheduledVideos,
+      at(hintsSite, 'hasScheduledVideos'),
+      false,
+    ),
     description: displayText(source.description, at(site, 'description')),
     id: identity(source.id, at(site, 'id')),
     inLibrary: flagOr(source.inLibrary, at(site, 'inLibrary'), false),
@@ -454,7 +510,9 @@ function adaptPlaybackProgress(value: unknown, site: Site): LibraryPlaybackProgr
   const state = record(source.state, at(site, 'state'));
   return {
     id: identity(source._id, at(site, '_id')),
-    timeOffset: numberOr(state.timeOffset, at(site, 'state.timeOffset'), 0),
+    // Resume seeks to this offset. Zero and an unknown position are legitimate;
+    // a negative one is not a place in the media.
+    timeOffset: nonNegativeNumber(state.timeOffset, at(site, 'state.timeOffset'), 0),
     videoId: displayText(state.video_id, at(site, 'state.video_id')),
   };
 }

@@ -40,6 +40,7 @@ import {
   resolveFileIndex,
   torrentCreateRequest,
   torrentMediaUrl,
+  type TorrentSource,
   type TorrentStats,
 } from '../player/torrent';
 import { subtitlePositionRange, subtitleSizeRange, type KinoSettings } from '../settings';
@@ -181,7 +182,25 @@ export function PlayerScreen({
     { beforeUnload: (target, loaded) => saveBeforeUnload(target, loaded) },
   );
   const resolved = result.state?.stream?.type === 'Ready' ? result.state.stream.content : null;
-  const torrent = resolved?.source.kind === 'torrent' ? resolved.source : null;
+  const resolvedTorrent = resolved?.source.kind === 'torrent' ? resolved.source : null;
+  // Every Player snapshot rebuilds the adapted stream, so a progress or subtitle
+  // update would hand the effects below a new object for the same torrent and
+  // restart the streaming engine mid-transfer. Hold it steady by its own values.
+  const infoHash = resolvedTorrent?.infoHash ?? null;
+  const fileIdx = resolvedTorrent?.fileIdx ?? null;
+  const peerSources = resolvedTorrent?.sources.join('\n') ?? null;
+  const torrent = useMemo<TorrentSource | null>(
+    () =>
+      infoHash === null
+        ? null
+        : {
+            fileIdx,
+            infoHash,
+            kind: 'torrent',
+            sources: peerSources ? peerSources.split('\n') : [],
+          },
+    [fileIdx, infoHash, peerSources],
+  );
   // Core wraps direct streams with proxy headers in a URL for the account's
   // Stremio Service. The native backend can send those headers itself, using
   // the original source URL independently of that service's address.

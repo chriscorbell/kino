@@ -94,8 +94,10 @@ export function MetaDetailsScreen({
     return () => window.clearTimeout(timeout);
   }, [item.type, videoId, videos]);
 
+  // A video Core did not place in a season gets no tab. Its season stays null so
+  // the episode list below still shows it under the same null selection.
   const seasons = useMemo(
-    () => [...new Set(videos.map((video) => video.season).filter((value) => value !== undefined))],
+    () => [...new Set(videos.flatMap((video) => (video.season === null ? [] : [video.season])))],
     [videos],
   );
   const activeVideo =
@@ -103,7 +105,7 @@ export function MetaDetailsScreen({
     videos.find((video) => (video.season ?? 0) > 0) ??
     videos[0] ??
     null;
-  const activeSeason = activeVideo?.season ?? seasons[0];
+  const activeSeason = activeVideo?.season ?? seasons[0] ?? null;
   const visibleVideos = videos.filter((video) => video.season === activeSeason);
   const selected = result.state?.selected;
   // The hook retains old state during Load, and NewState reads can arrive late.

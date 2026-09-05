@@ -106,6 +106,9 @@ export interface CoreMetaPreview {
   background: string | null;
   defaultVideoId: string | null;
   description: string | null;
+  /** Carried so AddToLibrary does not reset the hints Core stored for a title. */
+  featuredVideoId: string | null;
+  hasScheduledVideos: boolean;
   id: string;
   inLibrary: boolean;
   logo: string | null;

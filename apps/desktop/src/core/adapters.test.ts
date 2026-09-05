@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { loadCatalogAction, loadLibraryAction, loadPlayerAction } from './actions';
+import {
+  addToLibraryAction,
+  loadCatalogAction,
+  loadLibraryAction,
+  loadPlayerAction,
+} from './actions';
 import {
   adaptCoreState,
   adaptDiscoverState,
@@ -68,6 +73,39 @@ describe('discover', () => {
     expect(detail?.type === 'Err' && detail.content.kind).toBe('Env');
   });
 
+  it('accepts every failure payload pinned Core emits, not only Env', () => {
+    // A tagged failure carries an object for Env, a plain string for
+    // UnexpectedResponse, and nothing at all for EmptyContent, which is what an
+    // add-on returning no streams produces on an ordinary browse.
+    const withFailure = (content: unknown) => {
+      const state = structuredClone(raw('failed_meta_details')) as {
+        streams: Array<{ content: unknown }>;
+      };
+      state.streams[0]!.content = { type: 'Err', content };
+      const resource = adaptMetaDetailsState(state).streams[0]?.content;
+      if (resource?.type !== 'Err') throw new Error('Expected a failed resource.');
+      return resource.content;
+    };
+
+    expect(withFailure({ type: 'Env', content: { code: 1, message: 'Offline' } })).toEqual({
+      kind: 'Env',
+      message: 'Offline',
+    });
+    expect(
+      withFailure({
+        type: 'UnexpectedResponse',
+        content: 'Only Streams can be converted to Vec < Stream >',
+      }),
+    ).toEqual({
+      kind: 'UnexpectedResponse',
+      message: 'Only Streams can be converted to Vec < Stream >',
+    });
+    expect(withFailure({ type: 'EmptyContent' })).toEqual({
+      kind: 'EmptyContent',
+      message: 'EmptyContent',
+    });
+  });
+
   it('marks a choice with no destination unavailable and rejects a broken one', () => {
     const withLink = (discover: unknown) => ({
       selected: null,
@@ -86,6 +124,37 @@ describe('discover', () => {
     expect(() => adaptDiscoverState(withLink('#/discover/%zz/movie/top'))).toThrow(
       CoreContractError,
     );
+  });
+
+  it('checks what a link decodes to, not just that it decoded', () => {
+    const withLink = (discover: string) => ({
+      selected: null,
+      catalog: null,
+      selectable: {
+        catalogs: [],
+        extra: [],
+        nextPage: false,
+        types: [{ type: 'movie', selected: false, deepLinks: { discover } }],
+      },
+    });
+    const addon = encodeURIComponent('https://fixture.invalid/manifest.json');
+
+    // Blank add-on, type, and catalog decode successfully and address nothing.
+    expect(() => adaptDiscoverState(withLink('#/discover/%20/%20/%20'))).toThrow(
+      /discover\.selectable\.types\[0\]\.deepLinks\.discover\.base/,
+    );
+    expect(() => adaptDiscoverState(withLink(`#/discover/${addon}/%20/top`))).toThrow(/path\.type/);
+    expect(() => adaptDiscoverState(withLink(`#/discover/${addon}/movie/%20`))).toThrow(/path\.id/);
+    // An add-on is addressed over the network, so a relative base is unusable.
+    expect(() => adaptDiscoverState(withLink('#/discover/manifest.json/movie/top'))).toThrow(
+      /expected an absolute add-on URL/,
+    );
+    expect(
+      adaptDiscoverState(withLink(`#/discover/${addon}/movie/top`)).selectable?.types[0]?.request,
+    ).toEqual({
+      base: 'https://fixture.invalid/manifest.json',
+      path: { extra: [], id: 'top', resource: 'catalog', type: 'movie' },
+    });
   });
 
   it('rejects a paging flag that is not a boolean', () => {
@@ -123,11 +192,12 @@ describe('library', () => {
     expect(state.catalog[0]).toMatchObject({ id: 'kino-fixture', type: 'series' });
   });
 
-  it('rejects a page that is not a whole number', () => {
+  it.each([-1, 0, 1.5, '2'])('rejects an unloadable page: %s', (page) => {
+    // Core's library paging starts at one.
     const state = structuredClone(raw('ready_library')) as {
       selected: { request: { page: unknown } };
     };
-    state.selected.request.page = -1;
+    state.selected.request.page = page;
     expect(() => adaptLibraryState(state)).toThrow(/library\.selected\.request\.page/);
   });
 });
@@ -251,7 +321,48 @@ describe('sources and playback', () => {
         },
         stream: null,
       }),
-    ).toThrow(/player\.selected\.stream\.behaviorHints\.proxyHeaders\.request\.Authorization/);
+    ).toThrow(/player\.selected\.stream\.behaviorHints\.proxyHeaders\.request\[0\]/);
+  });
+
+  it('reports a bad header by position, because the name is add-on data too', () => {
+    const secret = 'synthetic-secret-8b21';
+    // An add-on chooses both halves of a proxy header, and either can carry a
+    // credential, so neither may reach a message Kino logs.
+    for (const request of [
+      { Authorization: secret, [`x-${secret}`]: 42 },
+      { [`x-${secret}`]: secret, Authorization: 42 },
+    ]) {
+      let message = '';
+      try {
+        adaptPlayerState({
+          selected: {
+            stream: {
+              url: 'https://media.invalid/a.mp4',
+              behaviorHints: { proxyHeaders: { request } },
+            },
+          },
+          stream: null,
+        });
+      } catch (error) {
+        message = (error as Error).message;
+      }
+      expect(message).toMatch(/behaviorHints\.proxyHeaders\.request\[\d\]/);
+      expect(message).not.toContain(secret);
+    }
+  });
+
+  it('rejects a resume offset that is not a position in the media', () => {
+    const withOffset = (timeOffset: unknown) =>
+      adaptPlayerState({
+        libraryItem: { _id: 'fixture', state: { timeOffset, video_id: null } },
+        selected: null,
+        stream: null,
+      });
+    expect(() => withOffset(-1000)).toThrow(/player\.libraryItem\.state\.timeOffset/);
+    // Zero and an unreported position are both legitimate.
+    expect(withOffset(0).libraryItem?.timeOffset).toBe(0);
+    expect(withOffset(null).libraryItem?.timeOffset).toBe(0);
+    expect(withOffset(30_000).libraryItem?.timeOffset).toBe(30_000);
   });
 
   it('rejects an unknown load state and accepts the nulls Core really emits', () => {
@@ -290,6 +401,51 @@ describe('sources and playback', () => {
       progress: 25,
       videoId: 'kino-fixture:1:1',
     });
+  });
+});
+
+describe('library metadata hints', () => {
+  it('carries Core’s title hints through the adapter and back out on AddToLibrary', () => {
+    // AddToLibrary rewrites the stored item, so a hint Kino never displays is
+    // still a hint it must not reset.
+    const behaviorHints = {
+      defaultVideoId: 'episode-1',
+      featuredVideoId: 'episode-2',
+      hasScheduledVideos: true,
+    };
+    const adapted = adaptCoreState('search', {
+      selected: null,
+      catalogs: [
+        {
+          id: 'fixture',
+          name: 'Fixture',
+          type: 'series',
+          addon: { manifest: { id: 'fixture', name: 'Fixture' } },
+          content: {
+            type: 'Ready',
+            content: [{ id: 'show', type: 'series', name: 'Fixture', behaviorHints }],
+          },
+        },
+      ],
+    });
+    const item = adapted.catalogs[0]?.content;
+    if (item?.type !== 'Ready' || !item.content[0]) throw new Error('Expected a ready preview.');
+    expect(item.content[0]).toMatchObject({
+      defaultVideoId: 'episode-1',
+      featuredVideoId: 'episode-2',
+      hasScheduledVideos: true,
+    });
+    expect(
+      (addToLibraryAction(item.content[0]).args as { args: { behaviorHints: unknown } }).args
+        .behaviorHints,
+    ).toEqual(behaviorHints);
+  });
+
+  it('does not invent hints a title never had', () => {
+    expect(
+      (addToLibraryAction(preview({ id: 'plain' })).args as { args: { behaviorHints: unknown } })
+        .args.behaviorHints,
+    ).toEqual({ hasScheduledVideos: false });
   });
 });
 

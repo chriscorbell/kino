@@ -10,6 +10,8 @@ export function savedTitlePreview(item: ContinueWatchingItem | LibraryItem): Cor
     background: null,
     defaultVideoId: null,
     description: null,
+    featuredVideoId: null,
+    hasScheduledVideos: false,
     id: item.id,
     inLibrary: true,
     logo: null,
