@@ -41,8 +41,9 @@ new QWebChannel(qt.webChannelTransport, async channel => {
         native.fullscreenChanged.connect(changed);
         native.setFullscreen(enabled);
       });
-      // Allow macOS to finish its window transition before reversing it.
-      await new Promise(resolve => setTimeout(resolve, 750));
+      // Qt can report visibility before the macOS Space animation finishes.
+      // This probe checks completed transitions, so leave time before reversing one.
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
   } catch (error) { result.error = error.message; }
   await fetch('/result', { method: 'POST', body: JSON.stringify(result) });
@@ -74,7 +75,11 @@ try {
     }),
   ]);
   assert.deepEqual(result, [0, null], `The native shell must close normally: ${diagnostics}`);
-  assert.deepEqual(report, { initial: false, changes: [true, false, true, false] });
+  assert.deepEqual(
+    report,
+    { initial: false, changes: [true, false, true, false] },
+    `Native fullscreen transitions must complete: ${diagnostics}`,
+  );
   console.log('Native WebChannel reports actual fullscreen state through repeated entry and exit.');
 } finally {
   clearTimeout(timer);
