@@ -225,6 +225,7 @@ export const enUS = {
     error: 'Title details could not be loaded.',
     episodes: 'Episodes',
     sources: 'Sources',
+    closeSources: 'Close source picker',
     inspectSource: 'Source details',
     filename: 'Filename',
     playSource: 'Play',

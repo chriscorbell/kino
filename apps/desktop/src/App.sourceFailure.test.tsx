@@ -148,6 +148,7 @@ it.each(['Back from playback', 'Fail playback', 'Up Next'])(
     expect(screen.getByText('Playing Season two episode five')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: exit }));
     const title = exit === 'Up Next' ? 'Season two episode six' : 'Season two episode five';
+    expect(await screen.findByRole('dialog', { name: title })).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByRole('button', { name: new RegExp(title) })).toHaveAttribute(
         'aria-current',

@@ -104,6 +104,28 @@ describe('episode source identity', () => {
     Element.prototype.scrollIntoView = vi.fn();
   });
 
+  it('opens sources as an episode dialog without scrolling the series page, then restores focus', async () => {
+    const { publish } = mountDetails(details('ep1'), meta, null);
+    const episode = await screen.findByRole('button', { name: /Episode two/ });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /ep1 source/ })).not.toBeInTheDocument();
+    episode.focus();
+    fireEvent.click(episode);
+    const dialog = screen.getByRole('dialog', { name: 'Episode two' });
+    expect(dialog).toHaveAttribute('open');
+    expect(screen.getByRole('button', { name: 'Close source picker' })).toHaveFocus();
+    await publish(details('ep2'));
+    expect(screen.getByRole('button', { name: /ep2 source/ })).toBeEnabled();
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Close source picker' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(episode).toHaveFocus();
+    fireEvent.click(episode);
+    fireEvent(screen.getByRole('dialog'), new Event('cancel', { bubbles: true, cancelable: true }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(episode).toHaveFocus();
+  });
+
   it('gives a seasonless episode no season tab and still lists it', async () => {
     // Core reports an absent season as null. A tab per distinct season must skip
     // that, and the episode itself still belongs in the list.
@@ -269,17 +291,21 @@ describe('external source approval', () => {
     expect(source).toHaveTextContent('Open in browser · watch.example');
     source.focus();
     fireEvent.click(source);
-    expect(screen.getByRole('dialog')).toHaveTextContent(
+    expect(screen.getByRole('dialog', { name: 'Open in your browser?' })).toHaveTextContent(
       'https://watch.example/title/123?region=us',
     );
     expect(openExternalUrl).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Open in your browser?' })).not.toBeInTheDocument();
     expect(source).toHaveFocus();
     expect(openExternalUrl).not.toHaveBeenCalled();
     fireEvent.click(source);
     fireEvent.click(screen.getByRole('link', { name: 'Open in browser' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('dialog', { name: 'Open in your browser?' }),
+      ).not.toBeInTheDocument(),
+    );
     expect(openExternalUrl).toHaveBeenCalledExactlyOnceWith(
       'https://watch.example/title/123?region=us',
     );
@@ -295,7 +321,11 @@ describe('external source approval', () => {
       'The browser could not be opened. Try again.',
     );
     fireEvent.click(screen.getByRole('link', { name: 'Open in browser' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('dialog', { name: 'Open in your browser?' }),
+      ).not.toBeInTheDocument(),
+    );
     expect(openExternalUrl).toHaveBeenCalledTimes(2);
     expect(onPlay).not.toHaveBeenCalled();
   });
@@ -318,11 +348,11 @@ describe('external source approval', () => {
       'This stream protocol is not supported.',
     );
     fireEvent.click(source);
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Open in your browser?' })).toBeInTheDocument();
     await publish(details('ep2'));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Open in your browser?' })).not.toBeInTheDocument();
     await publish(externalDetails());
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Open in your browser?' })).not.toBeInTheDocument();
     expect(openExternalUrl).not.toHaveBeenCalled();
   });
 });
