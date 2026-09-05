@@ -1033,6 +1033,14 @@
   color: var(--kino-danger);
 }
 
+.accountCreate {
+  justify-self: center;
+  margin-top: 20px;
+  color: var(--kino-text-muted);
+  font-size: 13px;
+  text-underline-offset: 4px;
+}
+
 @keyframes pulse {
   from {
     opacity: 0.55;
