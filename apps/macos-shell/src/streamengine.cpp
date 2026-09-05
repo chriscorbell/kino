@@ -29,11 +29,15 @@ QString cacheDirectory() {
 StreamEngine::StreamEngine(QObject *parent) : QObject(parent) {
     connect(&process_, &QProcess::readyReadStandardOutput, this,
             &StreamEngine::readReadyLine);
+    connect(&process_, &QProcess::readyReadStandardError, this,
+            &StreamEngine::readDiagnostics);
     connect(&process_, &QProcess::errorOccurred, this, [this](QProcess::ProcessError) {
         fail(QStringLiteral("The streaming engine could not be started."));
     });
     connect(&process_, &QProcess::finished, this,
             [this](int exitCode, QProcess::ExitStatus) {
+                readDiagnostics();
+                consumeDiagnostics("\n");
                 if (url_.isEmpty()) {
                     fail(QStringLiteral("The streaming engine stopped during startup."));
                 } else {
@@ -83,7 +87,7 @@ void StreamEngine::start() {
     QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
     environment.insert(QStringLiteral("KINO_ENGINE_CACHE_DIR"), cacheDir);
     process_.setProcessEnvironment(environment);
-    process_.setProcessChannelMode(QProcess::ForwardedErrorChannel);
+    process_.setProcessChannelMode(QProcess::SeparateChannels);
     process_.start(path, {});
     qInfo("[kino:engine] streaming engine starting");
 }
@@ -98,6 +102,51 @@ void StreamEngine::readReadyLine() {
         error_.clear();
         qInfo("[kino:engine] streaming engine ready");
         emit changed();
+    }
+}
+
+void StreamEngine::readDiagnostics() {
+    consumeDiagnostics(process_.readAllStandardError());
+}
+
+void StreamEngine::consumeDiagnostics(const QByteArray &bytes) {
+    // A pipe read can split any record. Bound the pending record, then pass
+    // complete sanitized helper events through the same logger as the shell.
+    for (char byte : bytes) {
+        if (byte != '\n') {
+            if (diagnosticBuffer_.size() < 16 * 1024 && !droppingDiagnostic_) {
+                diagnosticBuffer_.append(byte);
+            } else {
+                diagnosticBuffer_.clear();
+                droppingDiagnostic_ = true;
+            }
+            continue;
+        }
+        const QByteArray line = std::move(diagnosticBuffer_);
+        diagnosticBuffer_.clear();
+        if (droppingDiagnostic_) {
+            qWarning("[kino:engine] oversized helper diagnostic omitted");
+        } else if (!line.isEmpty()) {
+            const QByteArray prefix("KINO_ENGINE_LOG ");
+            if (!line.startsWith(prefix)) {
+                qWarning("[kino:engine] unstructured helper diagnostic omitted");
+            } else {
+                const QByteArray event = line.mid(prefix.size());
+                const qsizetype separator = event.indexOf(' ');
+                const QByteArray level = event.left(separator);
+                const QByteArray detail = event.mid(separator + 1);
+                if (level == "ERROR") {
+                    qCritical("[kino:engine] %s", detail.constData());
+                } else if (level == "WARN") {
+                    qWarning("[kino:engine] %s", detail.constData());
+                } else if (level == "INFO") {
+                    qInfo("[kino:engine] %s", detail.constData());
+                } else {
+                    qWarning("[kino:engine] invalid helper diagnostic omitted");
+                }
+            }
+        }
+        droppingDiagnostic_ = false;
     }
 }
 

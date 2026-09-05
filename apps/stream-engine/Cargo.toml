@@ -9,7 +9,10 @@ publish = false
 # revision in engine.lock, with patches/ applied. See docs/adr/0015.
 [dependencies]
 anyhow = "1"
+regex = "1"
 stream-server = { path = "../../build/vendor/stream-server/server", package = "server" }
 tokio = { version = "1", features = ["io-std", "io-util", "macros", "rt-multi-thread"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
 
 [workspace]

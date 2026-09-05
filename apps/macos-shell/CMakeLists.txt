@@ -138,4 +138,15 @@ if(BUILD_TESTING)
   )
   add_test(NAME mpvitem_properties COMMAND kino_mpvitem_test)
   set_tests_properties(mpvitem_properties PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  qt_add_executable(
+    kino_logging_test
+    tests/logging_test.cpp
+    src/logging.cpp
+    src/streamengine.cpp
+  )
+  target_include_directories(kino_logging_test PRIVATE src)
+  target_link_libraries(kino_logging_test PRIVATE Qt6::Core Qt6::Qml)
+  add_test(NAME diagnostic_logging COMMAND kino_logging_test)
+  set_tests_properties(diagnostic_logging PROPERTIES TIMEOUT 30)
 endif()

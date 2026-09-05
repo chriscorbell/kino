@@ -16,6 +16,21 @@ namespace {
 
 constexpr qint64 MaxLogSize = 10 * 1024 * 1024;
 constexpr int ArchivedLogCount = 4;
+constexpr qsizetype MaxRecordSize = 64 * 1024;
+
+QByteArray boundedRecord(QByteArray record) {
+    if (record.size() > MaxRecordSize) {
+        const QByteArray suffix(" [truncated]\n");
+        qsizetype end = MaxRecordSize - suffix.size();
+        // Move a cut inside a multibyte character back to its first byte.
+        while (end > 0 && (static_cast<unsigned char>(record.at(end)) & 0xc0) == 0x80) {
+            --end;
+        }
+        record.truncate(end);
+        record.append(suffix);
+    }
+    return record;
+}
 
 QString sanitize(QString message) {
     static const QRegularExpression urlPattern(
@@ -61,7 +76,7 @@ public:
     void write(QtMsgType type, const QMessageLogContext &context, const QString &message) {
         QMutexLocker locker(&mutex_);
         if (!file_.isOpen()) {
-            const QByteArray sanitized = sanitize(message).toUtf8();
+            const QByteArray sanitized = boundedRecord(sanitize(message).toUtf8());
             std::fprintf(stderr, "%s\n", sanitized.constData());
             return;
         }
@@ -77,7 +92,7 @@ public:
                                           QThread::currentThreadId()),
                                                       16),
                                       source, QString::number(context.line), sanitize(message));
-        const QByteArray encoded = line.toUtf8();
+        const QByteArray encoded = boundedRecord(line.toUtf8());
         if (file_.size() + encoded.size() > MaxLogSize) {
             rotate();
         }
@@ -126,6 +141,10 @@ void messageHandler(QtMsgType type, const QMessageLogContext &context, const QSt
 
 void installLocalLogger() {
     const QString dataDirectory = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
-    logger = std::make_unique<RotatingLogger>(dataDirectory + QStringLiteral("/logs"));
+    installLocalLogger(dataDirectory + QStringLiteral("/logs"));
+}
+
+void installLocalLogger(const QString &directory) {
+    logger = std::make_unique<RotatingLogger>(directory);
     qInstallMessageHandler(messageHandler);
 }
