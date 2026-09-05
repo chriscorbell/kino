@@ -1336,13 +1336,15 @@
 
 .discoverFilters {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  align-items: flex-end;
   gap: 22px;
   margin-bottom: 4px;
 }
 
 .catalogTabs {
   display: flex;
+  flex: 1 1 240px;
   flex-wrap: wrap;
   gap: 22px;
   margin-right: auto;
@@ -1370,13 +1372,29 @@
   box-shadow: inset 0 -2px 0 var(--kino-text);
 }
 
+.catalogExtraFilters {
+  display: flex;
+  max-width: 100%;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.catalogFilter {
+  display: grid;
+  max-width: 100%;
+  gap: 6px;
+  color: var(--kino-text-faint);
+  font-size: 11px;
+}
+
 .genreMenu {
   position: relative;
-  flex: 0 0 auto;
+  max-width: 100%;
 }
 
 .genreSelect {
   appearance: none;
+  max-width: 100%;
   min-height: 32px;
   padding: 0 34px 0 14px;
   border: 1px solid var(--kino-border);
