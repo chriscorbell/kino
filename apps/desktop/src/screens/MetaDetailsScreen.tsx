@@ -61,7 +61,12 @@ export function MetaDetailsScreen({
     `${item.type}:${item.id}:${videoId ?? 'guess'}`,
   );
   const resource = result.state?.metaItem;
-  const loadedMeta = resource?.content.type === 'Ready' ? resource.content.content : null;
+  const loadedMeta =
+    resource?.content.type === 'Ready' &&
+    resource.content.content.id === item.id &&
+    resource.content.content.type === item.type
+      ? resource.content.content
+      : null;
   // Choosing an episode reloads the model, and the reloaded state arrives with
   // its metadata still loading. Without the previous copy the episode list
   // unmounts, the page collapses to the hero, and the browser discards the
@@ -73,15 +78,6 @@ export function MetaDetailsScreen({
   const videos = useMemo(() => meta?.videos ?? [], [meta]);
   const sourcesRef = useRef<HTMLElement>(null);
   const episodeChosenRef = useRef(false);
-
-  // Picking an episode is a request to see its sources, so bring them into view.
-  // This waits for the reload to settle: the sources empty while it runs, which
-  // shrinks the page and would clamp an earlier scroll straight back.
-  useEffect(() => {
-    if (!episodeChosenRef.current || result.loading) return;
-    episodeChosenRef.current = false;
-    sourcesRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' });
-  }, [result.loading, videoId]);
 
   useEffect(() => {
     if (item.type !== 'series' || videoId !== null || videos.length === 0) return;
@@ -102,6 +98,28 @@ export function MetaDetailsScreen({
     null;
   const activeSeason = activeVideo?.season ?? seasons[0];
   const visibleVideos = videos.filter((video) => video.season === activeSeason);
+  const selected = result.state?.selected;
+  // The hook retains old state during Load, and NewState reads can arrive late.
+  // Core's selected paths identify the streams in this snapshot. They must also
+  // match the identity that PlaybackSelection will send to the player.
+  const sourcesCurrent =
+    !result.loading &&
+    Boolean(loadedMeta) &&
+    selected?.metaPath.resource === 'meta' &&
+    selected.metaPath.type === item.type &&
+    selected.metaPath.id === item.id &&
+    selected.streamPath?.resource === 'stream' &&
+    selected.streamPath.type === item.type &&
+    selected.streamPath.id === (videoId ?? activeVideo?.id ?? item.id) &&
+    selected.streamPath.id === (activeVideo?.id ?? item.id);
+
+  // Wait for this episode's snapshot before moving the source list into view.
+  useEffect(() => {
+    if (!episodeChosenRef.current || !sourcesCurrent) return;
+    episodeChosenRef.current = false;
+    sourcesRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' });
+  }, [sourcesCurrent, videoId]);
+
   const sources = useMemo<SourceChoice[]>(
     () =>
       result.state?.streams.flatMap((sourceResource) =>
@@ -218,14 +236,14 @@ export function MetaDetailsScreen({
         >
           <div className={styles.detailSectionHeading}>
             <h2 id="sources-heading">{enUS.details.sources}</h2>
-            {result.loading ? <span>{enUS.details.refreshing}</span> : null}
+            {!sourcesCurrent && !result.error ? <span>{enUS.details.refreshing}</span> : null}
           </div>
           {failedSources.size > 0 ? (
             <p className={styles.loadError} role="status">
               {[...failedSources.values()].at(-1)}
             </p>
           ) : null}
-          {!result.loading && sources.length === 0 ? (
+          {sourcesCurrent && sources.length === 0 ? (
             <p className={styles.inlineEmpty}>{enUS.details.noSources}</p>
           ) : null}
           <div className={styles.sourceList}>
@@ -237,10 +255,10 @@ export function MetaDetailsScreen({
               return (
                 <button
                   className={styles.sourceButton}
-                  disabled={!playable}
+                  disabled={!playable || !sourcesCurrent}
                   key={`${source.transportUrl}:${index}`}
                   onClick={() => {
-                    if (!playable || !resource?.addon.transportUrl) return;
+                    if (!sourcesCurrent || !playable || !resource?.addon.transportUrl) return;
                     onPlay({
                       meta: display,
                       metaTransportUrl: resource.addon.transportUrl,
