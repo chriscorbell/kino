@@ -162,7 +162,11 @@ interface CoreResource<Ready> {
 export interface MetaDetailsState {
   libraryItem: unknown | null;
   metaItem: CoreResource<CoreMetaItem> | null;
-  selected: unknown | null;
+  selected: {
+    metaPath: CatalogRequest['path'];
+    streamPath: CatalogRequest['path'] | null;
+    guessStream: boolean;
+  } | null;
   streams: Array<CoreResource<CoreStream[]>>;
   title?: string | null;
 }
