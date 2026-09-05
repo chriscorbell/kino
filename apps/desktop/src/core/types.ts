@@ -27,10 +27,12 @@ interface DiscoverDeepLink {
 }
 
 export interface CatalogWithFiltersState {
+  paging?: { loading: boolean; error: boolean };
   catalog: {
     content: Loadable<CoreMetaPreview[], string> | null;
   } | null;
   selectable: {
+    nextPage: boolean;
     catalogs: Array<
       DiscoverDeepLink & {
         addon: { manifest: { id: string; name: string } };
@@ -172,8 +174,13 @@ interface CoreResource<Ready> {
   content: Loadable<Ready>;
 }
 
+interface LibraryPlaybackProgress {
+  _id: string;
+  state: { timeOffset: number; video_id?: string | null };
+}
+
 export interface MetaDetailsState {
-  libraryItem: unknown | null;
+  libraryItem: LibraryPlaybackProgress | null;
   metaItem: CoreResource<CoreMetaItem> | null;
   selected: {
     metaPath: CatalogRequest['path'];
@@ -190,10 +197,7 @@ export interface PlayerState {
     intro?: { duration?: number | null; from: number; to: number } | null;
     outro?: number | null;
   } | null;
-  libraryItem?: {
-    _id: string;
-    state: { timeOffset: number; video_id?: string | null };
-  } | null;
+  libraryItem?: LibraryPlaybackProgress | null;
   selected: { stream: CoreStream } | null;
   stream: Loadable<CorePlayerStream> | null;
   subtitles?: unknown;
@@ -229,6 +233,7 @@ export interface CoreAddon {
   transportIssue?: AddonTransportIssue | null;
   flags?: { official?: boolean; protected?: boolean };
   manifest: {
+    behaviorHints?: { configurable?: boolean; configurationRequired?: boolean };
     description?: string | null;
     id: string;
     logo?: string | null;

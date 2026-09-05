@@ -52,7 +52,15 @@ describe('settings storage', () => {
       subtitleSize: 100,
       subtitles: false,
       upNext: true,
+      volume: 100,
     });
+  });
+
+  it('restores saved volume and rejects invalid levels', () => {
+    expect(loadSettings(createStorage('{"volume":37}')).volume).toBe(37);
+    for (const volume of [-1, 101, 'quiet', null]) {
+      expect(loadSettings(createStorage(JSON.stringify({ volume }))).volume).toBe(100);
+    }
   });
 
   it('writes the versioned settings record', () => {
