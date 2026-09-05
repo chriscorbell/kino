@@ -94,7 +94,9 @@ jobs:
           restore-keys: brew-${{ runner.os }}-${{ runner.arch }}-
       - name: Install native dependencies
         run: |
+          brew update
           brew install cmake qt mpv pkgconf rust libtorrent-rasterbar boost
+          pkg-config --print-errors --atleast-version=2.1.1 libtorrent-rasterbar
           echo "$(brew --prefix rust)/bin" >> "$GITHUB_PATH"
       - name: Save Homebrew downloads
         if: steps.brew-cache.outputs.cache-hit != 'true'
