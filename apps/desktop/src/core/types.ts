@@ -147,6 +147,13 @@ export interface CoreStream {
   ytId?: string;
 }
 
+// Core's Player serializer resolves add-on streams and renames torrent sources
+// to announce. Keep that output separate from the add-on input used by Load.
+export interface CorePlayerStream extends Omit<CoreStream, 'sources'> {
+  announce?: string[];
+  sources?: never;
+}
+
 export interface CoreMetaItem extends CoreMetaPreview {
   videos: CoreVideo[];
 }
@@ -182,7 +189,7 @@ export interface PlayerState {
     state: { timeOffset: number; video_id?: string | null };
   } | null;
   selected: { stream: CoreStream } | null;
-  stream: Loadable<CoreStream> | null;
+  stream: Loadable<CorePlayerStream> | null;
   subtitles?: unknown;
   title?: string | null;
 }

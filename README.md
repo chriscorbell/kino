@@ -54,6 +54,7 @@ Torrent sources play through a pinned build of the open [stream-server](https://
 brew install rust libtorrent-rasterbar boost
 pnpm engine:build
 pnpm engine:check-profile
+pnpm engine:check-trackers
 pnpm macos:build
 pnpm macos:check-engine
 pnpm macos:check-engine-ui
@@ -68,6 +69,8 @@ Engine diagnostics pass through Kino's sanitizer before entering the shell's rot
 The embedded HTTP API requires a fresh 256-bit token in its base URL, shared with Kino over the helper's private stdout pipe. Every request checks that token, the bound loopback Host, and the configured UI Origin. Only health, torrent creation/removal/media reads, and Kino's seeding/download-limit settings are exposed. The URL works directly with libmpv's byte-range requests and is never included in diagnostics or the startup probe's output. `pnpm macos:check-engine-ui` verifies the production WebChannel and WebEngine path with both local-file and HTTP development UI documents, using disposable engine caches.
 
 The engine profile check streams a private torrent from a local web seed and compares returned range bytes. Set `KINO_ENGINE_MEDIA_FIXTURE` to a legal playback fixture and `KINO_ENGINE_PLAYER_BINARY` to the built Kino executable to include actual libmpv playback in that check.
+
+`pnpm core:check-streams` runs the pinned Core WASM serializer and verifies that add-on torrent trackers survive resolution into the engine request. It runs in CI as part of `pnpm check`. `pnpm engine:check-trackers` also runs a local tracker and a libtorrent seeder with DHT, local discovery, and peer exchange disabled. A random unpublished torrent must transfer through the actual engine using only the tracker supplied through Core. This native check requires the engine build, a C++ compiler, and `pkg-config` for libtorrent.
 
 Run the complete local validation suite with:
 
