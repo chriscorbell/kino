@@ -40,6 +40,12 @@ export const enUS = {
     allGenres: 'All Genres',
     genreLabel: 'Genre',
   },
+  pagination: {
+    loadMore: 'Load more',
+    loading: 'Loading more…',
+    retry: 'Retry',
+    error: 'More titles could not be loaded. Try again.',
+  },
   library: {
     title: 'Library',
     empty: 'Nothing here yet. Add titles from their detail page.',

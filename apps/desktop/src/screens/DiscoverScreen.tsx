@@ -3,6 +3,9 @@ import { useState } from 'react';
 
 import styles from '../App.module.css';
 import { MediaCard } from '../components/MediaCard';
+import { LoadMore } from '../components/LoadMore';
+import { useCore } from '../core/context';
+import type { CoreTransport } from '../core/transport';
 import { loadCatalogAction } from '../core/actions';
 import { catalogRequestFromDeepLink, catalogRequestKey } from '../core/catalog';
 import type { CatalogRequest, CatalogWithFiltersState, CoreMetaPreview } from '../core/types';
@@ -14,12 +17,36 @@ function typeLabel(type: string) {
 }
 
 export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => void }) {
+  const { transport } = useCore();
   const [request, setRequest] = useState<CatalogRequest | null>(null);
   const result = useCoreModel<CatalogWithFiltersState>(
     'discover',
     loadCatalogAction(request),
     catalogRequestKey(request),
   );
+  const key = catalogRequestKey(request);
+  const [operation, setOperation] = useState<{ key: string; transport: CoreTransport } | null>(
+    null,
+  );
+  const [failure, setFailure] = useState<{ key: string; transport: CoreTransport } | null>(null);
+  const loadingPage = Boolean(
+    result.state?.paging?.loading || (operation?.key === key && operation.transport === transport),
+  );
+  const pagingError =
+    !result.loading &&
+    Boolean(
+      result.state?.paging?.error || (failure?.key === key && failure.transport === transport),
+    );
+  const loadMore = () => {
+    if (!transport || loadingPage || result.loading) return;
+    const current = { key, transport };
+    setOperation(current);
+    setFailure(null);
+    void transport
+      .dispatch({ action: 'CatalogWithFilters', args: { action: 'LoadNextPage' } }, 'discover')
+      .catch(() => setFailure(current))
+      .finally(() => setOperation((previous) => (previous === current ? null : previous)));
+  };
   const selectable = result.state?.selectable;
   const content = result.state?.catalog?.content ?? null;
   const items = content?.type === 'Ready' ? content.content : [];
@@ -112,6 +139,9 @@ export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => 
             <MediaCard item={item} key={`${item.type}:${item.id}`} onOpen={() => onOpen(item)} />
           ))}
         </div>
+      ) : null}
+      {selectable?.nextPage || loadingPage || pagingError ? (
+        <LoadMore error={pagingError} loading={result.loading || loadingPage} onLoad={loadMore} />
       ) : null}
     </div>
   );

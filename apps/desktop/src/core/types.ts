@@ -27,10 +27,12 @@ interface DiscoverDeepLink {
 }
 
 export interface CatalogWithFiltersState {
+  paging?: { loading: boolean; error: boolean };
   catalog: {
     content: Loadable<CoreMetaPreview[], string> | null;
   } | null;
   selectable: {
+    nextPage: boolean;
     catalogs: Array<
       DiscoverDeepLink & {
         addon: { manifest: { id: string; name: string } };

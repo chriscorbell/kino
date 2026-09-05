@@ -16,7 +16,7 @@ pnpm install
 pnpm dev
 ```
 
-The client browses, searches, and resolves sources through the real Stremio Core.
+The client browses, searches, and resolves sources through the real Stremio Core. Library and Discover provide Load more controls. Failed later pages retain the visible titles and offer Retry. `pnpm core:check-pagination`, included in `pnpm check`, exercises the pinned WASM with 125 saved titles, duplicate catalog entries, delayed responses, failed-page retries and filter changes.
 
 ### macOS shell
 

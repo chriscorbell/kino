@@ -1,5 +1,8 @@
 import styles from '../App.module.css';
 import { MediaCard } from '../components/MediaCard';
+import { LoadMore } from '../components/LoadMore';
+import { useCore } from '../core/context';
+import type { CoreTransport } from '../core/transport';
 import { loadLibraryAction } from '../core/actions';
 import type { CoreMetaPreview, LibraryState, LibraryRequest } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
@@ -12,14 +15,29 @@ function typeLabel(type: string | null) {
 }
 
 export function LibraryScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => void }) {
+  const { transport } = useCore();
   const [request, setRequest] = useState<LibraryRequest | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const filterKey = `${request?.type ?? 'all'}:${request?.sort ?? 'lastwatched'}`;
   const result = useCoreModel<LibraryState>(
     'library',
     loadLibraryAction(request),
-    `${request?.type ?? 'all'}:${request?.sort ?? 'default'}`,
+    `${filterKey}:${request?.page ?? 1}:${attempt}`,
   );
-  const selectable = result.state?.selectable;
-  const items = result.state?.catalog ?? [];
+  const [retained, setRetained] = useState<{
+    filterKey: string;
+    transport: CoreTransport | null;
+    state: LibraryState;
+  } | null>(null);
+  if (!result.loading && !result.error && result.state && retained?.state !== result.state) {
+    setRetained({ filterKey, transport, state: result.state });
+  }
+  const state =
+    result.state ??
+    (retained?.filterKey === filterKey && retained.transport === transport ? retained.state : null);
+  const selectable = state?.selectable;
+  const items = state?.catalog ?? [];
+  const pagingError = Boolean(result.error && (request?.page ?? 1) > 1 && items.length > 0);
 
   return (
     <div className={styles.page}>
@@ -36,7 +54,7 @@ export function LibraryScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => v
                 if (option.selected) return;
                 setRequest({
                   page: 1,
-                  sort: result.state?.selected?.request.sort ?? 'lastwatched',
+                  sort: state?.selected?.request.sort ?? 'lastwatched',
                   type: option.type,
                 });
               }}
@@ -49,8 +67,12 @@ export function LibraryScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => v
       ) : null}
 
       <div aria-live="polite">
-        {result.loading ? <p className={styles.inlineEmpty}>{enUS.library.loading}</p> : null}
-        {result.error ? <p className={styles.loadError}>{enUS.library.error}</p> : null}
+        {result.loading && items.length === 0 ? (
+          <p className={styles.inlineEmpty}>{enUS.library.loading}</p>
+        ) : null}
+        {result.error && !pagingError ? (
+          <p className={styles.loadError}>{enUS.library.error}</p>
+        ) : null}
         {!result.loading && !result.error && items.length === 0 ? (
           <p className={styles.inlineEmpty}>{enUS.library.empty}</p>
         ) : null}
@@ -77,6 +99,20 @@ export function LibraryScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => v
             );
           })}
         </div>
+      ) : null}
+      {selectable?.nextPage || pagingError ? (
+        <LoadMore
+          error={pagingError}
+          loading={result.loading}
+          onLoad={() => {
+            if (pagingError) setAttempt((previous) => previous + 1);
+            else if (state?.selected)
+              setRequest({
+                ...state.selected.request,
+                page: state.selected.request.page + 1,
+              });
+          }}
+        />
       ) : null}
     </div>
   );
