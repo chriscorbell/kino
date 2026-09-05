@@ -112,7 +112,7 @@ export function App() {
   const reportSourceFailure = useCallback(
     (message: string) => {
       if (playback) {
-        const key = sourceKey(playback.stream, playback.streamTransportUrl);
+        const key = sourceKey(playback.stream, playback.streamTransportUrl, playback);
         setFailedSources((previous) => new Map(previous).set(key, message));
       }
       setPlayback(null);

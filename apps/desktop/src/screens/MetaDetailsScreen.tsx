@@ -134,6 +134,13 @@ export function MetaDetailsScreen({
     [result.state],
   );
   const display = meta ?? item;
+  const sourceSelection = { meta: display, video: activeVideo };
+  const visibleSourceKeys = new Set(
+    sources.map((source) => sourceKey(source.stream, source.transportUrl, sourceSelection)),
+  );
+  const currentFailure = sourcesCurrent
+    ? [...failedSources].findLast(([key]) => visibleSourceKeys.has(key))?.[1]
+    : null;
   const activeIndex = activeVideo ? videos.findIndex((video) => video.id === activeVideo.id) : -1;
   const nextEpisode = activeIndex >= 0 ? (videos[activeIndex + 1] ?? null) : null;
   const inLibrary = libraryOverride ?? display.inLibrary;
@@ -238,9 +245,9 @@ export function MetaDetailsScreen({
             <h2 id="sources-heading">{enUS.details.sources}</h2>
             {!sourcesCurrent && !result.error ? <span>{enUS.details.refreshing}</span> : null}
           </div>
-          {failedSources.size > 0 ? (
+          {currentFailure ? (
             <p className={styles.loadError} role="status">
-              {[...failedSources.values()].at(-1)}
+              {currentFailure}
             </p>
           ) : null}
           {sourcesCurrent && sources.length === 0 ? (
@@ -251,7 +258,9 @@ export function MetaDetailsScreen({
               const support = classifySource(source.stream);
               const playable =
                 (support === 'direct' || support === 'torrent') && Boolean(source.transportUrl);
-              const failed = failedSources.has(sourceKey(source.stream, source.transportUrl));
+              const failed = failedSources.has(
+                sourceKey(source.stream, source.transportUrl, sourceSelection),
+              );
               return (
                 <button
                   className={styles.sourceButton}

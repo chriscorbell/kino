@@ -3,6 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { classifySource, sourceKey, sourceSize } from './sources';
 
 const base = { deepLinks: { player: 'stremio:///player/value' } };
+const selection = {
+  meta: { id: 'show', type: 'series', name: 'Test series', inLibrary: false, watched: false },
+  video: { id: 'ep1', title: 'Episode one' },
+};
 
 describe('source compatibility', () => {
   it('distinguishes direct, torrent, external, and unsupported sources', () => {
@@ -19,12 +23,51 @@ describe('source compatibility', () => {
 
   it('keys sources by transport and stream identity', () => {
     const transport = 'https://addon.example/manifest.json';
-    expect(sourceKey({ ...base, url: 'https://example.com/video.mp4' }, transport)).toBe(
-      `${transport}|https://example.com/video.mp4`,
+    expect(
+      sourceKey({ ...base, url: 'https://example.com/video.mp4' }, transport, selection),
+    ).not.toBe(sourceKey({ ...base, url: 'https://example.com/other.mp4' }, transport, selection));
+  });
+
+  it('distinguishes pack files, guessed episodes and external destinations', () => {
+    const key = (stream: Parameters<typeof sourceKey>[0], video = selection.video) =>
+      sourceKey(stream, 'https://addon.invalid/manifest.json', { ...selection, video });
+    const torrent = { ...base, infoHash: 'ABC' };
+    expect(key({ ...torrent, fileIdx: 0 })).not.toBe(key({ ...torrent, fileIdx: 1 }));
+    expect(key(torrent)).not.toBe(key(torrent, { id: 'ep2', title: 'Episode two' }));
+    expect(key(torrent)).toBe(key({ ...torrent, infoHash: 'abc' }));
+    expect(key({ ...base, externalUrl: 'https://example.invalid/a' })).not.toBe(
+      key({ ...base, externalUrl: 'https://example.invalid/b' }),
     );
-    expect(sourceKey({ ...base, infoHash: 'abc' }, transport)).toBe(`${transport}|abc`);
-    expect(sourceKey({ ...base, url: 'https://example.com/video.mp4' }, transport)).not.toBe(
-      sourceKey({ ...base, url: 'https://example.com/other.mp4' }, transport),
+  });
+
+  it('keeps distinct request credentials separate without depending on header order or display labels', () => {
+    const stream = {
+      ...base,
+      url: 'https://media.invalid/movie.mp4',
+      behaviorHints: {
+        proxyHeaders: {
+          request: { Referer: 'https://addon.invalid/', Authorization: 'Bearer synthetic' },
+        },
+      },
+    };
+    const key = (source: Parameters<typeof sourceKey>[0]) =>
+      sourceKey(source, 'https://addon.invalid/manifest.json', selection);
+    expect(key(stream)).toBe(
+      key({
+        ...stream,
+        name: 'New label',
+        behaviorHints: {
+          proxyHeaders: {
+            request: { authorization: 'Bearer synthetic', referer: 'https://addon.invalid/' },
+          },
+        },
+      }),
+    );
+    expect(key(stream)).not.toBe(
+      key({
+        ...stream,
+        behaviorHints: { proxyHeaders: { request: { Authorization: 'Bearer other-synthetic' } } },
+      }),
     );
   });
 });
