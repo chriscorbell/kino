@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import styles from '../App.module.css';
 import { MediaCard } from '../components/MediaCard';
@@ -7,18 +7,21 @@ import { useCore } from '../core/context';
 import type { BoardState, CoreMetaPreview } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
+import { useBrowseState } from '../navigation';
 
 export function SearchScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => void }) {
   const { transport } = useCore();
-  const [query, setQuery] = useState('');
-  const [submittedQuery, setSubmittedQuery] = useState('');
+  const [{ query, submittedQuery }, setSearch] = useBrowseState('search');
   const normalizedQuery = query.trim();
 
   useEffect(() => {
     if (normalizedQuery === submittedQuery) return;
-    const timer = window.setTimeout(() => setSubmittedQuery(normalizedQuery), 300);
+    const timer = window.setTimeout(
+      () => setSearch((previous) => ({ ...previous, submittedQuery: normalizedQuery })),
+      300,
+    );
     return () => window.clearTimeout(timer);
-  }, [normalizedQuery, submittedQuery]);
+  }, [normalizedQuery, submittedQuery, setSearch]);
 
   const result = useCoreModel<BoardState>(
     'search',
@@ -56,7 +59,7 @@ export function SearchScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => vo
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          setSubmittedQuery(normalizedQuery);
+          setSearch((previous) => ({ ...previous, submittedQuery: normalizedQuery }));
         }}
         role="search"
       >
@@ -64,13 +67,14 @@ export function SearchScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => vo
           {enUS.search.placeholder}
         </label>
         <input
-          autoFocus
           className={styles.searchInput}
           id="catalog-search"
           onChange={(event) => {
             const value = event.target.value;
-            setQuery(value);
-            if (!value.trim()) setSubmittedQuery('');
+            setSearch((previous) => ({
+              query: value,
+              submittedQuery: value.trim() ? previous.submittedQuery : '',
+            }));
           }}
           placeholder={enUS.search.placeholder}
           type="search"
