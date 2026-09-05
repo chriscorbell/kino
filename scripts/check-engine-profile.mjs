@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { once } from 'node:events';
-import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -48,7 +48,10 @@ const child = spawn(binary, [], {
 });
 const exited = once(child, 'exit');
 let output = '';
-child.stderr.resume();
+let diagnostics = '';
+child.stderr.on('data', (data) => {
+  diagnostics += data;
+});
 const timeout = setTimeout(() => child.kill('SIGKILL'), 20000);
 try {
   const address = await new Promise((resolveAddress, reject) => {
@@ -63,6 +66,20 @@ try {
   assert.equal((await fetch(`${address}/heartbeat`)).status, 200);
   const youtube = await fetch(`${address}/yt/abcdefghijk.json`);
   await youtube.arrayBuffer();
+  const missing = await fetch(
+    `${address}/probe/missing/route/not/found?token=KINO_PROBE_QUERY_VALUE&stream=https%3A%2F%2Ftest.invalid%2FKINO_PROBE_URL_VALUE`,
+    {
+      headers: {
+        Authorization: 'Bearer KINO_PROBE_AUTH_VALUE',
+        'X-Custom-Credential': 'KINO_PROBE_HEADER_VALUE',
+        Cookie: 'session=KINO_PROBE_COOKIE_VALUE',
+        'Content-Type': 'application/x-KINO_PROBE_CONTENT_VALUE',
+        Range: 'bytes=0-KINO_PROBE_RANGE_VALUE',
+      },
+    },
+  );
+  assert.equal(missing.status, 404);
+  await missing.arrayBuffer();
   await new Promise((resolveWait) => setTimeout(resolveWait, 1500));
   const results = {
     youtubeStatus: youtube.status,
@@ -76,12 +93,30 @@ try {
   assert.deepEqual(unexpectedRequests, [], 'Only upstream tracker-list HTTP requests are allowed.');
   assert.equal(youtube.status, 404, 'YouTube resolution must be unavailable.');
   assert.equal(results.toolsDirectory, false, 'A clean start must not provision executable tools.');
+  assert.ok(
+    diagnostics.includes('unhandled request'),
+    'Engine failures must reach its diagnostic pipe.',
+  );
+  assert.ok(diagnostics.includes('status=404'), 'Diagnostics must preserve the failure status.');
+  assert.ok(
+    !diagnostics.includes('KINO_PROBE_'),
+    'Credentials must be removed before stderr output.',
+  );
   function checkFiles(directory) {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name);
       if (entry.isDirectory()) checkFiles(path);
-      else
+      else {
         assert.equal(statSync(path).mode & 0o111, 0, `Engine created an executable: ${entry.name}`);
+        assert.ok(
+          !/\.(log|jsonl)$/.test(entry.name),
+          'The helper must not create separate log files.',
+        );
+        assert.ok(
+          !readFileSync(path).includes(Buffer.from('KINO_PROBE_')),
+          'Credentials must not reach engine files.',
+        );
+      }
     }
   }
   checkFiles(root);

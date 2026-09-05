@@ -4022,8 +4022,11 @@ name = "kino-stream-engine"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "regex",
  "server",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

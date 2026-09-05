@@ -10,6 +10,8 @@ use std::path::PathBuf;
 
 use tokio::io::AsyncReadExt;
 
+mod logging;
+
 fn port_from_env() -> u16 {
     std::env::var("KINO_ENGINE_PORT")
         .ok()
@@ -22,12 +24,25 @@ fn cache_dir_from_env() -> Option<PathBuf> {
 }
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> std::process::ExitCode {
+    logging::install();
+    match run().await {
+        Ok(()) => std::process::ExitCode::SUCCESS,
+        Err(error) => {
+            tracing::error!(%error, "streaming engine failed");
+            std::process::ExitCode::FAILURE
+        }
+    }
+}
+
+async fn run() -> anyhow::Result<()> {
     let mut cfg = stream_server::ServerConfig::embedded();
     cfg.http_addr = SocketAddr::from((Ipv4Addr::LOCALHOST, port_from_env()));
     cfg.cache_dir = cache_dir_from_env();
     cfg.config_dir = cfg.cache_dir.clone();
-    cfg.init_logging = true;
+    // Kino owns the subscriber. Upstream writers bypass our redaction and
+    // produce unbounded files outside the folder exposed by Open Log Folder.
+    cfg.init_logging = false;
     cfg.enable_cache_cleaner = true;
 
     let (shutdown_tx, shutdown_rx) = tokio::sync::mpsc::channel(1);

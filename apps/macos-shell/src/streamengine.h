@@ -28,8 +28,12 @@ signals:
 private:
     void fail(const QString &reason);
     void readReadyLine();
+    void readDiagnostics();
+    void consumeDiagnostics(const QByteArray &bytes);
 
     QProcess process_;
     QString error_;
     QString url_;
+    QByteArray diagnosticBuffer_;
+    bool droppingDiagnostic_ = false;
 };
