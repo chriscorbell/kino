@@ -120,6 +120,7 @@ export const enUS = {
     inLibrary: 'In Library',
   },
   player: {
+    volume: 'Volume',
     enterFullscreen: 'Enter fullscreen',
     exitFullscreen: 'Exit fullscreen',
     fullscreenFailed: 'Fullscreen could not be changed. Try again.',

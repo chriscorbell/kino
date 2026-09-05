@@ -289,6 +289,7 @@ void MpvItem::initialize() {
     mpv_observe_property(handle_, 7, "video-format", MPV_FORMAT_STRING);
     mpv_observe_property(handle_, 8, "chapter-list", MPV_FORMAT_NODE);
     mpv_observe_property(handle_, 9, "track-list", MPV_FORMAT_NODE);
+    mpv_observe_property(handle_, 10, "volume", MPV_FORMAT_DOUBLE);
 }
 
 void MpvItem::load(const QString &url, bool forceStereo, const QVariantMap &headers) {
@@ -422,6 +423,12 @@ void MpvItem::setMuted(bool muted) {
     mpv_set_property_async(handle_, 0, "mute", MPV_FORMAT_FLAG, &value);
 }
 
+void MpvItem::setVolume(double percent) {
+    if (!std::isfinite(percent)) return;
+    double value = std::clamp(percent, 0.0, 100.0);
+    mpv_set_property_async(handle_, 0, "volume", MPV_FORMAT_DOUBLE, &value);
+}
+
 void MpvItem::setPaused(bool paused) {
     int value = paused ? 1 : 0;
     mpv_set_property_async(handle_, 0, "pause", MPV_FORMAT_FLAG, &value);
@@ -553,6 +560,12 @@ void MpvItem::handleEvent(mpv_event *event) {
             emit playerEvent(QStringLiteral("muted"),
                              {{QStringLiteral("muted"),
                                *static_cast<int *>(property->data) != 0}});
+        } else if (name == "volume" && property->format == MPV_FORMAT_DOUBLE) {
+            const double percent = *static_cast<double *>(property->data);
+            if (std::isfinite(percent)) {
+                emit playerEvent(QStringLiteral("volume"),
+                                 {{QStringLiteral("percent"), std::clamp(percent, 0.0, 100.0)}});
+            }
         } else if (name == "chapter-list" && property->format == MPV_FORMAT_NODE) {
             const auto *chapters = static_cast<const mpv_node *>(property->data);
             emit playerEvent(
