@@ -16,6 +16,7 @@ vi.mock('../native/player', () => ({
   nativeShellPresent: () => true,
   connectNativeDiagnostics: async () => fixture.diagnostics,
 }));
+vi.mock('../components/EngineSettings', () => ({ EngineSettings: () => null }));
 vi.mock('../core/context', () => ({ useCore: () => ({ transport: null }) }));
 vi.mock('../core/useCoreModel', () => ({ useCoreModel: () => ({ state: null }) }));
 beforeEach(() => vi.clearAllMocks());
