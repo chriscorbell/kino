@@ -45,7 +45,10 @@ export class PendingCoreWork {
 export function trackCoreSync(fetchRequest: typeof fetch, work: PendingCoreWork): typeof fetch {
   return (input, init) => {
     const response = fetchRequest(input, init);
-    const url = new URL(input instanceof Request ? input.url : String(input));
+    const url = new URL(
+      input instanceof Request ? input.url : String(input),
+      globalThis.location?.href,
+    );
     if (url.pathname.endsWith('/datastorePut')) {
       // Core consumes response.text() before processing the sync result. Wait
       // for the body too; receiving HTTP headers does not complete the write.
