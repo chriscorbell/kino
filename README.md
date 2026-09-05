@@ -34,6 +34,8 @@ The shell loads the packaged Kino UI, keeps Stremio authentication material in a
 pnpm macos:check-launch
 ```
 
+Settings can copy a diagnostic summary with application, macOS, Qt, Core, player, and engine versions and playback capabilities. The summary excludes account data, media URLs, paths, and log contents. External engine overrides report an unknown version. The `diagnostic_summary` CTest suite uses an offscreen clipboard contained within the test process.
+
 The player saves volume locally between launches. Its slider and Up/Down shortcuts adjust 0-100% volume; M toggles mute, and raising volume unmutes playback. Focused sliders keep their native keyboard step. Run `pnpm macos:check-volume` to verify the production WebChannel method and libmpv volume notifications, including bounds.
 
 The fullscreen button and F toggle the current window state. Escape exits fullscreen after closing any open subtitle menu. The native bridge follows Qt window visibility, including changes through macOS window controls. Run `pnpm macos:check-fullscreen` to verify the actual WebChannel property and change notifications through repeated entry and exit.

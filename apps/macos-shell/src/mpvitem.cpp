@@ -240,6 +240,14 @@ QQuickFramebufferObject::Renderer *MpvItem::createRenderer() const {
     return new MpvRenderer(context_);
 }
 
+QString MpvItem::version() const {
+    char *value = mpv_get_property_string(handle_, "mpv-version");
+    if (!value) return QStringLiteral("Unavailable");
+    const QString version = QString::fromUtf8(value).trimmed();
+    mpv_free(value);
+    return version;
+}
+
 void MpvItem::initialize() {
     const struct Option {
         const char *name;
