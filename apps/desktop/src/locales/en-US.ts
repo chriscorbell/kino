@@ -57,7 +57,11 @@ export const enUS = {
     install: 'Install',
     installing: 'Installing…',
     installFailed: 'That add-on could not be installed.',
-    insecure: 'Add-on manifests must be served over HTTPS.',
+    transportIssues: {
+      invalid: 'Blocked. Use a valid HTTPS manifest URL without a username or password.',
+      insecure: 'Blocked. This add-on requires an HTTPS manifest URL.',
+      redirect: 'Blocked. This add-on redirects requests. Install its final HTTPS manifest URL.',
+    },
     remove: 'Remove',
     removeFailed: 'That add-on could not be removed.',
     protectedAddon: 'Required',

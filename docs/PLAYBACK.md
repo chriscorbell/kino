@@ -4,6 +4,10 @@
 
 Kino shows every source returned by an installed add-on and asks the user to choose. The source list exposes the add-on name and any available resolution, codec, range, audio, size, and peer information. It preflights clear incompatibilities when the metadata is sufficient but may attempt unknown sources.
 
+Core requests, manual manifest installation, and guest catalog setup require HTTPS. Development builds also allow HTTP to loopback addresses. Stored and synced add-ons follow the same policy. Requests that redirect are blocked because browser fetch conceals the destination before following it; install the final HTTPS manifest URL instead. The Add-ons screen explains blocked transports and leaves them available for removal.
+
+`pnpm core:check-addon-transports` verifies the policy with the pinned Core WASM. `pnpm macos:check-addon-transports` checks actual Qt WebEngine requests against local HTTP and HTTPS fixtures, including a redirect to HTTP whose destination must receive no request.
+
 | Source                               | Version-one behavior                                        |
 | ------------------------------------ | ----------------------------------------------------------- |
 | HTTPS direct media                   | Play internally                                             |
