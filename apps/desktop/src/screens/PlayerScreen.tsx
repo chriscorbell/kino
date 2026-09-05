@@ -8,6 +8,7 @@ import {
   Plus,
   SkipForward,
   SpeakerHigh,
+  SpeakerSlash,
   Subtitles,
 } from '@phosphor-icons/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -46,6 +47,7 @@ import {
 import { subtitlePositionRange, subtitleSizeRange, type KinoSettings } from '../settings';
 import { videoParams } from '../player/videoParams';
 import { useFullscreen } from '../player/useFullscreen';
+import { useIdleControls } from '../player/useIdleControls';
 
 function formatTime(milliseconds: number) {
   const seconds = Math.max(0, Math.floor(milliseconds / 1000));
@@ -136,6 +138,8 @@ export function PlayerScreen({
   const { transport } = useCore();
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const topbarRef = useRef<HTMLDivElement>(null);
+  const controlsRef = useRef<HTMLDivElement>(null);
   const playbackRef = useRef({ duration: 0, time: 0 });
   const closingRef = useRef(false);
   const navigationPendingRef = useRef(false);
@@ -147,6 +151,7 @@ export function PlayerScreen({
   const [time, setTime] = useState(0);
   const [paused, setPaused] = useState(true);
   const [muted, setMuted] = useState(false);
+  const [volume, setVolume] = useState(settings.volume);
   const [buffering, setBuffering] = useState(false);
   const [nativePlayer, setNativePlayer] = useState<NativePlayer | null>(null);
   const {
@@ -191,6 +196,16 @@ export function PlayerScreen({
   );
   const resumeTime = result.state?.libraryItem?.state.timeOffset ?? 0;
   const nativeShell = nativeShellPresent();
+  const controlsVisible = useIdleControls(
+    topbarRef,
+    controlsRef,
+    paused ||
+      buffering ||
+      subtitleMenuOpen ||
+      result.loading ||
+      !streamUrl ||
+      Boolean(shutdownError || fullscreenError),
+  );
   const addonSubtitles = useMemo(
     () => parseAddonSubtitles(result.state?.subtitles),
     [result.state],
@@ -201,6 +216,11 @@ export function PlayerScreen({
     [chapterCues, duration],
   );
   const marker = chapterMarker ?? communityMarker;
+  const nearEnd =
+    Number.isFinite(duration) &&
+    duration > 0 &&
+    Number.isFinite(time) &&
+    time >= duration - Math.min(120_000, duration * 0.1);
 
   const updateDuration = useCallback((milliseconds: number) => {
     playbackRef.current.duration = milliseconds;
@@ -208,6 +228,7 @@ export function PlayerScreen({
   }, []);
 
   const updateTime = useCallback((milliseconds: number) => {
+    if (milliseconds < playbackRef.current.time) setEnded(false);
     playbackRef.current.time = milliseconds;
     setTime(milliseconds);
   }, []);
@@ -353,6 +374,7 @@ export function PlayerScreen({
   const seekTo = useCallback(
     (milliseconds: number) => {
       if (closingRef.current) return;
+      setEnded(false);
       const safeTime = Math.max(0, milliseconds);
       updateTime(safeTime);
       if (nativePlayer) {
@@ -363,6 +385,26 @@ export function PlayerScreen({
     },
     [nativePlayer, updateTime],
   );
+
+  const changeVolume = useCallback(
+    (percent: number) => {
+      if (!Number.isFinite(percent)) return;
+      const next = Math.max(0, Math.min(100, percent));
+      setVolume(next);
+      onSettingsChange({ ...settings, volume: next });
+      if (next > 0 && muted) {
+        setMuted(false);
+        if (nativePlayer) nativePlayer.setMuted(false);
+        else if (videoRef.current) videoRef.current.muted = false;
+      }
+    },
+    [muted, nativePlayer, onSettingsChange, settings],
+  );
+
+  useEffect(() => {
+    if (nativePlayer) nativePlayer.setVolume(settings.volume);
+    else if (videoRef.current) videoRef.current.volume = settings.volume / 100;
+  }, [nativePlayer, settings.volume, streamUrl]);
 
   const toggleMuted = useCallback(() => {
     const nextMuted = !muted;
@@ -522,9 +564,16 @@ export function PlayerScreen({
         updateDuration(payload.milliseconds);
       } else if (name === 'paused' && typeof payload.paused === 'boolean') {
         setPaused(payload.paused);
+        if (!payload.paused) setEnded(false);
         dispatchPlayer('PausedChanged', { paused: payload.paused });
       } else if (name === 'muted' && typeof payload.muted === 'boolean') {
         setMuted(payload.muted);
+      } else if (
+        name === 'volume' &&
+        typeof payload.percent === 'number' &&
+        Number.isFinite(payload.percent)
+      ) {
+        setVolume(Math.max(0, Math.min(100, payload.percent)));
       } else if (name === 'buffering' && typeof payload.active === 'boolean') {
         setBuffering(payload.active);
       } else if (name === 'ready') {
@@ -590,14 +639,20 @@ export function PlayerScreen({
   }, [nativePlayer, preferredSubtitleLanguage, settings.subtitles, subtitleTracks]);
 
   useEffect(() => {
-    if (resumeAppliedRef.current || duration <= 0 || resumeTime <= 0 || resumeTime >= duration)
+    if (
+      selection.resumeMode === 'start-over' ||
+      resumeAppliedRef.current ||
+      duration <= 0 ||
+      resumeTime <= 0 ||
+      resumeTime >= duration
+    )
       return;
     const timeout = window.setTimeout(() => {
       resumeAppliedRef.current = true;
       seekTo(resumeTime);
     }, 0);
     return () => window.clearTimeout(timeout);
-  }, [duration, resumeTime, seekTo]);
+  }, [duration, resumeTime, seekTo, selection.resumeMode]);
 
   useEffect(() => {
     if (!duration || chapterMarker) return;
@@ -695,6 +750,9 @@ export function PlayerScreen({
           : (video?.currentTime ?? 0) * 1000;
         seekTo(Math.max(0, currentTime + (event.key === 'ArrowRight' ? 10_000 : -10_000)));
         reportProgress(true);
+      } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+        event.preventDefault();
+        changeVolume(volume + (event.key === 'ArrowUp' ? 5 : -5));
       } else if (event.key.toLowerCase() === 'm') {
         event.preventDefault();
         toggleMuted();
@@ -706,6 +764,8 @@ export function PlayerScreen({
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [
+    changeVolume,
+    volume,
     exitFullscreen,
     fullscreen,
     nativePlayer,
@@ -728,7 +788,7 @@ export function PlayerScreen({
 
   return (
     <div
-      className={`${styles.player} ${nativeShell ? styles.nativePlayer : ''}`}
+      className={`${styles.player} ${nativeShell ? styles.nativePlayer : ''} ${controlsVisible ? '' : styles.controlsHidden}`}
       ref={containerRef}
     >
       {streamUrl && !nativeShell ? (
@@ -767,10 +827,15 @@ export function PlayerScreen({
             reportProgress();
           }}
           onPlay={() => {
+            setEnded(false);
             setPaused(false);
             dispatchPlayer('PausedChanged', { paused: false });
           }}
           onPlaying={() => setBuffering(false)}
+          onSeeking={(event) => {
+            setEnded(false);
+            updateTime(event.currentTarget.currentTime * 1000);
+          }}
           onSeeked={() => reportProgress(true)}
           onStalled={() => setBuffering(true)}
           onTimeUpdate={(event) => {
@@ -784,11 +849,15 @@ export function PlayerScreen({
           playsInline
           ref={videoRef}
           src={streamUrl}
+          onVolumeChange={(event) => {
+            setVolume(event.currentTarget.volume * 100);
+            setMuted(event.currentTarget.muted);
+          }}
           onWaiting={() => setBuffering(true)}
         />
       ) : null}
 
-      <div className={styles.playerTopbar}>
+      <div className={styles.playerTopbar} ref={topbarRef}>
         <button onClick={() => finishPlayback(onBack)} type="button">
           <ArrowLeft aria-hidden size={18} />
           Back to sources
@@ -832,7 +901,7 @@ export function PlayerScreen({
         </button>
       ) : null}
 
-      {ended && settings.upNext && selection.nextVideo ? (
+      {(ended || nearEnd) && settings.upNext && selection.nextVideo ? (
         <div className={styles.upNext} role="status">
           <span className={styles.upNextLabel}>{enUS.player.upNext}</span>
           <strong>
@@ -868,7 +937,7 @@ export function PlayerScreen({
       ) : null}
 
       {streamUrl ? (
-        <div className={styles.playerControls}>
+        <div className={styles.playerControls} ref={controlsRef}>
           {subtitleMenuOpen && nativePlayer ? (
             <div
               aria-label={enUS.player.subtitles}
@@ -960,8 +1029,23 @@ export function PlayerScreen({
               )}
             </button>
             <button aria-label={muted ? 'Unmute' : 'Mute'} onClick={toggleMuted} type="button">
-              <SpeakerHigh aria-hidden size={20} />
+              {muted || volume === 0 ? (
+                <SpeakerSlash aria-hidden size={20} />
+              ) : (
+                <SpeakerHigh aria-hidden size={20} />
+              )}
             </button>
+            <input
+              aria-label={enUS.player.volume}
+              aria-valuetext={`${Math.round(volume)}%`}
+              className={styles.volumeSlider}
+              min={0}
+              max={100}
+              step={1}
+              type="range"
+              value={volume}
+              onChange={(event) => changeVolume(Number(event.target.value))}
+            />
             <span className={styles.timeLabel}>
               {formatTime(time)} / {formatTime(duration)}
             </span>

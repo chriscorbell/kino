@@ -34,6 +34,10 @@ The shell loads the packaged Kino UI, keeps Stremio authentication material in a
 pnpm macos:check-launch
 ```
 
+Settings can copy a diagnostic summary with application, macOS, Qt, Core, player, and engine versions and playback capabilities. The summary excludes account data, media URLs, paths, and log contents. External engine overrides report an unknown version. The `diagnostic_summary` CTest suite uses an offscreen clipboard contained within the test process.
+
+The player saves volume locally between launches. Its slider and Up/Down shortcuts adjust 0-100% volume; M toggles mute, and raising volume unmutes playback. Focused sliders keep their native keyboard step. Run `pnpm macos:check-volume` to verify the production WebChannel method and libmpv volume notifications, including bounds.
+
 The fullscreen button and F toggle the current window state. Escape exits fullscreen after closing any open subtitle menu. The native bridge follows Qt window visibility, including changes through macOS window controls. Run `pnpm macos:check-fullscreen` to verify the actual WebChannel property and change notifications through repeated entry and exit.
 
 Validate the playback contract against generated legal fixtures — codecs, HDR ranges, audio formats, subtitles, chapters, and failure paths — with:
@@ -79,6 +83,8 @@ The shell gives the helper 30 seconds to become ready and terminates it if that 
 Kino excludes the upstream YouTube resolver and yt-dlp downloader from its engine. `pnpm engine:check-profile` starts the helper with a fresh cache and a blocking HTTP proxy, then checks that startup and an unsupported YouTube request create no executable tools or release-download requests. The engine's tracker-list data refreshes remain allowed.
 
 Engine diagnostics pass through Kino's sanitizer before entering the shell's rotating log, available through Open Log Folder. Request URLs, queries, headers, and sensitive details are omitted; event locations, levels, and safe failure details remain. The helper creates no separate log files. The engine profile check exercises synthetic credentials, and CTest checks forwarding and the five-file, 10 MB rotation limit.
+
+WebEngine console messages enter the same rotating log under `kino.web`, preserving info, warning, and error levels. Messages flagged by the sanitizer are omitted in full, and script URLs are excluded. Run `pnpm macos:check-web-console` to check the production WebEngine handler, file output, and stderr with synthetic messages.
 
 The embedded HTTP API requires a fresh 256-bit token in its base URL, shared with Kino over the helper's private stdout pipe. Every request checks that token, the bound loopback Host, and the configured UI Origin. Only health, torrent creation/removal/media reads, and Kino's seeding/download-limit settings are exposed. The URL works directly with libmpv's byte-range requests and is never included in diagnostics or the startup probe's output. `pnpm macos:check-engine-ui` verifies the production WebChannel and WebEngine path with both local-file and HTTP development UI documents, using disposable engine caches.
 

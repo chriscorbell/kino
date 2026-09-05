@@ -221,3 +221,12 @@ void StreamEngine::fail(const QString &reason) {
     qWarning("[kino:engine] %s", qPrintable(reason));
     emit changed();
 }
+
+QVariantMap StreamEngine::diagnosticInfo() const {
+    const QFileInfo helper(helperPath());
+    return {
+        {QStringLiteral("available"), helper.isFile() && helper.isExecutable()},
+        {QStringLiteral("external"), !qEnvironmentVariableIsEmpty("KINO_ENGINE_BINARY")},
+        {QStringLiteral("running"), process_.state() != QProcess::NotRunning},
+    };
+}

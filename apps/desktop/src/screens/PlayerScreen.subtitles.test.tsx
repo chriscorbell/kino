@@ -15,6 +15,7 @@ const fixture = vi.hoisted(() => ({
     fullscreenChanged: { connect: vi.fn(), disconnect: vi.fn() },
     playerEvent: { connect: vi.fn(), disconnect: vi.fn() },
     setSubtitleTrack: vi.fn(),
+    setVolume: vi.fn(),
     setSubtitleScale: vi.fn(),
     setSubtitlePosition: vi.fn(),
     setNowPlayingMetadata: vi.fn(),

@@ -1,13 +1,13 @@
 import { CaretDown } from '@phosphor-icons/react';
-import { useState } from 'react';
 
 import styles from '../App.module.css';
 import { MediaCard } from '../components/MediaCard';
 import { loadCatalogAction } from '../core/actions';
 import { catalogRequestFromDeepLink, catalogRequestKey } from '../core/catalog';
-import type { CatalogRequest, CatalogWithFiltersState, CoreMetaPreview } from '../core/types';
+import type { CatalogWithFiltersState, CoreMetaPreview } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
+import { useBrowseState } from '../navigation';
 
 function typeLabel(type: string) {
   return type.charAt(0).toUpperCase() + type.slice(1);
@@ -25,7 +25,7 @@ function filterLabel(filter: { name: string; options: Array<{ value: string | nu
 }
 
 export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => void }) {
-  const [request, setRequest] = useState<CatalogRequest | null>(null);
+  const [request, setRequest] = useBrowseState('discover');
   const result = useCoreModel<CatalogWithFiltersState>(
     'discover',
     loadCatalogAction(request),
