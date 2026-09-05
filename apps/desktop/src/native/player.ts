@@ -9,6 +9,11 @@ export interface NativeEngineEvent {
 }
 
 export interface NativePlayer {
+  readonly fullscreen: boolean;
+  fullscreenChanged: {
+    connect(listener: () => void): void;
+    disconnect(listener: () => void): void;
+  };
   addSubtitles(url: string, title: string, lang: string): void;
   load(url: string, forceStereo: boolean, headers: Record<string, string>): void;
   pauseAndSnapshot(): Promise<{ duration: number; time: number }>;

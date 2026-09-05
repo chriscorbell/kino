@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 
@@ -7,7 +7,14 @@ import { PlayerScreen } from './PlayerScreen';
 
 const fixture = vi.hoisted(() => ({
   stream: { url: 'https://media.invalid/fixture.mp4', deepLinks: { player: '' } },
+  transport: { dispatch: vi.fn().mockResolvedValue(undefined) },
+  unload: vi.fn().mockResolvedValue(undefined),
   native: {
+    fullscreen: false,
+    fullscreenChanged: {
+      connect: vi.fn<(listener: () => void) => void>(),
+      disconnect: vi.fn(),
+    },
     load: vi.fn(),
     stop: vi.fn(),
     pauseAndSnapshot: vi.fn().mockResolvedValue({ time: 0, duration: 0 }),
@@ -27,19 +34,20 @@ vi.mock('../native/player', () => ({
   connectNativePlayer: async () => fixture.native,
 }));
 vi.mock('../core/context', () => ({
-  useCore: () => ({ transport: { dispatch: async () => {} } }),
+  useCore: () => ({ transport: fixture.transport }),
 }));
 vi.mock('../core/useCoreModel', () => ({
   useCoreModel: () => ({
     state: { stream: { type: 'Ready', content: fixture.stream } },
     loading: false,
     error: null,
-    unload: async () => {},
+    unload: fixture.unload,
   }),
 }));
 
 beforeEach(() => {
   vi.clearAllMocks();
+  fixture.native.fullscreen = false;
 });
 
 async function mountPlayer() {
@@ -115,4 +123,34 @@ it('keeps unmodified playback shortcuts available on the player background', asy
   expect(fixture.native.setPaused).toHaveBeenCalledExactlyOnceWith(false);
   expect(fireEvent.keyDown(window, { key: 'ArrowRight', code: 'ArrowRight' })).toBe(false);
   expect(fixture.native.seek).toHaveBeenCalledExactlyOnceWith(10);
+});
+
+it('toggles from actual native fullscreen state and exits with Escape from focused controls', async () => {
+  await mountPlayer();
+  fireEvent.click(screen.getByRole('button', { name: 'Enter fullscreen' }));
+  expect(fixture.native.setFullscreen).toHaveBeenLastCalledWith(true);
+  act(() => {
+    fixture.native.fullscreen = true;
+    fixture.native.fullscreenChanged.connect.mock.lastCall?.[0]();
+  });
+  const exit = screen.getByRole('button', { name: 'Exit fullscreen' });
+  fireEvent.click(exit);
+  expect(fixture.native.setFullscreen).toHaveBeenLastCalledWith(false);
+  fixture.native.setFullscreen.mockClear();
+  fireEvent.keyDown(window, { key: 'f', code: 'KeyF' });
+  expect(fixture.native.setFullscreen).toHaveBeenLastCalledWith(false);
+  fixture.native.setFullscreen.mockClear();
+  fireEvent.keyDown(exit, { key: 'Escape', code: 'Escape' });
+  expect(fixture.native.setFullscreen).toHaveBeenLastCalledWith(false);
+});
+
+it('uses Escape to close subtitles before exiting fullscreen', async () => {
+  fixture.native.fullscreen = true;
+  await mountPlayer();
+  fireEvent.click(screen.getByRole('button', { name: 'Subtitles' }));
+  fireEvent.keyDown(window, { key: 'Escape', code: 'Escape' });
+  expect(screen.queryByRole('button', { name: 'Off' })).not.toBeInTheDocument();
+  expect(fixture.native.setFullscreen).not.toHaveBeenCalled();
+  fireEvent.keyDown(window, { key: 'Escape', code: 'Escape' });
+  expect(fixture.native.setFullscreen).toHaveBeenLastCalledWith(false);
 });

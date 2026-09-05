@@ -28,6 +28,7 @@
     "macos:check-engine": "./scripts/check-macos-engine.sh",
     "macos:check-engine-ui": "node scripts/check-macos-engine-ui.mjs",
     "macos:check-engine-retry": "node scripts/check-macos-engine-retry.mjs",
+    "macos:check-fullscreen": "node scripts/check-macos-fullscreen.mjs",
     "macos:check-launch": "./scripts/check-macos-launch.sh",
     "macos:check-playback": "node scripts/check-macos-playback.mjs",
     "macos:check-request-headers": "node scripts/check-macos-request-headers.mjs",
