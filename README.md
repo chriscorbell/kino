@@ -75,11 +75,15 @@ The engine profile check streams a private torrent from a local web seed and com
 
 `pnpm core:check-streams` runs the pinned Core WASM serializer and verifies that add-on torrent trackers survive resolution into the engine request. It runs in CI as part of `pnpm check`. `pnpm engine:check-trackers` also runs a local tracker and a libtorrent seeder with DHT, local discovery, and peer exchange disabled. A random unpublished torrent must transfer through the actual engine using only the tracker supplied through Core. This native check requires the engine build, a C++ compiler, and `pkg-config` for libtorrent.
 
-Run the complete local validation suite with:
+Run the web checks, pinned Core integration checks, and vendor reconstruction regression with:
 
 ```sh
 pnpm check
 ```
+
+CI runs those checks on every PR. Changes to the native shell, native bridge, engine, build scripts, workflow, or dependency locks also run on a macOS 26 ARM runner. That job reconstructs the pinned vendor checkout, applies patches, builds and tests the Rust helper with `--locked`, checks the engine profile and tracker transfer, compiles the shell and packaged UI, and runs CTest plus launch and engine-supervision probes. Homebrew downloads and Cargo outputs are cached. The `Validate` result includes every applicable job.
+
+The hardware playback fixture matrix, HDR tone mapping, and audio output checks remain manual release gates. Hosted runner probes do not establish playback quality or hardware decoder support.
 
 ### Packaging
 

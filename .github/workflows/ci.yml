@@ -14,8 +14,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validate:
-    name: Validate
+  changes:
+    name: Detect native changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      native: ${{ steps.paths.outputs.native }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: paths
+        name: Check native build inputs
+        env:
+          KINO_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          KINO_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node <<'JS'
+          const { execFileSync } = require('node:child_process');
+          const { appendFileSync } = require('node:fs');
+          const { KINO_BASE: base, KINO_HEAD: head } = process.env;
+          const files = !base || /^0+$/.test(base)
+            ? ['.github/workflows/ci.yml']
+            : execFileSync('git', ['diff', '--name-only', '-z', base, head], { encoding: 'utf8' }).split('\0');
+          const native = files.some((file) => /^(\.github\/|apps\/(macos-shell|stream-engine)\/|apps\/desktop\/src\/native\/|scripts\/|package\.json$|pnpm-lock\.yaml$|\.node-version$)/.test(file));
+          appendFileSync(process.env.GITHUB_OUTPUT, `native=${native}\n`);
+          JS
+
+  web:
+    name: Web validation
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -37,3 +64,105 @@ jobs:
 
       - name: Validate
         run: pnpm check
+
+  native:
+    name: Native and engine validation
+    needs: changes
+    if: needs.changes.outputs.native == 'true'
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: '2'
+      CARGO_TARGET_DIR: ${{ github.workspace }}/build/engine-target
+      CMAKE_BUILD_PARALLEL_LEVEL: '2'
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Restore Homebrew downloads
+        id: brew-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/Library/Caches/Homebrew/downloads
+          key: brew-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/workflows/ci.yml') }}
+          restore-keys: brew-${{ runner.os }}-${{ runner.arch }}-
+      - name: Install native dependencies
+        run: |
+          brew install cmake qt mpv pkgconf rust libtorrent-rasterbar boost
+          echo "$(brew --prefix rust)/bin" >> "$GITHUB_PATH"
+      - name: Save Homebrew downloads
+        if: steps.brew-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/Library/Caches/Homebrew/downloads
+          key: ${{ steps.brew-cache.outputs.cache-primary-key }}
+
+      - name: Identify the engine toolchain
+        id: toolchain
+        run: |
+          kino_toolchain="$(rustc --version)-$(pkg-config --modversion libtorrent-rasterbar)-$(brew list --versions boost)"
+          echo "key=$(printf '%s' "$kino_toolchain" | shasum -a 256 | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+      - name: Restore Cargo dependencies and build outputs
+        id: engine-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            build/engine-target
+          key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ hashFiles('apps/stream-engine/Cargo.lock', 'apps/stream-engine/engine.lock', 'apps/stream-engine/patches/**') }}
+          restore-keys: cargo-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-
+      - name: Reconstruct vendor patches and build the locked engine
+        run: pnpm engine:build
+      - name: Test the locked engine and embedded profile
+        timeout-minutes: 5
+        run: |
+          CXXFLAGS="-I$(brew --prefix)/include" cargo test --locked --release --manifest-path apps/stream-engine/Cargo.toml
+          pnpm engine:check-profile
+          pnpm engine:check-trackers
+      - name: Save Cargo dependencies and build outputs
+        if: steps.engine-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            build/engine-target
+          key: ${{ steps.engine-cache.outputs.cache-primary-key }}
+
+      - name: Compile and bundle the native shell
+        run: pnpm macos:build
+      - name: Run native unit tests and startup probes
+        timeout-minutes: 5
+        run: |
+          ctest --test-dir build/macos --output-on-failure --timeout 30
+          pnpm macos:check-launch
+          pnpm macos:check-engine
+
+  validate:
+    name: Validate
+    needs: [changes, web, native]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every applicable validation job
+        env:
+          KINO_CHANGES_RESULT: ${{ needs.changes.result }}
+          KINO_WEB_RESULT: ${{ needs.web.result }}
+          KINO_NATIVE_RESULT: ${{ needs.native.result }}
+          KINO_NATIVE_REQUIRED: ${{ needs.changes.outputs.native }}
+        run: |
+          test "$KINO_CHANGES_RESULT" = success
+          test "$KINO_WEB_RESULT" = success
+          if test "$KINO_NATIVE_REQUIRED" = true; then
+            test "$KINO_NATIVE_RESULT" = success
+          else
+            test "$KINO_NATIVE_RESULT" = skipped
+          fi
