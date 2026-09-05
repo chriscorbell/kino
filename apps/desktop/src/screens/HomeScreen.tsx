@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 
-import { X } from '@phosphor-icons/react';
+import { Play, X } from '@phosphor-icons/react';
 
 import styles from '../App.module.css';
 import { ActionFeedback } from '../components/ActionFeedback';
@@ -11,7 +11,7 @@ import { MediaCard } from '../components/MediaCard';
 import { loadBoardAction, rewindLibraryItemAction } from '../core/actions';
 import { useCore } from '../core/context';
 import { savedTitlePreview } from '../core/preview';
-import type { CoreMetaPreview } from '../core/types';
+import type { ContinueWatchingItem, CoreMetaPreview } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
 
@@ -35,8 +35,10 @@ function RowSkeleton() {
 
 export function HomeScreen({
   onOpen,
+  onResume,
 }: {
   onOpen: (item: CoreMetaPreview, videoId?: string | null) => void;
+  onResume?: (item: ContinueWatchingItem) => void;
 }) {
   const core = useCore();
   const dismissal = useActionFeedback(core.transport);
@@ -120,6 +122,17 @@ export function HomeScreen({
                       <span style={{ width: `${Math.max(0, Math.min(100, item.progress))}%` }} />
                     </span>
                   </span>
+                </button>
+                <button
+                  aria-label={enUS.home.resumeTitle(item.name)}
+                  className={styles.continueResume}
+                  onClick={() =>
+                    onResume ? onResume(item) : onOpen(savedTitlePreview(item), item.videoId)
+                  }
+                  type="button"
+                >
+                  <Play aria-hidden size={14} weight="fill" />
+                  {enUS.home.resume}
                 </button>
                 <button
                   aria-label={`${enUS.home.dismiss} ${item.name}`}

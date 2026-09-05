@@ -2,7 +2,7 @@
 
 import Bridge from '@stremio/stremio-core-web/bridge.js';
 import wasmUrl from '@stremio/stremio-core-web/stremio_core_web_bg.wasm?url';
-import { adaptCoreState, adaptDiscoverState } from './adapters';
+import { adaptContinueWatchingState, adaptCoreState, adaptDiscoverState } from './adapters';
 import { createAddonNetwork } from './addonNetwork';
 import { CatalogPaging } from './catalogPaging';
 import { PendingCoreWork, trackCoreSync } from './pendingWork';
@@ -83,6 +83,8 @@ scope.init = async ({ appVersion, shellVersion }) => {
   scope.getState = (field) => {
     if (!isCoreModelName(field)) throw new Error('Kino does not read that Stremio model.');
     if (field === 'discover') return paging.snapshot(adaptDiscoverState(core.get_state(field)));
+    if (field === 'continue_watching_preview')
+      return adaptContinueWatchingState(core.get_state(field), core.decode_stream);
     if (field === 'ctx') {
       const context = adaptCoreState(field, core.get_state(field));
       return {

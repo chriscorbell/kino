@@ -326,6 +326,25 @@
   cursor: pointer;
 }
 
+.continueResume {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--kino-border);
+  border-radius: var(--kino-control-radius);
+  color: var(--kino-text);
+  background: transparent;
+  cursor: pointer;
+  transition: background-color var(--kino-duration-fast) ease;
+}
+
+.continueResume:hover {
+  background: var(--kino-surface-hover);
+}
+
 .continueDismiss {
   position: absolute;
   z-index: 1;

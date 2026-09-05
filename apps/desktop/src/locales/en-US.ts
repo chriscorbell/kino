@@ -33,6 +33,8 @@ export const enUS = {
     title: 'Home',
     continueWatching: 'Continue Watching',
     continueEmpty: 'Nothing to resume yet.',
+    resume: 'Resume',
+    resumeTitle: (name: string) => `Resume ${name}`,
     dismiss: 'Remove from Continue Watching',
     dismissing: (name: string) => `Removing ${name} from Continue Watching…`,
     dismissed: (name: string) => `${name} was removed from Continue Watching.`,
@@ -221,6 +223,8 @@ export const enUS = {
     cancel: 'Cancel',
   },
   details: {
+    checkingResume: 'Checking the previous source…',
+    resumeUnavailable: 'The previous source is unavailable or changed. Choose a source to resume.',
     loading: 'Loading title details…',
     error: 'Title details could not be loaded.',
     episodes: 'Episodes',

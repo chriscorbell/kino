@@ -730,7 +730,37 @@ export function adaptLibraryState(raw: unknown): LibraryState {
   };
 }
 
-export function adaptContinueWatchingState(raw: unknown): ContinueWatchingState {
+// Core owns the compressed stream format. A missing or obsolete deep link only
+// disables direct resume; it must not hide the title or its saved progress.
+function rememberedSource(
+  item: Record<string, unknown>,
+  site: Site,
+  decodeStream?: (encoded: string) => unknown,
+): ContinueWatchingItem['rememberedSource'] {
+  if (!decodeStream) return null;
+  try {
+    const links = record(item.deepLinks, at(site, 'deepLinks'));
+    const link = text(links.player, at(site, 'deepLinks.player'));
+    if (!link.startsWith('#/player/')) return null;
+    const parts = link.slice('#/player/'.length).split('?')[0]?.split('/').map(decodeURIComponent);
+    if (!parts || parts.length !== 6) return null;
+    const [encoded, transportUrl, , type, id, videoId] = parts;
+    const state = record(item.state, at(site, 'state'));
+    if (!encoded || !transportUrl || type !== item.type || id !== item._id) return null;
+    if (videoId !== (state.videoId ?? (type === 'series' ? null : id))) return null;
+    return {
+      stream: adaptSource(decodeStream(encoded), at(site, 'deepLinks.player')),
+      transportUrl,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function adaptContinueWatchingState(
+  raw: unknown,
+  decodeStream?: (encoded: string) => unknown,
+): ContinueWatchingState {
   const site = { field: '', model: 'continue_watching_preview' };
   const source = record(raw, site);
   return {
@@ -743,6 +773,7 @@ export function adaptContinueWatchingState(raw: unknown): ContinueWatchingState 
         poster: displayText(item.poster, at(entrySite, 'poster')),
         posterShape: posterShape(item.posterShape, at(entrySite, 'posterShape')),
         progress: numberOr(item.progress, at(entrySite, 'progress'), 0),
+        rememberedSource: rememberedSource(item, entrySite, decodeStream),
         type: identity(item.type, at(entrySite, 'type')),
         videoId: displayText(state.videoId, at(entrySite, 'state.videoId')),
       };

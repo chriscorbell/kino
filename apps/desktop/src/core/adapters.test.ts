@@ -8,6 +8,7 @@ import {
 } from './actions';
 import {
   adaptCoreState,
+  adaptContinueWatchingState,
   adaptDiscoverState,
   adaptLibraryState,
   adaptMetaDetailsState,
@@ -424,6 +425,44 @@ describe('sources and playback', () => {
       progress: 25,
       videoId: 'kino-fixture:1:1',
     });
+  });
+
+  it('ignores missing, malformed, and mismatched remembered-source links without losing progress', () => {
+    const base = {
+      _id: 'show',
+      type: 'series',
+      name: 'Saved series',
+      progress: 25,
+      posterShape: 'poster',
+      state: { videoId: 'show:2:5' },
+    };
+    for (const player of [
+      null,
+      '#/player/%ZZ/a/b/series/show/show%3A2%3A5',
+      '#/player/encoded/a/b/movie/show/show%3A2%3A5',
+      '#/player/encoded/a/b/series/show/show%3A1%3A1',
+    ]) {
+      const state = adaptContinueWatchingState(
+        { items: [{ ...base, deepLinks: { player } }] },
+        () => ({ url: 'https://media.invalid/saved.mp4' }),
+      );
+      expect(state.items[0]).toMatchObject({
+        rememberedSource: null,
+        progress: 25,
+        videoId: 'show:2:5',
+      });
+    }
+    const state = adaptContinueWatchingState(
+      {
+        items: [
+          { ...base, deepLinks: { player: '#/player/encoded/a/b/series/show/show%3A2%3A5' } },
+        ],
+      },
+      () => {
+        throw new Error('Unsupported stream format');
+      },
+    );
+    expect(state.items[0]?.rememberedSource).toBeNull();
   });
 });
 

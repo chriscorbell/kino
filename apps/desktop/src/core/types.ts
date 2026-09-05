@@ -200,6 +200,7 @@ export interface ContinueWatchingItem {
   poster: string | null;
   posterShape: PosterShape;
   progress: number;
+  rememberedSource: { stream: CoreSource; transportUrl: string } | null;
   type: string;
   videoId: string | null;
 }
