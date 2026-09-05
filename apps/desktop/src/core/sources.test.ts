@@ -1,72 +1,101 @@
 import { describe, expect, it } from 'vitest';
 
+import { hints, preview, torrentSource, urlSource, video } from '../test/coreState';
 import { classifySource, sourceKey, sourceSize } from './sources';
+import type { CoreSource } from './types';
 
-const base = { deepLinks: { player: 'stremio:///player/value' } };
 const selection = {
-  meta: { id: 'show', type: 'series', name: 'Test series', inLibrary: false, watched: false },
-  video: { id: 'ep1', title: 'Episode one' },
+  meta: preview({ id: 'show', name: 'Test series', type: 'series' }),
+  video: video({ id: 'ep1', title: 'Episode one' }),
 };
+const transport = 'https://addon.example/manifest.json';
 
 describe('source compatibility', () => {
   it('distinguishes direct, torrent, external, and unsupported sources', () => {
-    expect(classifySource({ ...base, url: 'https://example.com/video.mp4' })).toBe('direct');
-    expect(classifySource({ ...base, infoHash: 'abc' })).toBe('torrent');
-    expect(classifySource({ ...base, externalUrl: 'https://example.com/watch' })).toBe('external');
-    expect(classifySource({ ...base, ytId: 'video' })).toBe('unsupported');
+    expect(classifySource({ kind: 'url', url: 'https://example.com/video.mp4' })).toBe('direct');
+    expect(classifySource(torrentSource().source)).toBe('torrent');
+    expect(classifySource({ kind: 'external', externalUrl: 'https://example.com/watch' })).toBe(
+      'external',
+    );
+    expect(classifySource({ kind: 'youtube', ytId: 'video' })).toBe('unsupported');
+    expect(classifySource({ kind: 'url', url: 'http://example.com/video.mp4' })).toBe(
+      'unsupported',
+    );
   });
 
   it('formats binary source size without inventing missing metadata', () => {
-    expect(sourceSize({ ...base, behaviorHints: { videoSize: 5 * 1024 ** 3 } })).toBe('5.0 GB');
-    expect(sourceSize(base)).toBeNull();
+    expect(
+      sourceSize(
+        urlSource('https://a.invalid/v.mp4', { hints: hints({ videoSize: 5 * 1024 ** 3 }) }),
+      ),
+    ).toBe('5.0 GB');
+    expect(sourceSize(urlSource('https://a.invalid/v.mp4'))).toBeNull();
   });
 
   it('keys sources by transport and stream identity', () => {
-    const transport = 'https://addon.example/manifest.json';
-    expect(
-      sourceKey({ ...base, url: 'https://example.com/video.mp4' }, transport, selection),
-    ).not.toBe(sourceKey({ ...base, url: 'https://example.com/other.mp4' }, transport, selection));
-  });
-
-  it('distinguishes pack files, guessed episodes and external destinations', () => {
-    const key = (stream: Parameters<typeof sourceKey>[0], video = selection.video) =>
-      sourceKey(stream, 'https://addon.invalid/manifest.json', { ...selection, video });
-    const torrent = { ...base, infoHash: 'ABC' };
-    expect(key({ ...torrent, fileIdx: 0 })).not.toBe(key({ ...torrent, fileIdx: 1 }));
-    expect(key(torrent)).not.toBe(key(torrent, { id: 'ep2', title: 'Episode two' }));
-    expect(key(torrent)).toBe(key({ ...torrent, infoHash: 'abc' }));
-    expect(key({ ...base, externalUrl: 'https://example.invalid/a' })).not.toBe(
-      key({ ...base, externalUrl: 'https://example.invalid/b' }),
+    expect(sourceKey(urlSource('https://example.com/video.mp4'), transport, selection)).not.toBe(
+      sourceKey(urlSource('https://example.com/other.mp4'), transport, selection),
     );
   });
 
-  it('keeps distinct request credentials separate without depending on header order or display labels', () => {
-    const stream = {
-      ...base,
-      url: 'https://media.invalid/movie.mp4',
-      behaviorHints: {
-        proxyHeaders: {
-          request: { Referer: 'https://addon.invalid/', Authorization: 'Bearer synthetic' },
-        },
-      },
-    };
-    const key = (source: Parameters<typeof sourceKey>[0]) =>
-      sourceKey(source, 'https://addon.invalid/manifest.json', selection);
-    expect(key(stream)).toBe(
+  it('distinguishes pack files, guessed episodes, discovery hints, and destinations', () => {
+    const key = (source: CoreSource, current = selection.video) =>
+      sourceKey(source, 'https://addon.invalid/manifest.json', { ...selection, video: current });
+    expect(key(torrentSource({ fileIdx: 0 }))).not.toBe(key(torrentSource({ fileIdx: 1 })));
+    expect(key(torrentSource())).not.toBe(
+      key(torrentSource(), video({ id: 'ep2', title: 'Episode two' })),
+    );
+    expect(key(torrentSource({ infoHash: 'ABCDEF0123456789ABCDEF0123456789ABCDEF01' }))).toBe(
+      key(torrentSource({ infoHash: 'abcdef0123456789abcdef0123456789abcdef01' })),
+    );
+    // A different swarm hint is a different attempt at the same torrent.
+    expect(key(torrentSource({ sources: ['tracker:https://a.invalid/announce'] }))).not.toBe(
+      key(torrentSource({ sources: ['tracker:https://b.invalid/announce'] })),
+    );
+    expect(
       key({
-        ...stream,
-        name: 'New label',
-        behaviorHints: {
-          proxyHeaders: {
-            request: { authorization: 'Bearer synthetic', referer: 'https://addon.invalid/' },
-          },
-        },
+        description: null,
+        hints: hints(),
+        name: null,
+        source: { kind: 'external', externalUrl: 'https://example.invalid/a' },
+      }),
+    ).not.toBe(
+      key({
+        description: null,
+        hints: hints(),
+        name: null,
+        source: { kind: 'external', externalUrl: 'https://example.invalid/b' },
       }),
     );
-    expect(key(stream)).not.toBe(
+  });
+
+  it('keeps distinct request credentials separate without depending on header order or labels', () => {
+    const source = urlSource('https://media.invalid/movie.mp4', {
+      hints: hints({
+        proxyRequestHeaders: {
+          Referer: 'https://addon.invalid/',
+          Authorization: 'Bearer synthetic',
+        },
+      }),
+    });
+    const key = (candidate: CoreSource) =>
+      sourceKey(candidate, 'https://addon.invalid/manifest.json', selection);
+    expect(key(source)).toBe(
       key({
-        ...stream,
-        behaviorHints: { proxyHeaders: { request: { Authorization: 'Bearer other-synthetic' } } },
+        ...source,
+        name: 'New label',
+        hints: hints({
+          proxyRequestHeaders: {
+            authorization: 'Bearer synthetic',
+            referer: 'https://addon.invalid/',
+          },
+        }),
+      }),
+    );
+    expect(key(source)).not.toBe(
+      key({
+        ...source,
+        hints: hints({ proxyRequestHeaders: { Authorization: 'Bearer other-synthetic' } }),
       }),
     );
   });

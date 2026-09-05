@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import styles from '../App.module.css';
 import { uninstallAddonAction } from '../core/actions';
+import { addonFromManifest, CoreContractError } from '../core/adapters';
 import {
   addonConfigurationUrl,
   addonManifestUrl,
@@ -13,22 +14,13 @@ import { openExternalUrl } from '../native/externalNavigation';
 import { nativeShellPresent } from '../native/player';
 import { AddonTransportError, addonTransportIssue, createAddonNetwork } from '../core/addonNetwork';
 import { useCore } from '../core/context';
-import type { CoreAddon, ProfileState } from '../core/types';
+import type { CoreAddon } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
 
-function isManifest(value: unknown): value is CoreAddon['manifest'] {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof Reflect.get(value, 'id') === 'string' &&
-    typeof Reflect.get(value, 'name') === 'string'
-  );
-}
-
 export function AddonsScreen() {
   const { transport } = useCore();
-  const profile = useCoreModel<ProfileState>('ctx', null, 'addons-profile');
+  const profile = useCoreModel('ctx', null, 'addons-profile');
   const [manifestUrl, setManifestUrl] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,19 +94,20 @@ export function AddonsScreen() {
         headers: { Accept: 'application/json' },
       });
       if (!response.ok) throw new Error('Manifest request failed.');
-      const manifest: unknown = await response.json();
-      if (!isManifest(manifest)) throw new Error('That URL did not return an add-on manifest.');
+      // The same checks a stored descriptor gets, so an install sends Core a
+      // manifest it accepts and keeps every field Kino does not display.
+      const addon = addonFromManifest(url, await response.json());
       if (current !== epoch.current) return;
-      const addon = { flags: {}, manifest, transportUrl: url };
-      if (manifest.behaviorHints?.configurationRequired === true) {
+      if (addon.manifest.behaviorHints.configurationRequired) {
         setRequiredConfiguration(addon);
         setMessage(enUS.addons.configurationInstructions);
         return;
       }
-      const context = await transport.getState<ProfileState>('ctx');
+      const context = await transport.getState('ctx');
       if (current !== epoch.current) return;
       const previous = context.profile.addons.filter(
-        (installed) => installed.manifest.id === manifest.id && installed.transportUrl !== url,
+        (installed) =>
+          installed.manifest.id === addon.manifest.id && installed.transportUrl !== url,
       );
       if (previous.length > 0) {
         setPendingInstall({ addon, previous });
@@ -131,7 +124,10 @@ export function AddonsScreen() {
           ? enUS.addons.transportIssues[cause.issue]
           : enUS.addons.installFailed,
       );
-      console.error('[kino:addons] install failed');
+      console.error(
+        '[kino:addons] install failed',
+        cause instanceof CoreContractError ? cause.message : '',
+      );
     } finally {
       if (current === epoch.current) setBusy(false);
     }
@@ -208,13 +204,13 @@ export function AddonsScreen() {
           <p>
             <strong>{pendingInstall.addon.manifest.name}</strong> {enUS.addons.configurationExists}
           </p>
-          {pendingInstall.previous.some((addon) => addon.flags?.protected) ? (
+          {pendingInstall.previous.some((addon) => addon.flags.protected) ? (
             <p>{enUS.addons.requiredConfigurationProtected}</p>
           ) : null}
           <div className={styles.addonActions}>
             <button
               className={styles.secondaryButton}
-              disabled={busy || pendingInstall.previous.some((addon) => addon.flags?.protected)}
+              disabled={busy || pendingInstall.previous.some((addon) => addon.flags.protected)}
               onClick={() => {
                 void completeInstall(pendingInstall.addon, pendingInstall.previous);
               }}
@@ -280,17 +276,17 @@ export function AddonsScreen() {
                   {addon.manifest.version ? <small> {addon.manifest.version}</small> : null}
                 </strong>
                 {addon.manifest.description ? <p>{addon.manifest.description}</p> : null}
-                {addon.manifest.behaviorHints?.configurationRequired === true ? (
+                {addon.manifest.behaviorHints.configurationRequired ? (
                   <p role="status">{enUS.addons.configurationRequired}</p>
                 ) : null}
                 {issue ? <p role="status">{enUS.addons.transportIssues[issue]}</p> : null}
                 <span className={styles.addonTypes}>
-                  {(addon.manifest.types ?? []).join(' · ') || addon.manifest.id}
+                  {addon.manifest.types.join(' · ') || addon.manifest.id}
                 </span>
               </div>
               <div className={styles.addonActions}>
                 {!issue ? configurationLink(addon) : null}
-                {addon.flags?.protected ? (
+                {addon.flags.protected ? (
                   <span className={styles.addonBadge}>{enUS.addons.protectedAddon}</span>
                 ) : (
                   <button

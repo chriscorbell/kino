@@ -6,23 +6,22 @@ import { CoreContext } from './core/context';
 import type { CoreTransport } from './core/transport';
 import type { PlaybackSelection } from './core/actions';
 import type { CoreMetaItem, CoreRuntimeEvent, CoreVideo } from './core/types';
+import { metaItem, profile, torrentSource, video } from './test/coreState';
 
-const meta: CoreMetaItem = {
+const meta: CoreMetaItem = metaItem({
   id: 'show',
   name: 'Test series',
   type: 'series',
-  inLibrary: false,
-  watched: false,
   videos: [
-    { id: 'ep1', title: 'Episode one', season: 1, episode: 1 },
-    { id: 'ep2', title: 'Episode two', season: 1, episode: 2 },
-    { id: 's2e5', title: 'Season two episode five', season: 2, episode: 5 },
-    { id: 's2e6', title: 'Season two episode six', season: 2, episode: 6 },
-    { id: 's2e7', title: 'Season two episode seven', season: 2, episode: 7 },
+    video({ id: 'ep1', title: 'Episode one', season: 1, episode: 1 }),
+    video({ id: 'ep2', title: 'Episode two', season: 1, episode: 2 }),
+    video({ id: 's2e5', title: 'Season two episode five', season: 2, episode: 5 }),
+    video({ id: 's2e6', title: 'Season two episode six', season: 2, episode: 6 }),
+    video({ id: 's2e7', title: 'Season two episode seven', season: 2, episode: 7 }),
   ],
-};
+});
 const addon = {
-  manifest: { id: 'test', name: 'Test add-on' },
+  manifest: { id: 'test', logo: null, name: 'Test add-on' },
   transportUrl: 'https://addon.invalid/manifest.json',
 };
 
@@ -72,10 +71,12 @@ function mountApp() {
         listeners.forEach((listener) => listener({ name: 'NewState', args: ['meta_details'] }));
       }
     },
-    getState: async <State,>(model: string) =>
-      (model === 'ctx'
-        ? { profile: { addons: [] } }
+    getState: (async (model: string) =>
+      model === 'ctx'
+        ? profile()
         : {
+            libraryItem: null,
+            title: null,
             selected: {
               metaPath: { resource: 'meta', type: 'series', id: meta.id, extra: [] },
               streamPath: { resource: 'stream', type: 'series', id: videoId, extra: [] },
@@ -87,16 +88,13 @@ function mountApp() {
                 addon,
                 content: {
                   type: 'Ready',
-                  content: [0, 1].map((fileIdx) => ({
-                    infoHash: '0123456789abcdef0123456789abcdef01234567',
-                    fileIdx,
-                    name: `Pack file ${fileIdx}`,
-                    deepLinks: { player: '' },
-                  })),
+                  content: [0, 1].map((fileIdx) =>
+                    torrentSource({ fileIdx }, { name: `Pack file ${fileIdx}` }),
+                  ),
                 },
               },
             ],
-          }) as State,
+          }) as CoreTransport['getState'],
     subscribe: (listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);

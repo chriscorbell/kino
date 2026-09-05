@@ -18,6 +18,8 @@ pnpm dev
 
 The client browses, searches, and resolves sources through the real Stremio Core. Library and Discover provide Load more controls. Failed later pages retain the visible titles and offer Retry. `pnpm core:check-pagination`, included in `pnpm check`, exercises the pinned WASM with 125 saved titles, duplicate catalog entries, delayed responses, failed-page retries and filter changes.
 
+Every Core model is read through validating adapters, so screens receive navigation requests and playback fields rather than serializer payloads, as recorded in [ADR 0018](docs/adr/0018-read-stremio-core-through-a-validating-adapter.md). `pnpm core:check-contract` runs those adapters against the pinned WASM; `pnpm core:capture-fixtures` regenerates the committed fixtures they are unit-tested with.
+
 Configurable add-ons open their provider's settings page in the system browser. Paste the resulting HTTPS manifest URL or Stremio install link into Add-ons. Kino asks whether to replace existing configurations or keep both, and verifies the new installation before removing an old configuration.
 
 ### macOS shell

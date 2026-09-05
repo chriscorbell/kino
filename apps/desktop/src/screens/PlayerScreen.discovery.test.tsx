@@ -1,13 +1,28 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 
-import type { CoreStream } from '../core/types';
+import type { CoreSource } from '../core/types';
 import { defaultSettings } from '../settings';
+import { hints, preview, urlSource } from '../test/coreState';
 import { PlayerScreen } from './PlayerScreen';
 
 const fixture = vi.hoisted(() => ({
   nativeShell: true,
-  stream: { url: 'https://media.invalid/fixture.mp4', deepLinks: { player: '' } },
+  stream: {
+    description: null,
+    name: null,
+    source: { kind: 'url', url: 'https://media.invalid/fixture.mp4' },
+    hints: {
+      bingeGroup: null,
+      countryWhitelist: null,
+      filename: null,
+      notWebReady: null,
+      proxyRequestHeaders: null,
+      proxyResponseHeaders: null,
+      videoHash: null,
+      videoSize: null,
+    },
+  } satisfies CoreSource,
   transport: { dispatch: vi.fn().mockResolvedValue(undefined) },
   native: {
     load: vi.fn(),
@@ -64,10 +79,11 @@ it.each([true, false])(
 
 it('includes supplied file hints when reporting native readiness', async () => {
   fixture.nativeShell = true;
-  renderPlayer({
-    ...fixture.stream,
-    behaviorHints: { videoHash: '0123456789abcdef', videoSize: 123456, filename: 'fixture.mkv' },
-  });
+  renderPlayer(
+    urlSource('https://media.invalid/fixture.mp4', {
+      hints: hints({ videoHash: '0123456789abcdef', videoSize: 123456, filename: 'fixture.mkv' }),
+    }),
+  );
   await waitFor(() => expect(fixture.native.load).toHaveBeenCalled());
   await act(async () => fixture.native.playerEvent.connect.mock.calls.at(-1)?.[0]('ready', {}));
   expect(fixture.transport.dispatch).toHaveBeenCalledWith(
@@ -84,11 +100,11 @@ it('includes supplied file hints when reporting native readiness', async () => {
   );
 });
 
-function renderPlayer(stream: CoreStream) {
+function renderPlayer(stream: CoreSource) {
   return render(
     <PlayerScreen
       selection={{
-        meta: { id: 'fixture', type: 'movie', name: 'Fixture', inLibrary: false, watched: false },
+        meta: preview({ id: 'fixture', name: 'Fixture', type: 'movie' }),
         stream,
         metaTransportUrl: 'https://addon.invalid/manifest.json',
         streamTransportUrl: 'https://addon.invalid/manifest.json',

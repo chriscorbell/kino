@@ -8,7 +8,7 @@ import {
   type CoreSession,
   type SecureAuthStorage,
 } from './storage';
-import type { CoreAction, CoreModelName, CoreRuntimeEvent } from './types';
+import type { CoreAction, CoreModelName, CoreRuntimeEvent, CoreStateMap } from './types';
 
 type CoreEventListener = (event: CoreRuntimeEvent) => void;
 
@@ -16,7 +16,8 @@ export interface CoreTransport {
   destroy(): Promise<void>;
   dispatch(action: CoreAction, model?: CoreModelName): Promise<void>;
   flush(): Promise<void>;
-  getState<State>(model: CoreModelName): Promise<State>;
+  /** The model decides the state; callers cannot ask for a different shape. */
+  getState<Model extends CoreModelName>(model: Model): Promise<CoreStateMap[Model]>;
   init(): Promise<void>;
   onBeforeDestroy(callback: () => Promise<void>): () => void;
   prepareClose(): Promise<void>;
@@ -118,8 +119,10 @@ export function createCoreTransport(session: CoreSession = 'guest'): CoreTranspo
       await bridge.call(['dispatch'], [action, model, currentHash()]);
     },
     flush,
-    getState<State>(model: CoreModelName) {
-      return bridge.call<State>(['getState'], [model]);
+    // The worker adapts every model before it answers, so the response already
+    // has this model's application shape.
+    getState<Model extends CoreModelName>(model: Model) {
+      return bridge.call<CoreStateMap[Model]>(['getState'], [model]);
     },
     init() {
       initializing ??= bridge.call<void>(['init'], [{ appVersion: '0.0.0', shellVersion: null }]);

@@ -3,15 +3,10 @@ import { expect, it, vi } from 'vitest';
 
 import { CoreContext } from '../core/context';
 import type { CoreTransport } from '../core/transport';
+import { metaItem, preview } from '../test/coreState';
 import { MetaDetailsScreen } from './MetaDetailsScreen';
 
-const item = {
-  id: 'movie',
-  name: 'Profile fixture',
-  type: 'movie',
-  inLibrary: false,
-  watched: false,
-};
+const item = preview({ id: 'movie', name: 'Profile fixture', type: 'movie' });
 
 function transport(inLibrary: boolean) {
   return {
@@ -22,19 +17,16 @@ function transport(inLibrary: boolean) {
     onBeforeDestroy: () => () => {},
     subscribe: () => () => {},
     dispatch: vi.fn<CoreTransport['dispatch']>().mockResolvedValue(undefined),
-    getState: async <State,>() =>
-      ({
-        libraryItem: null,
-        streams: [],
-        selected: null,
-        metaItem: {
-          addon: { manifest: { id: 'test', name: 'Test' } },
-          content: {
-            type: 'Ready',
-            content: { ...item, inLibrary, videos: [] },
-          },
-        },
-      }) as State,
+    getState: (async () => ({
+      libraryItem: null,
+      streams: [],
+      selected: null,
+      title: null,
+      metaItem: {
+        addon: { manifest: { id: 'test', logo: null, name: 'Test' }, transportUrl: null },
+        content: { type: 'Ready', content: metaItem({ ...item, inLibrary }) },
+      },
+    })) as CoreTransport['getState'],
   } satisfies CoreTransport;
 }
 

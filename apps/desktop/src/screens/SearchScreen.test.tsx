@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { CoreContext } from '../core/context';
 import type { CoreTransport } from '../core/transport';
 import type { BoardState, CoreRuntimeEvent } from '../core/types';
+import { preview } from '../test/coreState';
 import { SearchScreen } from './SearchScreen';
 
 beforeEach(() => vi.useFakeTimers());
@@ -25,12 +26,12 @@ function setup() {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    getState: async <State,>() => state as State,
+    getState: (async () => state) as CoreTransport['getState'],
     dispatch: vi.fn(async (action) => {
       if (action.action === 'Load') {
         const args = action.args as { args: { extra: Array<[string, string]> } };
         state = {
-          selected: args.args,
+          selected: { extra: args.args.extra, type: null },
           catalogs: ['one', 'two', 'three'].map((id) => ({
             addon: { manifest: { id, name: id } },
             id,
@@ -66,7 +67,7 @@ function setup() {
     target,
     finish(query: string) {
       state = {
-        selected: { extra: [['search', query]] },
+        selected: { extra: [['search', query]], type: null },
         catalogs: [
           {
             addon: { manifest: { id: 'one', name: 'one' } },
@@ -75,15 +76,7 @@ function setup() {
             type: 'movie',
             content: {
               type: 'Ready',
-              content: [
-                {
-                  id: query,
-                  name: `${query} result`,
-                  type: 'movie',
-                  inLibrary: false,
-                  watched: false,
-                },
-              ],
+              content: [preview({ id: query, name: `${query} result`, type: 'movie' })],
             },
           },
         ],

@@ -1,7 +1,7 @@
 import { installAddonAction, uninstallAddonAction } from './actions';
 import { addonTransportIssue } from './addonNetwork';
 import type { CoreTransport } from './transport';
-import type { CoreAddon, ProfileState } from './types';
+import type { CoreAddon } from './types';
 
 export function addonManifestUrl(value: string) {
   return value.trim().replace(/^stremio:\/\//i, 'https://');
@@ -10,7 +10,7 @@ export function addonManifestUrl(value: string) {
 export function addonConfigurationUrl(addon: CoreAddon, development: boolean): string | null {
   const hints = addon.manifest.behaviorHints;
   if (
-    !(hints?.configurable === true || hints?.configurationRequired === true) ||
+    !(hints.configurable || hints.configurationRequired) ||
     addonTransportIssue(addon.transportUrl, development)
   )
     return null;
@@ -31,7 +31,7 @@ export async function installAddonConfiguration(
   previous: CoreAddon[] = [],
 ) {
   await transport.dispatch(installAddonAction(addon));
-  let state = await transport.getState<ProfileState>('ctx');
+  let state = await transport.getState('ctx');
   if (!state.profile.addons.some((installed) => installed.transportUrl === addon.transportUrl)) {
     throw new Error('The add-on could not be installed.');
   }
@@ -40,12 +40,12 @@ export async function installAddonConfiguration(
       (candidate) => candidate.transportUrl === old.transportUrl,
     );
     if (!installed || installed.transportUrl === addon.transportUrl) continue;
-    if (installed.flags?.protected || installed.manifest.id !== addon.manifest.id) {
+    if (installed.flags.protected || installed.manifest.id !== addon.manifest.id) {
       throw new AddonReplacementError();
     }
     try {
       await transport.dispatch(uninstallAddonAction(installed));
-      state = await transport.getState<ProfileState>('ctx');
+      state = await transport.getState('ctx');
       if (state.profile.addons.some((candidate) => candidate.transportUrl === old.transportUrl)) {
         throw new AddonReplacementError();
       }

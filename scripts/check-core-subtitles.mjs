@@ -1,22 +1,19 @@
 import assert from 'node:assert/strict';
 
 import { installAddonAction, playerAction } from '../apps/desktop/src/core/actions.ts';
+import { addonFromManifest } from '../apps/desktop/src/core/adapters.ts';
 import { videoParams } from '../apps/desktop/src/player/videoParams.ts';
-import { initializeCore, resolveCoreStream } from './test-support/core-stream.mjs';
+import { fixtureSource, initializeCore, resolveCoreStream } from './test-support/core-stream.mjs';
 
 const core = await initializeCore();
-const addon = {
-  transportUrl: 'https://subtitles.invalid/manifest.json',
-  flags: {},
-  manifest: {
-    id: 'synthetic.subtitles',
-    name: 'Subtitle fixture',
-    version: '1.0.0',
-    types: ['movie'],
-    resources: ['subtitles'],
-    catalogs: [],
-  },
-};
+const addon = addonFromManifest('https://subtitles.invalid/manifest.json', {
+  id: 'synthetic.subtitles',
+  name: 'Subtitle fixture',
+  version: '1.0.0',
+  types: ['movie'],
+  resources: ['subtitles'],
+  catalogs: [],
+});
 core.dispatch(installAddonAction(addon), undefined, '');
 const requests = [];
 const metadataFetch = globalThis.fetch;
@@ -54,7 +51,7 @@ for (const behaviorHints of [
     assert.deepEqual(core.get_state('player').subtitles, []);
   }
   core.dispatch(
-    playerAction('VideoParamsChanged', { videoParams: videoParams(stream) }),
+    playerAction('VideoParamsChanged', { videoParams: videoParams(fixtureSource(stream)) }),
     'player',
     '',
   );
@@ -80,7 +77,12 @@ for (const behaviorHints of [
   );
 }
 assert.deepEqual(
-  videoParams({ behaviorHints: { videoHash: 'not-a-video-hash', videoSize: -1, filename: ' ' } }),
+  videoParams(
+    fixtureSource({
+      url: 'https://media.invalid/fixture.mp4',
+      behaviorHints: { videoHash: 'not-a-video-hash', videoSize: -1, filename: ' ' },
+    }),
+  ),
   { hash: null, size: null, filename: null },
 );
 process.exit(0);

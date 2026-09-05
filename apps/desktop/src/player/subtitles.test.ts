@@ -4,7 +4,6 @@ import {
   labelAddonSubtitles,
   labelSubtitleTracks,
   languagesMatch,
-  parseAddonSubtitles,
   parseSubtitleTracks,
   preferredSubtitleTrack,
   subtitleTrackLabel,
@@ -107,27 +106,17 @@ describe('subtitle tracks', () => {
     ).toBe('Director notes');
     expect(subtitleTrackLabel({ external: false, id: 4, selected: false })).toBe('Track 4');
   });
-
-  it('accepts only HTTPS add-on subtitles', () => {
-    expect(
-      parseAddonSubtitles([
-        { id: 'a', lang: 'eng', url: 'https://subs.example/a.srt' },
-        { lang: 'eng', url: 'http://subs.example/insecure.srt' },
-        { lang: 'eng' },
-        'nonsense',
-      ]),
-    ).toEqual([{ id: 'a', lang: 'eng', url: 'https://subs.example/a.srt' }]);
-  });
 });
 
 describe('add-on subtitle labels', () => {
   it('numbers repeats so identical languages stay tellable apart', () => {
-    const subtitles = parseAddonSubtitles([
+    // The Core adapter validates and filters these; see adapters.test.ts.
+    const subtitles = [
       { id: 'a', lang: 'eng', url: 'https://s.example/a.srt' },
       { id: 'b', lang: 'eng', url: 'https://s.example/b.srt' },
       { id: 'c', lang: 'spa', url: 'https://s.example/c.srt' },
       { id: 'd', lang: 'eng', url: 'https://s.example/d.srt' },
-    ]);
+    ];
 
     expect(labelAddonSubtitles(subtitles).map((entry) => entry.label)).toEqual([
       'English',

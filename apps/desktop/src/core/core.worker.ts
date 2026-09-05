@@ -2,10 +2,11 @@
 
 import Bridge from '@stremio/stremio-core-web/bridge.js';
 import wasmUrl from '@stremio/stremio-core-web/stremio_core_web_bg.wasm?url';
+import { adaptCoreState, adaptDiscoverState } from './adapters';
 import { createAddonNetwork } from './addonNetwork';
 import { CatalogPaging } from './catalogPaging';
 import { PendingCoreWork, trackCoreSync } from './pendingWork';
-import type { CatalogWithFiltersState, CoreAction, CoreRuntimeEvent, ProfileState } from './types';
+import { isCoreModelName, type CoreAction, type CoreRuntimeEvent } from './types';
 
 interface CoreWorkerScope extends DedicatedWorkerGlobalScope {
   app_version: string;
@@ -45,10 +46,12 @@ scope.init = async ({ appVersion, shellVersion }) => {
     typeof loadedCore.default === 'function'
       ? loadedCore
       : (loadedCore.default as unknown as typeof loadedCore);
+  // Every read of a Core model goes through an adapter first, here and in the
+  // paging helper, so nothing downstream ever sees a raw serializer payload.
   const paging = new CatalogPaging(
     {
       dispatch: core.dispatch,
-      getState: () => core.get_state('discover') as CatalogWithFiltersState,
+      getState: () => adaptDiscoverState(core.get_state('discover')),
     },
     () => {
       void bridge.call(['onCoreEvent'], [{ name: 'NewState', args: ['discover'] }]);
@@ -78,13 +81,21 @@ scope.init = async ({ appVersion, shellVersion }) => {
   });
   scope.fetch = paging.observeFetch(network.coreFetch);
   scope.getState = (field) => {
-    const state = core.get_state(field);
-    if (field === 'discover') return paging.snapshot(state as CatalogWithFiltersState);
+    if (!isCoreModelName(field)) throw new Error('Kino does not read that Stremio model.');
+    if (field === 'discover') return paging.snapshot(adaptDiscoverState(core.get_state(field)));
     if (field === 'ctx') {
-      const context = state as ProfileState;
-      context.profile.addons = context.profile.addons.map(network.describeAddon);
+      const context = adaptCoreState(field, core.get_state(field));
+      return {
+        profile: {
+          ...context.profile,
+          addons: context.profile.addons.map((addon) => ({
+            ...addon,
+            transportIssue: network.describeAddon(addon).transportIssue,
+          })),
+        },
+      };
     }
-    return state;
+    return adaptCoreState(field, core.get_state(field));
   };
   await core.initialize_runtime((value) => {
     const event = value as CoreRuntimeEvent;

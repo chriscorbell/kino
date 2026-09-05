@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 
 import { loadCatalogAction, loadLibraryAction } from '../apps/desktop/src/core/actions.ts';
+import { adaptCoreState, adaptDiscoverState } from '../apps/desktop/src/core/adapters.ts';
 import { CatalogPaging } from '../apps/desktop/src/core/catalogPaging.ts';
 import { initializeCore } from './test-support/core-stream.mjs';
 
@@ -14,12 +15,13 @@ const core = await initializeCore({
     if (event.name === 'NewState' && event.args.includes('discover')) paging?.updated();
   },
 });
+// Production reads Discover through the adapter before paging annotates it.
 paging = new CatalogPaging(
-  { dispatch: core.dispatch, getState: () => core.get_state('discover') },
+  { dispatch: core.dispatch, getState: () => adaptDiscoverState(core.get_state('discover')) },
   () => {},
 );
 const tick = () => new Promise((resolve) => setTimeout(resolve, 10));
-const snapshot = () => paging.snapshot(core.get_state('discover'));
+const snapshot = () => paging.snapshot(adaptDiscoverState(core.get_state('discover')));
 const request = (genre = 'Comedy') => ({
   base: 'https://v3-cinemeta.strem.io/manifest.json',
   path: { resource: 'catalog', type: 'movie', id: 'top', extra: [['genre', genre]] },
@@ -85,9 +87,10 @@ for (const [page, length, nextPage] of [
 ]) {
   core.dispatch(loadLibraryAction({ page, sort: 'name', type: 'movie' }), 'library', '');
   await tick();
-  const state = core.get_state('library');
+  const state = adaptCoreState('library', core.get_state('library'));
   assert.equal(state.catalog.length, length);
   assert.equal(state.selectable.nextPage, nextPage);
+  assert.deepEqual(state.selected.request, { page, sort: 'name', type: 'movie' });
 }
 
 for (const kind of ['http', 'network', 'invalid']) {

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import type { CoreAddon, ProfileState } from '../core/types';
+import type { CoreAddon } from '../core/types';
+import { addon as buildAddon, profile } from '../test/coreState';
 
 import { AddonsScreen } from './AddonsScreen';
 
@@ -20,14 +21,16 @@ vi.mock('../core/useCoreModel', () => ({
 }));
 
 beforeEach(() => {
-  fixture.getState.mockImplementation(
-    async () => ({ profile: { addons: fixture.addons } }) as ProfileState,
-  );
+  fixture.getState.mockImplementation(async () => profile({ addons: fixture.addons }));
   fixture.dispatch.mockImplementation(async (action) => {
     if (action.args.action === 'InstallAddon') {
+      // Core stores the descriptor Kino serialized; reading it back adapts it.
+      const installed = buildAddon(action.args.args.transportUrl, action.args.args.manifest, {
+        flags: action.args.args.flags,
+      });
       fixture.addons = [
-        ...fixture.addons.filter((addon) => addon.transportUrl !== action.args.args.transportUrl),
-        action.args.args,
+        ...fixture.addons.filter((addon) => addon.transportUrl !== installed.transportUrl),
+        installed,
       ];
     } else if (action.args.action === 'UninstallAddon') {
       fixture.addons = fixture.addons.filter(
@@ -47,14 +50,11 @@ afterEach(() => {
 
 it('explains a blocked synced add-on without requesting its logo', () => {
   fixture.addons = [
-    {
-      transportUrl: 'http://insecure.invalid/token/manifest.json',
-      manifest: {
-        id: 'insecure',
-        name: 'Synced add-on',
-        logo: 'http://insecure.invalid/token/logo.png',
-      },
-    },
+    buildAddon('http://insecure.invalid/token/manifest.json', {
+      id: 'insecure',
+      name: 'Synced add-on',
+      logo: 'http://insecure.invalid/token/logo.png',
+    }),
   ];
   render(<AddonsScreen />);
   expect(screen.getByRole('status')).toHaveTextContent('requires an HTTPS manifest URL');
@@ -92,26 +92,17 @@ it('explains a redirect and never installs the redirected manifest', async () =>
 
 it('offers configuration only for supported add-ons, including required configuration', () => {
   fixture.addons = [
-    {
-      transportUrl: 'https://addon.invalid/old/manifest.json',
-      manifest: {
-        id: 'config',
-        name: 'Configurable add-on',
-        behaviorHints: { configurable: true },
-      },
-    },
-    {
-      transportUrl: 'https://required.invalid/manifest.json',
-      manifest: {
-        id: 'required',
-        name: 'Required configuration',
-        behaviorHints: { configurationRequired: true },
-      },
-    },
-    {
-      transportUrl: 'https://plain.invalid/manifest.json',
-      manifest: { id: 'plain', name: 'Plain add-on' },
-    },
+    buildAddon('https://addon.invalid/old/manifest.json', {
+      id: 'config',
+      name: 'Configurable add-on',
+      behaviorHints: { configurable: true },
+    }),
+    buildAddon('https://required.invalid/manifest.json', {
+      id: 'required',
+      name: 'Required configuration',
+      behaviorHints: { configurationRequired: true },
+    }),
+    buildAddon('https://plain.invalid/manifest.json', { id: 'plain', name: 'Plain add-on' }),
   ];
   render(<AddonsScreen />);
   expect(screen.getByRole('link', { name: 'Configure Configurable add-on' })).toHaveAttribute(
@@ -156,7 +147,7 @@ it.each(['Replace existing', 'Keep both'] as const)(
       name: 'Configuration fixture',
       behaviorHints: { configurable: true },
     };
-    const old = { transportUrl: 'https://addon.invalid/old/manifest.json', manifest };
+    const old = buildAddon('https://addon.invalid/old/manifest.json', manifest);
     fixture.addons = [old];
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(manifest)));
     render(<AddonsScreen />);
@@ -195,7 +186,7 @@ it('keeps the old configuration if the new descriptor fails, then retries partia
     name: 'Configuration fixture',
     behaviorHints: { configurable: true },
   };
-  const old = { transportUrl: 'https://addon.invalid/old/manifest.json', manifest };
+  const old = buildAddon('https://addon.invalid/old/manifest.json', manifest);
   fixture.addons = [old];
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(manifest)));
   render(<AddonsScreen />);
@@ -211,7 +202,7 @@ it('keeps the old configuration if the new descriptor fails, then retries partia
   expect(fixture.dispatch).toHaveBeenCalledOnce();
   fixture.dispatch
     .mockImplementationOnce(async (action) => {
-      fixture.addons.push(action.args.args);
+      fixture.addons.push(buildAddon(action.args.args.transportUrl, action.args.args.manifest));
     })
     .mockRejectedValueOnce(new Error('Synthetic remove failure'));
   fireEvent.click(screen.getByRole('button', { name: 'Replace existing' }));
@@ -232,11 +223,9 @@ it('requires an explicit alongside installation when an existing configuration i
     behaviorHints: { configurable: true },
   };
   fixture.addons = [
-    {
-      transportUrl: 'https://addon.invalid/old/manifest.json',
-      manifest,
-      flags: { protected: true },
-    },
+    buildAddon('https://addon.invalid/old/manifest.json', manifest, {
+      flags: { official: false, protected: true },
+    }),
   ];
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(manifest)));
   render(<AddonsScreen />);

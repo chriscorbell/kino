@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import styles from '../App.module.css';
 import { updateProfileSettingsAction } from '../core/actions';
 import { useCore } from '../core/context';
-import type { ProfileState } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
 import { connectNativeDiagnostics, nativeShellPresent } from '../native/player';
@@ -104,7 +103,7 @@ export function SettingsScreen({
   interfaceScale?: InterfaceScaleState;
 }) {
   const { transport } = useCore();
-  const profile = useCoreModel<ProfileState>('ctx', null, 'settings-profile');
+  const profile = useCoreModel('ctx', null, 'settings-profile');
   const [cacheBytes, setCacheBytes] = useState<number | null>(null);
   const [clearing, setClearing] = useState(false);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle');
@@ -118,7 +117,7 @@ export function SettingsScreen({
   const updateProfile = (patch: Record<string, string>) => {
     if (!profileSettings || !transport) return;
     void transport
-      .dispatch(updateProfileSettingsAction({ ...profileSettings, ...patch }))
+      .dispatch(updateProfileSettingsAction(profileSettings, patch))
       .catch((error: unknown) => {
         console.error(
           '[kino:settings] profile update failed',

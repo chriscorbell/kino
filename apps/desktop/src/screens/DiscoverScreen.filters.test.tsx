@@ -14,15 +14,28 @@ vi.mock('../core/useCoreModel', () => ({
   useCoreModel: (...args: unknown[]) => model.read(...args),
 }));
 
-it('renders all required and optional choices and follows links that preserve other filters', () => {
+it('renders all required and optional choices and follows requests that preserve other filters', () => {
   const base = 'https://catalog.invalid/manifest.json';
-  const link = (year: string, language: string | null) =>
-    `#/discover/${encodeURIComponent(base)}/movie/new?genre=${year}${language ? `&language=${language}` : ''}`;
+  // The adapter has already turned each choice's deep link into a request.
+  const request = (year: string, language: string | null): CatalogRequest => ({
+    base,
+    path: {
+      resource: 'catalog',
+      type: 'movie',
+      id: 'new',
+      extra: language
+        ? [
+            ['genre', year],
+            ['language', language],
+          ]
+        : [['genre', year]],
+    },
+  });
   model.read.mockImplementation((_name, action) => {
-    const request = action.args.args?.request as CatalogRequest | undefined;
-    const year = request?.path.extra.find(([key]) => key === 'genre')?.[1] ?? '2026';
-    const language = request
-      ? (request.path.extra.find(([key]) => key === 'language')?.[1] ?? null)
+    const selected = action.args.args?.request as CatalogRequest | undefined;
+    const year = selected?.path.extra.find(([key]) => key === 'genre')?.[1] ?? '2026';
+    const language = selected
+      ? (selected.path.extra.find(([key]) => key === 'language')?.[1] ?? null)
       : 'English';
     return {
       loading: false,
@@ -30,9 +43,16 @@ it('renders all required and optional choices and follows links that preserve ot
       state: {
         catalog: { content: { type: 'Ready', content: [] } },
         selectable: {
+          nextPage: false,
           types: [],
           catalogs: [
-            { addon: { manifest: { id: 'fixture' } }, id: 'new', name: 'New', selected: true },
+            {
+              addon: { manifest: { id: 'fixture', name: 'Fixture' } },
+              id: 'new',
+              name: 'New',
+              request: request(year, language),
+              selected: true,
+            },
           ],
           extra: [
             {
@@ -41,7 +61,7 @@ it('renders all required and optional choices and follows links that preserve ot
               options: ['2026', '2025'].map((value) => ({
                 value,
                 selected: value === year,
-                deepLinks: { discover: link(value, language) },
+                request: request(value, language),
               })),
             },
             {
@@ -50,7 +70,7 @@ it('renders all required and optional choices and follows links that preserve ot
               options: [null, 'English'].map((value) => ({
                 value,
                 selected: value === language,
-                deepLinks: { discover: link(year, value) },
+                request: request(year, value),
               })),
             },
             { name: 'skip', isRequired: false, options: [] },
@@ -67,26 +87,8 @@ it('renders all required and optional choices and follows links that preserve ot
   expect(languages).toHaveDisplayValue('English');
   fireEvent.change(years, { target: { value: '1' } });
   expect(years).toHaveDisplayValue('2025');
-  expect(model.read.mock.lastCall?.[1]).toEqual(
-    loadCatalogAction({
-      base,
-      path: {
-        resource: 'catalog',
-        type: 'movie',
-        id: 'new',
-        extra: [
-          ['genre', '2025'],
-          ['language', 'English'],
-        ],
-      },
-    }),
-  );
+  expect(model.read.mock.lastCall?.[1]).toEqual(loadCatalogAction(request('2025', 'English')));
   fireEvent.change(languages, { target: { value: '0' } });
   expect(languages).toHaveDisplayValue('All');
-  expect(model.read.mock.lastCall?.[1]).toEqual(
-    loadCatalogAction({
-      base,
-      path: { resource: 'catalog', type: 'movie', id: 'new', extra: [['genre', '2025']] },
-    }),
-  );
+  expect(model.read.mock.lastCall?.[1]).toEqual(loadCatalogAction(request('2025', null)));
 });

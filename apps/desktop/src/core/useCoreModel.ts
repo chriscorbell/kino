@@ -2,7 +2,7 @@ import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react'
 
 import { useCore } from './context';
 import type { CoreTransport } from './transport';
-import type { CoreAction, CoreModelName, CoreRuntimeEvent } from './types';
+import type { CoreAction, CoreModelName, CoreRuntimeEvent, CoreStateMap } from './types';
 
 interface CoreModelResult<State> {
   error: string | null;
@@ -29,12 +29,13 @@ function errorMessage(error: unknown) {
   return 'The Stremio model failed to load.';
 }
 
-export function useCoreModel<State>(
-  model: CoreModelName,
+export function useCoreModel<Model extends CoreModelName>(
+  model: Model,
   action: CoreAction | null,
   actionKey: string,
   options?: { beforeUnload: (transport: CoreTransport, loaded: Promise<void>) => Promise<void> },
-): CoreModelResult<State> {
+): CoreModelResult<CoreStateMap[Model]> {
+  type State = CoreStateMap[Model];
   const { status, transport } = useCore();
   const dispatchLoad = useEffectEvent(async (target: CoreTransport, targetModel: CoreModelName) => {
     if (action) await target.dispatch(action, targetModel);
@@ -60,7 +61,7 @@ export function useCoreModel<State>(
     let disposed = false;
     const read = async () => {
       try {
-        const state = await transport.getState<State>(model);
+        const state = await transport.getState(model);
         if (!disposed) setResult({ actionKey, error: null, loading: false, state, transport });
       } catch (error) {
         console.error(`[kino:core] ${model} state failed`, errorMessage(error));

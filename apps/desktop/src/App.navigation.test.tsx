@@ -6,24 +6,27 @@ import { App } from './App';
 import { CoreContext } from './core/context';
 import type { CoreTransport } from './core/transport';
 import type { CatalogRequest, CoreRuntimeEvent, LibraryRequest } from './core/types';
+import { metaItem, profile } from './test/coreState';
 
 function fixture() {
   let query = '';
   let genre = '';
   let libraryType: string | null = null;
   const listeners = new Set<(event: CoreRuntimeEvent) => void>();
-  const item = {
-    id: 'silo',
-    name: 'Silo',
-    type: 'movie',
-    inLibrary: false,
-    watched: false,
-    videos: [],
-  };
+  const item = metaItem({ id: 'silo', name: 'Silo', type: 'movie' });
   const addon = {
-    manifest: { id: 'test', name: 'Test' },
+    manifest: { id: 'test', logo: null, name: 'Test' },
     transportUrl: 'https://addon.invalid/manifest.json',
   };
+  const catalogRequest = (value: string): CatalogRequest => ({
+    base: addon.transportUrl,
+    path: {
+      resource: 'catalog',
+      type: 'movie',
+      id: 'top',
+      extra: value ? [['genre', value]] : [],
+    },
+  });
   const dispatch = vi.fn<CoreTransport['dispatch']>().mockImplementation(async (action, model) => {
     if (model === 'search' && action.action === 'Load')
       query = (action.args as { args: { extra: string[][] } }).args.extra[0]?.[1] ?? '';
@@ -45,31 +48,44 @@ function fixture() {
       return () => listeners.delete(listener);
     },
     dispatch,
-    getState: async <State,>(model: string) =>
-      (model === 'ctx'
-        ? { profile: { auth: null, addons: [], settings: {} } }
+    getState: (async (model: string) =>
+      model === 'ctx'
+        ? profile()
         : model === 'continue_watching_preview'
           ? { items: [] }
           : model === 'search'
             ? {
-                selected: { extra: [['search', query]] },
+                selected: { extra: [['search', query]], type: null },
                 catalogs: query ? [{ content: { type: 'Ready', content: [item] } }] : [],
               }
             : model === 'meta_details'
               ? {
+                  libraryItem: null,
+                  title: null,
                   metaItem: { addon, content: { type: 'Ready', content: item } },
                   streams: [],
                   selected: {
-                    metaPath: { resource: 'meta', type: 'movie', id: 'silo' },
-                    streamPath: { resource: 'stream', type: 'movie', id: 'silo' },
+                    guessStream: true,
+                    metaPath: { resource: 'meta', type: 'movie', id: 'silo', extra: [] },
+                    streamPath: { resource: 'stream', type: 'movie', id: 'silo', extra: [] },
                   },
                 }
               : model === 'discover'
                 ? {
                     catalog: { content: { type: 'Ready', content: [item] } },
+                    selected: null,
                     selectable: {
+                      nextPage: false,
                       types: [],
-                      catalogs: [{ addon, id: 'top', name: 'Top', selected: true }],
+                      catalogs: [
+                        {
+                          addon,
+                          id: 'top',
+                          name: 'Top',
+                          request: catalogRequest(''),
+                          selected: true,
+                        },
+                      ],
                       extra: [
                         {
                           name: 'genre',
@@ -77,9 +93,7 @@ function fixture() {
                           options: ['', 'Drama'].map((value) => ({
                             value: value || null,
                             selected: genre === value,
-                            deepLinks: {
-                              discover: `#/discover/${encodeURIComponent(addon.transportUrl)}/movie/top?genre=${value}`,
-                            },
+                            request: catalogRequest(value),
                           })),
                         },
                       ],
@@ -87,16 +101,28 @@ function fixture() {
                   }
                 : model === 'library'
                   ? {
-                      catalog: [{ _id: item.id, name: item.name, type: item.type }],
+                      catalog: [
+                        {
+                          id: item.id,
+                          name: item.name,
+                          poster: null,
+                          posterShape: 'poster',
+                          progress: 0,
+                          type: item.type,
+                        },
+                      ],
                       selected: { request: { page: 1, sort: 'lastwatched', type: libraryType } },
                       selectable: {
+                        nextPage: false,
+                        sorts: [],
                         types: [null, 'movie'].map((type) => ({
-                          type,
+                          request: { page: 1, sort: 'lastwatched', type },
                           selected: type === libraryType,
+                          type,
                         })),
                       },
                     }
-                  : { catalogs: [] }) as State,
+                  : { catalogs: [], selected: null }) as CoreTransport['getState'],
   };
   render(
     <CoreContext.Provider

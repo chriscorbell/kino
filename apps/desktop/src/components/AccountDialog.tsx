@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import logo from '../assets/kino.svg';
 import styles from '../App.module.css';
 import { useCore } from '../core/context';
-import type { CoreRuntimeEvent, ProfileState } from '../core/types';
+import type { CoreRuntimeEvent } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
 import { nativeShellPresent, openAccountCreation } from '../native/player';
@@ -15,7 +15,7 @@ function authError(event: CoreRuntimeEvent) {
 
 export function AccountDialog({ onClose }: { onClose: () => void }) {
   const { selectSession, session, status, transport } = useCore();
-  const profile = useCoreModel<ProfileState>('ctx', null, `account:${session}`);
+  const profile = useCoreModel('ctx', null, `account:${session}`);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
