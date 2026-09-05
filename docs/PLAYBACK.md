@@ -23,6 +23,8 @@ If initialization, decoding, or streaming fails, Kino saves progress, records a 
 
 Initial releases always output SDR. SDR sources render without range conversion. HDR10, HLG, Dolby Vision, and other supported 10-bit inputs are hardware-decoded and GPU tone-mapped to SDR. Dolby Vision profiles 5, 7, and 8 are accepted only when the platform produces correct SDR frames. Kino must reject green, washed-out, clipped, or otherwise incorrectly interpreted output.
 
+External source rows identify the destination host. Selecting one shows the complete HTTP or HTTPS URL for confirmation; Cancel or Escape keeps Kino on the details screen without opening anything. Approval opens the system browser, and a failed browser launch can be retried. URLs with credentials and unsupported source types stay disabled with a reason.
+
 Kino never falls back to a software video decoder. If hardware decoding or GPU HDR-to-SDR conversion is unavailable, the source is unsupported. Audio decoding remains allowed.
 
 | Input                            | Contract                                               |

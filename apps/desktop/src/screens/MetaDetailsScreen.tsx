@@ -2,6 +2,7 @@ import { ArrowLeft, Check, Play, Plus } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import styles from '../App.module.css';
+import { ExternalSourceDialog } from '../components/ExternalSourceDialog';
 import { ExpandableText } from '../components/ExpandableText';
 import {
   addToLibraryAction,
@@ -10,7 +11,15 @@ import {
   type PlaybackSelection,
 } from '../core/actions';
 import { useCore } from '../core/context';
-import { classifySource, sourceDetails, sourceKey, sourceSize, sourceTitle } from '../core/sources';
+import {
+  classifySource,
+  externalWebUrl,
+  sourceDetails,
+  sourceKey,
+  sourceSize,
+  sourceTitle,
+  unsupportedSourceReason,
+} from '../core/sources';
 import type {
   CoreMetaItem,
   CoreMetaPreview,
@@ -147,6 +156,19 @@ export function MetaDetailsScreen({
   const visibleSourceKeys = new Set(
     sources.map((source) => sourceKey(source.stream, source.transportUrl, sourceSelection)),
   );
+  const [externalChoice, setExternalChoice] = useState<{
+    key: string;
+    url: URL;
+    transport: typeof transport;
+  } | null>(null);
+  const currentExternal =
+    externalChoice &&
+    sourcesCurrent &&
+    externalChoice.transport === transport &&
+    visibleSourceKeys.has(externalChoice.key)
+      ? externalChoice
+      : null;
+  if (externalChoice && !currentExternal) setExternalChoice(null);
   const currentFailure = sourcesCurrent
     ? [...failedSources].findLast(([key]) => visibleSourceKeys.has(key))?.[1]
     : null;
@@ -339,16 +361,27 @@ export function MetaDetailsScreen({
               const support = classifySource(source.stream);
               const playable =
                 (support === 'direct' || support === 'torrent') && Boolean(source.transportUrl);
-              const failed = failedSources.has(
-                sourceKey(source.stream, source.transportUrl, sourceSelection),
-              );
+              const external =
+                support === 'external' ? externalWebUrl(source.stream.externalUrl) : null;
+              const selectable = playable || Boolean(external);
+              const key = sourceKey(source.stream, source.transportUrl, sourceSelection);
+              const failed = failedSources.has(key);
+              const unavailable =
+                support === 'direct' || support === 'torrent'
+                  ? enUS.details.sourceUnsupported.addon
+                  : enUS.details.sourceUnsupported[unsupportedSourceReason(source.stream)];
               return (
                 <button
                   className={styles.sourceButton}
-                  disabled={!playable || !sourcesCurrent}
+                  disabled={!selectable || !sourcesCurrent}
                   key={`${source.transportUrl}:${index}`}
                   onClick={() => {
-                    if (!sourcesCurrent || !playable || !resource?.addon.transportUrl) return;
+                    if (!sourcesCurrent) return;
+                    if (external) {
+                      setExternalChoice({ key, url: external, transport });
+                      return;
+                    }
+                    if (!playable || !resource?.addon.transportUrl) return;
                     onPlay({
                       resumeMode: canResume && startOver ? 'start-over' : 'resume',
                       meta: display,
@@ -364,11 +397,19 @@ export function MetaDetailsScreen({
                   <span className={styles.sourcePrimary}>
                     <strong>{sourceTitle(source.stream)}</strong>
                     <small>{sourceDetails(source.stream)}</small>
+                    {external ? (
+                      <small className={styles.sourceExplanation}>
+                        {enUS.details.openExternal} · {external.host}
+                      </small>
+                    ) : null}
+                    {!selectable ? (
+                      <small className={styles.sourceExplanation}>{unavailable}</small>
+                    ) : null}
                   </span>
                   <span className={styles.sourceMeta}>
                     {sourceSize(source.stream) ? <span>{sourceSize(source.stream)}</span> : null}
                     <span>{source.addonName}</span>
-                    {!playable ? <em>{enUS.details.unavailable}</em> : null}
+                    {!selectable ? <em>{enUS.details.unavailable}</em> : null}
                     {playable && failed ? <em>{enUS.details.failed}</em> : null}
                   </span>
                 </button>
@@ -377,6 +418,9 @@ export function MetaDetailsScreen({
           </div>
         </section>
       </div>
+      {currentExternal ? (
+        <ExternalSourceDialog url={currentExternal.url} onClose={() => setExternalChoice(null)} />
+      ) : null}
     </div>
   );
 }

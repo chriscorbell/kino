@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 
@@ -71,6 +71,7 @@ async function mountPlayer() {
     />,
   );
   await screen.findByRole('button', { name: 'Subtitles' });
+  await waitFor(() => expect(fixture.native.load).toHaveBeenCalled());
 }
 
 it('lets Space activate the focused subtitle option without toggling playback', async () => {
