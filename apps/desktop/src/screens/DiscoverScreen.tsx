@@ -1,5 +1,5 @@
 import { CaretDown } from '@phosphor-icons/react';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 
 import styles from '../App.module.css';
 import { MediaCard } from '../components/MediaCard';
@@ -15,8 +15,6 @@ function typeLabel(type: string) {
 
 export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => void }) {
   const [request, setRequest] = useState<CatalogRequest | null>(null);
-  const [genresOpen, setGenresOpen] = useState(false);
-  const genreRef = useRef<HTMLDivElement>(null);
   const result = useCoreModel<CatalogWithFiltersState>(
     'discover',
     loadCatalogAction(request),
@@ -30,30 +28,11 @@ export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => 
   const genreFilter = selectable?.extra.find(
     (extra) => !extra.isRequired && extra.options.length > 0,
   );
-  const selectedGenre = genreFilter?.options.find((option) => option.selected)?.value ?? null;
 
   const select = (link: string | undefined) => {
     const next = catalogRequestFromDeepLink(link);
     if (next) setRequest(next);
   };
-
-  useEffect(() => {
-    if (!genresOpen) return;
-    const onPointerDown = (event: PointerEvent) => {
-      if (!genreRef.current?.contains(event.target as Node)) setGenresOpen(false);
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      setGenresOpen(false);
-      genreRef.current?.querySelector('button')?.focus();
-    };
-    window.addEventListener('pointerdown', onPointerDown);
-    window.addEventListener('keydown', onKeyDown);
-    return () => {
-      window.removeEventListener('pointerdown', onPointerDown);
-      window.removeEventListener('keydown', onKeyDown);
-    };
-  }, [genresOpen]);
 
   return (
     <div className={styles.page}>
@@ -92,33 +71,26 @@ export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => 
           </div>
 
           {genreFilter ? (
-            <div className={styles.genreMenu} ref={genreRef}>
-              <button
-                aria-expanded={genresOpen}
-                className={styles.genreButton}
-                onClick={() => setGenresOpen((open) => !open)}
-                type="button"
+            <div className={styles.genreMenu}>
+              <select
+                aria-label={enUS.discover.genreLabel}
+                className={styles.genreSelect}
+                onChange={(event) => {
+                  const option = genreFilter.options[Number(event.target.value)];
+                  select(option?.deepLinks?.discover);
+                }}
+                value={Math.max(
+                  0,
+                  genreFilter.options.findIndex((option) => option.selected),
+                )}
               >
-                {selectedGenre ?? enUS.discover.allGenres}
-                <CaretDown aria-hidden size={13} />
-              </button>
-              {genresOpen ? (
-                <div className={styles.genreList} role="listbox">
-                  {genreFilter.options.map((option) => (
-                    <button
-                      aria-pressed={option.selected}
-                      key={option.value ?? 'all'}
-                      onClick={() => {
-                        select(option.deepLinks?.discover);
-                        setGenresOpen(false);
-                      }}
-                      type="button"
-                    >
-                      {option.value ?? enUS.discover.allGenres}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
+                {genreFilter.options.map((option, index) => (
+                  <option key={option.value ?? 'all'} value={index}>
+                    {option.value ?? enUS.discover.allGenres}
+                  </option>
+                ))}
+              </select>
+              <CaretDown aria-hidden size={13} />
             </div>
           ) : null}
         </div>
