@@ -12,6 +12,7 @@ const native = vi.hoisted(() => {
     listeners,
     load: vi.fn(),
     stop: vi.fn(),
+    seek: vi.fn(),
     pauseAndSnapshot: vi.fn(),
     setVolume: vi.fn(),
     setSubtitleScale: vi.fn(),
@@ -39,7 +40,7 @@ beforeEach(() => {
   native.pauseAndSnapshot.mockResolvedValue({ time: 0, duration: 0 });
 });
 
-async function mountPlayer() {
+async function mountPlayer({ upNext = true, hasNextVideo = true } = {}) {
   const calls: string[] = [];
   const closing = new Set<() => Promise<void>>();
   let holdFlush = false;
@@ -101,9 +102,9 @@ async function mountPlayer() {
             streamTransportUrl: 'https://addon.invalid/manifest.json',
             metaTransportUrl: 'https://addon.invalid/manifest.json',
             video: { id: 'ep1', title: 'Episode one', season: 1, episode: 1 },
-            nextVideo,
+            nextVideo: hasNextVideo ? nextVideo : null,
           }}
-          settings={defaultSettings}
+          settings={{ ...defaultSettings, upNext }}
           preferredSubtitleLanguage={null}
           onBack={onBack}
           onSourceFailure={onSourceFailure}
@@ -171,15 +172,16 @@ describe('ordered playback shutdown', () => {
     expect(player.onBack).toHaveBeenCalledOnce();
   });
 
-  it.each(['Back', 'failure', 'Up Next', 'native close', 'unmount'] as const)(
+  it.each(['Back', 'failure', 'Up Next', 'near-end Up Next', 'native close', 'unmount'] as const)(
     'saves the latest position before unload on %s',
     async (exit) => {
       const player = await mountPlayer();
       let closing: Promise<void> | undefined;
       if (exit === 'Back') fireEvent.click(screen.getByRole('button', { name: /Back/ }));
       if (exit === 'failure') await player.emit('error', { code: 'decoder-or-stream-failed' });
-      if (exit === 'Up Next') {
-        await player.emit('ended');
+      if (exit === 'Up Next' || exit === 'near-end Up Next') {
+        if (exit === 'Up Next') await player.emit('ended');
+        else await player.emit('time', { milliseconds: 108000 });
         fireEvent.click(screen.getByRole('button', { name: /Choose source/i }));
       }
       if (exit === 'native close') {
@@ -202,8 +204,69 @@ describe('ordered playback shutdown', () => {
       expect(player.calls.filter((call) => call === 'Unload')).toHaveLength(1);
       if (exit === 'Back') expect(player.onBack).toHaveBeenCalledOnce();
       if (exit === 'failure') expect(player.onSourceFailure).toHaveBeenCalledOnce();
-      if (exit === 'Up Next')
+      if (exit === 'Up Next' || exit === 'near-end Up Next')
         expect(player.onUpNext).toHaveBeenCalledExactlyOnceWith(player.nextVideo);
+    },
+  );
+});
+
+describe('near-end Up Next', () => {
+  it.each([
+    { duration: 1_800_000, start: 1_680_000 },
+    { duration: 120_000, start: 108_000 },
+  ])(
+    'offers the next source at $start ms of $duration ms without starting it',
+    async ({ duration, start }) => {
+      const player = await mountPlayer();
+      await player.emit('duration', { milliseconds: duration });
+      await player.emit('time', { milliseconds: start - 1 });
+      expect(screen.queryByRole('button', { name: /Choose source/i })).not.toBeInTheDocument();
+      await player.emit('time', { milliseconds: start });
+      expect(screen.getByRole('button', { name: /Choose source/i })).toBeInTheDocument();
+      expect(player.onUpNext).not.toHaveBeenCalled();
+      expect(player.calls).not.toContain('Unload');
+      const loads = native.load.mock.calls.length;
+      await player.emit('time', { milliseconds: start - 1 });
+      expect(screen.queryByRole('button', { name: /Choose source/i })).not.toBeInTheDocument();
+      expect(native.load).toHaveBeenCalledTimes(loads);
+    },
+  );
+
+  it('clears the end-of-file offer immediately on a timeline seek and on a native rewind', async () => {
+    const player = await mountPlayer();
+    await player.emit('ended');
+    expect(screen.getByRole('button', { name: /Choose source/i })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('slider', { name: /Playback position/i }), {
+      target: { value: '30000' },
+    });
+    expect(screen.queryByRole('button', { name: /Choose source/i })).not.toBeInTheDocument();
+    expect(native.seek).toHaveBeenLastCalledWith(30);
+    await player.emit('time', { milliseconds: 120000 });
+    await player.emit('ended');
+    await player.emit('time', { milliseconds: 20000 });
+    expect(screen.queryByRole('button', { name: /Choose source/i })).not.toBeInTheDocument();
+  });
+
+  it('waits for end-of-file when duration is unknown', async () => {
+    const player = await mountPlayer();
+    for (const duration of [0, Number.NaN, Number.POSITIVE_INFINITY]) {
+      await player.emit('duration', { milliseconds: duration });
+      await player.emit('time', { milliseconds: 1_000_000 });
+      expect(screen.queryByRole('button', { name: /Choose source/i })).not.toBeInTheDocument();
+    }
+    await player.emit('ended');
+    expect(screen.getByRole('button', { name: /Choose source/i })).toBeInTheDocument();
+    expect(player.onUpNext).not.toHaveBeenCalled();
+  });
+
+  it.each([{ upNext: false }, { hasNextVideo: false }])(
+    'respects availability and preference: %j',
+    async (options) => {
+      const player = await mountPlayer(options);
+      await player.emit('time', { milliseconds: 115000 });
+      await player.emit('ended');
+      expect(screen.queryByRole('button', { name: /Choose source/i })).not.toBeInTheDocument();
+      expect(player.onUpNext).not.toHaveBeenCalled();
     },
   );
 });
