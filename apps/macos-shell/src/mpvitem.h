@@ -25,6 +25,7 @@ public:
 
     Q_INVOKABLE void addSubtitles(const QString &url, const QString &title, const QString &lang);
     Q_INVOKABLE void load(const QString &url, bool forceStereo, const QVariantMap &headers = {});
+    Q_INVOKABLE QVariantMap pauseAndSnapshot();
     Q_INVOKABLE void seek(double seconds);
     Q_INVOKABLE void setMuted(bool muted);
     Q_INVOKABLE void setPaused(bool paused);

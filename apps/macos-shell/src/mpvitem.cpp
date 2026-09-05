@@ -365,6 +365,19 @@ void MpvItem::addSubtitles(const QString &url, const QString &title, const QStri
     }
 }
 
+QVariantMap MpvItem::pauseAndSnapshot() {
+    int paused = 1;
+    mpv_set_property(handle_, "pause", MPV_FORMAT_FLAG, &paused);
+    double time = 0;
+    double duration = 0;
+    mpv_get_property(handle_, "time-pos", MPV_FORMAT_DOUBLE, &time);
+    mpv_get_property(handle_, "duration", MPV_FORMAT_DOUBLE, &duration);
+    return {
+        {QStringLiteral("time"), std::isfinite(time) ? std::llround(std::max(0.0, time) * 1000) : 0},
+        {QStringLiteral("duration"), std::isfinite(duration) ? std::llround(std::max(0.0, duration) * 1000) : 0},
+    };
+}
+
 void MpvItem::seek(double seconds) {
     double safeSeconds = std::max(0.0, seconds);
     mpv_set_property_async(handle_, 0, "time-pos", MPV_FORMAT_DOUBLE, &safeSeconds);

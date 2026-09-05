@@ -11,6 +11,7 @@ export interface NativeEngineEvent {
 export interface NativePlayer {
   addSubtitles(url: string, title: string, lang: string): void;
   load(url: string, forceStereo: boolean, headers: Record<string, string>): void;
+  pauseAndSnapshot(): Promise<{ duration: number; time: number }>;
   platform: string;
   playerEvent: NativePlayerEvent;
   seek(seconds: number): void;
@@ -34,6 +35,15 @@ export interface NativeDiagnostics {
   revealLogs(): Promise<boolean>;
 }
 
+export interface NativeLifecycle {
+  setReady(ready: boolean): void;
+  acknowledgeClose(requestId: number, saved: boolean): void;
+  closeRequested: {
+    connect(listener: (requestId: number) => void): void;
+    disconnect(listener: (requestId: number) => void): void;
+  };
+}
+
 export interface NativeSecureStore {
   clearStremioAuth(): Promise<boolean>;
   readStremioAuth(): Promise<{ ok: boolean; value: string }>;
@@ -41,6 +51,7 @@ export interface NativeSecureStore {
 }
 
 interface NativeShellConnection {
+  lifecycle: NativeLifecycle | null;
   diagnostics: NativeDiagnostics;
   player: NativePlayer;
   secureStore: NativeSecureStore;
@@ -49,6 +60,7 @@ interface NativeShellConnection {
 interface WebChannelResult {
   objects: {
     kinoDiagnostics?: NativeDiagnostics;
+    kinoLifecycle?: NativeLifecycle;
     kinoNative?: NativePlayer;
     kinoSecureStore?: NativeSecureStore;
   };
@@ -119,7 +131,12 @@ function connectNativeShell(): Promise<NativeShellConnection | null> {
             reject(new Error('Native shell services are unavailable.'));
             return;
           }
-          resolve({ diagnostics, player, secureStore });
+          resolve({
+            diagnostics,
+            player,
+            secureStore,
+            lifecycle: channel.objects.kinoLifecycle ?? null,
+          });
         });
       }),
   );
@@ -132,6 +149,10 @@ function connectNativeShell(): Promise<NativeShellConnection | null> {
 
 export async function connectNativePlayer() {
   return (await connectNativeShell())?.player ?? null;
+}
+
+export async function connectNativeLifecycle() {
+  return (await connectNativeShell())?.lifecycle ?? null;
 }
 
 export async function connectNativeDiagnostics() {

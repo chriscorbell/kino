@@ -55,6 +55,10 @@ TV playback is always fullscreen. Back first closes the active menu or hides con
 
 Continue Watching resumes at saved progress. Media details also offers Start Over. Playback updates progress through Stremio Core when signed in and locally for guests.
 
+Back, source failure, Up Next, window close, and application Quit share the same shutdown sequence. Kino pauses playback, captures the current position, sends the final progress and pause actions to Core, and waits for storage writes and pending library sync requests before unloading the player. The macOS shell keeps WebEngine alive until this sequence acknowledges completion. Failed local saves keep playback open for retry; failed account requests leave the locally saved progress available.
+
+`pnpm core:check-shutdown` runs the pinned Core WASM with guest and synthetic account profiles, delayed storage acknowledgements, and delayed sync response bodies. `pnpm macos:check-shutdown` checks window close and application Quit against a running shell and libmpv using the legal H.264 fixture. Set `KINO_FIXTURES_DIR` when the fixtures are outside `build/fixtures`.
+
 ## Intro behavior
 
 Marker resolution uses this order:

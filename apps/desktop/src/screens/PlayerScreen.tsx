@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styles from '../App.module.css';
 import { loadPlayerAction, playerAction, type PlaybackSelection } from '../core/actions';
 import { useCore } from '../core/context';
+import type { CoreTransport } from '../core/transport';
 import { classifySource } from '../core/sources';
 import type { CoreVideo, PlayerState } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
@@ -130,14 +131,12 @@ export function PlayerScreen({
   settings: KinoSettings;
 }) {
   const { transport } = useCore();
-  const result = useCoreModel<PlayerState>(
-    'player',
-    loadPlayerAction(selection),
-    `${selection.meta.id}:${selection.video?.id ?? 'movie'}:${selection.streamTransportUrl}`,
-  );
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const playbackRef = useRef({ duration: 0, time: 0 });
+  const closingRef = useRef(false);
+  const navigationPendingRef = useRef(false);
+  const [shutdownError, setShutdownError] = useState<string | null>(null);
   const lastProgressRef = useRef(0);
   const resumeAppliedRef = useRef(false);
   const autoSkipSuppressedRef = useRef(false);
@@ -161,6 +160,12 @@ export function PlayerScreen({
   const [ended, setEnded] = useState(false);
   const [torrentUrl, setTorrentUrl] = useState<string | null>(null);
   const [engineUrl, setEngineUrl] = useState<string | null>(null);
+  const result = useCoreModel<PlayerState>(
+    'player',
+    loadPlayerAction(selection),
+    `${selection.meta.id}:${selection.video?.id ?? 'movie'}:${selection.streamTransportUrl}`,
+    { beforeUnload: (target, loaded) => saveBeforeUnload(target, loaded) },
+  );
   const stream = result.state?.stream?.type === 'Ready' ? result.state.stream.content : null;
   const isTorrent = stream ? classifySource(stream) === 'torrent' : false;
   // Core wraps direct streams with proxy headers in a URL for the account's
@@ -212,6 +217,7 @@ export function PlayerScreen({
 
   const reportProgress = useCallback(
     (isSeek = false) => {
+      if (closingRef.current) return;
       const video = videoRef.current;
       const progressDuration =
         video && Number.isFinite(video.duration)
@@ -229,20 +235,84 @@ export function PlayerScreen({
     [dispatchPlayer, nativeShell],
   );
 
+  async function saveBeforeUnload(target: CoreTransport, loaded: Promise<void>) {
+    closingRef.current = true;
+    setPaused(true);
+    setShutdownError(null);
+    try {
+      if (nativePlayer) {
+        const snapshot = await nativePlayer.pauseAndSnapshot();
+        if (
+          Number.isFinite(snapshot.duration) &&
+          snapshot.duration > 0 &&
+          Number.isFinite(snapshot.time)
+        ) {
+          playbackRef.current = snapshot;
+        }
+      } else if (videoRef.current) {
+        const video = videoRef.current;
+        playbackRef.current = {
+          duration: Math.round(video.duration * 1000),
+          time: Math.round(video.currentTime * 1000),
+        };
+        video.pause();
+      }
+      await loaded.catch(() => undefined);
+      const progress = playbackRef.current;
+      if (
+        Number.isFinite(progress.duration) &&
+        progress.duration > 0 &&
+        Number.isFinite(progress.time)
+      ) {
+        await target.dispatch(
+          playerAction('TimeChanged', {
+            ...progress,
+            device: nativeShell ? 'kino-macos' : 'kino-web',
+          }),
+          'player',
+        );
+      }
+      // TimeChanged is throttled by Core. PausedChanged forces the current
+      // library item into storage and account sync before Unload clears it.
+      await target.dispatch(playerAction('PausedChanged', { paused: true }), 'player');
+      await target.flush();
+      nativePlayer?.stop();
+    } catch (error) {
+      closingRef.current = false;
+      setShutdownError(enUS.player.saveFailed);
+      throw error;
+    }
+  }
+
+  const unloadPlayer = result.unload;
+  const finishPlayback = useCallback(
+    (navigate: () => void) => {
+      if (navigationPendingRef.current) return;
+      navigationPendingRef.current = true;
+      void unloadPlayer()
+        .then(navigate)
+        .catch(() => {
+          navigationPendingRef.current = false;
+          setShutdownError(enUS.player.saveFailed);
+        });
+    },
+    [unloadPlayer],
+  );
+
   // The contract on failure: save progress, record a sanitized diagnostic, mark
   // the source failed for this selection session, and return to the source list.
   const reportFailure = useCallback(
     (message: string, diagnostic: Record<string, unknown> = {}) => {
       if (failureReportedRef.current) return;
       failureReportedRef.current = true;
-      reportProgress();
       console.error('[kino:player] source failed', { message, ...diagnostic });
-      onSourceFailure(message);
+      finishPlayback(() => onSourceFailure(message));
     },
-    [onSourceFailure, reportProgress],
+    [finishPlayback, onSourceFailure],
   );
 
   const togglePlayback = useCallback(() => {
+    if (closingRef.current) return;
     if (nativePlayer) {
       const nextPaused = !paused;
       setPaused(nextPaused);
@@ -266,6 +336,7 @@ export function PlayerScreen({
 
   const seekTo = useCallback(
     (milliseconds: number) => {
+      if (closingRef.current) return;
       const safeTime = Math.max(0, milliseconds);
       updateTime(safeTime);
       if (nativePlayer) {
@@ -425,7 +496,9 @@ export function PlayerScreen({
 
   useEffect(() => {
     if (!nativePlayer || !streamUrl) return;
+    closingRef.current = false;
     const onEvent = (name: string, payload: Record<string, unknown>) => {
+      if (closingRef.current) return;
       if (name === 'time' && typeof payload.milliseconds === 'number') {
         const nextTime = payload.milliseconds;
         updateTime(nextTime);
@@ -466,7 +539,7 @@ export function PlayerScreen({
 
     return () => {
       nativePlayer.playerEvent.disconnect(onEvent);
-      nativePlayer.stop();
+      if (!closingRef.current) nativePlayer.stop();
     };
   }, [
     dispatchPlayer,
@@ -590,8 +663,6 @@ export function PlayerScreen({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [enterFullscreen, nativePlayer, reportProgress, seekTo, toggleMuted, togglePlayback]);
 
-  useEffect(() => () => reportProgress(), [reportProgress]);
-
   const insideIntro = Boolean(marker && time >= marker.startMs && time < marker.endMs);
   const markerStyle = useMemo(() => {
     if (!marker || duration <= 0) return undefined;
@@ -660,7 +731,7 @@ export function PlayerScreen({
       ) : null}
 
       <div className={styles.playerTopbar}>
-        <button onClick={onBack} type="button">
+        <button onClick={() => finishPlayback(onBack)} type="button">
           <ArrowLeft aria-hidden size={18} />
           Back to sources
         </button>
@@ -671,6 +742,11 @@ export function PlayerScreen({
       </div>
 
       <div aria-live="polite">
+        {shutdownError ? (
+          <div className={styles.playerStatus} role="alert">
+            {shutdownError}
+          </div>
+        ) : null}
         {result.loading ? <div className={styles.playerStatus}>Preparing source…</div> : null}
         {nativeShell && !nativePlayer ? (
           <div className={styles.playerStatus}>Preparing native player…</div>
@@ -706,7 +782,8 @@ export function PlayerScreen({
           </strong>
           <button
             onClick={() => {
-              if (selection.nextVideo) onUpNext(selection.nextVideo);
+              const next = selection.nextVideo;
+              if (next) finishPlayback(() => onUpNext(next));
             }}
             type="button"
           >

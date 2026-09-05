@@ -43,6 +43,9 @@ it('marks only the failed torrent file and keeps another episode independent', a
   const listeners = new Set<(event: CoreRuntimeEvent) => void>();
   const transport: CoreTransport = {
     destroy: vi.fn(),
+    flush: vi.fn().mockResolvedValue(undefined),
+    prepareClose: vi.fn().mockResolvedValue(undefined),
+    onBeforeDestroy: () => () => {},
     init: vi.fn().mockResolvedValue(undefined),
     dispatch: async (action, model) => {
       if (model === 'meta_details' && action.action === 'Load') {

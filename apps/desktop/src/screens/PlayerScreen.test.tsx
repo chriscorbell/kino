@@ -8,6 +8,7 @@ import { PlayerScreen } from './PlayerScreen';
 
 const native = vi.hoisted(() => ({
   load: vi.fn(),
+  pauseAndSnapshot: vi.fn().mockResolvedValue({ time: 0, duration: 0 }),
   stop: vi.fn(),
   playerEvent: { connect: vi.fn(), disconnect: vi.fn() },
   setSubtitleScale: vi.fn(),
@@ -44,6 +45,9 @@ describe('native direct sources', () => {
       };
       const transport: CoreTransport = {
         destroy: vi.fn(),
+        flush: vi.fn().mockResolvedValue(undefined),
+        prepareClose: vi.fn().mockResolvedValue(undefined),
+        onBeforeDestroy: () => () => {},
         dispatch: vi.fn().mockResolvedValue(undefined),
         getState: async <State,>() => state as State,
         init: vi.fn().mockResolvedValue(undefined),

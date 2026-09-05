@@ -116,6 +116,7 @@ export const enUS = {
     inLibrary: 'In Library',
   },
   player: {
+    saveFailed: 'Progress could not be saved. Try closing playback again.',
     upNext: 'Up Next',
     chooseSource: 'Choose source',
     preparingTorrent: 'Finding peers for this torrent…',
