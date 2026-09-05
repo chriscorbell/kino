@@ -681,6 +681,13 @@
   font-size: 16px;
 }
 
+.fullscreenError {
+  margin-bottom: 8px;
+  color: var(--kino-text);
+  font-size: 13px;
+  text-align: center;
+}
+
 .skipIntro {
   position: absolute;
   right: 36px;

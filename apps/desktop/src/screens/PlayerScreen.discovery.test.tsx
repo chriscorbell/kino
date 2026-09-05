@@ -12,6 +12,8 @@ const fixture = vi.hoisted(() => ({
   native: {
     load: vi.fn(),
     stop: vi.fn(),
+    fullscreen: false,
+    fullscreenChanged: { connect: vi.fn(), disconnect: vi.fn() },
     playerEvent: { connect: vi.fn(), disconnect: vi.fn() },
     setSubtitleScale: vi.fn(),
     setSubtitlePosition: vi.fn(),

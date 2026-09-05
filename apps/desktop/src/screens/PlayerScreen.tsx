@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  ArrowsIn,
   ArrowsOut,
   Minus,
   Pause,
@@ -44,6 +45,7 @@ import {
 } from '../player/torrent';
 import { subtitlePositionRange, subtitleSizeRange, type KinoSettings } from '../settings';
 import { videoParams } from '../player/videoParams';
+import { useFullscreen } from '../player/useFullscreen';
 
 function formatTime(milliseconds: number) {
   const seconds = Math.max(0, Math.floor(milliseconds / 1000));
@@ -147,6 +149,12 @@ export function PlayerScreen({
   const [muted, setMuted] = useState(false);
   const [buffering, setBuffering] = useState(false);
   const [nativePlayer, setNativePlayer] = useState<NativePlayer | null>(null);
+  const {
+    error: fullscreenError,
+    exit: exitFullscreen,
+    fullscreen,
+    toggle: toggleFullscreen,
+  } = useFullscreen(containerRef, nativePlayer);
   const [chapterCues, setChapterCues] = useState<ChapterCue[]>([]);
   const [communityMarker, setCommunityMarker] = useState<IntroMarker | null>(null);
   const [automaticSkipComplete, setAutomaticSkipComplete] = useState(false);
@@ -366,14 +374,6 @@ export function PlayerScreen({
     }
   }, [muted, nativePlayer]);
 
-  const enterFullscreen = useCallback(() => {
-    if (nativePlayer) {
-      nativePlayer.setFullscreen(true);
-    } else {
-      void containerRef.current?.requestFullscreen();
-    }
-  }, [nativePlayer]);
-
   const selectSubtitleTrack = (id: number | null) => {
     if (!nativePlayer) return;
     subtitleAutoDoneRef.current = true;
@@ -449,7 +449,10 @@ export function PlayerScreen({
       if (!subtitleMenuRef.current?.contains(event.target as Node)) setSubtitleMenuOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setSubtitleMenuOpen(false);
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setSubtitleMenuOpen(false);
+      }
     };
     window.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('keydown', onKeyDown);
@@ -662,6 +665,13 @@ export function PlayerScreen({
         event.shiftKey
       )
         return;
+      if (event.key === 'Escape') {
+        if (!subtitleMenuOpen && fullscreen) {
+          event.preventDefault();
+          exitFullscreen();
+        }
+        return;
+      }
       // Focused controls own Space, arrows, and text entry. In particular the
       // timeline's native arrow step must not become a global ten-second seek.
       if (
@@ -690,12 +700,22 @@ export function PlayerScreen({
         toggleMuted();
       } else if (event.key.toLowerCase() === 'f') {
         event.preventDefault();
-        enterFullscreen();
+        toggleFullscreen();
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [enterFullscreen, nativePlayer, reportProgress, seekTo, toggleMuted, togglePlayback]);
+  }, [
+    exitFullscreen,
+    fullscreen,
+    nativePlayer,
+    reportProgress,
+    seekTo,
+    subtitleMenuOpen,
+    toggleFullscreen,
+    toggleMuted,
+    togglePlayback,
+  ]);
 
   const insideIntro = Boolean(marker && time >= marker.startMs && time < marker.endMs);
   const markerStyle = useMemo(() => {
@@ -911,6 +931,11 @@ export function PlayerScreen({
               </div>
             </div>
           ) : null}
+          {fullscreenError ? (
+            <div className={styles.fullscreenError} role="alert">
+              {fullscreenError}
+            </div>
+          ) : null}
           <div className={styles.timeline}>
             {markerStyle ? <span className={styles.introRange} style={markerStyle} /> : null}
             <input
@@ -951,8 +976,16 @@ export function PlayerScreen({
                 <Subtitles aria-hidden size={20} />
               </button>
             ) : null}
-            <button aria-label="Fullscreen" onClick={enterFullscreen} type="button">
-              <ArrowsOut aria-hidden size={20} />
+            <button
+              aria-label={fullscreen ? enUS.player.exitFullscreen : enUS.player.enterFullscreen}
+              onClick={toggleFullscreen}
+              type="button"
+            >
+              {fullscreen ? (
+                <ArrowsIn aria-hidden size={20} />
+              ) : (
+                <ArrowsOut aria-hidden size={20} />
+              )}
             </button>
           </div>
         </div>

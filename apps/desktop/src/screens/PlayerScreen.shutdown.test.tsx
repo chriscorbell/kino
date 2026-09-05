@@ -16,6 +16,8 @@ const native = vi.hoisted(() => {
     setSubtitleScale: vi.fn(),
     setSubtitlePosition: vi.fn(),
     setNowPlayingMetadata: vi.fn(),
+    fullscreen: false,
+    fullscreenChanged: { connect: vi.fn(), disconnect: vi.fn() },
     playerEvent: {
       connect: (listener: (name: string, payload: Record<string, unknown>) => void) =>
         listeners.add(listener),

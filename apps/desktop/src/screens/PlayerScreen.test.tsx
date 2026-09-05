@@ -10,6 +10,8 @@ const native = vi.hoisted(() => ({
   load: vi.fn(),
   pauseAndSnapshot: vi.fn().mockResolvedValue({ time: 0, duration: 0 }),
   stop: vi.fn(),
+  fullscreen: false,
+  fullscreenChanged: { connect: vi.fn(), disconnect: vi.fn() },
   playerEvent: { connect: vi.fn(), disconnect: vi.fn() },
   setSubtitleScale: vi.fn(),
   setSubtitlePosition: vi.fn(),

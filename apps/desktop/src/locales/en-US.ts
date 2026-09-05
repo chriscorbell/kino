@@ -120,6 +120,9 @@ export const enUS = {
     inLibrary: 'In Library',
   },
   player: {
+    enterFullscreen: 'Enter fullscreen',
+    exitFullscreen: 'Exit fullscreen',
+    fullscreenFailed: 'Fullscreen could not be changed. Try again.',
     saveFailed: 'Progress could not be saved. Try closing playback again.',
     upNext: 'Up Next',
     chooseSource: 'Choose source',

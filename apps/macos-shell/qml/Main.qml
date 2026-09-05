@@ -61,6 +61,7 @@ ApplicationWindow {
 
         readonly property string platform: "macos"
         readonly property string shellVersion: Qt.application.version
+        readonly property bool fullscreen: root.visibility === Window.FullScreen
 
         signal playerEvent(string name, var payload)
         signal streamingEngineChanged(string url, string error)
