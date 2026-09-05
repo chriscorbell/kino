@@ -40,6 +40,12 @@ Validate the playback contract against generated legal fixtures — codecs, HDR 
 pnpm macos:check-playback
 ```
 
+Run the native property-event regression tests after building with:
+
+```sh
+ctest --test-dir build/macos --output-on-failure
+```
+
 ### Streaming engine
 
 Torrent sources play through a pinned build of the open [stream-server](https://github.com/stremio-native/stream-server) engine, which the shell starts on demand and binds to loopback. It is optional: without it Kino runs normally and reports torrent sources as unavailable. Build and bundle it with:

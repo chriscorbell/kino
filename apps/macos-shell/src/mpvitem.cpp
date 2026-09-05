@@ -28,6 +28,15 @@ QVariantMap millisecondsPayload(double seconds) {
     return {{QStringLiteral("milliseconds"), std::llround(seconds * 1000.0)}};
 }
 
+QByteArray stringPropertyValue(const mpv_event_property &property) {
+    if (property.format != MPV_FORMAT_STRING || !property.data) {
+        return {};
+    }
+    // libmpv stores the address of the string pointer in property events.
+    const char *value = *static_cast<char *const *>(property.data);
+    return value ? QByteArray(value) : QByteArray();
+}
+
 QVariantList chapterPayload(const mpv_node &root) {
     QVariantList chapters;
     if (root.format != MPV_FORMAT_NODE_ARRAY || !root.u.list) {
@@ -377,31 +386,12 @@ void MpvItem::handleEvent(mpv_event *event) {
         break;
     case MPV_EVENT_PROPERTY_CHANGE: {
         auto *property = static_cast<mpv_event_property *>(event->data);
-        if (!property || !property->data) {
+        if (!property || !property->name) {
             break;
         }
         const QByteArray name(property->name);
-        if (name == "time-pos" || name == "duration") {
-            const double seconds = *static_cast<double *>(property->data);
-            emit playerEvent(name == "time-pos" ? QStringLiteral("time")
-                                                : QStringLiteral("duration"),
-                             millisecondsPayload(seconds));
-        } else if (name == "pause") {
-            paused_ = *static_cast<int *>(property->data) != 0;
-            updatePowerGuard();
-            emit playerEvent(QStringLiteral("paused"),
-                             {{QStringLiteral("paused"), paused_}});
-        } else if (name == "paused-for-cache") {
-            emit playerEvent(QStringLiteral("buffering"),
-                             {{QStringLiteral("active"),
-                               *static_cast<int *>(property->data) != 0}});
-        } else if (name == "mute") {
-            emit playerEvent(QStringLiteral("muted"),
-                             {{QStringLiteral("muted"),
-                               *static_cast<int *>(property->data) != 0}});
-        } else if (name == "hwdec-current") {
-            const auto *decoder = static_cast<const char *>(property->data);
-            hardwareDecoderActive_ = decoder && *decoder != '\0';
+        if (name == "hwdec-current") {
+            hardwareDecoderActive_ = stringPropertyValue(*property) == "videotoolbox";
             emit playerEvent(QStringLiteral("hardwareDecoding"),
                              {{QStringLiteral("active"), hardwareDecoderActive_}});
             if (hardwareDecoderActive_) {
@@ -409,22 +399,44 @@ void MpvItem::handleEvent(mpv_event *event) {
                 qInfo("[kino:mpv] hardware decoder active");
             } else if (videoPresent_) {
                 hardwareDecoderTimer_.start();
+            } else {
+                hardwareDecoderTimer_.stop();
             }
         } else if (name == "video-format") {
-            const auto *format = static_cast<const char *>(property->data);
-            videoPresent_ = format && *format != '\0';
+            videoPresent_ = !stringPropertyValue(*property).isEmpty();
             updatePowerGuard();
             if (videoPresent_ && !hardwareDecoderActive_) {
                 hardwareDecoderTimer_.start();
-            } else if (!videoPresent_) {
+            } else {
                 hardwareDecoderTimer_.stop();
             }
-        } else if (name == "chapter-list") {
+        } else if (!property->data) {
+            break;
+        } else if ((name == "time-pos" || name == "duration") &&
+                   property->format == MPV_FORMAT_DOUBLE) {
+            const double seconds = *static_cast<double *>(property->data);
+            emit playerEvent(name == "time-pos" ? QStringLiteral("time")
+                                                : QStringLiteral("duration"),
+                             millisecondsPayload(seconds));
+        } else if (name == "pause" && property->format == MPV_FORMAT_FLAG) {
+            paused_ = *static_cast<int *>(property->data) != 0;
+            updatePowerGuard();
+            emit playerEvent(QStringLiteral("paused"),
+                             {{QStringLiteral("paused"), paused_}});
+        } else if (name == "paused-for-cache" && property->format == MPV_FORMAT_FLAG) {
+            emit playerEvent(QStringLiteral("buffering"),
+                             {{QStringLiteral("active"),
+                               *static_cast<int *>(property->data) != 0}});
+        } else if (name == "mute" && property->format == MPV_FORMAT_FLAG) {
+            emit playerEvent(QStringLiteral("muted"),
+                             {{QStringLiteral("muted"),
+                               *static_cast<int *>(property->data) != 0}});
+        } else if (name == "chapter-list" && property->format == MPV_FORMAT_NODE) {
             const auto *chapters = static_cast<const mpv_node *>(property->data);
             emit playerEvent(
                 QStringLiteral("chapters"),
                 {{QStringLiteral("items"), chapterPayload(*chapters)}});
-        } else if (name == "track-list") {
+        } else if (name == "track-list" && property->format == MPV_FORMAT_NODE) {
             const auto *tracks = static_cast<const mpv_node *>(property->data);
             emit playerEvent(
                 QStringLiteral("subtitleTracks"),

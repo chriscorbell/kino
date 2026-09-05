@@ -121,3 +121,21 @@ add_custom_target(
   COMMENT "Packaging Kino streaming engine"
 )
 add_dependencies(kino_package_engine Kino)
+
+include(CTest)
+if(BUILD_TESTING)
+  find_package(Qt6 6.8 REQUIRED COMPONENTS Test)
+  qt_add_executable(
+    kino_mpvitem_test
+    tests/mpvitem_test.cpp
+    src/mpvitem.cpp
+    src/powerguard.cpp
+  )
+  target_include_directories(kino_mpvitem_test PRIVATE src)
+  target_link_libraries(
+    kino_mpvitem_test
+    PRIVATE PkgConfig::MPV ${IOKIT_FRAMEWORK} Qt6::Quick Qt6::Test
+  )
+  add_test(NAME mpvitem_properties COMMAND kino_mpvitem_test)
+  set_tests_properties(mpvitem_properties PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endif()

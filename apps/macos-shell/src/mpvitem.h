@@ -45,6 +45,7 @@ private slots:
 
 private:
     friend class MpvRenderer;
+    friend class MpvItemTest;
 
     static void onRenderUpdate(void *context);
     static void onWakeup(void *context);
