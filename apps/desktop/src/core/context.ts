@@ -24,3 +24,16 @@ export const CoreContext = createContext<CoreContextValue>({
 export function useCore() {
   return useContext(CoreContext);
 }
+
+// Startup recovery is separate from the model transport so optional catalog
+// retries do not invalidate every mounted model subscription.
+export const CoreRecoveryContext = createContext({
+  retry: () => {},
+  retryCatalog: () => {},
+  catalogLoading: false,
+  catalogError: null as string | null,
+});
+
+export function useCoreRecovery() {
+  return useContext(CoreRecoveryContext);
+}

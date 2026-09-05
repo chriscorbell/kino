@@ -1943,3 +1943,14 @@
   color: var(--kino-danger);
   font-size: 13px;
 }
+
+.coreRecovery {
+  margin-block-end: 24px;
+  overflow-wrap: anywhere;
+}
+
+.coreRecoveryActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}

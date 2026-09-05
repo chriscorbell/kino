@@ -30,7 +30,7 @@ export function useCoreModel<Model extends CoreModelName>(
   options?: { beforeUnload: (transport: CoreTransport, loaded: Promise<void>) => Promise<void> },
 ): CoreModelResult<CoreStateMap[Model]> {
   type State = CoreStateMap[Model];
-  const { status, transport } = useCore();
+  const { error: coreError, status, transport } = useCore();
   const dispatchLoad = useEffectEvent(async (target: CoreTransport, targetModel: CoreModelName) => {
     if (action) await target.dispatch(action, targetModel);
   });
@@ -129,7 +129,7 @@ export function useCoreModel<Model extends CoreModelName>(
   }, [actionKey, managedUnload, model, status, transport]);
 
   if (status !== 'ready' || !transport) {
-    return { error: null, loading: status === 'loading', state: null, unload };
+    return { error: coreError, loading: status === 'loading', state: null, unload };
   }
   if (result.actionKey === actionKey && result.transport === transport)
     return { ...result, unload };

@@ -11,6 +11,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 
 import logo from './assets/kino.svg';
 import styles from './App.module.css';
+import { CoreRecovery } from './components/CoreRecovery';
 import { AccountDialog } from './components/AccountDialog';
 import type { PlaybackSelection } from './core/actions';
 import { sourceKey } from './core/sources';
@@ -296,6 +297,7 @@ export function App() {
           ref={browseMain}
           tabIndex={-1}
         >
+          {!playback && screen !== 'detail' && !accountOpen ? <CoreRecovery /> : null}
           {!playback && screen !== 'detail' ? <UpdateNotice updates={updates} /> : null}
           <BrowseStateContext.Provider value={browseContext}>{content}</BrowseStateContext.Provider>
         </main>
@@ -308,6 +310,7 @@ export function App() {
             ref={detailMain}
             tabIndex={-1}
           >
+            {!accountOpen ? <CoreRecovery /> : null}
             <UpdateNotice updates={updates} />
             <MetaDetailsScreen
               failedSources={failedSources}

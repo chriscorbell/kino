@@ -4,7 +4,7 @@ import { createCoreTransport } from './transport';
 
 const worker = vi.hoisted(() => ({ terminate: vi.fn(), call: vi.fn() }));
 vi.mock('./core.worker?worker', () => ({
-  default: class {
+  default: class extends EventTarget {
     terminate = worker.terminate;
   },
 }));

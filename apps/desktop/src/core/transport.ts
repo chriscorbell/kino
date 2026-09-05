@@ -1,5 +1,6 @@
 import Bridge from '@stremio/stremio-core-web/bridge.js';
 import CoreWorker from './core.worker?worker';
+import { t } from '../locales';
 
 import { connectNativeSecureStore, nativeShellPresent } from '../native/player';
 import {
@@ -75,7 +76,10 @@ export async function migrateNativeAccountProfile() {
   await new SecureProfileStorage(local, nativeAuthStorage()).getItem('profile');
 }
 
-export function createCoreTransport(session: CoreSession = 'guest'): CoreTransport {
+export function createCoreTransport(
+  session: CoreSession = 'guest',
+  onFailure: (error: Error) => void = () => {},
+): CoreTransport {
   const listeners = new Set<CoreEventListener>();
   const worker = new CoreWorker();
   const localStorage = new NamespacedStorage(window.localStorage, session);
@@ -95,13 +99,58 @@ export function createCoreTransport(session: CoreSession = 'guest'): CoreTranspo
     },
   };
   const bridge = new Bridge(scope, worker);
+  const pending = new Set<(error: Error) => void>();
+  let stopped: Error | null = null;
+  const stop = (error: Error, failed = false) => {
+    if (stopped) return;
+    stopped = error;
+    worker.removeEventListener('error', workerFailed);
+    worker.removeEventListener('messageerror', workerFailed);
+    worker.terminate();
+    pending.forEach((reject) => reject(error));
+    pending.clear();
+    listeners.clear();
+    if (failed) onFailure(error);
+  };
+  const workerFailed = (event: Event) => {
+    event.preventDefault();
+    stop(new Error(t.core.workerFailed), true);
+  };
+  worker.addEventListener('error', workerFailed);
+  worker.addEventListener('messageerror', workerFailed);
+  const call = <Result>(path: string[], args: unknown[]): Promise<Result> => {
+    if (stopped) return Promise.reject(stopped);
+    return new Promise<Result>((resolve, reject) => {
+      const timeout = window.setTimeout(() => stop(new Error(t.core.timeout), true), 20_000);
+      const finish = () => {
+        window.clearTimeout(timeout);
+        pending.delete(cancel);
+      };
+      const cancel = (error: Error) => {
+        finish();
+        reject(error);
+      };
+      pending.add(cancel);
+      void bridge.call<Result>(path, args).then(
+        (result) => {
+          finish();
+          resolve(result);
+        },
+        (error: unknown) => {
+          finish();
+          reject(error);
+        },
+      );
+    });
+  };
   const beforeDestroy = new Set<() => Promise<void>>();
   let initializing: Promise<void> | null = null;
-  const flush = () => bridge.call<void>(['flush'], []);
+  const flush = () => call<void>(['flush'], []);
   const prepareClose = async () => {
     // Closing while Keychain/WASM startup is still running must also wait for
     // initialization's storage work before terminating the worker.
     await initializing?.catch(() => undefined);
+    if (stopped) throw stopped;
     await Promise.all([...beforeDestroy].map((callback) => callback()));
     await flush();
   };
@@ -110,22 +159,21 @@ export function createCoreTransport(session: CoreSession = 'guest'): CoreTranspo
   return {
     destroy() {
       destroying ??= prepareClose().finally(() => {
-        listeners.clear();
-        worker.terminate();
+        stop(new Error(t.core.stopped));
       });
       return destroying;
     },
     async dispatch(action, model) {
-      await bridge.call(['dispatch'], [action, model, currentHash()]);
+      await call(['dispatch'], [action, model, currentHash()]);
     },
     flush,
     // The worker adapts every model before it answers, so the response already
     // has this model's application shape.
     getState<Model extends CoreModelName>(model: Model) {
-      return bridge.call<CoreStateMap[Model]>(['getState'], [model]);
+      return call<CoreStateMap[Model]>(['getState'], [model]);
     },
     init() {
-      initializing ??= bridge.call<void>(['init'], [{ appVersion: '0.0.0', shellVersion: null }]);
+      initializing ??= call<void>(['init'], [{ appVersion: '0.0.0', shellVersion: null }]);
       return initializing;
     },
     onBeforeDestroy(callback) {
