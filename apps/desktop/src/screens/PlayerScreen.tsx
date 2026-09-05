@@ -43,6 +43,7 @@ import {
   type TorrentStats,
 } from '../player/torrent';
 import { subtitlePositionRange, subtitleSizeRange, type KinoSettings } from '../settings';
+import { videoParams } from '../player/videoParams';
 
 function formatTime(milliseconds: number) {
   const seconds = Math.max(0, Math.floor(milliseconds / 1000));
@@ -157,6 +158,7 @@ export function PlayerScreen({
   const [addedSubtitleUrls, setAddedSubtitleUrls] = useState<ReadonlySet<string>>(new Set());
   const failureReportedRef = useRef(false);
   const subtitleAutoDoneRef = useRef(false);
+  const videoParamsReportedRef = useRef(false);
   const [ended, setEnded] = useState(false);
   const [torrentUrl, setTorrentUrl] = useState<string | null>(null);
   const [engineUrl, setEngineUrl] = useState<string | null>(null);
@@ -234,6 +236,12 @@ export function PlayerScreen({
     },
     [dispatchPlayer, nativeShell],
   );
+
+  const reportMediaReady = useCallback(() => {
+    if (!transport || closingRef.current || videoParamsReportedRef.current) return;
+    videoParamsReportedRef.current = true;
+    dispatchPlayer('VideoParamsChanged', { videoParams: videoParams(selection.stream) });
+  }, [dispatchPlayer, selection.stream, transport]);
 
   async function saveBeforeUnload(target: CoreTransport, loaded: Promise<void>) {
     closingRef.current = true;
@@ -497,6 +505,7 @@ export function PlayerScreen({
   useEffect(() => {
     if (!nativePlayer || !streamUrl) return;
     closingRef.current = false;
+    videoParamsReportedRef.current = false;
     const onEvent = (name: string, payload: Record<string, unknown>) => {
       if (closingRef.current) return;
       if (name === 'time' && typeof payload.milliseconds === 'number') {
@@ -517,6 +526,7 @@ export function PlayerScreen({
         setBuffering(payload.active);
       } else if (name === 'ready') {
         setBuffering(false);
+        reportMediaReady();
       } else if (name === 'chapters') {
         setChapterCues(nativeChapterCues(payload.items));
       } else if (name === 'subtitleTracks') {
@@ -545,6 +555,7 @@ export function PlayerScreen({
     dispatchPlayer,
     nativePlayer,
     reportFailure,
+    reportMediaReady,
     reportProgress,
     requestHeaders,
     settings.audioOutput,
@@ -724,8 +735,12 @@ export function PlayerScreen({
             const video = event.currentTarget;
             updateDuration(video.duration * 1000);
             setPaused(video.paused);
+            reportMediaReady();
           }}
-          onLoadStart={() => setBuffering(true)}
+          onLoadStart={() => {
+            videoParamsReportedRef.current = false;
+            setBuffering(true);
+          }}
           onPause={() => {
             setPaused(true);
             dispatchPlayer('PausedChanged', { paused: true });
