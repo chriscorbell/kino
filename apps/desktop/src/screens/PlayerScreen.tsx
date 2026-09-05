@@ -201,6 +201,11 @@ export function PlayerScreen({
     [chapterCues, duration],
   );
   const marker = chapterMarker ?? communityMarker;
+  const nearEnd =
+    Number.isFinite(duration) &&
+    duration > 0 &&
+    Number.isFinite(time) &&
+    time >= duration - Math.min(120_000, duration * 0.1);
 
   const updateDuration = useCallback((milliseconds: number) => {
     playbackRef.current.duration = milliseconds;
@@ -208,6 +213,7 @@ export function PlayerScreen({
   }, []);
 
   const updateTime = useCallback((milliseconds: number) => {
+    if (milliseconds < playbackRef.current.time) setEnded(false);
     playbackRef.current.time = milliseconds;
     setTime(milliseconds);
   }, []);
@@ -353,6 +359,7 @@ export function PlayerScreen({
   const seekTo = useCallback(
     (milliseconds: number) => {
       if (closingRef.current) return;
+      setEnded(false);
       const safeTime = Math.max(0, milliseconds);
       updateTime(safeTime);
       if (nativePlayer) {
@@ -522,6 +529,7 @@ export function PlayerScreen({
         updateDuration(payload.milliseconds);
       } else if (name === 'paused' && typeof payload.paused === 'boolean') {
         setPaused(payload.paused);
+        if (!payload.paused) setEnded(false);
         dispatchPlayer('PausedChanged', { paused: payload.paused });
       } else if (name === 'muted' && typeof payload.muted === 'boolean') {
         setMuted(payload.muted);
@@ -767,10 +775,15 @@ export function PlayerScreen({
             reportProgress();
           }}
           onPlay={() => {
+            setEnded(false);
             setPaused(false);
             dispatchPlayer('PausedChanged', { paused: false });
           }}
           onPlaying={() => setBuffering(false)}
+          onSeeking={(event) => {
+            setEnded(false);
+            updateTime(event.currentTarget.currentTime * 1000);
+          }}
           onSeeked={() => reportProgress(true)}
           onStalled={() => setBuffering(true)}
           onTimeUpdate={(event) => {
@@ -832,7 +845,7 @@ export function PlayerScreen({
         </button>
       ) : null}
 
-      {ended && settings.upNext && selection.nextVideo ? (
+      {(ended || nearEnd) && settings.upNext && selection.nextVideo ? (
         <div className={styles.upNext} role="status">
           <span className={styles.upNextLabel}>{enUS.player.upNext}</span>
           <strong>

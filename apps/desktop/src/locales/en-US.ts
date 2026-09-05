@@ -77,7 +77,7 @@ export const enUS = {
     subtitles: 'Subtitles',
     subtitlesDescription: 'Load preferred subtitles when available',
     upNext: 'Up Next',
-    upNextDescription: 'Offer the next episode when one finishes',
+    upNextDescription: 'Offer the next episode near the ending',
     languages: 'Languages',
     languagesNote: 'Language preferences come from your Stremio profile and sync across devices.',
     subtitleLanguage: 'Subtitle language',
