@@ -43,6 +43,9 @@ export const enUS = {
     catalogLabel: 'Catalog',
     allGenres: 'All Genres',
     genreLabel: 'Genre',
+    yearLabel: 'Year',
+    allYears: 'All years',
+    allValues: 'All',
   },
   library: {
     title: 'Library',
