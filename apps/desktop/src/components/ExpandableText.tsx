@@ -13,7 +13,7 @@ export function ExpandableText({
   text: string;
   label: string;
   lines: number;
-  className?: string;
+  className: string | undefined;
 }) {
   const id = useId();
   const ref = useRef<HTMLParagraphElement>(null);
