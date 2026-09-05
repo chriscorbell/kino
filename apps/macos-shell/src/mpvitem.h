@@ -27,7 +27,7 @@ public:
     Renderer *createRenderer() const override;
 
     Q_INVOKABLE void addSubtitles(const QString &url, const QString &title, const QString &lang);
-    Q_INVOKABLE void load(const QString &url, bool forceStereo, const QVariantMap &headers = {});
+    Q_INVOKABLE void load(const QString &url, bool forceStereo, const QVariantMap &headers = {}, const QString &audioLanguage = {});
     Q_INVOKABLE QVariantMap pauseAndSnapshot();
     Q_INVOKABLE void seek(double seconds);
     Q_INVOKABLE void setMuted(bool muted);
@@ -37,6 +37,7 @@ public:
     Q_INVOKABLE void setSubtitlePosition(int position);
     Q_INVOKABLE void setSubtitleScale(double scale);
     Q_INVOKABLE void setSubtitleTrack(int id);
+    Q_INVOKABLE void setAudioTrack(int id);
     Q_INVOKABLE void stop();
     Q_INVOKABLE void togglePaused();
 

@@ -1036,6 +1036,14 @@
   text-align: left;
 }
 
+.audioPanel .subtitleTrackList {
+  max-height: min(240px, 45dvh);
+}
+
+.audioPanel button {
+  width: 100%;
+}
+
 .subtitleTrackList button[aria-pressed='true'] {
   color: var(--kino-accent);
   background: rgb(255 255 255 / 7%);

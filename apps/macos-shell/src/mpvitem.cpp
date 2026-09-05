@@ -78,7 +78,7 @@ QVariantList chapterPayload(const mpv_node &root) {
     return chapters;
 }
 
-QVariantList subtitleTrackPayload(const mpv_node &root) {
+QVariantList trackPayload(const mpv_node &root, const char *type) {
     QVariantList tracks;
     if (root.format != MPV_FORMAT_NODE_ARRAY || !root.u.list) {
         return tracks;
@@ -90,14 +90,14 @@ QVariantList subtitleTrackPayload(const mpv_node &root) {
             continue;
         }
 
-        bool isSubtitle = false;
+        bool matchesType = false;
         QVariantMap entry{{QStringLiteral("external"), false},
                           {QStringLiteral("selected"), false}};
         for (int field = 0; field < track.u.list->num; ++field) {
             const QByteArray name(track.u.list->keys[field]);
             const mpv_node &value = track.u.list->values[field];
             if (name == "type" && value.format == MPV_FORMAT_STRING && value.u.string) {
-                isSubtitle = qstrcmp(value.u.string, "sub") == 0;
+                matchesType = qstrcmp(value.u.string, type) == 0;
             } else if (name == "id" && value.format == MPV_FORMAT_INT64) {
                 entry.insert(QStringLiteral("id"),
                              static_cast<qlonglong>(value.u.int64));
@@ -114,7 +114,7 @@ QVariantList subtitleTrackPayload(const mpv_node &root) {
             }
         }
 
-        if (isSubtitle && entry.contains(QStringLiteral("id"))) {
+        if (matchesType && entry.contains(QStringLiteral("id"))) {
             tracks.append(entry);
         }
     }
@@ -300,7 +300,7 @@ void MpvItem::initialize() {
     mpv_observe_property(handle_, 10, "volume", MPV_FORMAT_DOUBLE);
 }
 
-void MpvItem::load(const QString &url, bool forceStereo, const QVariantMap &headers) {
+void MpvItem::load(const QString &url, bool forceStereo, const QVariantMap &headers, const QString &audioLanguage) {
     // mpv can log arbitrary header values. Keep its free-form messages private
     // for the rest of this instance, including late events from an earlier load.
     suppressMpvLogDetails_ = suppressMpvLogDetails_ || !headers.isEmpty();
@@ -363,11 +363,19 @@ void MpvItem::load(const QString &url, bool forceStereo, const QVariantMap &head
     char loadfile[] = "loadfile";
     char replace[] = "replace";
     char headerOption[] = "http-header-fields";
-    char *optionNames[] = {headerOption};
-    mpv_node optionValue{};
-    optionValue.format = MPV_FORMAT_STRING;
-    optionValue.u.string = headerFields.data();
-    mpv_node_list options{1, &optionValue, optionNames};
+    char audioLanguageOption[] = "alang";
+    char audioTrackOption[] = "aid";
+    QByteArray preferredLanguage = audioLanguage.trimmed().toUtf8();
+    char automaticAudio[] = "auto";
+    char *optionNames[] = {headerOption, audioLanguageOption, audioTrackOption};
+    mpv_node optionValues[3]{};
+    for (auto &value : optionValues) value.format = MPV_FORMAT_STRING;
+    optionValues[0].u.string = headerFields.data();
+    optionValues[1].u.string = preferredLanguage.data();
+    optionValues[2].u.string = automaticAudio;
+    // Per-file options apply before track selection and reset a previous
+    // file's manual choice without changing the user's language preference.
+    mpv_node_list options{3, optionValues, optionNames};
     mpv_node arguments[5]{};
     for (int index = 0; index < 3; ++index) {
         arguments[index].format = MPV_FORMAT_STRING;
@@ -466,6 +474,12 @@ void MpvItem::setSubtitleTrack(int id) {
     QByteArray disabled = QByteArrayLiteral("no");
     char *disabledData = disabled.data();
     mpv_set_property_async(handle_, 0, "sid", MPV_FORMAT_STRING, &disabledData);
+}
+
+void MpvItem::setAudioTrack(int id) {
+    if (id <= 0) return;
+    int64_t value = id;
+    mpv_set_property_async(handle_, 0, "aid", MPV_FORMAT_INT64, &value);
 }
 
 void MpvItem::stop() {
@@ -583,7 +597,10 @@ void MpvItem::handleEvent(mpv_event *event) {
             const auto *tracks = static_cast<const mpv_node *>(property->data);
             emit playerEvent(
                 QStringLiteral("subtitleTracks"),
-                {{QStringLiteral("items"), subtitleTrackPayload(*tracks)}});
+                {{QStringLiteral("items"), trackPayload(*tracks, "sub")}});
+            emit playerEvent(
+                QStringLiteral("audioTracks"),
+                {{QStringLiteral("items"), trackPayload(*tracks, "audio")}});
         }
         break;
     }

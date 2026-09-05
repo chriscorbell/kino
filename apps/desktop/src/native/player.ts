@@ -17,6 +17,12 @@ export interface NativePlayer {
   openAccountCreation(): Promise<boolean>;
   addSubtitles(url: string, title: string, lang: string): void;
   load(url: string, forceStereo: boolean, headers: Record<string, string>): void;
+  loadWithAudioLanguage?(
+    url: string,
+    forceStereo: boolean,
+    headers: Record<string, string>,
+    audioLanguage: string,
+  ): void;
   pauseAndSnapshot(): Promise<{ duration: number; time: number }>;
   platform: string;
   playerEvent: NativePlayerEvent;
@@ -30,6 +36,7 @@ export interface NativePlayer {
   setSubtitlePosition(position: number): void;
   setSubtitleScale(scale: number): void;
   setSubtitleTrack(id: number): void;
+  setAudioTrack(id: number): void;
   shellVersion: string;
   startStreamingEngine(): void;
   stop(): void;

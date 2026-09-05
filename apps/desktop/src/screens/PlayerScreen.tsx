@@ -14,6 +14,8 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import styles from '../App.module.css';
+import { AudioTrackPicker } from '../components/AudioTrackPicker';
+import { parseAudioTracks, type AudioTrack } from '../player/audio';
 import { loadPlayerAction, playerAction, type PlaybackSelection } from '../core/actions';
 import { useCore } from '../core/context';
 import type { CoreTransport } from '../core/transport';
@@ -123,6 +125,7 @@ export function PlayerScreen({
   onSettingsChange,
   onSourceFailure,
   onUpNext,
+  preferredAudioLanguage = null,
   preferredSubtitleLanguage,
   selection,
   settings,
@@ -131,6 +134,7 @@ export function PlayerScreen({
   onSettingsChange: (settings: KinoSettings) => void;
   onSourceFailure: (message: string) => void;
   onUpNext: (video: CoreVideo) => void;
+  preferredAudioLanguage?: string | null;
   preferredSubtitleLanguage: string | null;
   selection: PlaybackSelection;
   settings: KinoSettings;
@@ -164,9 +168,15 @@ export function PlayerScreen({
   const [communityMarker, setCommunityMarker] = useState<IntroMarker | null>(null);
   const [automaticSkipComplete, setAutomaticSkipComplete] = useState(false);
   const [automaticNotice, setAutomaticNotice] = useState(false);
+  const [audioTracks, setAudioTracks] = useState<AudioTrack[]>([]);
+  const [audioMenuOpen, setAudioMenuOpen] = useState(false);
   const [subtitleTracks, setSubtitleTracks] = useState<SubtitleTrack[]>([]);
   const [subtitleMenuOpen, setSubtitleMenuOpen] = useState(false);
   const subtitleMenuRef = useRef<HTMLDivElement>(null);
+  const changeAudioMenu = useCallback((open: boolean) => {
+    setAudioMenuOpen(open);
+    if (open) setSubtitleMenuOpen(false);
+  }, []);
   const [subtitleDelayMs, setSubtitleDelayMs] = useState(0);
   const [addedSubtitleUrls, setAddedSubtitleUrls] = useState<ReadonlySet<string>>(new Set());
   const failureReportedRef = useRef(false);
@@ -216,6 +226,7 @@ export function PlayerScreen({
     paused ||
       buffering ||
       subtitleMenuOpen ||
+      audioMenuOpen ||
       result.loading ||
       !streamUrl ||
       Boolean(shutdownError || fullscreenError),
@@ -592,6 +603,8 @@ export function PlayerScreen({
         reportMediaReady();
       } else if (name === 'chapters') {
         setChapterCues(nativeChapterCues(payload.items));
+      } else if (name === 'audioTracks') {
+        setAudioTracks(parseAudioTracks(payload.items));
       } else if (name === 'subtitleTracks') {
         setSubtitleTracks(parseSubtitleTracks(payload.items));
       } else if (name === 'error') {
@@ -608,7 +621,16 @@ export function PlayerScreen({
     };
 
     nativePlayer.playerEvent.connect(onEvent);
-    nativePlayer.load(streamUrl, settings.audioOutput === 'stereo', requestHeaders);
+    if (nativePlayer.loadWithAudioLanguage) {
+      nativePlayer.loadWithAudioLanguage(
+        streamUrl,
+        settings.audioOutput === 'stereo',
+        requestHeaders,
+        preferredAudioLanguage ?? '',
+      );
+    } else {
+      nativePlayer.load(streamUrl, settings.audioOutput === 'stereo', requestHeaders);
+    }
 
     return () => {
       nativePlayer.playerEvent.disconnect(onEvent);
@@ -622,6 +644,7 @@ export function PlayerScreen({
     reportProgress,
     requestHeaders,
     settings.audioOutput,
+    preferredAudioLanguage,
     streamUrl,
     updateDuration,
     updateTime,
@@ -732,7 +755,7 @@ export function PlayerScreen({
       )
         return;
       if (event.key === 'Escape') {
-        if (!subtitleMenuOpen && fullscreen) {
+        if (!subtitleMenuOpen && !audioMenuOpen && fullscreen) {
           event.preventDefault();
           exitFullscreen();
         }
@@ -783,6 +806,7 @@ export function PlayerScreen({
     reportProgress,
     seekTo,
     subtitleMenuOpen,
+    audioMenuOpen,
     toggleFullscreen,
     toggleMuted,
     togglePlayback,
@@ -1061,11 +1085,22 @@ export function PlayerScreen({
               {formatTime(time)} / {formatTime(duration)}
             </span>
             {nativePlayer ? (
+              <AudioTrackPicker
+                open={audioMenuOpen}
+                onOpenChange={changeAudioMenu}
+                onSelect={(id) => nativePlayer.setAudioTrack(id)}
+                tracks={audioTracks}
+              />
+            ) : null}
+            {nativePlayer ? (
               <button
                 aria-expanded={subtitleMenuOpen}
                 aria-label={enUS.player.subtitles}
                 className={subtitleMenuOpen ? styles.controlActive : undefined}
-                onClick={() => setSubtitleMenuOpen((open) => !open)}
+                onClick={() => {
+                  setAudioMenuOpen(false);
+                  setSubtitleMenuOpen((open) => !open);
+                }}
                 type="button"
               >
                 <Subtitles aria-hidden size={20} />
