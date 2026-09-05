@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 
 import { defaultSettings } from '../settings';
@@ -6,6 +6,8 @@ import { PlayerScreen } from './PlayerScreen';
 
 const fixture = vi.hoisted(() => ({
   stream: { url: 'https://media.invalid/fixture.mp4', deepLinks: { player: '' } },
+  transport: { dispatch: vi.fn().mockResolvedValue(undefined) },
+  unload: vi.fn().mockResolvedValue(undefined),
   native: {
     load: vi.fn(),
     stop: vi.fn(),
@@ -21,14 +23,14 @@ vi.mock('../native/player', () => ({
   connectNativePlayer: async () => fixture.native,
 }));
 vi.mock('../core/context', () => ({
-  useCore: () => ({ transport: { dispatch: async () => {} } }),
+  useCore: () => ({ transport: fixture.transport }),
 }));
 vi.mock('../core/useCoreModel', () => ({
   useCoreModel: () => ({
     state: { stream: { type: 'Ready', content: fixture.stream } },
     loading: false,
     error: null,
-    unload: async () => {},
+    unload: fixture.unload,
   }),
 }));
 
@@ -52,6 +54,7 @@ it('gives subtitle variants distinct visible and accessible names and selects th
     />,
   );
   const menu = await screen.findByRole('button', { name: 'Subtitles' });
+  await waitFor(() => expect(fixture.native.load).toHaveBeenCalledTimes(1));
   await act(async () => {
     fixture.native.playerEvent.connect.mock.calls.at(-1)?.[0]('subtitleTracks', {
       items: [
@@ -63,6 +66,7 @@ it('gives subtitle variants distinct visible and accessible names and selects th
     });
   });
   fireEvent.click(menu);
+  expect(fixture.native.load).toHaveBeenCalledTimes(1);
   const names = [
     'English SDH · SRT',
     'English Forced · SRT',
