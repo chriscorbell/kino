@@ -641,6 +641,27 @@ export function PlayerScreen({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.repeat ||
+        event.isComposing ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey
+      )
+        return;
+      // Focused controls own Space, arrows, and text entry. In particular the
+      // timeline's native arrow step must not become a global ten-second seek.
+      if (
+        event.target instanceof Element &&
+        event.target.closest(
+          'button, input, textarea, select, summary, a[href], [contenteditable], ' +
+            '[role="menu"], [role="menubar"], [role="menuitem"], [role="listbox"], ' +
+            '[role="option"], [role="combobox"], [role="textbox"], [role="slider"], [role="button"]',
+        )
+      )
+        return;
       const video = videoRef.current;
       if (!nativePlayer && !video) return;
       if (event.code === 'Space' || event.key.toLowerCase() === 'k') {
@@ -654,8 +675,10 @@ export function PlayerScreen({
         seekTo(Math.max(0, currentTime + (event.key === 'ArrowRight' ? 10_000 : -10_000)));
         reportProgress(true);
       } else if (event.key.toLowerCase() === 'm') {
+        event.preventDefault();
         toggleMuted();
       } else if (event.key.toLowerCase() === 'f') {
+        event.preventDefault();
         enterFullscreen();
       }
     };
