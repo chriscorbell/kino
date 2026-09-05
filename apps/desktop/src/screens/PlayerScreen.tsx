@@ -163,7 +163,17 @@ export function PlayerScreen({
   const [engineUrl, setEngineUrl] = useState<string | null>(null);
   const stream = result.state?.stream?.type === 'Ready' ? result.state.stream.content : null;
   const isTorrent = stream ? classifySource(stream) === 'torrent' : false;
-  const streamUrl = (isTorrent ? torrentUrl : stream?.url) ?? null;
+  // Core wraps direct streams with proxy headers in a URL for the account's
+  // Stremio Service. The native backend can send those headers itself, using
+  // the original source URL independently of that service's address.
+  const directSource = selection.stream.url?.startsWith('https://') ? selection.stream : null;
+  const streamUrl = stream
+    ? ((isTorrent ? torrentUrl : (directSource?.url ?? stream.url)) ?? null)
+    : null;
+  const requestHeaders = useMemo(
+    () => (!isTorrent ? directSource?.behaviorHints?.proxyHeaders?.request : undefined) ?? {},
+    [directSource, isTorrent],
+  );
   const resumeTime = result.state?.libraryItem?.state.timeOffset ?? 0;
   const nativeShell = nativeShellPresent();
   const addonSubtitles = useMemo(
@@ -452,7 +462,7 @@ export function PlayerScreen({
     };
 
     nativePlayer.playerEvent.connect(onEvent);
-    nativePlayer.load(streamUrl, settings.audioOutput === 'stereo');
+    nativePlayer.load(streamUrl, settings.audioOutput === 'stereo', requestHeaders);
 
     return () => {
       nativePlayer.playerEvent.disconnect(onEvent);
@@ -463,6 +473,7 @@ export function PlayerScreen({
     nativePlayer,
     reportFailure,
     reportProgress,
+    requestHeaders,
     settings.audioOutput,
     streamUrl,
     updateDuration,

@@ -24,7 +24,7 @@ public:
     Renderer *createRenderer() const override;
 
     Q_INVOKABLE void addSubtitles(const QString &url, const QString &title, const QString &lang);
-    Q_INVOKABLE void load(const QString &url, bool forceStereo);
+    Q_INVOKABLE void load(const QString &url, bool forceStereo, const QVariantMap &headers = {});
     Q_INVOKABLE void seek(double seconds);
     Q_INVOKABLE void setMuted(bool muted);
     Q_INVOKABLE void setPaused(bool paused);
@@ -60,6 +60,7 @@ private:
     bool failed_ = false;
     bool hardwareDecoderActive_ = false;
     bool paused_ = true;
+    bool suppressMpvLogDetails_ = false;
     bool videoPresent_ = false;
     mpv_handle *handle_ = nullptr;
     mpv_render_context *renderContext_ = nullptr;

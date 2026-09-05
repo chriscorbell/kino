@@ -29,6 +29,44 @@ class MpvItemTest : public QObject {
     }
 
 private slots:
+    void invalidRequestHeaders_data() {
+        QTest::addColumn<QVariantMap>("headers");
+        QTest::newRow("header-name-injection") << QVariantMap{{"X-Test\r\nInjected", "value"}};
+        QTest::newRow("header-value-injection") << QVariantMap{{"X-Test", "value\r\nInjected: value"}};
+        QTest::newRow("non-string") << QVariantMap{{"X-Test", 42}};
+        QTest::newRow("host-override") << QVariantMap{{"Host", "another.invalid"}};
+        QTest::newRow("range-override") << QVariantMap{{"Range", "bytes=0-10"}};
+        QTest::newRow("duplicate-name") << QVariantMap{{"X-Test", "one"}, {"x-test", "two"}};
+        QTest::newRow("oversized") << QVariantMap{{"X-Test", QString(65537, QLatin1Char('x'))}};
+    }
+
+    void invalidRequestHeaders() {
+        QFETCH(QVariantMap, headers);
+        MpvItem player;
+        QSignalSpy events(&player, &MpvItem::playerEvent);
+        player.load(QStringLiteral("https://media.invalid/fixture.mp4"), false, headers);
+        QVERIFY(!player.active());
+        QCOMPARE(events.size(), 1);
+        QCOMPARE(events.first().at(0).toString(), QStringLiteral("error"));
+        QCOMPARE(events.first().at(1).toMap().value("code").toString(),
+                 QStringLiteral("invalid-request-headers"));
+    }
+
+    void requestHeaderLogsStayPrivateAfterStop() {
+        MpvItem player;
+        // A rejected request also protects late free-form logs. The structured
+        // error code remains available without including any header contents.
+        player.load(QStringLiteral("https://media.invalid/fixture.mp4"), false,
+                    {{"X-Private", "synthetic credential\r\n"}});
+        player.stop();
+        mpv_event_log_message message{"ffmpeg", "warn", "synthetic credential, continuation", MPV_LOG_LEVEL_WARN};
+        mpv_event event{};
+        event.event_id = MPV_EVENT_LOG_MESSAGE;
+        event.data = &message;
+        QTest::ignoreMessage(QtWarningMsg, "[kino:mpv] message omitted for media with request headers");
+        player.handleEvent(&event);
+    }
+
     void hardwareDecoderProperties_data() {
         QTest::addColumn<QByteArray>("value");
         QTest::addColumn<bool>("expected");
