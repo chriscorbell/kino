@@ -52,28 +52,54 @@ QString uiOrigin() {
 } // namespace
 
 StreamEngine::StreamEngine(QObject *parent) : QObject(parent) {
+    startupDeadline_.setSingleShot(true);
+    bool configured = false;
+    const int timeout = qEnvironmentVariableIntValue("KINO_ENGINE_STARTUP_TIMEOUT_MS", &configured);
+    startupDeadline_.setInterval(configured && timeout > 0 ? qMin(timeout, 30'000) : 30'000);
+    connect(&startupDeadline_, &QTimer::timeout, this, [this]() {
+        if (!url_.isEmpty() || process_.state() == QProcess::NotRunning) return;
+        pendingFailure_ = QStringLiteral("The streaming engine did not become ready in time.");
+        // Report only after finished, so an immediate retry can start a new child.
+        process_.kill();
+    });
     connect(&process_, &QProcess::readyReadStandardOutput, this,
             &StreamEngine::readReadyLine);
     connect(&process_, &QProcess::readyReadStandardError, this,
             &StreamEngine::readDiagnostics);
-    connect(&process_, &QProcess::errorOccurred, this, [this](QProcess::ProcessError) {
-        fail(QStringLiteral("The streaming engine could not be started."));
+    connect(&process_, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
+        // Crashes also emit finished, where startup and post-ready exits differ.
+        if (error == QProcess::Crashed) return;
+        const QString reason = error == QProcess::FailedToStart
+            ? QStringLiteral("The streaming engine could not be started.")
+            : QStringLiteral("The streaming engine connection failed.");
+        startupDeadline_.stop();
+        if (process_.state() == QProcess::NotRunning) {
+            fail(reason);
+        } else {
+            pendingFailure_ = reason;
+            process_.kill();
+        }
     });
     connect(&process_, &QProcess::finished, this,
             [this](int exitCode, QProcess::ExitStatus) {
+                startupDeadline_.stop();
+                readReadyLine();
                 readDiagnostics();
                 consumeDiagnostics("\n");
-                if (url_.isEmpty()) {
+                if (!pendingFailure_.isEmpty()) {
+                    fail(pendingFailure_);
+                } else if (url_.isEmpty()) {
                     fail(QStringLiteral("The streaming engine stopped during startup."));
                 } else {
                     qWarning("[kino:engine] engine exited code=%d", exitCode);
-                    url_.clear();
-                    emit changed();
+                    fail(QStringLiteral("The streaming engine stopped unexpectedly."));
                 }
             });
 }
 
 StreamEngine::~StreamEngine() {
+    startupDeadline_.stop();
+    disconnect(&process_, nullptr, this, nullptr);
     if (process_.state() == QProcess::NotRunning) {
         return;
     }
@@ -83,6 +109,8 @@ StreamEngine::~StreamEngine() {
         process_.kill();
         process_.waitForFinished(1'000);
     }
+    readDiagnostics();
+    consumeDiagnostics("\n");
 }
 
 QString StreamEngine::error() const {
@@ -97,6 +125,10 @@ void StreamEngine::start() {
     if (process_.state() != QProcess::NotRunning || !url_.isEmpty()) {
         return;
     }
+    error_.clear();
+    pendingFailure_.clear();
+    diagnosticBuffer_.clear();
+    droppingDiagnostic_ = false;
     const QString path = helperPath();
     if (!QFileInfo::exists(path)) {
         fail(QStringLiteral("This build does not include the streaming engine."));
@@ -108,17 +140,19 @@ void StreamEngine::start() {
         return;
     }
 
-    error_.clear();
     QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
     environment.insert(QStringLiteral("KINO_ENGINE_CACHE_DIR"), cacheDir);
     environment.insert(QStringLiteral("KINO_ENGINE_UI_ORIGIN"), uiOrigin());
     process_.setProcessEnvironment(environment);
     process_.setProcessChannelMode(QProcess::SeparateChannels);
+    startupDeadline_.start();
     process_.start(path, {});
     qInfo("[kino:engine] streaming engine starting");
+    if (error_.isEmpty()) emit changed();
 }
 
 void StreamEngine::readReadyLine() {
+    if (!pendingFailure_.isEmpty()) return;
     while (process_.canReadLine()) {
         const QByteArray line = process_.readLine().trimmed();
         if (!line.startsWith(kReadyPrefix)) {
@@ -126,6 +160,7 @@ void StreamEngine::readReadyLine() {
         }
         url_ = QString::fromUtf8(line.mid(static_cast<int>(qstrlen(kReadyPrefix))));
         error_.clear();
+        startupDeadline_.stop();
         qInfo("[kino:engine] streaming engine ready");
         emit changed();
     }
@@ -177,6 +212,7 @@ void StreamEngine::consumeDiagnostics(const QByteArray &bytes) {
 }
 
 void StreamEngine::fail(const QString &reason) {
+    startupDeadline_.stop();
     if (error_ == reason) {
         return;
     }

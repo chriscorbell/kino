@@ -16,7 +16,7 @@ pnpm install
 pnpm dev
 ```
 
-The client browses, searches, and resolves sources through the real Stremio Core. Torrent playback currently requires a separately installed Stremio Service.
+The client browses, searches, and resolves sources through the real Stremio Core.
 
 ### macOS shell
 
@@ -64,6 +64,8 @@ pnpm macos:check-engine-ui
 ```
 
 Each engine build reconstructs `build/vendor/stream-server` from the pinned revision and current patches, then enforces Cargo's lockfile. Keep upstream changes in `apps/stream-engine/patches`; edits inside the generated vendor directory are discarded. `pnpm engine:check-vendor` checks patch changes and failed retries without requiring the native toolchain.
+
+The shell gives the helper 30 seconds to become ready and terminates it if that deadline expires. An unexpected exit reports a playback failure. Selecting a torrent source again starts a fresh helper after failure. CTest exercises ready, silent, premature-exit, post-ready-exit, and retry cases with a temporary helper; `pnpm macos:check-engine-retry` verifies retry through production QML and WebChannel. These checks require no torrents. `KINO_ENGINE_STARTUP_TIMEOUT_MS` can shorten the deadline for fixtures.
 
 Kino excludes the upstream YouTube resolver and yt-dlp downloader from its engine. `pnpm engine:check-profile` starts the helper with a fresh cache and a blocking HTTP proxy, then checks that startup and an unsupported YouTube request create no executable tools or release-download requests. The engine's tracker-list data refreshes remain allowed.
 
