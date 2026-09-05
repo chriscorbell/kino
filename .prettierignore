@@ -3,3 +3,6 @@ dist
 coverage
 mockup/Kino.html
 pnpm-lock.yaml
+
+# Preserve upstream license text byte-for-byte.
+third_party/notices/texts

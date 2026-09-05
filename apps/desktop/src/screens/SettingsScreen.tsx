@@ -46,6 +46,7 @@ export function SettingsScreen({
   const [cacheBytes, setCacheBytes] = useState<number | null>(null);
   const cacheAction = useActionFeedback();
   const logsAction = useActionFeedback();
+  const noticesAction = useActionFeedback();
   const languageAction = useActionFeedback(transport);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle');
   const nativeShell = nativeShellPresent();
@@ -332,6 +333,39 @@ export function SettingsScreen({
           )}
         </div>
         <ActionFeedback action={logsAction} />
+      </section>
+      <section className={styles.settingsGroup} aria-labelledby="license-settings-title">
+        <h2 id="license-settings-title">{enUS.settings.licenses}</h2>
+        <div className={styles.settingRow}>
+          <p className={styles.settingDescription}>{enUS.settings.licensesDescription}</p>
+          {nativeShell ? (
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              disabled={noticesAction.pending}
+              aria-busy={noticesAction.pending}
+              onClick={() =>
+                noticesAction.run(
+                  async () => {
+                    const diagnostics = await connectNativeDiagnostics();
+                    if (!diagnostics || !(await diagnostics.openNotices()))
+                      throw new Error('Notices unavailable.');
+                  },
+                  {
+                    pending: enUS.settings.openingNotices,
+                    success: enUS.settings.noticesOpened,
+                    failed: enUS.settings.noticesFailed,
+                  },
+                )
+              }
+            >
+              {enUS.settings.readNotices}
+            </button>
+          ) : (
+            <span className={styles.activeValue}>{enUS.settings.desktopOnly}</span>
+          )}
+        </div>
+        <ActionFeedback action={noticesAction} />
       </section>
     </div>
   );

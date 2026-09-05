@@ -19,6 +19,7 @@ public:
     Q_INVOKABLE QFuture<qlonglong> cacheBytes();
     Q_INVOKABLE QFuture<bool> clearCache();
     Q_INVOKABLE bool revealLogs();
+    Q_INVOKABLE bool openNotices();
     Q_INVOKABLE bool copyDiagnosticSummary();
     Q_INVOKABLE void logWebMessage(int level, const QString &message);
 

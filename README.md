@@ -124,6 +124,10 @@ pnpm macos:package
 
 The app carries its own Qt, mpv, and torrent stack, so it runs on a Mac without Homebrew. Packages are ad-hoc signed and Apple Silicon only; code signing, notarization, and universal builds wait for a public release channel, as recorded in [ADR 0017](docs/adr/0017-ship-apple-silicon-first-and-defer-universal-packages.md).
 
+Packaging writes Kino's GPL text, retained shell provenance, and dependency notices to `Kino.app/Contents/Resources/licenses/`. Open **Settings → Licenses and notices → Read notices** to search the local index. The accompanying `manifest.json` records component versions, source URLs, file checksums, and the origin of every shipped Mach-O binary.
+
+The collector reads installed npm, Cargo, and Homebrew packages without network access. [Reviewed supplements](third_party/notices/README.md) supply omitted upstream texts, Qt and Chromium attributions, and complete Rust runtime notices. Packaging fails on missing texts, unknown binary origins, or changed dependency versions that need new supplements. `pnpm macos:package --no-dmg` runs the same collection, signing, and verification while skipping disk-image creation; native CI runs this path after its probes. Development builds need the packaging step before Read notices is available.
+
 ## Project documents
 
 - [Product contract](docs/PRODUCT.md)

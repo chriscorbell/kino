@@ -214,6 +214,12 @@ export const enUS = {
     localLogging: 'Verbose local logging',
     localLoggingDescription: 'Detailed diagnostics stay on this device',
     active: 'Active',
+    licenses: 'Licenses and notices',
+    licensesDescription: 'Kino and the open-source components included in this build',
+    readNotices: 'Read notices',
+    openingNotices: 'Opening license notices…',
+    noticesOpened: 'License notices opened.',
+    noticesFailed: 'License notices could not be opened. Try again.',
   },
   engine: {
     title: 'Torrent streaming',

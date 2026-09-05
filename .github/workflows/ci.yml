@@ -37,7 +37,7 @@ jobs:
           const files = !base || /^0+$/.test(base)
             ? ['.github/workflows/ci.yml']
             : execFileSync('git', ['diff', '--name-only', '-z', base, head], { encoding: 'utf8' }).split('\0');
-          const native = files.some((file) => /^(\.github\/|apps\/(macos-shell|stream-engine)\/|apps\/desktop\/src\/native\/|scripts\/|package\.json$|pnpm-lock\.yaml$|\.node-version$)/.test(file));
+          const native = files.some((file) => /^(\.github\/|apps\/(macos-shell|stream-engine)\/|apps\/desktop\/src\/native\/|scripts\/|third_party\/|package\.json$|pnpm-lock\.yaml$|\.node-version$)/.test(file));
           appendFileSync(process.env.GITHUB_OUTPUT, `native=${native}\n`);
           JS
 
@@ -152,6 +152,10 @@ jobs:
           pnpm macos:check-volume
           pnpm macos:check-audio
           pnpm macos:check-web-console
+
+      - name: Package and verify bundled dependency notices
+        timeout-minutes: 10
+        run: pnpm macos:package --no-dmg
 
   validate:
     name: Validate
