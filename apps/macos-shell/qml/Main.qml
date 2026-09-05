@@ -198,6 +198,10 @@ ApplicationWindow {
             request.accept()
         }
 
+        onJavaScriptConsoleMessage: function(level, message, lineNumber, sourceID) {
+            diagnostics.logWebMessage(level, message)
+        }
+
         onLoadingChanged: function(request) {
             loadFailure.visible = request.status === WebEngineView.LoadFailedStatus
             if (request.status === WebEngineView.LoadSucceededStatus) {

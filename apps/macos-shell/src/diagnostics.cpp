@@ -1,4 +1,5 @@
 #include "diagnostics.h"
+#include "logging.h"
 
 #include <QDesktopServices>
 #include <QDir>
@@ -66,4 +67,21 @@ bool Diagnostics::revealLogs() {
         qWarning("[kino:diagnostics] log folder could not be opened");
     }
     return opened;
+}
+
+void Diagnostics::logWebMessage(int level, const QString &message) {
+    // WebEngineView.JavaScriptConsoleMessageLevel uses info=0, warning=1, error=2.
+    switch (level) {
+    case 0:
+        logWebConsoleMessage(QtInfoMsg, message);
+        break;
+    case 1:
+        logWebConsoleMessage(QtWarningMsg, message);
+        break;
+    case 2:
+        logWebConsoleMessage(QtCriticalMsg, message);
+        break;
+    default:
+        break;
+    }
 }
