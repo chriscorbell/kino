@@ -1,10 +1,10 @@
 import styles from '../App.module.css';
 import { MediaCard } from '../components/MediaCard';
 import { loadLibraryAction } from '../core/actions';
-import type { CoreMetaPreview, LibraryState, LibraryRequest } from '../core/types';
+import type { CoreMetaPreview, LibraryState } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
-import { useState } from 'react';
+import { useBrowseState } from '../navigation';
 
 function typeLabel(type: string | null) {
   if (!type) return enUS.library.all;
@@ -12,7 +12,7 @@ function typeLabel(type: string | null) {
 }
 
 export function LibraryScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => void }) {
-  const [request, setRequest] = useState<LibraryRequest | null>(null);
+  const [request, setRequest] = useBrowseState('library');
   const result = useCoreModel<LibraryState>(
     'library',
     loadLibraryAction(request),

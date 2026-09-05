@@ -1,5 +1,9 @@
 export const enUS = {
   appName: 'Kino',
+  account: {
+    create: 'Create account',
+    createFailed: 'The registration page could not be opened. Try again.',
+  },
   navigation: {
     primary: 'Primary navigation',
     home: 'Home',
