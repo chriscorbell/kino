@@ -90,8 +90,6 @@ export const enUS = {
     clearing: 'Clearing…',
     revealLogs: 'Reveal logs',
     desktopOnly: 'Desktop only',
-    matchFrameRate: 'Match display frame rate',
-    matchFrameRateDescription: 'Switch the display to match the selected source',
     audioOutput: 'Audio output',
     audioOutputDescription: 'Use connected equipment or force a stereo downmix',
     audioAuto: 'Auto',

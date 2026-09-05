@@ -178,12 +178,6 @@ export function SettingsScreen({
           label={enUS.settings.upNext}
           onChange={(checked) => update('upNext', checked)}
         />
-        <SettingSwitch
-          checked={settings.matchFrameRate}
-          description={enUS.settings.matchFrameRateDescription}
-          label={enUS.settings.matchFrameRate}
-          onChange={(checked) => update('matchFrameRate', checked)}
-        />
         <SettingSelect
           description={enUS.settings.audioOutputDescription}
           id="audio-output"
