@@ -10,6 +10,9 @@ import { connectNativeDiagnostics, nativeShellPresent } from '../native/player';
 import { subtitleLanguages } from '../player/subtitles';
 import type { KinoSettings } from '../settings';
 
+import { UpdateSettings } from '../updates/UpdateNotice';
+import type { Updates } from '../updates/useUpdates';
+
 interface SettingSwitchProps {
   checked: boolean;
   description: string;
@@ -86,9 +89,11 @@ function formatBytes(bytes: number) {
 export function SettingsScreen({
   onChange,
   settings,
+  updates,
 }: {
   onChange: (settings: KinoSettings) => void;
   settings: KinoSettings;
+  updates?: Updates;
 }) {
   const { transport } = useCore();
   const profile = useCoreModel<ProfileState>('ctx', null, 'settings-profile');
@@ -170,6 +175,7 @@ export function SettingsScreen({
   return (
     <div className={`${styles.page} ${styles.settingsPage}`}>
       <h1>{enUS.settings.title}</h1>
+      <UpdateSettings updates={updates} />
 
       <section className={styles.settingsGroup} aria-labelledby="playback-settings-title">
         <h2 id="playback-settings-title">{enUS.settings.playback}</h2>

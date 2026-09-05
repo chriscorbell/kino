@@ -75,6 +75,10 @@ qt_add_qml_module(
     src/streamengine.h
 )
 
+if(NOT DEFINED KINO_RELEASE_VERSION)
+  set(KINO_RELEASE_VERSION "${PROJECT_VERSION}")
+endif()
+target_compile_definitions(Kino PRIVATE KINO_VERSION="${KINO_RELEASE_VERSION}")
 target_include_directories(Kino PRIVATE src "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_link_libraries(
   Kino

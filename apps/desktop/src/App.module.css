@@ -1862,3 +1862,57 @@
     animation: none;
   }
 }
+
+.updateNotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px clamp(18px, 4vw, 46px);
+  border-bottom: 1px solid var(--kino-border);
+  background: var(--kino-surface);
+  font-size: 13px;
+  animation: enter var(--kino-duration-standard) var(--kino-ease-out);
+}
+
+.updateNotice p {
+  margin: 5px 0 0;
+  color: var(--kino-text-muted);
+  font-size: 12px;
+}
+
+.updateActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .updateNotice {
+    animation: none;
+  }
+}
+
+.updateSettings .settingRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 14px 0;
+}
+
+.updateSettings .settingRow > :first-child {
+  flex: 1 1 240px;
+}
+
+.updateSettings .formError,
+.updateNotice .formError {
+  color: var(--kino-danger);
+  font-size: 13px;
+}
+
+.updateSettings button:disabled,
+.updateNotice button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}

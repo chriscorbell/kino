@@ -55,6 +55,12 @@ Desktop Settings provides Open Log Folder and Copy Diagnostic Summary. Android d
 
 Official releases are published through GitHub with signatures and checksums. Kino checks once daily, prompts when an update exists, and never installs silently. Sideloaded TV builds notify the user and open the release page. Kino settings remain device-local and do not sync.
 
+Desktop update discovery uses the packaged release version and the public GitHub releases feed for `chriscorbell/kino`. A private repository or a channel without a published release reports "No public release is available yet." Stable builds check GitHub's latest published release; preview builds compare the most recent 100 releases, including previews. A check runs at launch if the last attempt was at least 24 hours ago, then once the next daily interval expires while the app is running. Failed automatic attempts use the same daily limit. Settings can request a manual check at any time.
+
+The notice shows the installed and available versions. "Remind me tomorrow" hides it for 24 hours, and "Skip this version" hides that release until a newer version appears. Both choices stay on the device. Settings still offers the release page for a skipped version. Notices stay hidden during playback. "Download from GitHub" opens the release page in the system browser; Kino never fetches an update asset or installs it automatically.
+
+The native version defaults to the CMake project version. Preview packaging can pass `-DKINO_RELEASE_VERSION=0.2.0-beta.1` to identify its release channel; bundle version fields retain the numeric project version.
+
 The Kino name and logo identify official builds. The GPL source remains modifiable and distributable, but public redistributed builds must rebrand and preserve all upstream licenses and notices.
 
 ## Deferred work

@@ -34,6 +34,9 @@ import { SearchScreen } from './screens/SearchScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { defaultSettings, loadSettings, saveSettings, type KinoSettings } from './settings';
 
+import { useUpdates } from './updates/useUpdates';
+import { UpdateNotice } from './updates/UpdateNotice';
+
 type Screen = BrowseScreen | 'detail';
 
 interface NavigationItem {
@@ -89,6 +92,7 @@ function accountInitial(profile: ProfileState | null) {
 }
 
 export function App() {
+  const updates = useUpdates();
   const [screen, setScreen] = useState<Screen>('home');
   const [entry, setEntry] = useState<NavigationEntry>(() => ({
     screen: 'home',
@@ -211,7 +215,7 @@ export function App() {
       case 'addons':
         return <AddonsScreen />;
       case 'settings':
-        return <SettingsScreen onChange={setSettings} settings={settings} />;
+        return <SettingsScreen onChange={setSettings} settings={settings} updates={updates} />;
     }
   })();
 
@@ -282,6 +286,7 @@ export function App() {
           ref={browseMain}
           tabIndex={-1}
         >
+          {!playback && screen !== 'detail' ? <UpdateNotice updates={updates} /> : null}
           <BrowseStateContext.Provider value={browseContext}>{content}</BrowseStateContext.Provider>
         </main>
         {screen === 'detail' && detail && !playback ? (
@@ -293,6 +298,7 @@ export function App() {
             ref={detailMain}
             tabIndex={-1}
           >
+            <UpdateNotice updates={updates} />
             <MetaDetailsScreen
               failedSources={failedSources}
               key={`${detail.type}:${detail.id}`}
