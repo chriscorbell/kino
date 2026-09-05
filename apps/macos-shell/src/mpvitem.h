@@ -23,6 +23,7 @@ public:
     ~MpvItem() override;
 
     bool active() const;
+    QString version() const;
     Renderer *createRenderer() const override;
 
     Q_INVOKABLE void addSubtitles(const QString &url, const QString &title, const QString &lang);

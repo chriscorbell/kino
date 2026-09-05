@@ -35,6 +35,7 @@ export interface NativePlayer {
 }
 
 export interface NativeDiagnostics {
+  copyDiagnosticSummary(): Promise<boolean>;
   cacheBytes(): Promise<number>;
   clearCache(): Promise<boolean>;
   revealLogs(): Promise<boolean>;
