@@ -233,6 +233,7 @@ export interface CoreAddon {
   transportIssue?: AddonTransportIssue | null;
   flags?: { official?: boolean; protected?: boolean };
   manifest: {
+    behaviorHints?: { configurable?: boolean; configurationRequired?: boolean };
     description?: string | null;
     id: string;
     logo?: string | null;

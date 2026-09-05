@@ -1346,6 +1346,24 @@
   cursor: default;
 }
 
+.addonConfiguration {
+  margin-top: 16px;
+  color: var(--kino-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.addonActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.addonActions a {
+  text-decoration: none;
+}
+
 .addonList {
   display: grid;
   margin-top: 12px;
@@ -1643,6 +1661,14 @@
 }
 
 @media (max-width: 720px) {
+  .addonRow:has(.addonActions a) {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .addonRow:has(.addonActions a) > .addonActions {
+    grid-column: 2;
+  }
+
   .shell {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) 64px;

@@ -78,6 +78,21 @@ export const enUS = {
     },
     remove: 'Remove',
     removeFailed: 'That add-on could not be removed.',
+    configure: 'Configure',
+    configurationRequired: 'Configuration required',
+    configurationInstructions:
+      'Save your changes in the browser, then paste the configured manifest URL here. Stremio links are also accepted.',
+    configurationOpenFailed: 'The configuration page could not be opened. Try Configure again.',
+    configurationExists:
+      'already has an installed configuration. Replace existing configurations or keep both.',
+    replaceExisting: 'Replace existing',
+    requiredConfigurationProtected:
+      'A required add-on cannot be replaced. You can install the new configuration alongside it.',
+    keepBoth: 'Keep both',
+    configurationReplaced: 'The previous configuration was replaced.',
+    installed: 'The add-on was installed.',
+    replaceFailed:
+      'The new configuration is installed, but a previous configuration could not be removed. Try Replace existing again.',
     protectedAddon: 'Required',
   },
   settings: {
@@ -127,6 +142,7 @@ export const enUS = {
     readMore: 'Read more',
     readLess: 'Read less',
     back: 'Back',
+    cancel: 'Cancel',
   },
   details: {
     loading: 'Loading title details…',

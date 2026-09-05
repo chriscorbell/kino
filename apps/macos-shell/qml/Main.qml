@@ -56,6 +56,10 @@ ApplicationWindow {
         id: diagnostics
     }
 
+    ExternalNavigation {
+        id: externalNavigation
+    }
+
     QtObject {
         id: nativeBridge
 
@@ -178,6 +182,7 @@ ApplicationWindow {
             registerObject("kinoSecureStore", secureStore)
             registerObject("kinoDiagnostics", diagnostics)
             registerObject("kinoLifecycle", lifecycle)
+            registerObject("kinoExternalNavigation", externalNavigation)
         }
     }
 

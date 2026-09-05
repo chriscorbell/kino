@@ -36,6 +36,10 @@ export interface NativePlayer {
   streamingEngineChanged: NativeEngineEvent;
 }
 
+export interface NativeExternalNavigation {
+  openUrl(url: string): Promise<boolean>;
+}
+
 export interface NativeDiagnostics {
   copyDiagnosticSummary(): Promise<boolean>;
   cacheBytes(): Promise<number>;
@@ -59,6 +63,7 @@ export interface NativeSecureStore {
 }
 
 interface NativeShellConnection {
+  externalNavigation: NativeExternalNavigation | null;
   lifecycle: NativeLifecycle | null;
   diagnostics: NativeDiagnostics;
   player: NativePlayer;
@@ -68,6 +73,7 @@ interface NativeShellConnection {
 interface WebChannelResult {
   objects: {
     kinoDiagnostics?: NativeDiagnostics;
+    kinoExternalNavigation?: NativeExternalNavigation;
     kinoLifecycle?: NativeLifecycle;
     kinoNative?: NativePlayer;
     kinoSecureStore?: NativeSecureStore;
@@ -141,6 +147,7 @@ function connectNativeShell(): Promise<NativeShellConnection | null> {
           }
           resolve({
             diagnostics,
+            externalNavigation: channel.objects.kinoExternalNavigation ?? null,
             player,
             secureStore,
             lifecycle: channel.objects.kinoLifecycle ?? null,
@@ -176,4 +183,8 @@ export async function connectNativeDiagnostics() {
 
 export async function connectNativeSecureStore() {
   return (await connectNativeShell())?.secureStore ?? null;
+}
+
+export async function connectNativeExternalNavigation() {
+  return (await connectNativeShell())?.externalNavigation ?? null;
 }

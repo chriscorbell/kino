@@ -49,6 +49,7 @@ qt_add_executable(
   ${KINO_ICON}
   src/closecoordinator.cpp
   src/diagnostics.cpp
+  src/externalnavigation.cpp
   src/logging.cpp
   src/main.cpp
   src/mpvitem.cpp
@@ -67,6 +68,7 @@ qt_add_qml_module(
   SOURCES
     src/closecoordinator.h
     src/diagnostics.h
+    src/externalnavigation.h
     src/mpvitem.h
     src/nowplaying.h
     src/securestore.h
@@ -139,6 +141,11 @@ add_dependencies(kino_package_engine Kino)
 include(CTest)
 if(BUILD_TESTING)
   find_package(Qt6 6.8 REQUIRED COMPONENTS Test)
+  qt_add_executable(kino_externalnavigation_test tests/externalnavigation_test.cpp src/externalnavigation.cpp)
+  target_include_directories(kino_externalnavigation_test PRIVATE src)
+  target_link_libraries(kino_externalnavigation_test PRIVATE Qt6::Gui Qt6::Qml Qt6::Test)
+  add_test(NAME external_navigation COMMAND kino_externalnavigation_test)
+  set_tests_properties(external_navigation PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
   qt_add_executable(
     kino_mpvitem_test
     tests/mpvitem_test.cpp
