@@ -18,6 +18,7 @@
     "lint": "eslint .",
     "engine:build": "./scripts/build-engine.sh",
     "engine:check-vendor": "node scripts/check-engine-vendor.mjs",
+    "engine:check-profile": "node scripts/check-engine-profile.mjs",
     "macos:build": "./scripts/build-macos.sh",
     "macos:check-engine": "./scripts/check-macos-engine.sh",
     "macos:check-launch": "./scripts/check-macos-launch.sh",
