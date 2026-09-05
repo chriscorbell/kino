@@ -172,8 +172,13 @@ interface CoreResource<Ready> {
   content: Loadable<Ready>;
 }
 
+interface LibraryPlaybackProgress {
+  _id: string;
+  state: { timeOffset: number; video_id?: string | null };
+}
+
 export interface MetaDetailsState {
-  libraryItem: unknown | null;
+  libraryItem: LibraryPlaybackProgress | null;
   metaItem: CoreResource<CoreMetaItem> | null;
   selected: {
     metaPath: CatalogRequest['path'];
@@ -190,10 +195,7 @@ export interface PlayerState {
     intro?: { duration?: number | null; from: number; to: number } | null;
     outro?: number | null;
   } | null;
-  libraryItem?: {
-    _id: string;
-    state: { timeOffset: number; video_id?: string | null };
-  } | null;
+  libraryItem?: LibraryPlaybackProgress | null;
   selected: { stream: CoreStream } | null;
   stream: Loadable<CorePlayerStream> | null;
   subtitles?: unknown;

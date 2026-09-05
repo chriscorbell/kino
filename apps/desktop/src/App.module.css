@@ -513,6 +513,20 @@
   background: var(--kino-accent);
 }
 
+.resumeChoice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 16px;
+}
+
+.resumeChoice button {
+  transition:
+    color 150ms ease,
+    border-color 150ms ease,
+    background-color 150ms ease;
+}
+
 .episodeList,
 .sourceList {
   border-top: 1px solid var(--kino-border-subtle);
@@ -1624,6 +1638,7 @@
   .navButton,
   .addonRemove,
   .secondaryButton,
+  .resumeChoice button,
   .skipLink,
   .switch,
   .switch span {

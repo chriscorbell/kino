@@ -55,6 +55,7 @@ export function MetaDetailsScreen({
     () => initialVideoId ?? defaultVideoId(item),
   );
   const [profileTransport, setProfileTransport] = useState(transport);
+  const [startOver, setStartOver] = useState(false);
   const [libraryOverride, setLibraryOverride] = useState<{ value: boolean } | null>(null);
   const result = useCoreModel<MetaDetailsState>(
     'meta_details',
@@ -78,6 +79,7 @@ export function MetaDetailsScreen({
   if (profileTransport !== transport) {
     setProfileTransport(transport);
     setLibraryOverride(null);
+    setStartOver(false);
     setLastMeta(loadedMeta);
   } else if (loadedMeta && loadedMeta !== lastMeta) setLastMeta(loadedMeta);
   const meta = loadedMeta ?? (profileTransport === transport ? lastMeta : null);
@@ -151,6 +153,19 @@ export function MetaDetailsScreen({
   const nextEpisode = activeIndex >= 0 ? (videos[activeIndex + 1] ?? null) : null;
   const inLibrary = libraryOverride?.value ?? display.inLibrary;
   const libraryReady = Boolean(transport && meta);
+  const savedProgress = result.state?.libraryItem;
+  const canResume =
+    sourcesCurrent &&
+    savedProgress?._id === item.id &&
+    Number.isFinite(savedProgress.state.timeOffset) &&
+    savedProgress.state.timeOffset > 0 &&
+    (savedProgress.state.video_id === (activeVideo?.id ?? item.id) ||
+      (item.type !== 'series' && !savedProgress.state.video_id));
+
+  const chooseVideo = (id: string) => {
+    setStartOver(false);
+    setVideoId(id);
+  };
 
   const toggleLibrary = () => {
     if (!transport || !libraryReady) return;
@@ -226,7 +241,7 @@ export function MetaDetailsScreen({
                     key={season}
                     onClick={() => {
                       const first = videos.find((video) => video.season === season);
-                      if (first) setVideoId(first.id);
+                      if (first) chooseVideo(first.id);
                     }}
                     type="button"
                   >
@@ -243,7 +258,7 @@ export function MetaDetailsScreen({
                   key={video.id}
                   onClick={() => {
                     episodeChosenRef.current = true;
-                    setVideoId(video.id);
+                    chooseVideo(video.id);
                   }}
                   type="button"
                 >
@@ -270,6 +285,30 @@ export function MetaDetailsScreen({
             <h2 id="sources-heading">{enUS.details.sources}</h2>
             {!sourcesCurrent && !result.error ? <span>{enUS.details.refreshing}</span> : null}
           </div>
+          {canResume ? (
+            <div
+              className={styles.resumeChoice}
+              role="group"
+              aria-label={enUS.details.playbackStart}
+            >
+              <button
+                aria-pressed={!startOver}
+                className={!startOver ? styles.seasonActive : styles.seasonButton}
+                onClick={() => setStartOver(false)}
+                type="button"
+              >
+                {enUS.details.resume}
+              </button>
+              <button
+                aria-pressed={startOver}
+                className={startOver ? styles.seasonActive : styles.seasonButton}
+                onClick={() => setStartOver(true)}
+                type="button"
+              >
+                {enUS.details.startOver}
+              </button>
+            </div>
+          ) : null}
           {currentFailure ? (
             <p className={styles.loadError} role="status">
               {currentFailure}
@@ -294,6 +333,7 @@ export function MetaDetailsScreen({
                   onClick={() => {
                     if (!sourcesCurrent || !playable || !resource?.addon.transportUrl) return;
                     onPlay({
+                      resumeMode: canResume && startOver ? 'start-over' : 'resume',
                       meta: display,
                       metaTransportUrl: resource.addon.transportUrl,
                       nextVideo: nextEpisode,
