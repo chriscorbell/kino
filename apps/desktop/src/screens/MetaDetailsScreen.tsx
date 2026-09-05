@@ -2,6 +2,7 @@ import { ArrowLeft, Check, Play, Plus } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import styles from '../App.module.css';
+import { ExpandableText } from '../components/ExpandableText';
 import {
   addToLibraryAction,
   loadMetaDetailsAction,
@@ -185,7 +186,13 @@ export function MetaDetailsScreen({
           <h1>{display.name}</h1>
           <p className={styles.detailMetadata}>{metadata(display as CoreMetaItem)}</p>
           {display.description ? (
-            <p className={styles.detailDescription}>{display.description}</p>
+            <ExpandableText
+              className={styles.detailDescription}
+              key={display.description}
+              label={display.name}
+              lines={3}
+              text={display.description}
+            />
           ) : null}
           <button
             className={styles.libraryButton}
@@ -237,25 +244,35 @@ export function MetaDetailsScreen({
             </div>
             <div className={styles.episodeList}>
               {visibleVideos.map((video: CoreVideo) => (
-                <button
-                  aria-current={video.id === videoId ? 'true' : undefined}
-                  className={video.id === videoId ? styles.episodeActive : styles.episodeButton}
+                <div
+                  className={`${styles.episodeRow} ${video.id === videoId ? styles.episodeActive : ''}`}
                   key={video.id}
-                  onClick={() => {
-                    episodeChosenRef.current = true;
-                    setVideoId(video.id);
-                  }}
-                  type="button"
                 >
-                  <span className={styles.episodeNumber}>
-                    {String(video.episode ?? 0).padStart(2, '0')}
-                  </span>
-                  <span>
+                  <button
+                    aria-current={video.id === videoId ? 'true' : undefined}
+                    className={styles.episodeButton}
+                    onClick={() => {
+                      episodeChosenRef.current = true;
+                      setVideoId(video.id);
+                    }}
+                    type="button"
+                  >
+                    <span className={styles.episodeNumber}>
+                      {String(video.episode ?? 0).padStart(2, '0')}
+                    </span>
                     <strong>{video.title || `Episode ${video.episode}`}</strong>
-                    {video.overview ? <small>{video.overview}</small> : null}
-                  </span>
-                  <Play aria-hidden size={16} weight="fill" />
-                </button>
+                    <Play aria-hidden size={16} weight="fill" />
+                  </button>
+                  {video.overview ? (
+                    <ExpandableText
+                      className={styles.episodeOverview}
+                      key={video.overview}
+                      label={video.title || `Episode ${video.episode}`}
+                      lines={1}
+                      text={video.overview}
+                    />
+                  ) : null}
+                </div>
               ))}
             </div>
           </section>
