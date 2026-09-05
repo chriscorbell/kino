@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <mutex>
 #include <stdexcept>
 
 namespace {
@@ -122,37 +123,64 @@ QVariantList subtitleTrackPayload(const mpv_node &root) {
 
 } // namespace
 
+struct MpvContext {
+    explicit MpvContext(MpvItem *owner) : item(owner), handle(mpv_create()) {}
+
+    ~MpvContext() {
+        // The last renderer has already freed its render context, so the core
+        // cannot wait for more frames while it shuts down.
+        if (handle) mpv_terminate_destroy(handle);
+    }
+
+    std::mutex callbackMutex;
+    MpvItem *item;
+    mpv_handle *handle;
+};
+
 class MpvRenderer final : public QQuickFramebufferObject::Renderer {
 public:
-    explicit MpvRenderer(MpvItem *item) : item_(item) {}
+    explicit MpvRenderer(std::shared_ptr<MpvContext> context)
+        : context_(std::move(context)) {}
+
+    ~MpvRenderer() override {
+        // Qt deletes its FBO renderer on the render thread with its GL context
+        // current, including when the scene graph is invalidated.
+        if (renderContext_) {
+            mpv_render_context_set_update_callback(renderContext_, nullptr, nullptr);
+            mpv_render_context_free(renderContext_);
+        }
+    }
 
     QOpenGLFramebufferObject *createFramebufferObject(const QSize &size) override {
-        if (!item_->renderContext_) {
+        if (!renderContext_) {
             mpv_opengl_init_params openGlParameters{resolveOpenGlSymbol, nullptr};
             mpv_render_param parameters[] = {
                 {MPV_RENDER_PARAM_API_TYPE, const_cast<char *>(MPV_RENDER_API_TYPE_OPENGL)},
                 {MPV_RENDER_PARAM_OPENGL_INIT_PARAMS, &openGlParameters},
                 {MPV_RENDER_PARAM_INVALID, nullptr},
             };
-            const int result = mpv_render_context_create(&item_->renderContext_, item_->handle_,
+            const int result = mpv_render_context_create(&renderContext_, context_->handle,
                                                          parameters);
             if (result < 0) {
-                QMetaObject::invokeMethod(item_, [item = item_]() {
-                    item->emitError(QStringLiteral("render-context-unavailable"));
-                });
+                std::lock_guard lock(context_->callbackMutex);
+                if (auto *item = context_->item) {
+                    QMetaObject::invokeMethod(item, [item]() {
+                        item->emitError(QStringLiteral("render-context-unavailable"));
+                    }, Qt::QueuedConnection);
+                }
             } else {
-                mpv_render_context_set_update_callback(item_->renderContext_,
-                                                       MpvItem::onRenderUpdate, item_);
+                mpv_render_context_set_update_callback(renderContext_,
+                                                       MpvItem::onRenderUpdate, context_.get());
             }
         }
         return Renderer::createFramebufferObject(size);
     }
 
     void render() override {
-        if (!item_->renderContext_) {
+        if (!renderContext_) {
             return;
         }
-        mpv_render_context_update(item_->renderContext_);
+        mpv_render_context_update(renderContext_);
         QQuickOpenGLUtils::resetOpenGLState();
         QOpenGLFramebufferObject *target = framebufferObject();
         mpv_opengl_fbo frameBuffer{static_cast<int>(target->handle()), target->width(),
@@ -163,16 +191,18 @@ public:
             {MPV_RENDER_PARAM_FLIP_Y, &flipY},
             {MPV_RENDER_PARAM_INVALID, nullptr},
         };
-        mpv_render_context_render(item_->renderContext_, parameters);
+        mpv_render_context_render(renderContext_, parameters);
         QQuickOpenGLUtils::resetOpenGLState();
     }
 
 private:
-    MpvItem *item_;
+    std::shared_ptr<MpvContext> context_;
+    mpv_render_context *renderContext_ = nullptr;
 };
 
 MpvItem::MpvItem(QQuickItem *parent)
-    : QQuickFramebufferObject(parent), handle_(mpv_create()) {
+    : QQuickFramebufferObject(parent), context_(std::make_shared<MpvContext>(this)),
+      handle_(context_->handle) {
     if (!handle_) {
         throw std::runtime_error("could not create the mpv context");
     }
@@ -192,12 +222,14 @@ MpvItem::MpvItem(QQuickItem *parent)
 }
 
 MpvItem::~MpvItem() {
-    if (renderContext_) {
-        mpv_render_context_free(renderContext_);
+    {
+        // A callback may already be running on an mpv thread. Finish posting
+        // its queued call before detaching the receiver; Qt removes pending
+        // calls when the item is destroyed.
+        std::lock_guard lock(context_->callbackMutex);
+        context_->item = nullptr;
     }
-    if (handle_) {
-        mpv_terminate_destroy(handle_);
-    }
+    mpv_set_wakeup_callback(handle_, nullptr, nullptr);
 }
 
 bool MpvItem::active() const {
@@ -205,7 +237,7 @@ bool MpvItem::active() const {
 }
 
 QQuickFramebufferObject::Renderer *MpvItem::createRenderer() const {
-    return new MpvRenderer(const_cast<MpvItem *>(this));
+    return new MpvRenderer(context_);
 }
 
 void MpvItem::initialize() {
@@ -246,7 +278,7 @@ void MpvItem::initialize() {
         throw std::runtime_error("could not initialize mpv");
     }
 
-    mpv_set_wakeup_callback(handle_, &MpvItem::onWakeup, this);
+    mpv_set_wakeup_callback(handle_, &MpvItem::onWakeup, context_.get());
     mpv_request_log_messages(handle_, "warn");
     mpv_observe_property(handle_, 1, "time-pos", MPV_FORMAT_DOUBLE);
     mpv_observe_property(handle_, 2, "duration", MPV_FORMAT_DOUBLE);
@@ -434,12 +466,17 @@ void MpvItem::togglePaused() {
 }
 
 void MpvItem::onRenderUpdate(void *context) {
-    emit static_cast<MpvItem *>(context)->renderUpdateRequested();
+    auto &state = *static_cast<MpvContext *>(context);
+    std::lock_guard lock(state.callbackMutex);
+    if (state.item) emit state.item->renderUpdateRequested();
 }
 
 void MpvItem::onWakeup(void *context) {
-    QMetaObject::invokeMethod(static_cast<MpvItem *>(context), &MpvItem::processEvents,
-                              Qt::QueuedConnection);
+    auto &state = *static_cast<MpvContext *>(context);
+    std::lock_guard lock(state.callbackMutex);
+    if (state.item) {
+        QMetaObject::invokeMethod(state.item, &MpvItem::processEvents, Qt::QueuedConnection);
+    }
 }
 
 void MpvItem::processEvents() {

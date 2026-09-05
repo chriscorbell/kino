@@ -141,6 +141,28 @@ if(BUILD_TESTING)
   add_test(NAME mpvitem_properties COMMAND kino_mpvitem_test)
   set_tests_properties(mpvitem_properties PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+  # Interpose the real libmpv calls so wrong-context cleanup fails before UB.
+  add_library(kino_render_lifetime_guard SHARED tests/render_lifetime_guard.cpp)
+  target_link_libraries(kino_render_lifetime_guard PRIVATE PkgConfig::MPV "-framework OpenGL")
+  target_compile_options(kino_render_lifetime_guard PRIVATE -Wno-deprecated-declarations)
+  qt_add_executable(
+    kino_render_lifetime_test
+    tests/render_lifetime_test.cpp
+    src/mpvitem.cpp
+    src/powerguard.cpp
+  )
+  target_include_directories(kino_render_lifetime_test PRIVATE src)
+  target_link_libraries(
+    kino_render_lifetime_test
+    PRIVATE kino_render_lifetime_guard PkgConfig::MPV ${IOKIT_FRAMEWORK} Qt6::Quick Qt6::Test
+  )
+  add_test(NAME render_lifetime COMMAND kino_render_lifetime_test)
+  set_tests_properties(
+    render_lifetime
+    PROPERTIES TIMEOUT 60
+    ENVIRONMENT "QSG_RENDER_LOOP=basic;QSG_INFO=1;QT_LOGGING_RULES=qt.scenegraph.general=true"
+  )
+
   qt_add_executable(
     kino_logging_test
     tests/logging_test.cpp
