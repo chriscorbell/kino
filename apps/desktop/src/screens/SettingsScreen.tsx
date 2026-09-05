@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 
 import styles from '../App.module.css';
+import { SettingSelect, SettingSwitch } from '../components/SettingControls';
+import { EngineSettings } from '../components/EngineSettings';
 import { ActionFeedback } from '../components/ActionFeedback';
 import { useActionFeedback } from '../components/useActionFeedback';
 import { updateProfileSettingsAction } from '../core/actions';
@@ -19,74 +21,6 @@ import type { InterfaceScaleState } from '../native/useInterfaceScale';
 
 import { UpdateSettings } from '../updates/UpdateNotice';
 import type { Updates } from '../updates/useUpdates';
-
-interface SettingSwitchProps {
-  checked: boolean;
-  description: string;
-  label: string;
-  onChange: (checked: boolean) => void;
-}
-
-function SettingSwitch({ checked, description, label, onChange }: SettingSwitchProps) {
-  return (
-    <div className={styles.settingRow}>
-      <div>
-        <div className={styles.settingLabel}>{label}</div>
-        <div className={styles.settingDescription}>{description}</div>
-      </div>
-      <button
-        aria-checked={checked}
-        aria-label={label}
-        className={`${styles.switch} ${checked ? styles.switchChecked : ''}`}
-        onClick={() => onChange(!checked)}
-        role="switch"
-        type="button"
-      >
-        <span />
-      </button>
-    </div>
-  );
-}
-
-function SettingSelect({
-  disabled = false,
-  description,
-  id,
-  label,
-  onChange,
-  options,
-  value,
-}: {
-  disabled?: boolean;
-  description: string;
-  id: string;
-  label: string;
-  onChange: (value: string) => void;
-  options: Array<{ label: string; value: string }>;
-  value: string;
-}) {
-  return (
-    <label className={styles.settingRow} htmlFor={id}>
-      <span>
-        <span className={styles.settingLabel}>{label}</span>
-        <span className={styles.settingDescription}>{description}</span>
-      </span>
-      <select
-        className={styles.select}
-        disabled={disabled}
-        id={id}
-        onChange={(event) => onChange(event.target.value)}
-        value={value}
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
 
 function formatBytes(bytes: number) {
   if (bytes <= 0) return '0 MB';
@@ -313,6 +247,8 @@ export function SettingsScreen({
         />
         <ActionFeedback action={languageAction} />
       </section>
+
+      <EngineSettings />
 
       <section className={styles.settingsGroup} aria-labelledby="storage-settings-title">
         <h2 id="storage-settings-title">{enUS.settings.storage}</h2>
