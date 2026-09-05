@@ -4,6 +4,7 @@
 #include <QProcess>
 #include <QString>
 #include <QTimer>
+#include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
 
 // Supervises the bundled kino-stream-engine helper. The helper is optional:
@@ -20,6 +21,7 @@ public:
 
     QString error() const;
     QString url() const;
+    QVariantMap diagnosticInfo() const;
 
     Q_INVOKABLE void start();
 
