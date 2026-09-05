@@ -1554,7 +1554,7 @@
     grid-row: 2;
     flex-direction: row;
     justify-content: center;
-    gap: 4px;
+    gap: 2px;
     padding: 8px 12px;
     border-top: 1px solid var(--kino-border-subtle);
     border-right: 0;
@@ -1565,13 +1565,20 @@
     display: none;
   }
 
+  .navButton {
+    width: 40px;
+    height: 44px;
+  }
+
   .profileButton {
-    display: none;
+    width: 40px;
+    height: 40px;
+    margin-top: 0;
   }
 
   .navGroup {
     flex-direction: row;
-    gap: 4px;
+    gap: 2px;
   }
 
   .content {
