@@ -77,6 +77,7 @@ new QWebChannel(qt.webChannelTransport, function(channel) {
         ...process.env,
         KINO_UI_URL: mode === 'file' ? path : `${serverOrigin}/ui`,
         KINO_ENGINE_CACHE_DIR: join(root, `${mode}-cache`),
+        KINO_ENGINE_CONFIG_DIR: join(root, 'config'),
       },
       stdio: ['ignore', 'ignore', 'pipe'],
     });

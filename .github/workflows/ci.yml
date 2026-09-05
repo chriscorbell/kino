@@ -146,6 +146,7 @@ jobs:
           ctest --test-dir build/macos --output-on-failure --timeout 30
           pnpm macos:check-launch
           pnpm macos:check-engine
+          pnpm macos:check-cache-clear
           pnpm macos:check-scale
           pnpm macos:check-fullscreen
           pnpm macos:check-volume

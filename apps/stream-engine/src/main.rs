@@ -47,7 +47,10 @@ async fn run() -> anyhow::Result<()> {
     }));
     cfg.http_addr = SocketAddr::from((Ipv4Addr::LOCALHOST, port_from_env()));
     cfg.cache_dir = cache_dir_from_env();
-    cfg.config_dir = cfg.cache_dir.clone();
+    cfg.config_dir = Some(PathBuf::from(
+        std::env::var_os("KINO_ENGINE_CONFIG_DIR")
+            .ok_or_else(|| anyhow::anyhow!("engine configuration directory is required"))?,
+    ));
     // Kino owns the subscriber. Upstream writers bypass our redaction and
     // produce unbounded files outside the folder exposed by Open Log Folder.
     cfg.init_logging = false;

@@ -29,6 +29,7 @@
     "macos:build": "./scripts/build-macos.sh",
     "macos:check-engine": "./scripts/check-macos-engine.sh",
     "macos:check-engine-ui": "node scripts/check-macos-engine-ui.mjs",
+    "macos:check-cache-clear": "node scripts/check-macos-cache-clear.mjs",
     "macos:check-engine-retry": "node scripts/check-macos-engine-retry.mjs",
     "macos:check-scale": "node scripts/check-macos-scale.mjs",
     "macos:check-fullscreen": "node scripts/check-macos-fullscreen.mjs",
