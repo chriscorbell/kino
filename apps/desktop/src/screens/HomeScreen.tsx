@@ -5,28 +5,22 @@ import { X } from '@phosphor-icons/react';
 import styles from '../App.module.css';
 import { ActionFeedback } from '../components/ActionFeedback';
 import { useActionFeedback } from '../components/useActionFeedback';
+import { ResourceFailures } from '../components/ResourceFailures';
+import { useResourceStates } from '../core/useResourceStates';
 import { MediaCard } from '../components/MediaCard';
 import { loadBoardAction, rewindLibraryItemAction } from '../core/actions';
 import { useCore } from '../core/context';
 import { savedTitlePreview } from '../core/preview';
-import type { CoreCatalog, CoreMetaPreview } from '../core/types';
+import type { CoreMetaPreview } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
 
 const rowItemLimit = 12;
 
-function rowItems(catalogs: CoreCatalog[], type: string) {
-  const seen = new Set<string>();
-  const items: CoreMetaPreview[] = [];
-  for (const catalog of catalogs) {
-    if (catalog.type !== type || catalog.content?.type !== 'Ready') continue;
-    for (const item of catalog.content.content) {
-      if (seen.has(item.id)) continue;
-      seen.add(item.id);
-      items.push(item);
-    }
-  }
-  return items.slice(0, rowItemLimit);
+function rowItems(values: CoreMetaPreview[], type: string) {
+  return [
+    ...new Map(values.filter((item) => item.type === type).map((item) => [item.id, item])).values(),
+  ].slice(0, rowItemLimit);
 }
 
 function RowSkeleton() {
@@ -52,25 +46,34 @@ export function HomeScreen({
   const catalogs = board.state?.catalogs ?? [];
 
   useEffect(() => {
-    if (!core.transport || catalogs.length === 0) return;
-    void core.transport.dispatch(
-      {
-        action: 'CatalogsWithExtra',
-        args: { action: 'LoadRange', args: { start: 0, end: catalogs.length } },
-      },
-      'board',
-    );
-  }, [catalogs.length, core.transport]);
+    if (!core.transport || board.loading || catalogs.length === 0) return;
+    void core.transport
+      .dispatch(
+        {
+          action: 'CatalogsWithExtra',
+          args: { action: 'LoadRange', args: { start: 0, end: catalogs.length } },
+        },
+        'board',
+      )
+      .catch(() => undefined);
+  }, [board.loading, catalogs.length, core.transport]);
 
+  const inputs = useMemo(
+    () =>
+      board.state?.catalogs.map((catalog, index) => ({
+        id: JSON.stringify([index, catalog.addon.manifest.id, catalog.type, catalog.id]),
+        name: catalog.addon.manifest.name,
+        content: catalog.content,
+      })) ?? null,
+    [board.state],
+  );
+  const resources = useResourceStates(core.transport, 'board', inputs, board.loading);
+  const values = resources.rows.flatMap((row) => row.value ?? []);
   const typedRows = [
-    { id: 'home-movies', items: rowItems(catalogs, 'movie'), title: enUS.home.movies },
-    { id: 'home-series', items: rowItems(catalogs, 'series'), title: enUS.home.series },
+    { id: 'home-movies', items: rowItems(values, 'movie'), title: enUS.home.movies },
+    { id: 'home-series', items: rowItems(values, 'series'), title: enUS.home.series },
   ].filter((row) => row.items.length > 0);
-  const failedCatalogs = catalogs.some((catalog) => catalog.content?.type === 'Err');
-  const loadingCatalogs = catalogs.filter(
-    (catalog) => catalog.content === null || catalog.content?.type === 'Loading',
-  ).length;
-  const catalogsPending = board.loading || (catalogs.length > 0 && loadingCatalogs > 0);
+  const catalogsPending = !board.error && resources.pending;
   const continueItems = useMemo(
     () => continueWatching.state?.items.slice(0, 10) ?? [],
     [continueWatching.state],
@@ -98,7 +101,7 @@ export function HomeScreen({
       <section className={styles.homeSection} aria-labelledby="continue-watching-title">
         <h2 id="continue-watching-title">{enUS.home.continueWatching}</h2>
         {continueWatching.loading ? <RowSkeleton /> : null}
-        {!continueWatching.loading && continueItems.length === 0 ? (
+        {!continueWatching.loading && !continueWatching.error && continueItems.length === 0 ? (
           <p className={styles.inlineEmpty}>{enUS.home.continueEmpty}</p>
         ) : null}
         {continueItems.length > 0 ? (
@@ -142,21 +145,29 @@ export function HomeScreen({
           <RowSkeleton />
         </section>
       ) : null}
-      {board.error ? <p className={styles.loadError}>{enUS.home.catalogsError}</p> : null}
+      {catalogsPending ? (
+        <p role="status" className={styles.inlineEmpty}>
+          {enUS.home.loadingCatalogs}
+        </p>
+      ) : null}
+      <ResourceFailures
+        names={resources.failures}
+        error={board.error ? enUS.home.catalogsError : null}
+        pending={catalogsPending}
+        onRetry={board.retry}
+      />
       {core.error ? <p className={styles.loadError}>Stremio Core failed: {core.error}</p> : null}
-      {!catalogsPending && !board.error && typedRows.length === 0 ? (
+      {!catalogsPending && !board.error && !resources.failures.length && typedRows.length === 0 ? (
         <section className={styles.homeSection} aria-label={enUS.home.catalogs}>
           <h2>{enUS.home.catalogs}</h2>
           <p className={styles.inlineEmpty}>
-            {failedCatalogs
-              ? enUS.home.catalogsError
-              : context.loading
-                ? 'Loading the guest profile…'
-                : context.error
-                  ? `Guest profile failed: ${context.error}`
-                  : context.state?.profile.addons.length
-                    ? enUS.home.catalogsUnavailable
-                    : enUS.home.catalogsEmpty}
+            {context.loading
+              ? 'Loading the guest profile…'
+              : context.error
+                ? `Guest profile failed: ${context.error}`
+                : context.state?.profile.addons.length
+                  ? enUS.home.catalogsUnavailable
+                  : enUS.home.catalogsEmpty}
           </p>
         </section>
       ) : null}

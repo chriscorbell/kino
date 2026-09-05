@@ -41,15 +41,24 @@ export const enUS = {
     movies: 'Movies',
     series: 'Series',
     catalogs: 'Catalogs',
+    loadingCatalogs: 'Loading catalogs…',
     catalogsEmpty: 'No catalogs are available from the installed add-ons.',
     catalogsUnavailable: 'Installed add-ons are present, but their catalogs returned no items.',
     catalogsError: 'Catalogs could not be loaded. Check the local log and try again.',
+  },
+  resources: {
+    catalog: 'the selected add-on',
+    retry: 'Retry add-ons',
+    failed: (names: string) => `Could not load results from ${names}.`,
   },
   search: {
     title: 'Search',
     placeholder: 'Search movies and series',
     idle: 'Search across catalogs from your installed add-ons.',
     loading: 'Searching installed add-ons…',
+    count: (count: number) => `${count} ${count === 1 ? 'result' : 'results'}`,
+    partial: (count: number) =>
+      `${count} ${count === 1 ? 'result' : 'results'}. Searching installed add-ons…`,
     error: 'Search could not be completed.',
   },
   discover: {

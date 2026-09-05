@@ -1,6 +1,8 @@
 import { useEffect, useMemo } from 'react';
 
 import styles from '../App.module.css';
+import { ResourceFailures } from '../components/ResourceFailures';
+import { useResourceStates } from '../core/useResourceStates';
 import { MediaCard } from '../components/MediaCard';
 import { loadSearchAction } from '../core/actions';
 import { useCore } from '../core/context';
@@ -34,24 +36,38 @@ export function SearchScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => vo
   const pending = normalizedQuery !== submittedQuery;
 
   useEffect(() => {
-    if (!transport || !submittedQuery || catalogCount === 0) return;
-    void transport.dispatch(
-      {
-        action: 'CatalogsWithExtra',
-        args: { action: 'LoadRange', args: { start: 0, end: catalogCount } },
-      },
-      'search',
-    );
-  }, [catalogCount, submittedQuery, transport]);
-  const items = useMemo(() => {
-    if (pending || !submittedQuery) return [];
-    const unique = new Map<string, CoreMetaPreview>();
-    currentState?.catalogs.forEach((catalog) => {
-      if (catalog.content?.type !== 'Ready') return;
-      catalog.content.content.forEach((item) => unique.set(`${item.type}:${item.id}`, item));
-    });
-    return [...unique.values()];
-  }, [currentState, pending, submittedQuery]);
+    if (!transport || result.loading || !submittedQuery || catalogCount === 0) return;
+    void transport
+      .dispatch(
+        {
+          action: 'CatalogsWithExtra',
+          args: { action: 'LoadRange', args: { start: 0, end: catalogCount } },
+        },
+        'search',
+      )
+      .catch(() => undefined);
+  }, [catalogCount, result.loading, submittedQuery, transport]);
+  const inputs = useMemo(
+    () =>
+      currentState?.catalogs.map((catalog, index) => ({
+        id: JSON.stringify([index, catalog.addon.manifest.id, catalog.type, catalog.id]),
+        name: catalog.addon.manifest.name,
+        content: catalog.content,
+      })) ?? null,
+    [currentState],
+  );
+  const resources = useResourceStates(transport, submittedQuery, inputs, result.loading);
+  const items =
+    pending || !submittedQuery
+      ? []
+      : [
+          ...new Map(
+            resources.rows
+              .flatMap((resource) => resource.value ?? [])
+              .map((item) => [`${item.type}:${item.id}`, item]),
+          ).values(),
+        ];
+  const searching = pending || (!result.error && resources.pending);
 
   return (
     <div className={styles.page}>
@@ -83,12 +99,25 @@ export function SearchScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => vo
       </form>
       {normalizedQuery ? (
         <p className={styles.searchHelp} role="status">
-          {pending || result.loading ? enUS.search.loading : `${items.length} results`}
+          {searching
+            ? items.length
+              ? enUS.search.partial(items.length)
+              : enUS.search.loading
+            : result.error || (resources.failures.length && !items.length)
+              ? enUS.search.error
+              : enUS.search.count(items.length)}
         </p>
       ) : (
         <p className={styles.searchHelp}>{enUS.search.idle}</p>
       )}
-      {!pending && result.error ? <p className={styles.loadError}>{enUS.search.error}</p> : null}
+      {!pending && submittedQuery ? (
+        <ResourceFailures
+          names={resources.failures}
+          error={result.error ? enUS.search.error : null}
+          pending={searching}
+          onRetry={result.retry}
+        />
+      ) : null}
       {items.length > 0 ? (
         <div className={styles.mediaGrid}>
           {items.map((item) => (

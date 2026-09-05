@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { CaretDown } from '@phosphor-icons/react';
 
 import styles from '../App.module.css';
+import { ResourceFailures } from '../components/ResourceFailures';
+import { useResourceStates } from '../core/useResourceStates';
 import { MediaCard } from '../components/MediaCard';
 import { LoadMore } from '../components/LoadMore';
 import { useCore } from '../core/context';
@@ -56,8 +58,27 @@ export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => 
       .finally(() => setOperation((previous) => (previous === current ? null : previous)));
   };
   const selectable = result.state?.selectable;
-  const content = result.state?.catalog?.content ?? null;
-  const items = content?.type === 'Ready' ? content.content : [];
+  const inputs = useMemo(() => {
+    const state = result.state;
+    if (!state || (request && catalogRequestKey(state.selected?.request ?? null) !== key))
+      return null;
+    return state.catalog
+      ? [
+          {
+            id: key,
+            name:
+              state.selectable?.catalogs.find((catalog) => catalog.selected)?.addon.manifest.name ??
+              enUS.resources.catalog,
+            content: state.catalog.content,
+          },
+        ]
+      : state.selected
+        ? null
+        : [];
+  }, [key, request, result.state]);
+  const resources = useResourceStates(transport, key, inputs, result.loading);
+  const items = resources.rows.flatMap((row) => row.value ?? []);
+  const pending = !result.error && resources.pending;
   const filters = selectable?.extra.filter((extra) => extra.options.length > 0) ?? [];
 
   // The adapter already turned each choice into a request or marked it
@@ -149,14 +170,23 @@ export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => 
       ) : null}
 
       <div aria-live="polite">
-        {result.loading ? <p className={styles.inlineEmpty}>{enUS.discover.loading}</p> : null}
-        {result.error || content?.type === 'Err' ? (
-          <p className={styles.loadError}>{enUS.discover.error}</p>
+        {pending ? (
+          <p role="status" className={styles.inlineEmpty}>
+            {enUS.discover.loading}
+          </p>
         ) : null}
-        {!result.loading && items.length === 0 && content?.type !== 'Err' ? (
-          <p className={styles.inlineEmpty}>{enUS.discover.empty}</p>
+        {!pending && !result.error && !resources.failures.length && items.length === 0 ? (
+          <p role="status" className={styles.inlineEmpty}>
+            {enUS.discover.empty}
+          </p>
         ) : null}
       </div>
+      <ResourceFailures
+        names={resources.failures}
+        error={result.error ? enUS.discover.error : null}
+        pending={pending}
+        onRetry={result.retry}
+      />
 
       {items.length > 0 ? (
         <div className={styles.mediaGrid}>
@@ -166,7 +196,7 @@ export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => 
         </div>
       ) : null}
       {selectable?.nextPage || loadingPage || pagingError ? (
-        <LoadMore error={pagingError} loading={result.loading || loadingPage} onLoad={loadMore} />
+        <LoadMore error={pagingError} loading={pending || loadingPage} onLoad={loadMore} />
       ) : null}
     </div>
   );

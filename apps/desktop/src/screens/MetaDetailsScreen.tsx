@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from '../App.module.css';
 import { ActionFeedback } from '../components/ActionFeedback';
 import { useActionFeedback } from '../components/useActionFeedback';
+import { ResourceFailures } from '../components/ResourceFailures';
+import { useResourceStates } from '../core/useResourceStates';
 import { ExternalSourceDialog } from '../components/ExternalSourceDialog';
 import { ExpandableText } from '../components/ExpandableText';
 import {
@@ -27,6 +29,7 @@ import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
 
 interface SourceChoice {
+  current: boolean;
   addonName: string;
   source: CoreSource;
   transportUrl: string;
@@ -132,23 +135,53 @@ export function MetaDetailsScreen({
     sourcesRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' });
   }, [sourcesCurrent, videoId]);
 
-  const sources = useMemo<SourceChoice[]>(
+  const streamInputs = useMemo(
     () =>
-      result.state?.streams.flatMap((resource) =>
-        resource.content.type === 'Ready'
-          ? resource.content.content.map((source) => ({
-              addonName: resource.addon.manifest.name,
-              source,
-              transportUrl: resource.addon.transportUrl ?? '',
-            }))
-          : [],
-      ) ?? [],
+      result.state &&
+      result.state.streams.length === 0 &&
+      (!result.state.metaItem || result.state.metaItem.content.type === 'Loading')
+        ? null
+        : (result.state?.streams.map((resource, index) => ({
+            id: JSON.stringify([index, resource.addon.transportUrl, resource.addon.manifest.id]),
+            name: resource.addon.manifest.name,
+            content:
+              resource.content.type === 'Ready'
+                ? {
+                    type: 'Ready' as const,
+                    content: resource.content.content.map((source) => ({
+                      addonName: resource.addon.manifest.name,
+                      source,
+                      transportUrl: resource.addon.transportUrl ?? '',
+                      current: true,
+                    })),
+                  }
+                : resource.content,
+          })) ?? null),
     [result.state],
   );
+  const streamResources = useResourceStates(
+    transport,
+    selected?.streamPath ? `${item.type}:${item.id}:${selected.streamPath.id}` : null,
+    streamInputs,
+    result.loading,
+  );
+  const sources: SourceChoice[] = streamResources.rows.flatMap((row) =>
+    (row.value ?? []).map((choice) => ({ ...choice, current: row.current })),
+  );
+  const metaFailed = resource?.content.type === 'Err';
+  const sourcesPending =
+    !result.error && !metaFailed && (!sourcesCurrent || streamResources.pending);
+  const failures = [
+    ...(metaFailed ? [resource.addon.manifest.name] : []),
+    ...streamResources.failures,
+  ];
+
   const display = meta ?? item;
   const sourceSelection = { meta: display, video: activeVideo };
   const visibleSourceKeys = new Set(
-    sources.map((choice) => sourceKey(choice.source, choice.transportUrl, sourceSelection)),
+    sources
+      .filter((choice) => choice.current)
+      .map((choice) => sourceKey(choice.source, choice.transportUrl, sourceSelection)),
   );
   const [externalChoice, setExternalChoice] = useState<{
     key: string;
@@ -257,10 +290,17 @@ export function MetaDetailsScreen({
       </header>
 
       <div className={styles.detailBody}>
-        {result.loading && !meta ? (
-          <p className={styles.inlineEmpty}>{enUS.details.loading}</p>
+        {!result.error && !metaFailed && !meta ? (
+          <p role="status" className={styles.inlineEmpty}>
+            {enUS.details.loading}
+          </p>
         ) : null}
-        {result.error ? <p className={styles.loadError}>{enUS.details.error}</p> : null}
+        <ResourceFailures
+          names={failures}
+          error={result.error ? enUS.details.error : null}
+          pending={sourcesPending}
+          onRetry={result.retry}
+        />
         {item.type === 'series' && videos.length > 0 ? (
           <section className={styles.detailSection} aria-labelledby="episodes-heading">
             <div className={styles.detailSectionHeading}>
@@ -325,7 +365,7 @@ export function MetaDetailsScreen({
         >
           <div className={styles.detailSectionHeading}>
             <h2 id="sources-heading">{enUS.details.sources}</h2>
-            {!sourcesCurrent && !result.error ? <span>{enUS.details.refreshing}</span> : null}
+            {sourcesPending ? <span role="status">{enUS.details.refreshing}</span> : null}
           </div>
           {canResume ? (
             <div
@@ -356,8 +396,14 @@ export function MetaDetailsScreen({
               {currentFailure}
             </p>
           ) : null}
-          {sourcesCurrent && sources.length === 0 ? (
-            <p className={styles.inlineEmpty}>{enUS.details.noSources}</p>
+          {sourcesCurrent &&
+          !sourcesPending &&
+          !result.error &&
+          failures.length === 0 &&
+          sources.length === 0 ? (
+            <p role="status" className={styles.inlineEmpty}>
+              {enUS.details.noSources}
+            </p>
           ) : null}
           <div className={styles.sourceList}>
             {sources.map((choice, index) => {
@@ -380,9 +426,9 @@ export function MetaDetailsScreen({
                 <div className={styles.sourceRow} key={`${choice.transportUrl}:${index}`}>
                   <button
                     className={styles.sourceButton}
-                    disabled={!selectable || !sourcesCurrent}
+                    disabled={!selectable || !sourcesCurrent || !choice.current}
                     onClick={() => {
-                      if (!sourcesCurrent) return;
+                      if (!sourcesCurrent || !choice.current) return;
                       if (external) {
                         setExternalChoice({ key, url: external, transport });
                         return;

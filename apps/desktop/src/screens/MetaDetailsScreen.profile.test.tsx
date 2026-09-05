@@ -132,7 +132,7 @@ it('announces library failure, rolls back the optimistic state, and retries the 
   target.dispatch.mockResolvedValue(undefined);
   fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
   await waitFor(() =>
-    expect(screen.getByRole('status')).toHaveTextContent('Added to your library.'),
+    expect(screen.getByText('Added to your library.')).toHaveAttribute('role', 'status'),
   );
   expect(screen.getByRole('button', { name: 'In Library' })).toBeEnabled();
   expect(target.flush).toHaveBeenCalledOnce();
