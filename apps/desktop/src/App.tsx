@@ -27,6 +27,9 @@ import { SearchScreen } from './screens/SearchScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { defaultSettings, loadSettings, saveSettings, type KinoSettings } from './settings';
 
+import { useUpdates } from './updates/useUpdates';
+import { UpdateNotice } from './updates/UpdateNotice';
+
 type Screen = 'home' | 'search' | 'discover' | 'library' | 'addons' | 'settings' | 'detail';
 
 interface NavigationItem {
@@ -82,6 +85,7 @@ function accountInitial(profile: ProfileState | null) {
 }
 
 export function App() {
+  const updates = useUpdates();
   const [screen, setScreen] = useState<Screen>('home');
   const [previousScreen, setPreviousScreen] = useState<Exclude<Screen, 'detail'>>('home');
   const [detail, setDetail] = useState<CoreMetaPreview | null>(null);
@@ -151,7 +155,7 @@ export function App() {
       case 'addons':
         return <AddonsScreen />;
       case 'settings':
-        return <SettingsScreen onChange={setSettings} settings={settings} />;
+        return <SettingsScreen onChange={setSettings} settings={settings} updates={updates} />;
       case 'detail':
         return detail ? (
           <MetaDetailsScreen
@@ -219,6 +223,7 @@ export function App() {
         </button>
       </aside>
       <main className={styles.content} id="main-content" key={screen}>
+        <UpdateNotice updates={updates} />
         {content}
       </main>
       {accountOpen ? <AccountDialog onClose={() => setAccountOpen(false)} /> : null}

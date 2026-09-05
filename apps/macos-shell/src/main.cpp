@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
 
     QGuiApplication app(argc, argv);
     QCoreApplication::setApplicationName(QStringLiteral("Kino"));
-    QCoreApplication::setApplicationVersion(QStringLiteral("0.1.0"));
+    QCoreApplication::setApplicationVersion(QStringLiteral(KINO_VERSION));
     std::setlocale(LC_NUMERIC, "C");
     installLocalLogger();
 
