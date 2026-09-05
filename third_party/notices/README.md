@@ -10,9 +10,12 @@ The reviews explain recovered notices and their limits:
 - [Qt modules and Chromium](../../docs/research/qt-notices.md)
 - [Streaming engine and embedded native libraries](../../docs/research/engine-notices.md)
 - [Native Rust runtime](../../docs/research/native-rust-notices.md)
+- [FFmpeg and compiled Boost headers](../../docs/research/homebrew-extra-notices.md)
 
 GLib 2.88.3 and FreeType 2.14.3 supplements come from release archives whose SHA256s matched the installed Homebrew source metadata. FreeType's supplement includes its full FTL and GPLv2 texts and the original secondary notices referenced by `LICENSE.TXT`. Portions of this software are copyright © 2026 The FreeType Project (https://freetype.org). All rights reserved.
 
 For a dependency update, collect the exact release's original notice files and their source URLs, verify their hashes, and update the affected manifest entries. Core and engine lock changes require reviewing the selected dependency graph as well. Native Rust needs the complete official `COPYRIGHT-library.html`; Homebrew's 1.98.0 copy omits third-party entries. Preserve separate package declarations, source notices, and standard license reference files as identified by their metadata. Do not substitute an invented copyright notice.
+
+The native supplements also retain referenced source notices for libarchive, D-Bus, LZ4, HarfBuzz, Fontconfig, and Vulkan Loader. Libtorrent includes the original notices for its embedded WebTorrent dependencies. Shaderc includes glslang and SPIR-V licenses and source copyright statements. Their source pins, archive checksums, and original file paths are recorded in the inventory. Formula license declarations describe the formula and do not replace separate embedded-component terms.
 
 Run `pnpm notices:check` to verify retained text hashes and dependency pins. Run a clean `pnpm macos:package` to verify the complete staged artifact. The package collector performs no downloads and rejects missing coverage before signing.

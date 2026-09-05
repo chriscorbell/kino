@@ -28,7 +28,11 @@ const noticeName =
 function walk(directory) {
   if (!existsSync(directory)) return [];
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    if (entry.isSymbolicLink() || entry.name === 'node_modules' || entry.name === '.git') return [];
+    if (entry.name === 'node_modules' || entry.name === '.git') return [];
+    if (entry.isSymbolicLink()) {
+      const linked = join(directory, entry.name);
+      return existsSync(linked) && statSync(linked).isFile() ? [linked] : [];
+    }
     const path = join(directory, entry.name);
     return entry.isDirectory() ? walk(path) : [path];
   });
@@ -42,7 +46,7 @@ function noticeFiles(directory, recursive = true) {
     (path) =>
       statSync(path).isFile() &&
       (noticeName.test(basename(path)) || /[/\\]LICENSES?[/\\]/i.test(path)) &&
-      !/\.(rs|c|h|py|cfg)$/i.test(path),
+      !/\.(rs|c|h|py|cfg|ts|tsx|js|mjs|cjs)$/i.test(path),
   );
 }
 
@@ -96,6 +100,7 @@ export function generateLicenseNotices(app, binaries) {
   function add(item) {
     if (!item.files.length)
       throw new Error(`No notice text for ${item.scope}: ${item.name} ${item.version}`);
+    item.files = [...new Map(item.files.map((f) => [f.sha256, f])).values()];
     components.push(item);
   }
   add({
@@ -148,14 +153,11 @@ export function generateLicenseNotices(app, binaries) {
     }
     const require = createRequire(join(directory, 'package.json'));
     for (const name of Object.keys(pkg.dependencies ?? {})) {
-      let manifest;
-      try {
-        manifest = require.resolve(`${name}/package.json`);
-      } catch {
-        let cursor = dirname(require.resolve(name));
-        while (!existsSync(join(cursor, 'package.json'))) cursor = dirname(cursor);
-        manifest = join(cursor, 'package.json');
-      }
+      const manifest = require.resolve
+        .paths(name)
+        .map((path) => join(path, name, 'package.json'))
+        .find(existsSync);
+      if (!manifest) throw new Error(`Cannot locate installed package ${name} from ${pkg.name}`);
       npm(dirname(manifest));
     }
   }
@@ -227,10 +229,20 @@ export function generateLicenseNotices(app, binaries) {
       (p) => !metadata.packages.some((pkg) => pkg.name === p.name && pkg.version === p.version),
     ))
       add(supplement(item, 'Streaming engine, embedded native code'));
-    const rust = run('rustc', ['--version']).trim();
-    const rustVersion = rust.split(' ')[1];
-    const rustNotices = reviewed.rust.find((p) => p.version === rustVersion);
-    if (!rustNotices) throw new Error(`Review the complete standard library notices for ${rust}`);
+    const compilerRevisions = new Set(
+      [
+        ...run('strings', [join(app, 'Contents/MacOS/kino-stream-engine')]).matchAll(
+          /\/rustc\/([a-f0-9]{40})/g,
+        ),
+      ].map((m) => m[1]),
+    );
+    const rustNotices = reviewed.rust.find(
+      (p) => compilerRevisions.size === 1 && compilerRevisions.has(p.revision),
+    );
+    if (!rustNotices)
+      throw new Error(
+        `Review the Rust runtime embedded in the staged engine: ${[...compilerRevisions].join(', ') || 'unknown compiler revision'}`,
+      );
     add(supplement(rustNotices, 'Streaming engine'));
   }
 
@@ -248,11 +260,23 @@ export function generateLicenseNotices(app, binaries) {
     )) {
       if (!wanted.has(basename(path))) continue;
       const list = byName.get(basename(path)) ?? [];
-      list.push({ path, keg });
+      const original = realpathSync(path);
+      const [formula, version] = relative(join(prefix, 'Cellar'), original).split('/');
+      if (formula === '..') throw new Error(`Homebrew source lies outside its Cellar: ${original}`);
+      list.push({ path: original, keg: join(prefix, 'Cellar', formula, version) });
       byName.set(basename(path), list);
     }
   }
-  const uuid = (path) => run('dwarfdump', ['--uuid', path]).match(/UUID: ([A-F0-9-]+)/i)?.[1];
+  const uuid = (path) => {
+    try {
+      return execFileSync('dwarfdump', ['--uuid', path], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).match(/UUID: ([A-F0-9-]+)/i)?.[1];
+    } catch {
+      return null;
+    }
+  };
   const native = new Map();
   for (const binary of binaries) {
     const path = relative(app, binary);
@@ -273,6 +297,15 @@ export function generateLicenseNotices(app, binaries) {
     entry.origins.push({ binary: path, uuid: id, sourcePath: relative(keg, matches[0].path) });
     native.set(keg, entry);
   }
+  if (existsSync(join(app, 'Contents/MacOS/kino-stream-engine'))) {
+    const boost = realpathSync(join(prefix, 'opt/boost'));
+    if (!native.has(boost))
+      native.set(boost, {
+        binaries: [],
+        origins: [],
+        notes: 'Boost headers are compiled into the streaming engine libtorrent bindings.',
+      });
+  }
   for (const [keg, inventory] of native) {
     const name = basename(dirname(keg));
     const version = basename(keg);
@@ -286,7 +319,9 @@ export function generateLicenseNotices(app, binaries) {
       ...noticeFiles(join(keg, 'share/doc')),
     ].map((p) => file(p, `${source.downloadLocation}#${relative(keg, p)}`));
     const group = name.startsWith('qt') ? reviewed.qt : reviewed.homebrew;
-    const extra = group.find((p) => p.name === name && p.version === source.versionInfo);
+    const extra = group.find(
+      (p) => p.name === name && [version, source.versionInfo].includes(p.version),
+    );
     if ((name.startsWith('qt') || reviewed.homebrew.some((p) => p.name === name)) && !extra)
       throw new Error(`Review full notice supplements for ${name} ${source.versionInfo}`);
     if (extra) files.push(...supplement(extra, 'Native libraries').files);
@@ -301,6 +336,13 @@ export function generateLicenseNotices(app, binaries) {
       repository: source.downloadLocation,
       scope: 'Native libraries',
       ...inventory,
+      notes: [
+        'The formula license declaration below does not replace the separate terms for embedded components in these notice files.',
+        inventory.notes,
+        extra?.notes,
+      ]
+        .filter(Boolean)
+        .join(' '),
       files,
     });
   }
@@ -377,10 +419,10 @@ ${sections
         .filter((p) => p.scope === s)
         .map(
           (p) =>
-            `<article data-search="${escape(`${p.name} ${p.version} ${p.license}`.toLowerCase())}"><h3>${escape(p.name)} <span>${escape(p.version)}</span></h3><p>${escape(p.license || 'Terms in the original notice files')}</p>${p.notes ? `<p>${escape(p.notes)}</p>` : ''}<ul>${p.files.map((f) => `<li><a href="${f.path}">${escape(f.name)}</a>${f.kind ? ` (${escape(f.kind)})` : ''}</li>`).join('')}</ul></article>`,
+            `<article data-search="${escape(`${p.name} ${p.version} ${p.license}`.toLowerCase())}"><h3>${escape(p.name)} <span>${escape(p.version)}</span></h3><p>Declared license: ${escape(p.license || 'Terms in the original notice files')}</p>${p.notes ? `<p>${escape(p.notes)}</p>` : ''}<ul>${p.files.map((f) => `<li><a href="${f.path}">${escape(f.name)}</a>${f.kind ? ` (${escape(f.kind)})` : ''}</li>`).join('')}</ul></article>`,
         )
         .join('')}</section>`,
   )
   .join('')}
-<script>const input=document.querySelector('#search');const items=[...document.querySelectorAll('article')];input.addEventListener('input',()=>{const query=input.value.trim().toLowerCase();let count=0;for(const item of items){item.hidden=!item.dataset.search.includes(query);if(!item.hidden)count++}for(const section of document.querySelectorAll('section'))section.hidden=![...section.querySelectorAll('article')].some(item=>!item.hidden);document.querySelector('#count').textContent=count+' components'});</script></body></html>`;
+<script>const input=document.querySelector('#search');const items=[...document.querySelectorAll('article')];input.addEventListener('input',()=>{const query=input.value.trim().toLowerCase();let count=0;for(const item of items){item.hidden=!item.dataset.search.includes(query);if(!item.hidden)count++}for(const section of document.querySelectorAll('section'))section.hidden=![...section.querySelectorAll('article')].some(item=>!item.hidden);document.querySelector('#count').textContent=count+' component'+(count===1?'':'s')});</script></body></html>`;
 }

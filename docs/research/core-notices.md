@@ -1,6 +1,6 @@
 # Core WASM and retained shell notices
 
-The reviewed inventory contains 133 Cargo packages from Core's WebAssembly build graph, the Rust 1.95.0 standard library notice set, and the retained Stremio shell GPL notice. All 135 entries have notice files. The local artifact index records 255 files and their SHA256 hashes. Files and extraction details are in [the research index](../../build/license-research/core/index.json); source archive hashes and graph limits are in [the provenance record](../../build/license-research/core/provenance.json).
+The reviewed inventory contains 133 Cargo packages from Core's WebAssembly build graph, the Rust 1.95.0 standard library notice set, and the retained Stremio shell GPL notice. All 135 entries have notice files. The local artifact index records 255 files and their SHA256 hashes. Files and extraction details are in [the committed review manifest](../../third_party/notices/reviewed.json); source archive hashes and graph limits are in [its Core provenance record](../../third_party/notices/reviewed.json).
 
 ## Source and build identity
 

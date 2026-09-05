@@ -154,7 +154,7 @@ jobs:
           pnpm macos:check-web-console
 
       - name: Package and verify bundled dependency notices
-        timeout-minutes: 10
+        timeout-minutes: 15
         run: pnpm macos:package --no-dmg
 
   validate:

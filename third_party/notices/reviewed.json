@@ -10068,6 +10068,1077 @@
           "name": "README"
         }
       ]
+    },
+    {
+      "name": "libarchive",
+      "version": "3.8.9",
+      "license": "BSD-2-Clause",
+      "repository": "https://github.com/libarchive/libarchive",
+      "files": [
+        {
+          "path": "texts/30e556b3959e3985d66efefec5eaac51d4995053caa1d3cffe6eb916f146f229.txt",
+          "source": "https://www.libarchive.org/downloads/libarchive-3.8.9.tar.xz#libarchive-3.8.9/COPYING",
+          "sha256": "30e556b3959e3985d66efefec5eaac51d4995053caa1d3cffe6eb916f146f229",
+          "name": "COPYING"
+        },
+        {
+          "path": "texts/23f9d734a79558f0bd8bba5d0b742e65865b6deb003be39cea8ba8806de321bb.txt",
+          "source": "https://www.libarchive.org/downloads/libarchive-3.8.9.tar.xz#libarchive-3.8.9/libarchive/archive_blake2.h",
+          "sha256": "23f9d734a79558f0bd8bba5d0b742e65865b6deb003be39cea8ba8806de321bb",
+          "name": "archive_blake2.h"
+        },
+        {
+          "path": "texts/2e285a36ccb7c41078514d31585a625c646dd233c940f90f698243ac915f425c.txt",
+          "source": "https://www.libarchive.org/downloads/libarchive-3.8.9.tar.xz#libarchive-3.8.9/libarchive/archive_blake2_impl.h",
+          "sha256": "2e285a36ccb7c41078514d31585a625c646dd233c940f90f698243ac915f425c",
+          "name": "archive_blake2_impl.h"
+        },
+        {
+          "path": "texts/bd4217c21aa970cea07fb0a1209fa5370daa2935927b7273317bfbe715e003ca.txt",
+          "source": "https://www.libarchive.org/downloads/libarchive-3.8.9.tar.xz#libarchive-3.8.9/libarchive/archive_blake2s_ref.c",
+          "sha256": "bd4217c21aa970cea07fb0a1209fa5370daa2935927b7273317bfbe715e003ca",
+          "name": "archive_blake2s_ref.c"
+        },
+        {
+          "path": "texts/c3891562aa2e1bd043a71a0c7f0cca46378644e384cd65f078efd1d3ea363631.txt",
+          "source": "https://www.libarchive.org/downloads/libarchive-3.8.9.tar.xz#libarchive-3.8.9/libarchive/archive_blake2sp_ref.c",
+          "sha256": "c3891562aa2e1bd043a71a0c7f0cca46378644e384cd65f078efd1d3ea363631",
+          "name": "archive_blake2sp_ref.c"
+        },
+        {
+          "path": "texts/9cd45ac0ec6f498db1c6d5c9af28ac4788322526c451c33856e8f72e49d4cd9c.txt",
+          "source": "https://www.libarchive.org/downloads/libarchive-3.8.9.tar.xz#libarchive-3.8.9/libarchive/archive_read_support_filter_compress.c",
+          "sha256": "9cd45ac0ec6f498db1c6d5c9af28ac4788322526c451c33856e8f72e49d4cd9c",
+          "name": "archive_read_support_filter_compress.c"
+        },
+        {
+          "path": "texts/f0df99ae10b089dfe052fe40d75937d8ad6c442becb024542cefd55686be5f38.txt",
+          "source": "https://www.libarchive.org/downloads/libarchive-3.8.9.tar.xz#libarchive-3.8.9/libarchive/archive_write_add_filter_compress.c",
+          "sha256": "f0df99ae10b089dfe052fe40d75937d8ad6c442becb024542cefd55686be5f38",
+          "name": "archive_write_add_filter_compress.c"
+        },
+        {
+          "path": "texts/59fb7a07c9734e514699f2a98c0feee2702d2a3dbba5756ef1ac06092fe71983.txt",
+          "source": "https://www.libarchive.org/downloads/libarchive-3.8.9.tar.xz#libarchive-3.8.9/libarchive/mtree.5",
+          "sha256": "59fb7a07c9734e514699f2a98c0feee2702d2a3dbba5756ef1ac06092fe71983",
+          "name": "mtree.5"
+        },
+        {
+          "path": "texts/a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499.txt",
+          "source": "https://download.gnome.org/sources/glib/2.88/glib-2.88.3.tar.xz#glib-2.88.3/LICENSES/CC0-1.0.txt",
+          "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+          "name": "CC0-1.0.txt"
+        }
+      ]
+    },
+    {
+      "name": "libtorrent-rasterbar",
+      "version": "2.1.1_1",
+      "license": "BSD-3-Clause",
+      "repository": "https://github.com/arvidn/libtorrent",
+      "files": [
+        {
+          "path": "texts/f4b492afbde73d2f4e051050a619622876a13b77e7b8b6ea3ec2868a6929b31b.txt",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.1/libtorrent-rasterbar-2.1.1.tar.gz#libtorrent-rasterbar-2.1.1/COPYING",
+          "sha256": "f4b492afbde73d2f4e051050a619622876a13b77e7b8b6ea3ec2868a6929b31b",
+          "name": "COPYING"
+        },
+        {
+          "path": "texts/77d319baf9b855d3f41e7a8a05ce90d407be1396b16a362bea2351bff7e3ce46.txt",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.1/libtorrent-rasterbar-2.1.1.tar.gz#libtorrent-rasterbar-2.1.1/LICENSE",
+          "sha256": "77d319baf9b855d3f41e7a8a05ce90d407be1396b16a362bea2351bff7e3ce46",
+          "name": "LICENSE"
+        },
+        {
+          "path": "texts/fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85.txt",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.1/libtorrent-rasterbar-2.1.1.tar.gz#libtorrent-rasterbar-2.1.1/deps/libdatachannel/LICENSE",
+          "sha256": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85",
+          "name": "LICENSE"
+        },
+        {
+          "path": "texts/fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85.txt",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.1/libtorrent-rasterbar-2.1.1.tar.gz#libtorrent-rasterbar-2.1.1/deps/libdatachannel/deps/libjuice/LICENSE",
+          "sha256": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85",
+          "name": "LICENSE"
+        },
+        {
+          "path": "texts/e4d01796524cbc13b1571a1f0914823c6a23b316ba039e7014f47a4eef7fd4c3.txt",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.1/libtorrent-rasterbar-2.1.1.tar.gz#libtorrent-rasterbar-2.1.1/deps/libdatachannel/deps/plog/LICENSE",
+          "sha256": "e4d01796524cbc13b1571a1f0914823c6a23b316ba039e7014f47a4eef7fd4c3",
+          "name": "LICENSE"
+        },
+        {
+          "path": "texts/fa53711b25af4b9a9b8dadfea3cb38166ec4b96760c8d62b284055554537d9ef.txt",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.1/libtorrent-rasterbar-2.1.1.tar.gz#libtorrent-rasterbar-2.1.1/deps/libdatachannel/deps/usrsctp/LICENSE.md",
+          "sha256": "fa53711b25af4b9a9b8dadfea3cb38166ec4b96760c8d62b284055554537d9ef",
+          "name": "LICENSE.md"
+        },
+        {
+          "path": "texts/18a7c1435a7a7ebc120a181c7309d0d7dfcbec76be4950ff23c9aa37f9c93725.txt",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.1/libtorrent-rasterbar-2.1.1.tar.gz#libtorrent-rasterbar-2.1.1/deps/try_signal/LICENSE",
+          "sha256": "18a7c1435a7a7ebc120a181c7309d0d7dfcbec76be4950ff23c9aa37f9c93725",
+          "name": "LICENSE"
+        },
+        {
+          "path": "texts/7a8be3114e2ebd39c83fe8a95ef2b97f4abe1ea85a56d3a75a0b9e54852424e5.txt",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.1/libtorrent-rasterbar-2.1.1.tar.gz#libtorrent-rasterbar-2.1.1/include/libtorrent/aux_/puff.hpp",
+          "sha256": "7a8be3114e2ebd39c83fe8a95ef2b97f4abe1ea85a56d3a75a0b9e54852424e5",
+          "name": "puff.hpp"
+        },
+        {
+          "path": "texts/3a32fc91cdb7ea12d0acc468072ae4e9de163939872ff277391032d8d4fc8929.txt",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.1/libtorrent-rasterbar-2.1.1.tar.gz#libtorrent-rasterbar-2.1.1/include/libtorrent/aux_/route.h",
+          "sha256": "3a32fc91cdb7ea12d0acc468072ae4e9de163939872ff277391032d8d4fc8929",
+          "name": "route.h"
+        },
+        {
+          "path": "texts/74390004d59f722f396bbc961e509a31f2aca8e01942c7b2f9fce14aab4e3803.txt",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.1/libtorrent-rasterbar-2.1.1.tar.gz#libtorrent-rasterbar-2.1.1/src/ed25519/LICENSE",
+          "sha256": "74390004d59f722f396bbc961e509a31f2aca8e01942c7b2f9fce14aab4e3803",
+          "name": "LICENSE"
+        },
+        {
+          "path": "texts/e5881019d8766c1e88a5fe1dbca4ba40c78011d41fcb18f6e9f50df60182685b.txt",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/e13b1fa57645afc8a7b2e7d868fe9845c6b08c40/APPLE_LICENSE",
+          "sha256": "e5881019d8766c1e88a5fe1dbca4ba40c78011d41fcb18f6e9f50df60182685b",
+          "name": "APSL-2.0.txt"
+        }
+      ]
+    },
+    {
+      "name": "shaderc",
+      "version": "2026.3",
+      "license": "Apache-2.0",
+      "repository": "https://github.com/google/shaderc",
+      "files": [
+        {
+          "path": "texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
+          "source": "https://github.com/google/shaderc/archive/refs/tags/v2026.3.tar.gz#shaderc-2026.3/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "name": "LICENSE"
+        },
+        {
+          "path": "texts/17e70c676e1521ff3e4686f04a2053d93a7e28a33be8de7ec37ab0ff72feb677.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/168d452a4f460d24b588fed08477a81c44ee27a1/LICENSE.txt",
+          "sha256": "17e70c676e1521ff3e4686f04a2053d93a7e28a33be8de7ec37ab0ff72feb677",
+          "name": "LICENSE.txt"
+        },
+        {
+          "path": "texts/cc8ea571129dbee2997e52a54d1f715f8b0159a22f28f985a9b2b31708a48620.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/168d452a4f460d24b588fed08477a81c44ee27a1/LICENSES/AML-glslang.txt",
+          "sha256": "cc8ea571129dbee2997e52a54d1f715f8b0159a22f28f985a9b2b31708a48620",
+          "name": "AML-glslang.txt"
+        },
+        {
+          "path": "texts/b22c5c23f3d598370ef51d7e539d5d5074207344fd86e41433f413e116f6a4f7.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/168d452a4f460d24b588fed08477a81c44ee27a1/LICENSES/Apache-2.0.txt",
+          "sha256": "b22c5c23f3d598370ef51d7e539d5d5074207344fd86e41433f413e116f6a4f7",
+          "name": "Apache-2.0.txt"
+        },
+        {
+          "path": "texts/789daa57a2ebb49cfc3e67cd1a1f994d5dc221138a8c3cd1934b2ed47b86d356.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/168d452a4f460d24b588fed08477a81c44ee27a1/LICENSES/BSD-2-Clause.txt",
+          "sha256": "789daa57a2ebb49cfc3e67cd1a1f994d5dc221138a8c3cd1934b2ed47b86d356",
+          "name": "BSD-2-Clause.txt"
+        },
+        {
+          "path": "texts/5a93d5831e1297ab10fe643e1a631e83be392896da14ee2951285a79012df69d.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/168d452a4f460d24b588fed08477a81c44ee27a1/LICENSES/BSD-3-Clause.txt",
+          "sha256": "5a93d5831e1297ab10fe643e1a631e83be392896da14ee2951285a79012df69d",
+          "name": "BSD-3-Clause.txt"
+        },
+        {
+          "path": "texts/218a0cdacd4059d01e2ccff5b31d3e968a6a9c8ee7e4e0fc231c47d7fbf422c3.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/168d452a4f460d24b588fed08477a81c44ee27a1/LICENSES/Bison-exception-2.2.txt",
+          "sha256": "218a0cdacd4059d01e2ccff5b31d3e968a6a9c8ee7e4e0fc231c47d7fbf422c3",
+          "name": "Bison-exception-2.2.txt"
+        },
+        {
+          "path": "texts/3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/168d452a4f460d24b588fed08477a81c44ee27a1/LICENSES/GPL-3.0-or-later.txt",
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+          "name": "GPL-3.0-or-later.txt"
+        },
+        {
+          "path": "texts/fbeaca472f4f70e276dd1106ca5097435967a22ad6c1d8200aef7ad9f70aaf3f.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/168d452a4f460d24b588fed08477a81c44ee27a1/LICENSES/MIT-Khronos-old.txt",
+          "sha256": "fbeaca472f4f70e276dd1106ca5097435967a22ad6c1d8200aef7ad9f70aaf3f",
+          "name": "MIT-Khronos-old.txt"
+        },
+        {
+          "path": "texts/b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/168d452a4f460d24b588fed08477a81c44ee27a1/LICENSES/MIT.txt",
+          "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+          "name": "MIT.txt"
+        },
+        {
+          "path": "texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/SPIRV-Tools/b707790a898e44038547df54580022fc1cf89c3d/LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "name": "LICENSE"
+        },
+        {
+          "path": "texts/ea43b1de38a6f90c488800d66dec1ed671e68cda530266bc96951fb5b6307613.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/SPIRV-Headers/29981f65241605e08b0ede4cfeb999fe3b723c6a/LICENSE",
+          "sha256": "ea43b1de38a6f90c488800d66dec1ed671e68cda530266bc96951fb5b6307613",
+          "name": "LICENSE"
+        },
+        {
+          "path": "texts/d557539df68e771cc1eedcc91d13f70fca930e508d11eedcafa4b15db49e3744.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/SPIRV-Headers/29981f65241605e08b0ede4cfeb999fe3b723c6a/LICENSES/CC-BY-4.0.txt",
+          "sha256": "d557539df68e771cc1eedcc91d13f70fca930e508d11eedcafa4b15db49e3744",
+          "name": "CC-BY-4.0.txt"
+        },
+        {
+          "path": "texts/6d7c9e9d7d12c8d3753bdb24417b84819ba4d6c2f025c37948113d86dc81eef9.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/SPIRV-Headers/29981f65241605e08b0ede4cfeb999fe3b723c6a/LICENSES/MIT.txt",
+          "sha256": "6d7c9e9d7d12c8d3753bdb24417b84819ba4d6c2f025c37948113d86dc81eef9",
+          "name": "MIT.txt"
+        },
+        {
+          "path": "texts/385560ff282403c3d7d7bafcb9c51a784f85e25dc3091cf318c85b9e2a5bfb00.txt",
+          "source": "https://github.com/KhronosGroup/glslang/tree/168d452a4f460d24b588fed08477a81c44ee27a1",
+          "sha256": "385560ff282403c3d7d7bafcb9c51a784f85e25dc3091cf318c85b9e2a5bfb00",
+          "name": "SOURCE-NOTICES.txt"
+        },
+        {
+          "path": "texts/31639fb522d2e0a30e9ac32fa264d18d6b919e52c054c075871e4a2d0be6c4e5.txt",
+          "source": "https://github.com/KhronosGroup/SPIRV-Tools/tree/b707790a898e44038547df54580022fc1cf89c3d",
+          "sha256": "31639fb522d2e0a30e9ac32fa264d18d6b919e52c054c075871e4a2d0be6c4e5",
+          "name": "SOURCE-NOTICES.txt"
+        },
+        {
+          "path": "texts/767bb3e6e1b8a218eaebd2a2445ed3ebc1ce1dc6aa0493a6fc941ac9abb20e9f.txt",
+          "source": "https://github.com/KhronosGroup/SPIRV-Headers/tree/29981f65241605e08b0ede4cfeb999fe3b723c6a",
+          "sha256": "767bb3e6e1b8a218eaebd2a2445ed3ebc1ce1dc6aa0493a6fc941ac9abb20e9f",
+          "name": "SOURCE-NOTICES.txt"
+        }
+      ]
+    },
+    {
+      "name": "ffmpeg",
+      "version": "9.0.1_1",
+      "sourceVersion": "9.0.1",
+      "license": "GPL-3.0-or-later; IJG notices retained for libjpeg-derived code",
+      "repository": "https://git.ffmpeg.org/ffmpeg.git",
+      "sourceArchive": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz",
+      "sourceArchiveSha256": "cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635",
+      "scope": "Root license alternatives and explicitly required IJG attribution supplement for installed FFmpeg libraries",
+      "notes": "Installed formula enables --enable-gpl and --enable-version3. Root LICENSE.md explicitly names three IJG-derived implementation files, whose complete leading comment blocks are retained, plus the executable-distribution credit. The root reference to tests/reference.pnm concerns a test image that is not shipped; it is excluded. Enabled external codec libraries were checked in otool dependencies and are dynamically linked; their independent package notices belong to the Homebrew library inventory.",
+      "files": [
+        {
+          "path": "texts/2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af.txt",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/LICENSE.md",
+          "sha256": "2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af",
+          "name": "LICENSE.md"
+        },
+        {
+          "path": "texts/8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643.txt",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/COPYING.GPLv2",
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+          "name": "COPYING.GPLv2"
+        },
+        {
+          "path": "texts/8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903.txt",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/COPYING.GPLv3",
+          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+          "name": "COPYING.GPLv3"
+        },
+        {
+          "path": "texts/246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30.txt",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/COPYING.LGPLv2.1",
+          "sha256": "246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30",
+          "name": "COPYING.LGPLv2.1"
+        },
+        {
+          "path": "texts/da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768.txt",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/COPYING.LGPLv3",
+          "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768",
+          "name": "COPYING.LGPLv3"
+        },
+        {
+          "path": "texts/9608a1781393c906ac6254ee965f19a599608428eaf84efdd8c7ba198f14e877.txt",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/libavcodec/jfdctfst.c",
+          "sha256": "9608a1781393c906ac6254ee965f19a599608428eaf84efdd8c7ba198f14e877",
+          "extraction": "Complete initial C comment block copied without editing, including copyright, license, and implementation notes.",
+          "name": "jfdctfst.c-NOTICE.txt"
+        },
+        {
+          "path": "texts/7469382cb23a47a033113c2c00d8e02e5071d76cb420d804f078527a906da679.txt",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/libavcodec/jfdctint_template.c",
+          "sha256": "7469382cb23a47a033113c2c00d8e02e5071d76cb420d804f078527a906da679",
+          "extraction": "Complete initial C comment block copied without editing, including copyright, license, and implementation notes.",
+          "name": "jfdctint_template.c-NOTICE.txt"
+        },
+        {
+          "path": "texts/c5d96aa8ff9e78b9214a1bec3d2dd5d65e3196eae08fa7c6ba7466a5a793ba0f.txt",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/libavcodec/jrevdct.c",
+          "sha256": "c5d96aa8ff9e78b9214a1bec3d2dd5d65e3196eae08fa7c6ba7466a5a793ba0f",
+          "extraction": "Complete initial C comment block copied without editing, including copyright, license, and implementation notes.",
+          "name": "jrevdct.c-NOTICE.txt"
+        },
+        {
+          "path": "texts/58cf51ca723ab35616dd0ff357ddf09703364de32c49dcc94bf9b602c747ab19.txt",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/libavcodec/jfdctfst.c",
+          "sha256": "58cf51ca723ab35616dd0ff357ddf09703364de32c49dcc94bf9b602c747ab19",
+          "extraction": "Required IJG executable-distribution credit, plus factual Kino/Homebrew source-change statement based on the inspected installed formula.",
+          "name": "IJG-ACKNOWLEDGEMENT.txt"
+        }
+      ]
+    },
+    {
+      "name": "boost",
+      "version": "1.92.0",
+      "license": "BSL-1.0",
+      "repository": "https://github.com/boostorg/boost",
+      "sourceArchive": "https://github.com/boostorg/boost/releases/download/boost-1.92.0/boost-1.92.0-b2-nodocs.tar.xz",
+      "sourceArchiveSha256": "ea7b982002cc9dfbe59b0b217b206f470dc75f3de0bb2973d844118934d82411",
+      "scope": "Header code used by native engine C++ wrappers, even though no Boost dynamic library is shipped",
+      "notes": "Version and archive checksum match installed formula and SBOM. C++ preprocessing of wrapper.cpp, memory_storage.cpp, and generated lib.rs.cc identified 1387 Boost headers. Every installed header matched the source archive bytes. The aggregate retains 783 distinct copyright/license comment blocks with source paths; two namespace-only headers lack a separate notice. Source file hashes and preprocessing commands are retained in research artifacts.",
+      "files": [
+        {
+          "path": "texts/c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566.txt",
+          "source": "https://github.com/boostorg/boost/releases/download/boost-1.92.0/boost-1.92.0-b2-nodocs.tar.xz#boost-1.92.0/LICENSE_1_0.txt",
+          "sha256": "c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566",
+          "name": "LICENSE_1_0.txt"
+        },
+        {
+          "path": "texts/ee77ea6c960104ebe998b5cf4c951f5741a3a4a07971a6c49c7f4e90e7f83608.txt",
+          "source": "https://github.com/boostorg/boost/releases/download/boost-1.92.0/boost-1.92.0-b2-nodocs.tar.xz",
+          "sha256": "ee77ea6c960104ebe998b5cf4c951f5741a3a4a07971a6c49c7f4e90e7f83608",
+          "extraction": "Copyright/license comment blocks from 1387 byte-verified Boost headers identified by engine C++ preprocessing. Original comment text retained; identical blocks grouped by original archive path. Source-file SHA256 index is boost-header-source-index.json in the research artifact directory.",
+          "name": "BOOST-HEADER-NOTICES.txt"
+        }
+      ]
+    },
+    {
+      "name": "dbus",
+      "version": "1.16.2_1",
+      "sourceVersion": "1.16.2",
+      "license": "AFL-2.1 OR GPL-2.0-or-later",
+      "repository": "https://gitlab.freedesktop.org/dbus/dbus",
+      "archive": {
+        "url": "https://dbus.freedesktop.org/releases/dbus/dbus-1.16.2.tar.xz",
+        "path": "build/license-research/homebrew-more/archives/dbus-1.16.2.tar.xz",
+        "sha256": "0ba2a1a4b16afe7bceb2c07e9ce99a8c2c3508e5dec290dbb643384bd6beb7e2"
+      },
+      "files": [
+        {
+          "path": "texts/150e5d08e1cb5e62b65967d7931acad2c42d98ec1bbb584bebb01921cbc853c2.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/COPYING",
+          "sha256": "150e5d08e1cb5e62b65967d7931acad2c42d98ec1bbb584bebb01921cbc853c2",
+          "archivePath": "dbus-1.16.2/COPYING",
+          "kind": "upstream-license-file",
+          "name": "COPYING"
+        },
+        {
+          "path": "texts/93bb4f7417aa775bab9026cc3d0af28aeb64451fc5a8ec651876785edd8eaf9b.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/LICENSES/AFL-2.1.txt",
+          "sha256": "93bb4f7417aa775bab9026cc3d0af28aeb64451fc5a8ec651876785edd8eaf9b",
+          "archivePath": "dbus-1.16.2/LICENSES/AFL-2.1.txt",
+          "kind": "upstream-license-file",
+          "name": "AFL-2.1.txt"
+        },
+        {
+          "path": "texts/aaf135472f81c5b4a0dca9367e5bb5e9750032b5bebe5442b36e4c0a47430df3.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/LICENSES/GPL-2.0-or-later.txt",
+          "sha256": "aaf135472f81c5b4a0dca9367e5bb5e9750032b5bebe5442b36e4c0a47430df3",
+          "archivePath": "dbus-1.16.2/LICENSES/GPL-2.0-or-later.txt",
+          "kind": "upstream-license-file",
+          "name": "GPL-2.0-or-later.txt"
+        },
+        {
+          "path": "texts/b85dcd3e453d05982552c52b5fc9e0bdd6d23c6f8e844b984a88af32570b0cc0.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/LICENSES/MIT.txt",
+          "sha256": "b85dcd3e453d05982552c52b5fc9e0bdd6d23c6f8e844b984a88af32570b0cc0",
+          "archivePath": "dbus-1.16.2/LICENSES/MIT.txt",
+          "kind": "upstream-license-file",
+          "name": "MIT.txt"
+        },
+        {
+          "path": "texts/1648d0c59f6e623824ce03474444449ead1698f3ae39379ae1c04889235d8258.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-address.c",
+          "sha256": "1648d0c59f6e623824ce03474444449ead1698f3ae39379ae1c04889235d8258",
+          "archivePath": "dbus-1.16.2/dbus/dbus-address.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1119],
+          "sourceSha256": "2eae928d38e2b45b4182b986fc8cd9ccda20c62223b21947e8431950a167229a",
+          "name": "dbus-address.c.txt"
+        },
+        {
+          "path": "texts/a18a62041cfbc896a4c40ea7d5fa0efe716fc6604701eee64428406e29df47a8.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-auth.c",
+          "sha256": "a18a62041cfbc896a4c40ea7d5fa0efe716fc6604701eee64428406e29df47a8",
+          "archivePath": "dbus-1.16.2/dbus/dbus-auth.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 992],
+          "sourceSha256": "bb9f1c30bfe0b0751fa6d1d043b2bfb87fa16f2017d29a13386b3ad194457f0e",
+          "name": "dbus-auth.c.txt"
+        },
+        {
+          "path": "texts/f2aa99367c819c23d2a71a4d5641d8aae8c32e0b54508b0a5ff4535b1f3506fc.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-bus.c",
+          "sha256": "f2aa99367c819c23d2a71a4d5641d8aae8c32e0b54508b0a5ff4535b1f3506fc",
+          "archivePath": "dbus-1.16.2/dbus/dbus-bus.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1059],
+          "sourceSha256": "af707c8254f4918e26ff3530c013ea534b33bfacd9aa3d28d6a63d718ae1e1b4",
+          "name": "dbus-bus.c.txt"
+        },
+        {
+          "path": "texts/ae8859542a2b54bbd5ac9911ab16c72ede54283e56a49b517cc85cee7783e95e.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-connection.c",
+          "sha256": "ae8859542a2b54bbd5ac9911ab16c72ede54283e56a49b517cc85cee7783e95e",
+          "archivePath": "dbus-1.16.2/dbus/dbus-connection.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 999],
+          "sourceSha256": "c289c6fbb52b32e4e3d0c22de357586706d18c8145205489504a2249bafbb21b",
+          "name": "dbus-connection.c.txt"
+        },
+        {
+          "path": "texts/b7b6e493512c569ad84cb141fbcc42e5b100f1f7b12970b122f4e53fdf9df33b.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-credentials.c",
+          "sha256": "b7b6e493512c569ad84cb141fbcc42e5b100f1f7b12970b122f4e53fdf9df33b",
+          "archivePath": "dbus-1.16.2/dbus/dbus-credentials.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1016],
+          "sourceSha256": "27ca6dfcf59c28d222fbecd7281d427ca2c3ded9f3e6beee2f513b901dfab005",
+          "name": "dbus-credentials.c.txt"
+        },
+        {
+          "path": "texts/8af43f82df77c9872ec304934ab0d6e0b5cc906773c1ac2d36de9d81394e1ac2.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-errors.c",
+          "sha256": "8af43f82df77c9872ec304934ab0d6e0b5cc906773c1ac2d36de9d81394e1ac2",
+          "archivePath": "dbus-1.16.2/dbus/dbus-errors.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1028],
+          "sourceSha256": "ea814944f2ffb95f315d993b4bbe49d2b66832073fa8ca2bf89f744678ace6c2",
+          "name": "dbus-errors.c.txt"
+        },
+        {
+          "path": "texts/ed959826fc2b21772f72495f7c38d1c29a49598226a1195165bf57f5602bafda.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-keyring.c",
+          "sha256": "ed959826fc2b21772f72495f7c38d1c29a49598226a1195165bf57f5602bafda",
+          "archivePath": "dbus-1.16.2/dbus/dbus-keyring.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1012],
+          "sourceSha256": "5401383621f8582de2eb6d03e0d2619d440e6a2ae1346900881a76f1657daa13",
+          "name": "dbus-keyring.c.txt"
+        },
+        {
+          "path": "texts/58fa36100aaa28b8192bc3355dcbb6907d02d088b5757874c4805db18f8de978.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-marshal-byteswap.c",
+          "sha256": "58fa36100aaa28b8192bc3355dcbb6907d02d088b5757874c4805db18f8de978",
+          "archivePath": "dbus-1.16.2/dbus/dbus-marshal-byteswap.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1010],
+          "sourceSha256": "b14dea779c03daba0a53944cc90a6eb138c61b8641d5a9cc8cbea1763650f4b7",
+          "name": "dbus-marshal-byteswap.c.txt"
+        },
+        {
+          "path": "texts/4d035bed4753c05c062fe7162a688bb24185fe70e69e26dd259bd8b253f28924.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-marshal-header.c",
+          "sha256": "4d035bed4753c05c062fe7162a688bb24185fe70e69e26dd259bd8b253f28924",
+          "archivePath": "dbus-1.16.2/dbus/dbus-marshal-header.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1030],
+          "sourceSha256": "b4680df3cf6c1087111c77c5e9d42d997631d99845e74bafcc09db4c9c41da28",
+          "name": "dbus-marshal-header.c.txt"
+        },
+        {
+          "path": "texts/c6226408c60805be12b2b1b841c1c923139b8482532a1c1e165b3c4d2e077d1a.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-marshal-recursive.c",
+          "sha256": "c6226408c60805be12b2b1b841c1c923139b8482532a1c1e165b3c4d2e077d1a",
+          "archivePath": "dbus-1.16.2/dbus/dbus-marshal-recursive.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1027],
+          "sourceSha256": "d523453014bb98701613698564f48e30c085083fc39dfcfe2b851dc2778dd3a1",
+          "name": "dbus-marshal-recursive.c.txt"
+        },
+        {
+          "path": "texts/015fedd8e08ec8ea73b47d35933a52805a1a11f2bf8221db5aa693560dcefcb5.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-marshal-validate.c",
+          "sha256": "015fedd8e08ec8ea73b47d35933a52805a1a11f2bf8221db5aa693560dcefcb5",
+          "archivePath": "dbus-1.16.2/dbus/dbus-marshal-validate.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1017],
+          "sourceSha256": "96344f05716d55b30f57c46ed1d3e06f64849454e4715b585f8cb11d775ac8f9",
+          "name": "dbus-marshal-validate.c.txt"
+        },
+        {
+          "path": "texts/bcc606ec87e64795f3e500fffca2f31028de9eab00a9e6153f9c37b484145f04.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-message.c",
+          "sha256": "bcc606ec87e64795f3e500fffca2f31028de9eab00a9e6153f9c37b484145f04",
+          "archivePath": "dbus-1.16.2/dbus/dbus-message.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1051],
+          "sourceSha256": "4867ab4b17e64e0f5e81e476a32f99ef0b72d49f9d82c7ac86fe455b7e62a8d1",
+          "name": "dbus-message.c.txt"
+        },
+        {
+          "path": "texts/339ea387ecf22573533b433c79681bb34b140a6c592bdf2007c7db049582cbc9.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-misc.c",
+          "sha256": "339ea387ecf22573533b433c79681bb34b140a6c592bdf2007c7db049582cbc9",
+          "archivePath": "dbus-1.16.2/dbus/dbus-misc.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1024],
+          "sourceSha256": "08c17de1841330ed442d85e6c9c0dcf2476bbb1c7404ff42f50b8a652a3cffb2",
+          "name": "dbus-misc.c.txt"
+        },
+        {
+          "path": "texts/c73c9c8969ba61e3da1aec213d3916630f488f1dfa6ea7b8eef09c9a96ecf853.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-nonce.c",
+          "sha256": "c73c9c8969ba61e3da1aec213d3916630f488f1dfa6ea7b8eef09c9a96ecf853",
+          "archivePath": "dbus-1.16.2/dbus/dbus-nonce.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1093],
+          "sourceSha256": "3e03df3d844ec2d576b0abf0b2f5bd6c83267b382f036b49fbd095bf6354b252",
+          "name": "dbus-nonce.c.txt"
+        },
+        {
+          "path": "texts/0a629f228bf5bc5a7748668c28b8f2d2318d7143aa8e4e64bc78936e3f6fde88.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-object-tree.c",
+          "sha256": "0a629f228bf5bc5a7748668c28b8f2d2318d7143aa8e4e64bc78936e3f6fde88",
+          "archivePath": "dbus-1.16.2/dbus/dbus-object-tree.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1025],
+          "sourceSha256": "a3f026534075553ffcfa149ec18ab67a0ca9b8ce97b0ad237fefab595c2d73b8",
+          "name": "dbus-object-tree.c.txt"
+        },
+        {
+          "path": "texts/4dac6fc16491986b65ee8e9393bc6d3e81dbe8c6011808eb64daa3ca94396f57.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-pending-call.c",
+          "sha256": "4dac6fc16491986b65ee8e9393bc6d3e81dbe8c6011808eb64daa3ca94396f57",
+          "archivePath": "dbus-1.16.2/dbus/dbus-pending-call.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1019],
+          "sourceSha256": "d48aaa9caea5bf1667e389e7b33dbeff1021e4706292e5ed21da4f1b7943f2e9",
+          "name": "dbus-pending-call.c.txt"
+        },
+        {
+          "path": "texts/b7f0ca8445a09198ec184d9a7c006fd5852e817299823a8c842cc30eb5505e44.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-resources.c",
+          "sha256": "b7f0ca8445a09198ec184d9a7c006fd5852e817299823a8c842cc30eb5505e44",
+          "archivePath": "dbus-1.16.2/dbus/dbus-resources.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 996],
+          "sourceSha256": "9e82e33910418a09ccd20b4e2159434b9c4ef5542bc35270a42bafcff4327a43",
+          "name": "dbus-resources.c.txt"
+        },
+        {
+          "path": "texts/6e1dadadc2490da994f3a26977401114b2bcacfc0090a12e846843b11eb8959c.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-server-debug-pipe.c",
+          "sha256": "6e1dadadc2490da994f3a26977401114b2bcacfc0090a12e846843b11eb8959c",
+          "archivePath": "dbus-1.16.2/dbus/dbus-server-debug-pipe.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1060],
+          "sourceSha256": "8fb816eda199260e57a71233bc1f9e408d1fc4bc7887a0882fe86f349c1089d5",
+          "name": "dbus-server-debug-pipe.c.txt"
+        },
+        {
+          "path": "texts/dbc519662075935846a488cda0784e6669fc41a2bf15edac2db925646fa77c9f.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-server-socket.c",
+          "sha256": "dbc519662075935846a488cda0784e6669fc41a2bf15edac2db925646fa77c9f",
+          "archivePath": "dbus-1.16.2/dbus/dbus-server-socket.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1027],
+          "sourceSha256": "604ad5a7aa02f20938a514c08fa8b81f04a50b4efe30ca18e51f777ea03ed87e",
+          "name": "dbus-server-socket.c.txt"
+        },
+        {
+          "path": "texts/0ae0cc7932d29c91509d4f7de9abba21d4adf2ece4a446f9fe7735560ff6366c.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-server.c",
+          "sha256": "0ae0cc7932d29c91509d4f7de9abba21d4adf2ece4a446f9fe7735560ff6366c",
+          "archivePath": "dbus-1.16.2/dbus/dbus-server.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1003],
+          "sourceSha256": "e557645c2731ae9ad2e8651e6509c585f633d18b75d5d15bdb3266ea5641defb",
+          "name": "dbus-server.c.txt"
+        },
+        {
+          "path": "texts/6bcc3ef1977084d40a3c02dd733f56c4499fab60881a181ab57b19ded683b1c9.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-sha.c",
+          "sha256": "6bcc3ef1977084d40a3c02dd733f56c4499fab60881a181ab57b19ded683b1c9",
+          "archivePath": "dbus-1.16.2/dbus/dbus-sha.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1050],
+          "sourceSha256": "b6b902c9d8e8439cc622fe920235aee3d0348d663af20f4dca99fad0b70b3d5b",
+          "name": "dbus-sha.c.txt"
+        },
+        {
+          "path": "texts/b2cc7b2e961d0b20a4a2a3f85d35fd721fcaa6208df180ddf5564bedacf538c1.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-signature.c",
+          "sha256": "b2cc7b2e961d0b20a4a2a3f85d35fd721fcaa6208df180ddf5564bedacf538c1",
+          "archivePath": "dbus-1.16.2/dbus/dbus-signature.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1019],
+          "sourceSha256": "265525f14f11b2d5822a6d649e4a70491afa54780cd7f635c9ed7c6e5b9cfeb2",
+          "name": "dbus-signature.c.txt"
+        },
+        {
+          "path": "texts/143bc0ecd9b99a85b808a5f1d4aa4048a93d9ebb2b90d362025e0ad2c8ed1780.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-syntax.c",
+          "sha256": "143bc0ecd9b99a85b808a5f1d4aa4048a93d9ebb2b90d362025e0ad2c8ed1780",
+          "archivePath": "dbus-1.16.2/dbus/dbus-syntax.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1082],
+          "sourceSha256": "3f2a49970e9726056598ea951ccb7823a2b3305d0ce91799b7274d3cbc5cdd2d",
+          "name": "dbus-syntax.c.txt"
+        },
+        {
+          "path": "texts/6e7e1ad4d005ea962cc1eb6b6870fc6485f0ece2cefd07f34df2a51c237cfd2e.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-threads.c",
+          "sha256": "6e7e1ad4d005ea962cc1eb6b6870fc6485f0ece2cefd07f34df2a51c237cfd2e",
+          "archivePath": "dbus-1.16.2/dbus/dbus-threads.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1004],
+          "sourceSha256": "901c62f95b9f6d2a7dafd30920b548bb0e4baa5577f4ce1ce19036425cea9e51",
+          "name": "dbus-threads.c.txt"
+        },
+        {
+          "path": "texts/26f51f74d3a42f897fb4c62eb77311544409f0d6c2dffecb8e2551065f9302fc.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-timeout.c",
+          "sha256": "26f51f74d3a42f897fb4c62eb77311544409f0d6c2dffecb8e2551065f9302fc",
+          "archivePath": "dbus-1.16.2/dbus/dbus-timeout.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 998],
+          "sourceSha256": "68f183bba009ea1c4657fbe935f4f88beffda325f81cfaf6e6a58f2e0505e611",
+          "name": "dbus-timeout.c.txt"
+        },
+        {
+          "path": "texts/5681376816d70ef1261007011e30fb4ffa336623539117ea42331e700c89b841.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-transport-socket.c",
+          "sha256": "5681376816d70ef1261007011e30fb4ffa336623539117ea42331e700c89b841",
+          "archivePath": "dbus-1.16.2/dbus/dbus-transport-socket.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1032],
+          "sourceSha256": "da749512ceb6aa8a8f77dba19598da0894e8ff0bf4f513b6710a6823bb8991e2",
+          "name": "dbus-transport-socket.c.txt"
+        },
+        {
+          "path": "texts/5b0ad13bed30c745c7cee747e66263f6c3c20b342ed53f093c353ebaa3dca9bc.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-transport.c",
+          "sha256": "5b0ad13bed30c745c7cee747e66263f6c3c20b342ed53f093c353ebaa3dca9bc",
+          "archivePath": "dbus-1.16.2/dbus/dbus-transport.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1033],
+          "sourceSha256": "4f7619a95af95a19048595943f947c5f815c827e6e4e1d1378a69e3cb6798914",
+          "name": "dbus-transport.c.txt"
+        },
+        {
+          "path": "texts/23abceeb0e92e5c733a77deccaa39be3050c96653533f99ba52edfcd70a0eb03.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-watch.c",
+          "sha256": "23abceeb0e92e5c733a77deccaa39be3050c96653533f99ba52edfcd70a0eb03",
+          "archivePath": "dbus-1.16.2/dbus/dbus-watch.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 998],
+          "sourceSha256": "778e3876235cf4a734b3edb58d5cdc88109f73207c110a8de72263c743aeda5f",
+          "name": "dbus-watch.c.txt"
+        },
+        {
+          "path": "texts/3cbb871e81903b1c0f8587ee9ff5d734cbd037c77da0b15fdbe2a43573d2070e.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-dataslot.c",
+          "sha256": "3cbb871e81903b1c0f8587ee9ff5d734cbd037c77da0b15fdbe2a43573d2070e",
+          "archivePath": "dbus-1.16.2/dbus/dbus-dataslot.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 995],
+          "sourceSha256": "b90831fde89e8133d72a1228ebd4092e63e0c164d1b3e68e4bd7893166c2b9a2",
+          "name": "dbus-dataslot.c.txt"
+        },
+        {
+          "path": "texts/f6c698bceca0ad4e3e25e7ceb026565c8e8ec3a703ba11f49f6103c09ed38400.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-file.c",
+          "sha256": "f6c698bceca0ad4e3e25e7ceb026565c8e8ec3a703ba11f49f6103c09ed38400",
+          "archivePath": "dbus-1.16.2/dbus/dbus-file.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1101],
+          "sourceSha256": "a1d6c0a4106221fbdfa031959d1835548342a595be95b0d0e344536a33280530",
+          "name": "dbus-file.c.txt"
+        },
+        {
+          "path": "texts/f834e1177207b9854bd4b44d887c057929319129a25c784011e5b35845bafb1b.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-hash.c",
+          "sha256": "f834e1177207b9854bd4b44d887c057929319129a25c784011e5b35845bafb1b",
+          "archivePath": "dbus-1.16.2/dbus/dbus-hash.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 4085],
+          "sourceSha256": "eb5d2be9c1ef2438913dd5a03d06adb50d14a398890d654ab67b7c45916cc45b",
+          "name": "dbus-hash.c.txt"
+        },
+        {
+          "path": "texts/876dc4a50ebffb248f97a180ac693c2d96e140dac6b7695a4d806b84db116e34.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-internals.c",
+          "sha256": "876dc4a50ebffb248f97a180ac693c2d96e140dac6b7695a4d806b84db116e34",
+          "archivePath": "dbus-1.16.2/dbus/dbus-internals.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1035],
+          "sourceSha256": "b9c14a0824ec3ed824222d3846d18fdaad0a989c372f6642ba313b975cca3486",
+          "name": "dbus-internals.c.txt"
+        },
+        {
+          "path": "texts/90e5c24354a7545086963c1a24c72e2adff882dcdcb39c588d295688ddb94558.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-list.c",
+          "sha256": "90e5c24354a7545086963c1a24c72e2adff882dcdcb39c588d295688ddb94558",
+          "archivePath": "dbus-1.16.2/dbus/dbus-list.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1030],
+          "sourceSha256": "b7e05b96dcef1aa41d01d2dba926af774553dbb3ff246b2c19725a6ecfafe40f",
+          "name": "dbus-list.c.txt"
+        },
+        {
+          "path": "texts/c51a76cc1be4bf9cffab7d7a13ff58d3a4a240b33e2f35a138f297e441344aa3.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-marshal-basic.c",
+          "sha256": "c51a76cc1be4bf9cffab7d7a13ff58d3a4a240b33e2f35a138f297e441344aa3",
+          "archivePath": "dbus-1.16.2/dbus/dbus-marshal-basic.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1074],
+          "sourceSha256": "7b08abd7f51bb0c46559517895f5261cfd124ddaff3397d0b642747f55837f25",
+          "name": "dbus-marshal-basic.c.txt"
+        },
+        {
+          "path": "texts/df59e07ec959f521b2490d9426736bcd441e6e27368755d4a808f01155d6cff0.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-memory.c",
+          "sha256": "df59e07ec959f521b2490d9426736bcd441e6e27368755d4a808f01155d6cff0",
+          "archivePath": "dbus-1.16.2/dbus/dbus-memory.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 997],
+          "sourceSha256": "86b2a837bae2127530449a6231aaffcbaf1ce49d802f198c5d9207b3449021b4",
+          "name": "dbus-memory.c.txt"
+        },
+        {
+          "path": "texts/187d2699da630b424a8efb66cdd940be55dca29ca2e8b891adcc4bd35d826cab.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-mempool.c",
+          "sha256": "187d2699da630b424a8efb66cdd940be55dca29ca2e8b891adcc4bd35d826cab",
+          "archivePath": "dbus-1.16.2/dbus/dbus-mempool.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1070],
+          "sourceSha256": "8340d40c33c8779f3062069790166c2b39bf7cc99538abf8d38cc03b777a1c62",
+          "name": "dbus-mempool.c.txt"
+        },
+        {
+          "path": "texts/ebf1ef6c5ab6ff824cdd3cb074baacc0d00a1c163824d1e9aa068b03137346a8.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-pipe.c",
+          "sha256": "ebf1ef6c5ab6ff824cdd3cb074baacc0d00a1c163824d1e9aa068b03137346a8",
+          "archivePath": "dbus-1.16.2/dbus/dbus-pipe.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1071],
+          "sourceSha256": "8f191e341ca81f0c6aad20fcc7a2534699be64f26452fe205fdb3f8a9e46a666",
+          "name": "dbus-pipe.c.txt"
+        },
+        {
+          "path": "texts/33d3c57b8a35b323d35de0539d76ee5acd3f6435f0298bf283a89c8c060b7921.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-string.c",
+          "sha256": "33d3c57b8a35b323d35de0539d76ee5acd3f6435f0298bf283a89c8c060b7921",
+          "archivePath": "dbus-1.16.2/dbus/dbus-string.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1331],
+          "sourceSha256": "07405f3600b0e5883aaa959d819595f19af8a72a9049468989887271cc757ce5",
+          "name": "dbus-string.c.txt"
+        },
+        {
+          "path": "texts/3c5d3ee6baef7c755e2462992f780dd1828065929c4fedbe9b6f9d4ea77335c8.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-sysdeps.c",
+          "sha256": "3c5d3ee6baef7c755e2462992f780dd1828065929c4fedbe9b6f9d4ea77335c8",
+          "archivePath": "dbus-1.16.2/dbus/dbus-sysdeps.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1123],
+          "sourceSha256": "3c16f7c012b05a002fd233b1fb1a97c2170dbb48436813f2e8f1476142445f64",
+          "name": "dbus-sysdeps.c.txt"
+        },
+        {
+          "path": "texts/5866c8fa7b3cd59e14d6be496ab70e2380fe150c1a9420fdd752b92c9799fbdd.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-uuidgen.c",
+          "sha256": "5866c8fa7b3cd59e14d6be496ab70e2380fe150c1a9420fdd752b92c9799fbdd",
+          "archivePath": "dbus-1.16.2/dbus/dbus-uuidgen.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1038],
+          "sourceSha256": "256d9d898ea2ab9acb2fe87edea0dd038fb839a91b5c1459872ca3d8dcbdd275",
+          "name": "dbus-uuidgen.c.txt"
+        },
+        {
+          "path": "texts/d68e547dd3d40d0259737f7bf24095a5b97e50dd310503cab0f58198bea3618c.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-server-unix.c",
+          "sha256": "d68e547dd3d40d0259737f7bf24095a5b97e50dd310503cab0f58198bea3618c",
+          "archivePath": "dbus-1.16.2/dbus/dbus-server-unix.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1035],
+          "sourceSha256": "ee0d4fcc5f4300bc762077c2ec9d236f34d4373e7378b7809e278ad080f726fc",
+          "name": "dbus-server-unix.c.txt"
+        },
+        {
+          "path": "texts/c4f86d927c5ea7253ccd419052e193e3d30dfe58d006bca167225739c4c9eafe.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-file-unix.c",
+          "sha256": "c4f86d927c5ea7253ccd419052e193e3d30dfe58d006bca167225739c4c9eafe",
+          "archivePath": "dbus-1.16.2/dbus/dbus-file-unix.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1089],
+          "sourceSha256": "c3365f8dbbb47a0c8d44a222eb82afce3ee223aaabc278b653cbd0d51055a31f",
+          "name": "dbus-file-unix.c.txt"
+        },
+        {
+          "path": "texts/b68746f3d5bb34819d84c9efd235b99684f4f0df52dc729e74e42c51bfd426d6.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-pipe-unix.c",
+          "sha256": "b68746f3d5bb34819d84c9efd235b99684f4f0df52dc729e74e42c51bfd426d6",
+          "archivePath": "dbus-1.16.2/dbus/dbus-pipe-unix.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1054],
+          "sourceSha256": "dd53a5ccc07df2c16fbd8ff0ebb295403059666eb4572809483d452064b30df1",
+          "name": "dbus-pipe-unix.c.txt"
+        },
+        {
+          "path": "texts/57e7bc6a8b6d72e4185fc0d616854bdd14607f5b0a7f0f80de1ccebcaf064213.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-sysdeps-pthread.c",
+          "sha256": "57e7bc6a8b6d72e4185fc0d616854bdd14607f5b0a7f0f80de1ccebcaf064213",
+          "archivePath": "dbus-1.16.2/dbus/dbus-sysdeps-pthread.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1046],
+          "sourceSha256": "ef26cfc6679bab088d7976664015625a91740dcc5cd6637cbe812e7ef525f22e",
+          "name": "dbus-sysdeps-pthread.c.txt"
+        },
+        {
+          "path": "texts/f6c698bceca0ad4e3e25e7ceb026565c8e8ec3a703ba11f49f6103c09ed38400.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-sysdeps-unix.c",
+          "sha256": "f6c698bceca0ad4e3e25e7ceb026565c8e8ec3a703ba11f49f6103c09ed38400",
+          "archivePath": "dbus-1.16.2/dbus/dbus-sysdeps-unix.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1101],
+          "sourceSha256": "e1ff250684ffd4e592c9fd3250eea5c7b966cd0055b21c0aa7f0b09875d57c0b",
+          "name": "dbus-sysdeps-unix.c.txt"
+        },
+        {
+          "path": "texts/a98b28aab91286891b75f468bb1c9316a637b7c1b3caf4cb35eeddf2cbaf9261.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-transport-unix.c",
+          "sha256": "a98b28aab91286891b75f468bb1c9316a637b7c1b3caf4cb35eeddf2cbaf9261",
+          "archivePath": "dbus-1.16.2/dbus/dbus-transport-unix.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1028],
+          "sourceSha256": "5844609dc8c420bf48d733ff448cae748c0739d7679d70514cf5914e8634cc99",
+          "name": "dbus-transport-unix.c.txt"
+        },
+        {
+          "path": "texts/7c0d4d32286a67b6fa9af4c437ad5d245b428814f6ca3d9c932d213bacf30cef.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-userdb.c",
+          "sha256": "7c0d4d32286a67b6fa9af4c437ad5d245b428814f6ca3d9c932d213bacf30cef",
+          "archivePath": "dbus-1.16.2/dbus/dbus-userdb.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [67, 1001],
+          "sourceSha256": "6abdc6249adaaa3c9275b46b108967baa45764259b28b44f28743127111dd06d",
+          "name": "dbus-userdb.c.txt"
+        },
+        {
+          "path": "texts/ed67862e7b9b1cc3eb93cdec51aa4165c48a8434b331cafe4f563901e2885130.txt",
+          "source": "https://gitlab.freedesktop.org/dbus/dbus/-/blob/dbus-1.16.2/dbus/dbus-server-launchd.c",
+          "sha256": "ed67862e7b9b1cc3eb93cdec51aa4165c48a8434b331cafe4f563901e2885130",
+          "archivePath": "dbus-1.16.2/dbus/dbus-server-launchd.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [0, 1429],
+          "sourceSha256": "20218f07fb22b3ca54ef076431bed4299987a0ced01d26fdcd1f6c5608094771",
+          "name": "dbus-server-launchd.c.txt"
+        }
+      ],
+      "notes": "Root COPYING plus all three full texts it names. Source comment notices cover the 48 files selected for libdbus by dbus_lib_sources and dbus_shared_sources on Unix with launchd, as used by the installed Homebrew macOS formula. All excerpts are unchanged contiguous byte ranges from verified archive members."
+    },
+    {
+      "name": "lz4",
+      "version": "1.10.0",
+      "sourceVersion": "1.10.0",
+      "license": "BSD-2-Clause",
+      "repository": "https://github.com/lz4/lz4",
+      "archive": {
+        "url": "https://github.com/lz4/lz4/archive/refs/tags/v1.10.0.tar.gz",
+        "path": "build/license-research/homebrew-more/archives/v1.10.0.tar.gz",
+        "sha256": "537512904744b35e232912055ccf8ec66d768639ff3abe5788d90d792ec5f48b"
+      },
+      "files": [
+        {
+          "path": "texts/4bc9c403f6b679cc076dee210e0e21c27b4e8f6d3fb43d85364c76657bfaaac5.txt",
+          "source": "https://github.com/lz4/lz4/blob/v1.10.0/LICENSE",
+          "sha256": "4bc9c403f6b679cc076dee210e0e21c27b4e8f6d3fb43d85364c76657bfaaac5",
+          "archivePath": "lz4-1.10.0/LICENSE",
+          "kind": "upstream-license-file",
+          "name": "LICENSE"
+        },
+        {
+          "path": "texts/8b58c446121a109ccf32edc094bba3010a3d85e4ee3702950db55e4d3e87736c.txt",
+          "source": "https://github.com/lz4/lz4/blob/v1.10.0/lib/LICENSE",
+          "sha256": "8b58c446121a109ccf32edc094bba3010a3d85e4ee3702950db55e4d3e87736c",
+          "archivePath": "lz4-1.10.0/lib/LICENSE",
+          "kind": "upstream-license-file",
+          "name": "LICENSE"
+        }
+      ],
+      "notes": "lib/LICENSE is the complete BSD-2-Clause notice for the bundled liblz4 library. The root LICENSE explains the library/program split. CLI programs and tests use separate GPL terms and are not part of this library notice."
+    },
+    {
+      "name": "harfbuzz",
+      "version": "14.4.0",
+      "sourceVersion": "14.4.0",
+      "license": "MIT",
+      "repository": "https://github.com/harfbuzz/harfbuzz",
+      "archive": {
+        "url": "https://github.com/harfbuzz/harfbuzz/releases/download/14.4.0/harfbuzz-14.4.0.tar.xz",
+        "path": "build/license-research/homebrew-more/archives/harfbuzz-14.4.0.tar.xz",
+        "sha256": "2357ed966c6ced7bfa720b0640c0231065af01158fbea215093ffa15aed44371"
+      },
+      "files": [
+        {
+          "path": "texts/ba8f810f2455c2f08e2d56bb49b72f37fcf68f1f4fade38977cfd7372050ad64.txt",
+          "source": "https://github.com/harfbuzz/harfbuzz/blob/14.4.0/COPYING",
+          "sha256": "ba8f810f2455c2f08e2d56bb49b72f37fcf68f1f4fade38977cfd7372050ad64",
+          "archivePath": "harfbuzz-14.4.0/COPYING",
+          "kind": "upstream-license-file",
+          "name": "COPYING"
+        },
+        {
+          "path": "texts/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383.txt",
+          "source": "https://github.com/harfbuzz/harfbuzz/blob/14.4.0/src/ms-use/COPYING",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+          "archivePath": "harfbuzz-14.4.0/src/ms-use/COPYING",
+          "kind": "upstream-license-file",
+          "name": "COPYING"
+        },
+        {
+          "path": "texts/fe5c62b543e287981db198f2acfa0ca732d12591a1024536dc8fd85dacd77104.txt",
+          "source": "https://raw.githubusercontent.com/unicode-org/unicodetools/ecd26be2e82be37609090942c14e518e57e905d8/LICENSE",
+          "sha256": "fe5c62b543e287981db198f2acfa0ca732d12591a1024536dc8fd85dacd77104",
+          "kind": "upstream-license-file",
+          "upstreamRevision": "ecd26be2e82be37609090942c14e518e57e905d8",
+          "name": "Unicode-17-LICENSE.txt"
+        }
+      ],
+      "notes": "src/ms-use/COPYING applies to Microsoft USE data used to generate hb-ot-shaper-use-table.hh, which src/meson.build compiles. Other COPYING files are in tests; the installed Homebrew formula disables tests. The generated USE table also identifies Unicode 17.0.0 data, so its pinned Unicode v3 license is included."
+    },
+    {
+      "name": "fontconfig",
+      "version": "2.18.3",
+      "sourceVersion": "2.18.3",
+      "license": "HPND-sell-variant AND Unicode-3.0 AND MIT-Modern-Variant AND MIT AND LicenseRef-Homebrew-public-domain",
+      "repository": "https://gitlab.freedesktop.org/fontconfig/fontconfig",
+      "archive": {
+        "url": "https://gitlab.freedesktop.org/fontconfig/fontconfig/-/archive/2.18.3/fontconfig-2.18.3.tar.gz",
+        "path": "build/license-research/homebrew-more/archives/fontconfig-2.18.3.tar.gz",
+        "sha256": "9ae01e1d53acdef56010c5451cd34aa41d325b2faccd8606448d8fa01b2496b3"
+      },
+      "files": [
+        {
+          "path": "texts/51a51aa9823704fd90bccc616cdd17ebabb5b2b3e9cbde886ca02c7002288067.txt",
+          "source": "https://gitlab.freedesktop.org/fontconfig/fontconfig/-/blob/2.18.3/COPYING",
+          "sha256": "51a51aa9823704fd90bccc616cdd17ebabb5b2b3e9cbde886ca02c7002288067",
+          "archivePath": "fontconfig-2.18.3/COPYING",
+          "kind": "upstream-license-file",
+          "name": "COPYING"
+        },
+        {
+          "path": "texts/ea5b0aeaa89edecc06d73f2e26579a6e784fc5b510db589838025ad321f6ff09.txt",
+          "source": "https://gitlab.freedesktop.org/fontconfig/fontconfig/-/blob/2.18.3/fc-case/CaseFolding.txt",
+          "sha256": "ea5b0aeaa89edecc06d73f2e26579a6e784fc5b510db589838025ad321f6ff09",
+          "archivePath": "fontconfig-2.18.3/fc-case/CaseFolding.txt",
+          "kind": "verbatim-source-comment",
+          "byteRange": [0, 269],
+          "sourceSha256": "ff8d8fefbf123574205085d6714c36149eb946d717a0c585c27f0f4ef58c4183",
+          "name": "CaseFolding-NOTICE.txt"
+        },
+        {
+          "path": "texts/fe5c62b543e287981db198f2acfa0ca732d12591a1024536dc8fd85dacd77104.txt",
+          "source": "https://raw.githubusercontent.com/unicode-org/unicodetools/ecd26be2e82be37609090942c14e518e57e905d8/LICENSE",
+          "sha256": "fe5c62b543e287981db198f2acfa0ca732d12591a1024536dc8fd85dacd77104",
+          "kind": "upstream-license-file",
+          "upstreamRevision": "ecd26be2e82be37609090942c14e518e57e905d8",
+          "name": "Unicode-17-LICENSE.txt"
+        }
+      ],
+      "notes": "Root COPYING has a stale 2019 Unicode attribution. Actual fc-case/CaseFolding.txt is Unicode 17.0.0, copyright 2025; the unchanged header and Unicode v3 license from its matching official release revision are included. The full data file matches both Unicode Public/17.0.0 and unicode-org/unicodetools final-17.0-20250910 byte for byte."
+    },
+    {
+      "name": "vulkan-loader",
+      "version": "1.4.357.0",
+      "license": "Apache-2.0",
+      "repository": "https://github.com/KhronosGroup/Vulkan-Loader",
+      "archive": {
+        "url": "https://github.com/KhronosGroup/Vulkan-Loader/archive/refs/tags/vulkan-sdk-1.4.357.0.tar.gz",
+        "path": "build/license-research/homebrew-more/archives/vulkan-sdk-1.4.357.0.tar.gz",
+        "sha256": "54f2537df22313768da0317dda2abdaaab7711b4081c48c869a79db343d0ae70"
+      },
+      "files": [
+        {
+          "path": "texts/074e6e32c86a4c0ef8b3ed25b721ca23aca83df277cd88106ef7177c354615ff.txt",
+          "source": "https://github.com/KhronosGroup/Vulkan-Loader/blob/vulkan-sdk-1.4.357.0/LICENSES/Apache-2.0.txt",
+          "sha256": "074e6e32c86a4c0ef8b3ed25b721ca23aca83df277cd88106ef7177c354615ff",
+          "archivePath": "Vulkan-Loader-vulkan-sdk-1.4.357.0/LICENSES/Apache-2.0.txt",
+          "kind": "upstream-license-file",
+          "name": "Apache-2.0.txt"
+        },
+        {
+          "path": "texts/d557539df68e771cc1eedcc91d13f70fca930e508d11eedcafa4b15db49e3744.txt",
+          "source": "https://github.com/KhronosGroup/Vulkan-Loader/blob/vulkan-sdk-1.4.357.0/LICENSES/CC-BY-4.0.txt",
+          "sha256": "d557539df68e771cc1eedcc91d13f70fca930e508d11eedcafa4b15db49e3744",
+          "archivePath": "Vulkan-Loader-vulkan-sdk-1.4.357.0/LICENSES/CC-BY-4.0.txt",
+          "kind": "upstream-license-file",
+          "name": "CC-BY-4.0.txt"
+        },
+        {
+          "path": "texts/9c73641270f020fce60e4b6aa93f56754763916517cd72d21a73527696ccd3ed.txt",
+          "source": "https://github.com/KhronosGroup/Vulkan-Loader/blob/vulkan-sdk-1.4.357.0/LICENSES/HPND-Kevlin-Henney.txt",
+          "sha256": "9c73641270f020fce60e4b6aa93f56754763916517cd72d21a73527696ccd3ed",
+          "archivePath": "Vulkan-Loader-vulkan-sdk-1.4.357.0/LICENSES/HPND-Kevlin-Henney.txt",
+          "kind": "upstream-license-file",
+          "name": "HPND-Kevlin-Henney.txt"
+        },
+        {
+          "path": "texts/fbeaca472f4f70e276dd1106ca5097435967a22ad6c1d8200aef7ad9f70aaf3f.txt",
+          "source": "https://github.com/KhronosGroup/Vulkan-Loader/blob/vulkan-sdk-1.4.357.0/LICENSES/MIT-Khronos-old.txt",
+          "sha256": "fbeaca472f4f70e276dd1106ca5097435967a22ad6c1d8200aef7ad9f70aaf3f",
+          "archivePath": "Vulkan-Loader-vulkan-sdk-1.4.357.0/LICENSES/MIT-Khronos-old.txt",
+          "kind": "upstream-license-file",
+          "name": "MIT-Khronos-old.txt"
+        },
+        {
+          "path": "texts/b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5.txt",
+          "source": "https://github.com/KhronosGroup/Vulkan-Loader/blob/vulkan-sdk-1.4.357.0/LICENSES/MIT.txt",
+          "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+          "archivePath": "Vulkan-Loader-vulkan-sdk-1.4.357.0/LICENSES/MIT.txt",
+          "kind": "upstream-license-file",
+          "name": "MIT.txt"
+        },
+        {
+          "path": "texts/43c0a37e6a0fa7ff3c843b3ec5a4fac84b712558ddac103fbd4c1649662a9ece.txt",
+          "source": "https://github.com/KhronosGroup/Vulkan-Loader/blob/vulkan-sdk-1.4.357.0/LICENSE.txt",
+          "sha256": "43c0a37e6a0fa7ff3c843b3ec5a4fac84b712558ddac103fbd4c1649662a9ece",
+          "archivePath": "Vulkan-Loader-vulkan-sdk-1.4.357.0/LICENSE.txt",
+          "kind": "upstream-license-file",
+          "name": "LICENSE.txt"
+        },
+        {
+          "path": "texts/28aaffabd1db6f2d1f67b80bb14544f29763a3949bbf46da6a02913b2eea289a.txt",
+          "source": "https://github.com/KhronosGroup/Vulkan-Loader/blob/vulkan-sdk-1.4.357.0/REUSE.toml",
+          "sha256": "28aaffabd1db6f2d1f67b80bb14544f29763a3949bbf46da6a02913b2eea289a",
+          "archivePath": "Vulkan-Loader-vulkan-sdk-1.4.357.0/REUSE.toml",
+          "kind": "upstream-copyright-license-annotations",
+          "name": "REUSE.toml"
+        },
+        {
+          "path": "texts/b956744e36eb16b84337ea1062b35e52ddace01bf91c42bb3013a8031454a5b8.txt",
+          "source": "https://github.com/KhronosGroup/Vulkan-Loader/blob/vulkan-sdk-1.4.357.0/loader/cJSON.c",
+          "sha256": "b956744e36eb16b84337ea1062b35e52ddace01bf91c42bb3013a8031454a5b8",
+          "archivePath": "Vulkan-Loader-vulkan-sdk-1.4.357.0/loader/cJSON.c",
+          "kind": "verbatim-source-comment",
+          "byteRange": [0, 1120],
+          "sourceSha256": "38b3239b34b8bf00ac0d5acffbc46456a63f0036723489e5667f35f6d1c79671",
+          "name": "cJSON.c"
+        },
+        {
+          "path": "texts/b956744e36eb16b84337ea1062b35e52ddace01bf91c42bb3013a8031454a5b8.txt",
+          "source": "https://github.com/KhronosGroup/Vulkan-Loader/blob/vulkan-sdk-1.4.357.0/loader/cJSON.h",
+          "sha256": "b956744e36eb16b84337ea1062b35e52ddace01bf91c42bb3013a8031454a5b8",
+          "archivePath": "Vulkan-Loader-vulkan-sdk-1.4.357.0/loader/cJSON.h",
+          "kind": "verbatim-source-comment",
+          "byteRange": [0, 1120],
+          "sourceSha256": "27b4640a1cd36cb9e3da2c1e63d66ba4d70b4ace0d8d4d5b6c09cc775d6489f3",
+          "name": "cJSON.h"
+        }
+      ],
+      "additionalLicenses": ["MIT"],
+      "notes": "The complete upstream LICENSES set supplements root LICENSE.txt. loader/cJSON.c and loader/cJSON.h carry Dave Gamble and contributors MIT copyright and permission notices, preserved as unchanged byte ranges. loader/CMakeLists.txt includes cJSON.c in the loader target. HPND-Kevlin-Henney is used by the Windows dirent helper, and CC-BY-4.0 by documentation; those complete upstream reference texts are retained without asserting that their associated code or documents ship in the macOS app. MIT-Khronos-old is assigned to regression-test sources by REUSE.toml. That complete original copyright/license annotation file is also retained."
     }
   ],
   "rust": [

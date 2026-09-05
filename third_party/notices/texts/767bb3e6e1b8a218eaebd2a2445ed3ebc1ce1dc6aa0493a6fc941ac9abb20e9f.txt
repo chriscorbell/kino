@@ -1,0 +1,219 @@
+Original source notices for spirv-headers, included in shaderc 2026.3
+Repository revision: https://github.com/KhronosGroup/SPIRV-Headers/tree/29981f65241605e08b0ede4cfeb999fe3b723c6a
+
+The following copyright and license comment blocks are reproduced verbatim from
+the upstream library source directories. Identical blocks are shown once with
+their source filenames. This includes optional and platform-specific source code.
+Source blobs were checked against the Git tree for the pinned revision.
+
+==============================================================================
+Source files:
+include/spirv/1.0/GLSL.std.450.h
+include/spirv/1.1/GLSL.std.450.h
+include/spirv/1.2/GLSL.std.450.h
+
+/*
+** SPDX-FileCopyrightText: 2014-2016 The Khronos Group Inc.
+** SPDX-License-Identifier: MIT
+**
+** MODIFICATIONS TO THIS FILE MAY MEAN IT NO LONGER ACCURATELY REFLECTS
+** KHRONOS STANDARDS. THE UNMODIFIED, NORMATIVE VERSIONS OF KHRONOS
+** SPECIFICATIONS AND HEADER INFORMATION ARE LOCATED AT
+**    https://www.khronos.org/registry/
+*/
+
+==============================================================================
+Source files:
+include/spirv/1.0/OpenCL.std.h
+include/spirv/1.1/OpenCL.std.h
+include/spirv/1.2/OpenCL.std.h
+
+/*
+** SPDX-FileCopyrightText: 2015-2017 The Khronos Group Inc.
+** SPDX-License-Identifier: MIT
+**
+** MODIFICATIONS TO THIS FILE MAY MEAN IT NO LONGER ACCURATELY REFLECTS
+** KHRONOS STANDARDS. THE UNMODIFIED, NORMATIVE VERSIONS OF KHRONOS
+** SPECIFICATIONS AND HEADER INFORMATION ARE LOCATED AT
+**    https://www.khronos.org/registry/
+*/
+
+==============================================================================
+Source files:
+include/spirv/1.0/spirv.h
+include/spirv/1.1/spirv.h
+include/spirv/1.2/spirv.h
+
+/*
+** Copyright: 2014-2018 The Khronos Group Inc.
+** License: MIT
+**
+** MODIFICATIONS TO THIS FILE MAY MEAN IT NO LONGER ACCURATELY REFLECTS
+** KHRONOS STANDARDS. THE UNMODIFIED, NORMATIVE VERSIONS OF KHRONOS
+** SPECIFICATIONS AND HEADER INFORMATION ARE LOCATED AT
+** https://www.khronos.org/registry/
+*/
+
+==============================================================================
+Source files:
+include/spirv/1.0/spirv.hpp
+include/spirv/1.1/spirv.hpp
+include/spirv/1.2/spirv.hpp
+
+// Copyright: 2014-2018 The Khronos Group Inc.
+// License: MIT
+// 
+// MODIFICATIONS TO THIS FILE MAY MEAN IT NO LONGER ACCURATELY REFLECTS
+// KHRONOS STANDARDS. THE UNMODIFIED, NORMATIVE VERSIONS OF KHRONOS
+// SPECIFICATIONS AND HEADER INFORMATION ARE LOCATED AT
+// https://www.khronos.org/registry/
+
+==============================================================================
+Source files:
+include/spirv/unified1/AMD_gcn_shader.h
+include/spirv/unified1/AMD_shader_ballot.h
+include/spirv/unified1/AMD_shader_explicit_vertex_parameter.h
+include/spirv/unified1/AMD_shader_trinary_minmax.h
+include/spirv/unified1/NonSemanticClspvReflection.h
+include/spirv/unified1/NonSemanticDebugBreak.h
+include/spirv/unified1/NonSemanticDebugPrintf.h
+include/spirv/unified1/NonSemanticVkspReflection.h
+
+// SPDX-FileCopyrightText: 2020-2024 The Khronos Group Inc.
+// SPDX-License-Identifier: MIT
+// 
+// MODIFICATIONS TO THIS FILE MAY MEAN IT NO LONGER ACCURATELY REFLECTS
+// KHRONOS STANDARDS. THE UNMODIFIED, NORMATIVE VERSIONS OF KHRONOS
+// SPECIFICATIONS AND HEADER INFORMATION ARE LOCATED AT
+//    https://www.khronos.org/registry/
+// 
+// 
+
+==============================================================================
+Source files:
+include/spirv/unified1/ArmExperimentalMLOperations.h
+
+// SPDX-FileCopyrightText: 2025 Arm Ltd.
+// SPDX-License-Identifier: MIT
+
+==============================================================================
+Source files:
+include/spirv/unified1/ArmMotionEngine.100.h
+include/spirv/unified1/TOSA.001000.1.h
+
+// SPDX-FileCopyrightText: 2022-2025 Arm Ltd.
+// SPDX-License-Identifier: MIT
+
+==============================================================================
+Source files:
+include/spirv/unified1/DebugInfo.h
+
+// Copyright: 2017-2024 The Khronos Group Inc.
+// License: MIT
+// 
+// MODIFICATIONS TO THIS FILE MAY MEAN IT NO LONGER ACCURATELY REFLECTS KHRONOS
+// STANDARDS. THE UNMODIFIED, NORMATIVE VERSIONS OF KHRONOS SPECIFICATIONS AND
+// HEADER INFORMATION ARE LOCATED AT https://www.khronos.org/registry/ 
+// 
+
+==============================================================================
+Source files:
+include/spirv/unified1/GLSL.std.450.h
+
+/*
+** SPDX-FileCopyrightText: 2014-2024 The Khronos Group Inc.
+** SPDX-License-Identifier: MIT
+**
+** MODIFICATIONS TO THIS FILE MAY MEAN IT NO LONGER ACCURATELY REFLECTS
+** KHRONOS STANDARDS. THE UNMODIFIED, NORMATIVE VERSIONS OF KHRONOS
+** SPECIFICATIONS AND HEADER INFORMATION ARE LOCATED AT
+**    https://www.khronos.org/registry/
+*/
+
+==============================================================================
+Source files:
+include/spirv/unified1/NonSemanticGraphDebugInfo.h
+
+// SPDX-FileCopyrightText: 2022-2026 Arm Ltd.
+// SPDX-License-Identifier: MIT
+
+==============================================================================
+Source files:
+include/spirv/unified1/NonSemanticShaderDebugInfo.h
+
+// SPDX-FileCopyrightText: 2018-2026 The Khronos Group Inc.
+// SPDX-License-Identifier: MIT
+//
+// MODIFICATIONS TO THIS FILE MAY MEAN IT NO LONGER ACCURATELY REFLECTS
+// KHRONOS STANDARDS. THE UNMODIFIED, NORMATIVE VERSIONS OF KHRONOS
+// SPECIFICATIONS AND HEADER INFORMATION ARE LOCATED AT
+//    https://www.khronos.org/registry/
+
+==============================================================================
+Source files:
+include/spirv/unified1/NonSemanticShaderDebugInfo100.h
+
+// SPDX-FileCopyrightText: 2018-2024 The Khronos Group Inc.
+// SPDX-License-Identifier: MIT
+//
+// MODIFICATIONS TO THIS FILE MAY MEAN IT NO LONGER ACCURATELY REFLECTS
+// KHRONOS STANDARDS. THE UNMODIFIED, NORMATIVE VERSIONS OF KHRONOS
+// SPECIFICATIONS AND HEADER INFORMATION ARE LOCATED AT
+//    https://www.khronos.org/registry/
+//
+// This file is a frozen snapshot of the NonSemantic.Shader.DebugInfo version
+// 100 instruction set. It will not be updated with new instructions. New code
+// should include NonSemanticShaderDebugInfo.h, which covers all versions.
+
+==============================================================================
+Source files:
+include/spirv/unified1/OpenCL.std.h
+
+/*
+** SPDX-FileCopyrightText: 2015-2024 The Khronos Group Inc.
+** SPDX-License-Identifier: MIT
+**
+** MODIFICATIONS TO THIS FILE MAY MEAN IT NO LONGER ACCURATELY REFLECTS
+** KHRONOS STANDARDS. THE UNMODIFIED, NORMATIVE VERSIONS OF KHRONOS
+** SPECIFICATIONS AND HEADER INFORMATION ARE LOCATED AT
+**    https://www.khronos.org/registry/
+*/
+
+==============================================================================
+Source files:
+include/spirv/unified1/OpenCLDebugInfo100.h
+
+// Copyright: 2018-2024 The Khronos Group Inc.
+// License: MIT
+// 
+// MODIFICATIONS TO THIS FILE MAY MEAN IT NO LONGER ACCURATELY REFLECTS KHRONOS
+// STANDARDS. THE UNMODIFIED, NORMATIVE VERSIONS OF KHRONOS SPECIFICATIONS AND
+// HEADER INFORMATION ARE LOCATED AT https://www.khronos.org/registry/ 
+// 
+
+==============================================================================
+Source files:
+include/spirv/unified1/spirv.h
+
+/*
+** Copyright: 2014-2024 The Khronos Group Inc.
+** License: MIT
+** 
+** MODIFICATIONS TO THIS FILE MAY MEAN IT NO LONGER ACCURATELY REFLECTS
+** KHRONOS STANDARDS. THE UNMODIFIED, NORMATIVE VERSIONS OF KHRONOS
+** SPECIFICATIONS AND HEADER INFORMATION ARE LOCATED AT
+** https://www.khronos.org/registry/
+*/
+
+==============================================================================
+Source files:
+include/spirv/unified1/spirv.hpp
+
+// Copyright: 2014-2024 The Khronos Group Inc.
+// License: MIT
+// 
+// MODIFICATIONS TO THIS FILE MAY MEAN IT NO LONGER ACCURATELY REFLECTS
+// KHRONOS STANDARDS. THE UNMODIFIED, NORMATIVE VERSIONS OF KHRONOS
+// SPECIFICATIONS AND HEADER INFORMATION ARE LOCATED AT
+// https://www.khronos.org/registry/
+

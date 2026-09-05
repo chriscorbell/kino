@@ -317,7 +317,7 @@ if (remaining.length > 0) {
   for (const { binary, path } of remaining.slice(0, 10)) {
     console.error(`  ${basename(binary)} still links ${path}`);
   }
-  console.error('Machine-specific libraries remain linked.');
+  console.error('Required libraries remain unresolved.');
   process.exit(1);
 }
 
