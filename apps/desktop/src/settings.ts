@@ -5,7 +5,6 @@ export type AudioOutput = 'auto' | 'stereo';
 export interface KinoSettings {
   automaticIntroSkipping: boolean;
   audioOutput: AudioOutput;
-  matchFrameRate: boolean;
   skipIntroButton: boolean;
   subtitlePosition: number;
   subtitleSize: number;
@@ -19,7 +18,6 @@ export const subtitleSizeRange = { max: 200, min: 50 } as const;
 export const defaultSettings: KinoSettings = {
   automaticIntroSkipping: false,
   audioOutput: 'auto',
-  matchFrameRate: false,
   skipIntroButton: true,
   subtitlePosition: 94,
   subtitleSize: 100,
@@ -70,10 +68,6 @@ export function loadSettings(storage: Pick<Storage, 'getItem'>): KinoSettings {
       audioOutput: isAudioOutput(values.audioOutput)
         ? values.audioOutput
         : defaultSettings.audioOutput,
-      matchFrameRate:
-        typeof values.matchFrameRate === 'boolean'
-          ? values.matchFrameRate
-          : defaultSettings.matchFrameRate,
       skipIntroButton:
         typeof values.skipIntroButton === 'boolean'
           ? values.skipIntroButton

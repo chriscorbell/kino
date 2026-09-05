@@ -31,7 +31,7 @@ describe('settings storage', () => {
     ).toEqual(defaultSettings);
   });
 
-  it('keeps valid values and repairs invalid values', () => {
+  it('keeps valid values, repairs invalid values, and ignores retired settings', () => {
     const storage = createStorage(
       JSON.stringify({
         automaticIntroSkipping: true,
@@ -47,7 +47,6 @@ describe('settings storage', () => {
     expect(loadSettings(storage)).toEqual({
       automaticIntroSkipping: true,
       audioOutput: 'auto',
-      matchFrameRate: true,
       skipIntroButton: false,
       subtitlePosition: 94,
       subtitleSize: 100,
