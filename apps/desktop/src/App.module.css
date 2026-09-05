@@ -608,7 +608,59 @@
 
 .sourceButton {
   min-height: 64px;
+}
+
+.sourceRow {
+  min-width: 0;
   border-bottom: 1px solid var(--kino-border-subtle);
+}
+
+.sourceDisclosure {
+  padding: 0 12px 10px;
+}
+
+.sourceDisclosure summary {
+  width: fit-content;
+  min-height: 32px;
+  padding-block: 7px;
+  color: var(--kino-text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: color var(--kino-duration-fast) ease;
+}
+
+.sourceDisclosure summary:hover {
+  color: var(--kino-text);
+}
+
+.sourceDescription {
+  max-width: 80ch;
+  color: var(--kino-text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.sourceDescription p,
+.sourceDescription dl {
+  margin: 8px 0 16px;
+}
+
+.sourceDescription dt {
+  color: var(--kino-text-faint);
+  font-size: 12px;
+}
+
+.sourceDescription dd {
+  margin: 4px 0 0;
+}
+
+.sourcePlay {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--kino-text);
 }
 
 .episodeButton {

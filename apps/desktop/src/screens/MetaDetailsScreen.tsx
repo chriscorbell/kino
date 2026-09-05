@@ -364,48 +364,71 @@ export function MetaDetailsScreen({
                   : enUS.details.sourceUnsupported[unsupportedSourceReason(choice.source.source)];
               const size = sourceSize(choice.source);
               return (
-                <button
-                  className={styles.sourceButton}
-                  disabled={!selectable || !sourcesCurrent}
-                  key={`${choice.transportUrl}:${index}`}
-                  onClick={() => {
-                    if (!sourcesCurrent) return;
-                    if (external) {
-                      setExternalChoice({ key, url: external, transport });
-                      return;
-                    }
-                    if (!playable || !resource?.addon.transportUrl) return;
-                    onPlay({
-                      resumeMode: canResume && startOver ? 'start-over' : 'resume',
-                      meta: display,
-                      metaTransportUrl: resource.addon.transportUrl,
-                      nextVideo: nextEpisode,
-                      stream: choice.source,
-                      streamTransportUrl: choice.transportUrl,
-                      video: activeVideo,
-                    });
-                  }}
-                  type="button"
-                >
-                  <span className={styles.sourcePrimary}>
-                    <strong>{sourceTitle(choice.source)}</strong>
-                    <small>{sourceDetails(choice.source)}</small>
-                    {external ? (
-                      <small className={styles.sourceExplanation}>
-                        {enUS.details.openExternal} · {external.host}
-                      </small>
-                    ) : null}
-                    {!selectable ? (
-                      <small className={styles.sourceExplanation}>{unavailable}</small>
-                    ) : null}
-                  </span>
-                  <span className={styles.sourceMeta}>
-                    {size ? <span>{size}</span> : null}
-                    <span>{choice.addonName}</span>
-                    {!selectable ? <em>{enUS.details.unavailable}</em> : null}
-                    {playable && failed ? <em>{enUS.details.failed}</em> : null}
-                  </span>
-                </button>
+                <div className={styles.sourceRow} key={`${choice.transportUrl}:${index}`}>
+                  <button
+                    className={styles.sourceButton}
+                    disabled={!selectable || !sourcesCurrent}
+                    onClick={() => {
+                      if (!sourcesCurrent) return;
+                      if (external) {
+                        setExternalChoice({ key, url: external, transport });
+                        return;
+                      }
+                      if (!playable || !resource?.addon.transportUrl) return;
+                      onPlay({
+                        resumeMode: canResume && startOver ? 'start-over' : 'resume',
+                        meta: display,
+                        metaTransportUrl: resource.addon.transportUrl,
+                        nextVideo: nextEpisode,
+                        stream: choice.source,
+                        streamTransportUrl: choice.transportUrl,
+                        video: activeVideo,
+                      });
+                    }}
+                    type="button"
+                  >
+                    <span className={styles.sourcePrimary}>
+                      <strong>{sourceTitle(choice.source)}</strong>
+                      <small>{sourceDetails(choice.source)}</small>
+                      {external ? (
+                        <small className={styles.sourceExplanation}>
+                          {enUS.details.openExternal} · {external.host}
+                        </small>
+                      ) : null}
+                      {!selectable ? (
+                        <small className={styles.sourceExplanation}>{unavailable}</small>
+                      ) : null}
+                    </span>
+                    <span className={styles.sourceMeta}>
+                      {playable ? (
+                        <span className={styles.sourcePlay}>
+                          <Play aria-hidden size={14} weight="fill" />
+                          {enUS.details.playSource}
+                        </span>
+                      ) : null}
+                      {size ? <span>{size}</span> : null}
+                      <span>{choice.addonName}</span>
+                      {!selectable ? <em>{enUS.details.unavailable}</em> : null}
+                      {playable && failed ? <em>{enUS.details.failed}</em> : null}
+                    </span>
+                  </button>
+                  <details className={styles.sourceDisclosure} key={key}>
+                    <summary>
+                      {enUS.details.inspectSource}
+                      <span className={styles.visuallyHidden}> {sourceTitle(choice.source)}</span>
+                    </summary>
+                    <div className={styles.sourceDescription}>
+                      <p>{choice.source.description?.trim() || sourceDetails(choice.source)}</p>
+                      {choice.source.hints.filename ? (
+                        <dl>
+                          <dt>{enUS.details.filename}</dt>
+                          <dd>{choice.source.hints.filename}</dd>
+                        </dl>
+                      ) : null}
+                      {!selectable ? <p>{unavailable}</p> : null}
+                    </div>
+                  </details>
+                </div>
               );
             })}
           </div>
