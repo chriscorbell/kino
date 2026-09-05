@@ -117,6 +117,7 @@ export const enUS = {
     unavailable: 'Not available',
     failed: 'Failed',
     addToLibrary: 'Add to Library',
+    loadingLibrary: 'Loading library…',
     inLibrary: 'In Library',
   },
   player: {

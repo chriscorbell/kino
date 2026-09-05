@@ -54,7 +54,8 @@ export function MetaDetailsScreen({
   const [videoId, setVideoId] = useState<string | null>(
     () => initialVideoId ?? defaultVideoId(item),
   );
-  const [libraryOverride, setLibraryOverride] = useState<boolean | null>(null);
+  const [profileTransport, setProfileTransport] = useState(transport);
+  const [libraryOverride, setLibraryOverride] = useState<{ value: boolean } | null>(null);
   const result = useCoreModel<MetaDetailsState>(
     'meta_details',
     loadMetaDetailsAction(item, videoId),
@@ -71,10 +72,15 @@ export function MetaDetailsScreen({
   // its metadata still loading. Without the previous copy the episode list
   // unmounts, the page collapses to the hero, and the browser discards the
   // scroll position. The screen is keyed by title, so this cannot leak between
-  // titles, and a title's metadata does not change when only the episode does.
+  // titles. Profile changes clear it because metadata also includes library
+  // membership and progress that belong to that Core transport.
   const [lastMeta, setLastMeta] = useState<CoreMetaItem | null>(null);
-  if (loadedMeta && loadedMeta !== lastMeta) setLastMeta(loadedMeta);
-  const meta = loadedMeta ?? lastMeta;
+  if (profileTransport !== transport) {
+    setProfileTransport(transport);
+    setLibraryOverride(null);
+    setLastMeta(loadedMeta);
+  } else if (loadedMeta && loadedMeta !== lastMeta) setLastMeta(loadedMeta);
+  const meta = loadedMeta ?? (profileTransport === transport ? lastMeta : null);
   const videos = useMemo(() => meta?.videos ?? [], [meta]);
   const sourcesRef = useRef<HTMLElement>(null);
   const episodeChosenRef = useRef(false);
@@ -143,16 +149,20 @@ export function MetaDetailsScreen({
     : null;
   const activeIndex = activeVideo ? videos.findIndex((video) => video.id === activeVideo.id) : -1;
   const nextEpisode = activeIndex >= 0 ? (videos[activeIndex + 1] ?? null) : null;
-  const inLibrary = libraryOverride ?? display.inLibrary;
+  const inLibrary = libraryOverride?.value ?? display.inLibrary;
+  const libraryReady = Boolean(transport && meta);
 
   const toggleLibrary = () => {
-    if (!transport) return;
+    if (!transport || !libraryReady) return;
     const next = !inLibrary;
-    setLibraryOverride(next);
+    const change = { value: next };
+    setLibraryOverride(change);
     void transport
       .dispatch(next ? addToLibraryAction(display) : removeFromLibraryAction(display.id))
       .catch((error: unknown) => {
-        setLibraryOverride(!next);
+        // A failure from an earlier profile or mutation must not overwrite the
+        // currently displayed profile's newer optimistic action.
+        setLibraryOverride((current) => (current === change ? null : current));
         console.error(
           '[kino:library] update failed',
           error instanceof Error ? error.message : error,
@@ -177,9 +187,24 @@ export function MetaDetailsScreen({
           {display.description ? (
             <p className={styles.detailDescription}>{display.description}</p>
           ) : null}
-          <button className={styles.libraryButton} onClick={toggleLibrary} type="button">
-            {inLibrary ? <Check aria-hidden size={16} /> : <Plus aria-hidden size={16} />}
-            {inLibrary ? enUS.details.inLibrary : enUS.details.addToLibrary}
+          <button
+            className={styles.libraryButton}
+            disabled={!libraryReady}
+            onClick={toggleLibrary}
+            type="button"
+          >
+            {libraryReady ? (
+              inLibrary ? (
+                <Check aria-hidden size={16} />
+              ) : (
+                <Plus aria-hidden size={16} />
+              )
+            ) : null}
+            {!libraryReady
+              ? enUS.details.loadingLibrary
+              : inLibrary
+                ? enUS.details.inLibrary
+                : enUS.details.addToLibrary}
           </button>
         </div>
       </header>
