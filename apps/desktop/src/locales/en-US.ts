@@ -1,5 +1,19 @@
 export const enUS = {
   appName: 'Kino',
+  core: {
+    starting: 'Starting Stremio Core…',
+    startupFailed: 'Stremio Core could not start.',
+    workerFailed: 'Stremio Core stopped responding. Try starting it again.',
+    timeout: 'Stremio Core did not respond within 20 seconds. Try starting it again.',
+    stopped: 'Stremio Core has stopped.',
+    retry: 'Retry Stremio Core',
+    guest: 'Continue as guest',
+    catalogLoading: 'Loading the default guest catalog…',
+    catalogFailed:
+      'The default guest catalog could not be loaded. Check your connection and retry.',
+    retryCatalog: 'Retry guest catalog',
+    accountUnavailable: 'Account preparation failed',
+  },
   account: {
     create: 'Create account',
     createFailed: 'The registration page could not be opened. Try again.',

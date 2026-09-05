@@ -1,6 +1,7 @@
 import { X } from '@phosphor-icons/react';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 
+import { CoreRecovery } from './CoreRecovery';
 import logo from '../assets/kino.svg';
 import styles from '../App.module.css';
 import { useCore } from '../core/context';
@@ -150,6 +151,7 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
         <X aria-hidden size={18} />
       </button>
       <img alt="" src={logo} />
+      <CoreRecovery onGuest={onClose} />
       {user ? (
         <>
           <h1 id="account-title">Stremio account</h1>
@@ -205,7 +207,13 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
             disabled={status !== 'ready' || submitting}
             type="submit"
           >
-            {status !== 'ready' ? 'Preparing account…' : submitting ? 'Signing in…' : 'Sign in'}
+            {status === 'error'
+              ? enUS.core.accountUnavailable
+              : status !== 'ready'
+                ? 'Preparing account…'
+                : submitting
+                  ? 'Signing in…'
+                  : 'Sign in'}
           </button>
           <a
             aria-describedby={creationError ? 'account-creation-error' : undefined}
