@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 
 import { installAddonAction, loadPlayerAction } from '../apps/desktop/src/core/actions.ts';
+import { adaptCoreState, addonFromManifest } from '../apps/desktop/src/core/adapters.ts';
 import { createAddonNetwork } from '../apps/desktop/src/core/addonNetwork.ts';
-import { initializeCore } from './test-support/core-stream.mjs';
+import { fixturePreview, fixtureSource, initializeCore } from './test-support/core-stream.mjs';
 
 const stored = process.argv[2] === 'stored';
 const storage = new Map(
@@ -22,25 +23,21 @@ const network = createAddonNetwork(async (request) => {
   return Response.json({ meta });
 }, false);
 globalThis.fetch = network.coreFetch;
-const addon = {
-  transportUrl: 'http://insecure.invalid/synthetic-secret/manifest.json',
-  flags: {},
-  manifest: {
-    id: 'synthetic.insecure',
-    name: 'Synthetic insecure add-on',
-    version: '1.0.0',
-    types: ['movie'],
-    resources: ['meta', 'stream'],
-    catalogs: [],
-  },
-};
+const addon = addonFromManifest('http://insecure.invalid/synthetic-secret/manifest.json', {
+  id: 'synthetic.insecure',
+  name: 'Synthetic insecure add-on',
+  version: '1.0.0',
+  types: ['movie'],
+  resources: ['meta', 'stream'],
+  catalogs: [],
+});
 if (!stored) core.dispatch(installAddonAction(addon), undefined, '');
 core.dispatch(
   loadPlayerAction({
-    meta,
+    meta: { ...fixturePreview, id: meta.id, name: meta.name, type: meta.type },
     metaTransportUrl: addon.transportUrl,
     streamTransportUrl: addon.transportUrl,
-    stream: { url: 'https://media.invalid/fixture.mp4', deepLinks: { player: '' } },
+    stream: fixtureSource({ url: 'https://media.invalid/fixture.mp4' }),
     video: null,
     nextVideo: null,
   }),
@@ -53,12 +50,13 @@ assert.equal(
   0,
   'A descriptor supplied directly to Core must not transmit an insecure add-on request.',
 );
-assert.equal(
-  network.describeAddon(
-    core.get_state('ctx').profile.addons.find((item) => item.manifest.id === addon.manifest.id),
-  ).transportIssue,
-  'insecure',
+// An insecure stored descriptor is still a displayable descriptor: it adapts,
+// and the transport policy annotates it rather than failing the model.
+const described = adaptCoreState('ctx', core.get_state('ctx')).profile.addons.find(
+  (item) => item.manifest.id === addon.manifest.id,
 );
+assert.ok(described, 'A blocked descriptor must stay readable in the profile.');
+assert.equal(network.describeAddon(described).transportIssue, 'insecure');
 assert.equal(core.get_state('player').metaItem.type, 'Err');
 console.log(
   `Core blocked ${stored ? 'stored' : 'directly installed'} insecure descriptors before network transmission.`,

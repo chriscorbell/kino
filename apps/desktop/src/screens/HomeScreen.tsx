@@ -6,13 +6,8 @@ import styles from '../App.module.css';
 import { MediaCard } from '../components/MediaCard';
 import { loadBoardAction, rewindLibraryItemAction } from '../core/actions';
 import { useCore } from '../core/context';
-import type {
-  BoardState,
-  ContinueWatchingState,
-  CoreCatalog,
-  CoreMetaPreview,
-  ProfileState,
-} from '../core/types';
+import { savedTitlePreview } from '../core/preview';
+import type { CoreCatalog, CoreMetaPreview } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
 
@@ -48,13 +43,9 @@ export function HomeScreen({
   onOpen: (item: CoreMetaPreview, videoId?: string | null) => void;
 }) {
   const core = useCore();
-  const board = useCoreModel<BoardState>('board', loadBoardAction, 'board');
-  const continueWatching = useCoreModel<ContinueWatchingState>(
-    'continue_watching_preview',
-    null,
-    'continue-watching',
-  );
-  const context = useCoreModel<ProfileState>('ctx', null, 'context');
+  const board = useCoreModel('board', loadBoardAction, 'board');
+  const continueWatching = useCoreModel('continue_watching_preview', null, 'continue-watching');
+  const context = useCoreModel('ctx', null, 'context');
   const catalogs = board.state?.catalogs ?? [];
 
   useEffect(() => {
@@ -104,23 +95,10 @@ export function HomeScreen({
         {continueItems.length > 0 ? (
           <div className={styles.continueRow}>
             {continueItems.map((item) => (
-              <div className={styles.continueCard} key={item._id}>
+              <div className={styles.continueCard} key={item.id}>
                 <button
                   className={styles.continueOpen}
-                  onClick={() =>
-                    onOpen(
-                      {
-                        id: item._id,
-                        inLibrary: true,
-                        name: item.name,
-                        ...(item.poster === undefined ? {} : { poster: item.poster }),
-                        posterShape: item.posterShape,
-                        type: item.type,
-                        watched: false,
-                      },
-                      item.state.videoId,
-                    )
-                  }
+                  onClick={() => onOpen(savedTitlePreview(item), item.videoId)}
                   type="button"
                 >
                   <span className={styles.continueArtwork}>
@@ -134,7 +112,7 @@ export function HomeScreen({
                 <button
                   aria-label={`${enUS.home.dismiss} ${item.name}`}
                   className={styles.continueDismiss}
-                  onClick={() => dismissContinueWatching(item._id)}
+                  onClick={() => dismissContinueWatching(item.id)}
                   title={enUS.home.dismiss}
                   type="button"
                 >

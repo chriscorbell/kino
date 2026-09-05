@@ -4,7 +4,7 @@ import styles from '../App.module.css';
 import { MediaCard } from '../components/MediaCard';
 import { loadSearchAction } from '../core/actions';
 import { useCore } from '../core/context';
-import type { BoardState, CoreMetaPreview } from '../core/types';
+import type { CoreMetaPreview } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
 import { useBrowseState } from '../navigation';
@@ -23,7 +23,7 @@ export function SearchScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => vo
     return () => window.clearTimeout(timer);
   }, [normalizedQuery, submittedQuery, setSearch]);
 
-  const result = useCoreModel<BoardState>(
+  const result = useCoreModel(
     'search',
     submittedQuery ? loadSearchAction(submittedQuery) : null,
     submittedQuery,

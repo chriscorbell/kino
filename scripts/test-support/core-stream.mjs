@@ -35,17 +35,72 @@ const fixtureMeta = {
   id: 'kino-fixture',
   type: 'movie',
   name: 'Synthetic fixture',
+  posterShape: 'poster',
   videos: [],
   inLibrary: false,
   watched: false,
 };
 
+export const fixturePreview = {
+  background: null,
+  defaultVideoId: null,
+  description: null,
+  id: fixtureMeta.id,
+  inLibrary: false,
+  logo: null,
+  name: fixtureMeta.name,
+  poster: null,
+  posterShape: 'poster',
+  releaseInfo: null,
+  released: null,
+  runtime: null,
+  type: fixtureMeta.type,
+  watched: false,
+};
+
+/**
+ * Build the application source a screen would hand to the player from a raw
+ * add-on stream, so a check can start from the wire shape an add-on returns.
+ */
+export function fixtureSource(stream) {
+  const hints = stream.behaviorHints ?? {};
+  const source = stream.infoHash
+    ? {
+        kind: 'torrent',
+        infoHash: stream.infoHash,
+        fileIdx: stream.fileIdx ?? null,
+        sources: stream.sources ?? stream.announce ?? [],
+      }
+    : stream.ytId
+      ? { kind: 'youtube', ytId: stream.ytId }
+      : stream.externalUrl
+        ? { kind: 'external', externalUrl: stream.externalUrl }
+        : stream.playerFrameUrl
+          ? { kind: 'playerFrame', playerFrameUrl: stream.playerFrameUrl }
+          : { kind: 'url', url: stream.url };
+  return {
+    description: stream.description ?? null,
+    name: stream.name ?? null,
+    source,
+    hints: {
+      bingeGroup: hints.bingeGroup ?? null,
+      countryWhitelist: hints.countryWhitelist ?? null,
+      filename: hints.filename ?? null,
+      notWebReady: hints.notWebReady ?? null,
+      proxyRequestHeaders: hints.proxyHeaders?.request ?? null,
+      proxyResponseHeaders: hints.proxyHeaders?.response ?? null,
+      videoHash: hints.videoHash ?? null,
+      videoSize: hints.videoSize ?? null,
+    },
+  };
+}
+
 export async function resolveCoreStream(core, stream) {
   core.dispatch(
     loadPlayerAction({
-      meta: fixtureMeta,
+      meta: fixturePreview,
       metaTransportUrl: 'https://addon.invalid/manifest.json',
-      stream: { deepLinks: { player: '' }, ...stream },
+      stream: fixtureSource(stream),
       streamTransportUrl: 'https://addon.invalid/manifest.json',
       video: null,
       nextVideo: null,

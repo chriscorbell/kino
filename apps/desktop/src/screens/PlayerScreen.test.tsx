@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { CoreContext } from '../core/context';
 import type { CoreTransport } from '../core/transport';
+import type { PlayerState } from '../core/types';
 import { defaultSettings } from '../settings';
+import { hints, preview, urlSource } from '../test/coreState';
 import { PlayerScreen } from './PlayerScreen';
 
 const native = vi.hoisted(() => ({
@@ -31,20 +33,25 @@ describe('native direct sources', () => {
         Referer: 'https://required.invalid/',
         Authorization: 'Bearer synthetic-test-value',
       };
-      const stream = {
-        url: 'https://media.invalid/video.mp4',
-        behaviorHints: { proxyHeaders: { request: headers } },
-        deepLinks: { player: '' },
-      };
-      const state = {
+      const stream = urlSource('https://media.invalid/video.mp4', {
+        hints: hints({ proxyRequestHeaders: headers }),
+      });
+      // Core resolves a header-bearing direct stream to its streaming-server
+      // proxy. The native backend sends the headers itself instead.
+      const state: PlayerState = {
+        libraryItem: null,
         selected: { stream },
         stream: {
           type: 'Ready',
           content: {
-            url: `${service}/proxy/d=https%3A%2F%2Fmedia.invalid&h=Referer%3Ahttps%3A%2F%2Frequired.invalid%2F/video.mp4`,
-            deepLinks: { player: '' },
+            source: {
+              kind: 'url',
+              url: `${service}/proxy/d=https%3A%2F%2Fmedia.invalid&h=Referer%3Ahttps%3A%2F%2Frequired.invalid%2F/video.mp4`,
+            },
           },
         },
+        subtitles: [],
+        title: null,
       };
       const transport: CoreTransport = {
         destroy: vi.fn(),
@@ -52,7 +59,7 @@ describe('native direct sources', () => {
         prepareClose: vi.fn().mockResolvedValue(undefined),
         onBeforeDestroy: () => () => {},
         dispatch: vi.fn().mockResolvedValue(undefined),
-        getState: async <State,>() => state as State,
+        getState: (async () => state) as CoreTransport['getState'],
         init: vi.fn().mockResolvedValue(undefined),
         subscribe: () => () => {},
       };
@@ -69,13 +76,7 @@ describe('native direct sources', () => {
         >
           <PlayerScreen
             selection={{
-              meta: {
-                id: 'fixture',
-                name: 'Fixture',
-                type: 'movie',
-                inLibrary: false,
-                watched: false,
-              },
+              meta: preview({ id: 'fixture', name: 'Fixture', type: 'movie' }),
               metaTransportUrl: 'https://addon.invalid/manifest.json',
               stream,
               streamTransportUrl: 'https://addon.invalid/manifest.json',
@@ -92,7 +93,11 @@ describe('native direct sources', () => {
         </CoreContext.Provider>,
       );
       await waitFor(() =>
-        expect(native.load).toHaveBeenCalledExactlyOnceWith(stream.url, false, headers),
+        expect(native.load).toHaveBeenCalledExactlyOnceWith(
+          'https://media.invalid/video.mp4',
+          false,
+          headers,
+        ),
       );
     },
   );

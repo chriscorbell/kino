@@ -1,53 +1,41 @@
 import type { AddonTransportIssue } from './addonNetwork';
 
-export type CoreModelName =
-  | 'board'
-  | 'continue_watching_preview'
-  | 'ctx'
-  | 'discover'
-  | 'installed_addons'
-  | 'library'
-  | 'meta_details'
-  | 'player'
-  | 'search';
+// Every type in this module is Kino's own application data. Nothing here is a
+// Stremio Core serializer shape: the adapters in ./adapters.ts read the raw
+// payload, check each field the application consumes, and produce these values.
+// Deep links, `announce`, `_id`, and other wire spellings stay in the adapter.
+
+export type Loadable<Ready, Failure = CoreResourceFailure> =
+  { type: 'Err'; content: Failure } | { type: 'Loading' } | { type: 'Ready'; content: Ready };
+
+/**
+ * A provider returned an ordinary failure for one resource. Board and Search
+ * serialize this as a string, MetaDetails and Player as a tagged object; both
+ * normalize here so screens can distinguish a failure from an empty result.
+ */
+export interface CoreResourceFailure {
+  kind: string;
+  message: string;
+}
+
+export type PosterShape = 'landscape' | 'poster' | 'square';
+
+export interface CatalogPath {
+  extra: Array<[string, string]>;
+  id: string;
+  resource: string;
+  type: string;
+}
 
 export interface CatalogRequest {
   base: string;
-  path: {
-    extra: Array<[string, string]>;
-    id: string;
-    resource: string;
-    type: string;
-  };
+  path: CatalogPath;
 }
 
-interface DiscoverDeepLink {
-  deepLinks?: { discover?: string };
-  selected: boolean;
-}
-
-export interface CatalogWithFiltersState {
-  paging?: { loading: boolean; error: boolean };
-  catalog: {
-    content: Loadable<CoreMetaPreview[], string> | null;
-  } | null;
-  selectable: {
-    nextPage: boolean;
-    catalogs: Array<
-      DiscoverDeepLink & {
-        addon: { manifest: { id: string; name: string } };
-        id: string;
-        name: string;
-      }
-    >;
-    extra: Array<{
-      isRequired: boolean;
-      name: string;
-      options: Array<DiscoverDeepLink & { value: string | null }>;
-    }>;
-    types: Array<DiscoverDeepLink & { type: string }>;
-  } | null;
-  selected: { request: CatalogRequest } | null;
+export interface LibraryRequest {
+  page: number;
+  sort: string;
+  type: string | null;
 }
 
 export interface CoreAction {
@@ -57,165 +45,175 @@ export interface CoreAction {
 
 export type CoreRuntimeEvent =
   | { name: 'CoreEvent'; args: { event: string; args?: unknown } }
-  | { name: 'NewState'; args: CoreModelName[] };
+  // Core also notifies models Kino never reads, so this stays a plain string list.
+  | { name: 'NewState'; args: string[] };
 
-export type Loadable<Ready, Failure = unknown> =
-  { type: 'Err'; content: Failure } | { type: 'Loading' } | { type: 'Ready'; content: Ready };
+/* Streams and playback sources -------------------------------------------- */
+
+/**
+ * The playable identity of a source. Core's Stream is an untagged enum, and its
+ * Player output adds a resolved `url` beside `infoHash` or `ytId`; the adapter
+ * therefore picks the variant from the discriminating field rather than the URL.
+ */
+export type CoreStreamSource =
+  | { fileIdx: number | null; infoHash: string; kind: 'torrent'; sources: string[] }
+  | { externalUrl: string; kind: 'external' }
+  | { kind: 'playerFrame'; playerFrameUrl: string }
+  | { kind: 'url'; url: string }
+  | { kind: 'youtube'; ytId: string };
+
+/**
+ * Stream hints an add-on supplies with a source. Kino displays some of them and
+ * sends all of them back when it loads the player, so a stored source keeps the
+ * proxy credentials and file metadata the add-on asked Core to use.
+ */
+export interface CoreSourceHints {
+  bingeGroup: string | null;
+  countryWhitelist: string[] | null;
+  filename: string | null;
+  notWebReady: boolean | null;
+  proxyRequestHeaders: Record<string, string> | null;
+  proxyResponseHeaders: Record<string, string> | null;
+  videoHash: string | null;
+  videoSize: number | null;
+}
+
+/** A source row an add-on offered for a title, before Core resolves it. */
+export interface CoreSource {
+  description: string | null;
+  hints: CoreSourceHints;
+  name: string | null;
+  source: CoreStreamSource;
+}
+
+/**
+ * Core's Player output after it resolved the selected source. It carries no
+ * add-on display metadata and no proxy headers; Core consumed those already.
+ */
+export interface CoreResolvedStream {
+  source: CoreStreamSource;
+}
+
+export interface AddonSubtitle {
+  id: string;
+  lang: string;
+  url: string;
+}
+
+/* Metadata ---------------------------------------------------------------- */
 
 export interface CoreMetaPreview {
-  background?: string | null;
-  behaviorHints?: Record<string, unknown>;
-  deepLinks?: Record<string, unknown>;
-  description?: string | null;
+  background: string | null;
+  defaultVideoId: string | null;
+  description: string | null;
+  /** Carried so AddToLibrary does not reset the hints Core stored for a title. */
+  featuredVideoId: string | null;
+  hasScheduledVideos: boolean;
   id: string;
   inLibrary: boolean;
-  links?: Array<{ category: string; name: string; url: string }>;
-  logo?: string | null;
+  logo: string | null;
   name: string;
-  poster?: string | null;
-  posterShape?: 'Landscape' | 'Poster' | 'Square';
-  releaseInfo?: string | null;
-  released?: string | null;
-  runtime?: string | null;
+  poster: string | null;
+  posterShape: PosterShape;
+  releaseInfo: string | null;
+  released: string | null;
+  runtime: string | null;
   type: string;
   watched: boolean;
 }
 
-export interface CoreCatalog {
-  addon: { manifest: { id: string; name: string } };
-  content: Loadable<CoreMetaPreview[], string> | null;
-  id: string;
-  name: string;
-  type: string;
-}
-
-export interface BoardState {
-  catalogs: CoreCatalog[];
-  selected: { extra: Array<[string, string]>; type?: string | null } | null;
-}
-
-export interface ContinueWatchingItem {
-  _id: string;
-  name: string;
-  poster?: string | null;
-  posterShape: 'Landscape' | 'Poster' | 'Square';
-  progress: number;
-  state: { videoId?: string | null };
-  type: string;
-}
-
-export interface ContinueWatchingState {
-  items: ContinueWatchingItem[];
-}
-
 export interface CoreVideo {
-  deepLinks?: Record<string, unknown>;
-  episode?: number;
+  episode: number | null;
   id: string;
-  overview?: string | null;
-  progress?: number | null;
-  released?: string | null;
-  season?: number;
-  thumbnail?: string | null;
+  overview: string | null;
+  released: string | null;
+  season: number | null;
+  thumbnail: string | null;
   title: string;
-  watched?: boolean;
-}
-
-export interface StreamDeepLinks {
-  externalPlayer?: {
-    download?: string | null;
-    magnet?: string | null;
-    streaming?: string | null;
-  };
-  player: string;
-}
-
-export interface CoreStream {
-  behaviorHints?: {
-    filename?: string | null;
-    notWebReady?: boolean;
-    proxyHeaders?: {
-      request?: Record<string, string>;
-      response?: Record<string, string>;
-    };
-    videoHash?: string | null;
-    videoSize?: number | null;
-  };
-  deepLinks: StreamDeepLinks;
-  description?: string | null;
-  externalUrl?: string | null;
-  fileIdx?: number | null;
-  infoHash?: string;
-  lastUsed?: boolean | null;
-  name?: string | null;
-  playerFrameUrl?: string;
-  progress?: number | null;
-  sources?: string[];
-  url?: string;
-  ytId?: string;
-}
-
-// Core's Player serializer resolves add-on streams and renames torrent sources
-// to announce. Keep that output separate from the add-on input used by Load.
-export interface CorePlayerStream extends Omit<CoreStream, 'sources'> {
-  announce?: string[];
-  sources?: never;
+  watched: boolean;
 }
 
 export interface CoreMetaItem extends CoreMetaPreview {
   videos: CoreVideo[];
 }
 
-interface CoreResource<Ready> {
-  addon: {
-    manifest: { id: string; logo?: string | null; name: string };
-    transportUrl?: string;
-  };
+export interface CoreCatalog {
+  addon: { manifest: { id: string; name: string } };
+  content: Loadable<CoreMetaPreview[]> | null;
+  id: string;
+  name: string;
+  type: string;
+}
+
+export interface CoreAddonOrigin {
+  manifest: { id: string; logo: string | null; name: string };
+  transportUrl: string | null;
+}
+
+export interface CoreResource<Ready> {
+  addon: CoreAddonOrigin;
   content: Loadable<Ready>;
 }
 
-interface LibraryPlaybackProgress {
-  _id: string;
-  state: { timeOffset: number; video_id?: string | null };
+/** Saved playback position for the title a screen is showing. */
+export interface LibraryPlaybackProgress {
+  id: string;
+  timeOffset: number;
+  videoId: string | null;
 }
 
-export interface MetaDetailsState {
-  libraryItem: LibraryPlaybackProgress | null;
-  metaItem: CoreResource<CoreMetaItem> | null;
-  selected: {
-    metaPath: CatalogRequest['path'];
-    streamPath: CatalogRequest['path'] | null;
-    guessStream: boolean;
+/* Models ------------------------------------------------------------------ */
+
+export interface BoardState {
+  catalogs: CoreCatalog[];
+  selected: { extra: Array<[string, string]>; type: string | null } | null;
+}
+
+export interface CatalogChoice {
+  addon: { manifest: { id: string; name: string } };
+  id: string;
+  name: string;
+  /** Null when Core offers no usable destination for this choice. */
+  request: CatalogRequest | null;
+  selected: boolean;
+}
+
+export interface CatalogWithFiltersState {
+  catalog: { content: Loadable<CoreMetaPreview[]> | null } | null;
+  paging?: { error: boolean; loading: boolean };
+  selectable: {
+    catalogs: CatalogChoice[];
+    extra: Array<{
+      isRequired: boolean;
+      name: string;
+      options: Array<{ request: CatalogRequest | null; selected: boolean; value: string | null }>;
+    }>;
+    nextPage: boolean;
+    types: Array<{ request: CatalogRequest | null; selected: boolean; type: string }>;
   } | null;
-  streams: Array<CoreResource<CoreStream[]>>;
-  title?: string | null;
+  selected: { request: CatalogRequest } | null;
 }
 
-export interface PlayerState {
-  addon?: { manifest: { name: string } } | null;
-  introOutro?: {
-    intro?: { duration?: number | null; from: number; to: number } | null;
-    outro?: number | null;
-  } | null;
-  libraryItem?: LibraryPlaybackProgress | null;
-  selected: { stream: CoreStream } | null;
-  stream: Loadable<CorePlayerStream> | null;
-  subtitles?: unknown;
-  title?: string | null;
+export interface ContinueWatchingItem {
+  id: string;
+  name: string;
+  poster: string | null;
+  posterShape: PosterShape;
+  progress: number;
+  type: string;
+  videoId: string | null;
 }
 
-export interface LibraryRequest {
-  page: number;
-  sort: string;
-  type: string | null;
+export interface ContinueWatchingState {
+  items: ContinueWatchingItem[];
 }
 
 export interface LibraryItem {
-  _id: string;
+  id: string;
   name: string;
-  poster?: string | null;
-  posterShape?: 'Landscape' | 'Poster' | 'Square';
-  progress?: number | null;
+  poster: string | null;
+  posterShape: PosterShape;
+  progress: number;
   type: string;
 }
 
@@ -223,34 +221,106 @@ export interface LibraryState {
   catalog: LibraryItem[];
   selectable: {
     nextPage: boolean;
-    sorts: Array<{ deepLinks: { library: string }; selected: boolean; sort: string }>;
-    types: Array<{ deepLinks: { library: string }; selected: boolean; type: string | null }>;
+    sorts: Array<{ request: LibraryRequest; selected: boolean; sort: string }>;
+    types: Array<{ request: LibraryRequest; selected: boolean; type: string | null }>;
   } | null;
   selected: { request: LibraryRequest } | null;
 }
 
+export interface MetaDetailsState {
+  libraryItem: LibraryPlaybackProgress | null;
+  metaItem: CoreResource<CoreMetaItem> | null;
+  selected: {
+    guessStream: boolean;
+    metaPath: CatalogPath;
+    streamPath: CatalogPath | null;
+  } | null;
+  streams: Array<CoreResource<CoreSource[]>>;
+  title: string | null;
+}
+
+export interface PlayerState {
+  libraryItem: LibraryPlaybackProgress | null;
+  selected: { stream: CoreSource } | null;
+  stream: Loadable<CoreResolvedStream> | null;
+  subtitles: AddonSubtitle[];
+  title: string | null;
+}
+
+/* Profile ----------------------------------------------------------------- */
+
+export interface CoreAddonManifest {
+  behaviorHints: { configurable: boolean; configurationRequired: boolean };
+  description: string | null;
+  id: string;
+  logo: string | null;
+  name: string;
+  types: string[];
+  /**
+   * The complete serialized manifest. Install and uninstall send the descriptor
+   * back to Core, which rejects a manifest missing its catalogs or resources, so
+   * fields Kino never displays are carried here rather than dropped.
+   */
+  values: Readonly<Record<string, unknown>>;
+  version: string | null;
+}
+
 export interface CoreAddon {
-  transportIssue?: AddonTransportIssue | null;
-  flags?: { official?: boolean; protected?: boolean };
-  manifest: {
-    behaviorHints?: { configurable?: boolean; configurationRequired?: boolean };
-    description?: string | null;
-    id: string;
-    logo?: string | null;
-    name: string;
-    types?: string[];
-    version?: string;
-  };
+  flags: { official: boolean; protected: boolean };
+  manifest: CoreAddonManifest;
+  transportIssue: AddonTransportIssue | null;
   transportUrl: string;
+}
+
+export interface CoreProfileSettings {
+  audioLanguage: string | null;
+  subtitlesLanguage: string | null;
+  /**
+   * Every serialized setting. UpdateSettings replaces the whole record, so a
+   * dropped field would reset a preference Kino does not present.
+   */
+  values: Readonly<Record<string, unknown>>;
 }
 
 export interface ProfileState {
   profile: {
     addons: CoreAddon[];
-    auth?: { user: { email?: string; name?: string; uid?: string } };
-    settings?: Record<string, unknown> & {
-      audioLanguage?: string | null;
-      subtitlesLanguage?: string | null;
-    };
+    auth: { user: { email: string | null; name: string | null } } | null;
+    settings: CoreProfileSettings;
   };
+}
+
+/* Model registry ---------------------------------------------------------- */
+
+/**
+ * The Core models Kino reads, each bound to the application state its adapter
+ * produces. Callers name a model and receive that state; they cannot ask for a
+ * different shape.
+ */
+export interface CoreStateMap {
+  board: BoardState;
+  continue_watching_preview: ContinueWatchingState;
+  ctx: ProfileState;
+  discover: CatalogWithFiltersState;
+  library: LibraryState;
+  meta_details: MetaDetailsState;
+  player: PlayerState;
+  search: BoardState;
+}
+
+export type CoreModelName = keyof CoreStateMap;
+
+const coreModelNames: ReadonlySet<string> = new Set<CoreModelName>([
+  'board',
+  'continue_watching_preview',
+  'ctx',
+  'discover',
+  'library',
+  'meta_details',
+  'player',
+  'search',
+]);
+
+export function isCoreModelName(value: unknown): value is CoreModelName {
+  return typeof value === 'string' && coreModelNames.has(value);
 }

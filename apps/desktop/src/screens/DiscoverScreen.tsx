@@ -7,8 +7,8 @@ import { LoadMore } from '../components/LoadMore';
 import { useCore } from '../core/context';
 import type { CoreTransport } from '../core/transport';
 import { loadCatalogAction } from '../core/actions';
-import { catalogRequestFromDeepLink, catalogRequestKey } from '../core/catalog';
-import type { CatalogWithFiltersState, CoreMetaPreview } from '../core/types';
+import { catalogRequestKey } from '../core/catalog';
+import type { CatalogRequest, CoreMetaPreview } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
 import { useBrowseState } from '../navigation';
@@ -31,11 +31,7 @@ function filterLabel(filter: { name: string; options: Array<{ value: string | nu
 export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => void }) {
   const { transport } = useCore();
   const [request, setRequest] = useBrowseState('discover');
-  const result = useCoreModel<CatalogWithFiltersState>(
-    'discover',
-    loadCatalogAction(request),
-    catalogRequestKey(request),
-  );
+  const result = useCoreModel('discover', loadCatalogAction(request), catalogRequestKey(request));
   const key = catalogRequestKey(request);
   const [operation, setOperation] = useState<{ key: string; transport: CoreTransport } | null>(
     null,
@@ -64,8 +60,9 @@ export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => 
   const items = content?.type === 'Ready' ? content.content : [];
   const filters = selectable?.extra.filter((extra) => extra.options.length > 0) ?? [];
 
-  const select = (link: string | undefined) => {
-    const next = catalogRequestFromDeepLink(link);
+  // The adapter already turned each choice into a request or marked it
+  // unavailable, so this screen never handles a Core link format.
+  const select = (next: CatalogRequest | null) => {
     if (next) setRequest(next);
   };
 
@@ -79,8 +76,9 @@ export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => 
             <button
               aria-pressed={option.selected}
               className={option.selected ? styles.pillActive : styles.pill}
+              disabled={!option.request}
               key={option.type}
-              onClick={() => select(option.deepLinks?.discover)}
+              onClick={() => select(option.request)}
               type="button"
             >
               {typeLabel(option.type)}
@@ -96,8 +94,9 @@ export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => 
               <button
                 aria-pressed={option.selected}
                 className={option.selected ? styles.catalogTabActive : styles.catalogTab}
+                disabled={!option.request}
                 key={`${option.addon.manifest.id}:${option.id}:${option.name}`}
-                onClick={() => select(option.deepLinks?.discover)}
+                onClick={() => select(option.request)}
                 type="button"
               >
                 {option.name}
@@ -117,7 +116,7 @@ export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => 
                         className={styles.genreSelect}
                         onChange={(event) => {
                           const option = filter.options[Number(event.target.value)];
-                          select(option?.deepLinks?.discover);
+                          select(option?.request ?? null);
                         }}
                         value={Math.max(
                           0,
@@ -126,7 +125,7 @@ export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => 
                       >
                         {filter.options.map((option, index) => (
                           <option
-                            disabled={!option.deepLinks?.discover}
+                            disabled={!option.request}
                             key={option.value ?? 'all'}
                             value={index}
                           >

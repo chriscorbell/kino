@@ -88,8 +88,8 @@ function NavigationButton({
 function accountInitial(profile: ProfileState | null) {
   const user = profile?.profile.auth?.user;
   if (!user) return 'G';
-  const source = user.name?.trim() || user.email?.trim() || '';
-  return source.slice(0, 1).toUpperCase() || '?';
+  const source = user.name ?? user.email ?? '';
+  return source.trim().slice(0, 1).toUpperCase() || '?';
 }
 
 export function App() {
@@ -110,7 +110,7 @@ export function App() {
   const [playback, setPlayback] = useState<PlaybackSelection | null>(null);
   const [failedSources, setFailedSources] = useState<ReadonlyMap<string, string>>(new Map());
   const [accountOpen, setAccountOpen] = useState(false);
-  const profile = useCoreModel<ProfileState>('ctx', null, 'app-profile');
+  const profile = useCoreModel('ctx', null, 'app-profile');
   const [settings, setSettings] = useState<KinoSettings>(() =>
     typeof window === 'undefined' ? defaultSettings : loadSettings(window.localStorage),
   );
@@ -341,7 +341,7 @@ export function App() {
               setFailedSources(new Map());
               setPlayback(null);
             }}
-            preferredSubtitleLanguage={profile.state?.profile.settings?.subtitlesLanguage ?? null}
+            preferredSubtitleLanguage={profile.state?.profile.settings.subtitlesLanguage ?? null}
             selection={playback}
             settings={settings}
           />

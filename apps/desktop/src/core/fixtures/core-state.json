@@ -1,0 +1,1646 @@
+{
+  "_provenance": {
+    "core": "@stremio/stremio-core-web 0.61.0",
+    "generatedBy": "scripts/capture-core-fixtures.mjs",
+    "note": "Synthetic data, in-memory storage, intercepted fetch. Regenerate with the script; do not edit by hand."
+  },
+  "guest_ctx": {
+    "model": "ctx",
+    "state": {
+      "profile": {
+        "auth": null,
+        "addons": [
+          {
+            "manifest": {
+              "id": "com.linvo.cinemeta",
+              "version": "3.0.14",
+              "name": "Cinemeta",
+              "contactEmail": null,
+              "description": "The official addon for movie and series catalogs",
+              "logo": null,
+              "background": null,
+              "types": ["movie", "series"],
+              "resources": ["catalog", "meta", "addon_catalog"],
+              "idPrefixes": ["tt"],
+              "catalogs": [
+                {
+                  "id": "top",
+                  "type": "movie",
+                  "name": "Popular",
+                  "extra": [
+                    {
+                      "name": "genre",
+                      "isRequired": false,
+                      "options": [
+                        "Action",
+                        "Adventure",
+                        "Animation",
+                        "Biography",
+                        "Comedy",
+                        "Crime",
+                        "Documentary",
+                        "Drama",
+                        "Family",
+                        "Fantasy",
+                        "History",
+                        "Horror",
+                        "Mystery",
+                        "Romance",
+                        "Sci-Fi",
+                        "Sport",
+                        "Thriller",
+                        "War",
+                        "Western"
+                      ],
+                      "optionsLimit": 1
+                    },
+                    {
+                      "name": "search",
+                      "isRequired": false,
+                      "options": [],
+                      "optionsLimit": 1
+                    },
+                    {
+                      "name": "skip",
+                      "isRequired": false,
+                      "options": [],
+                      "optionsLimit": 1
+                    }
+                  ]
+                },
+                {
+                  "id": "top",
+                  "type": "series",
+                  "name": "Popular",
+                  "extra": [
+                    {
+                      "name": "genre",
+                      "isRequired": false,
+                      "options": [
+                        "Action",
+                        "Adventure",
+                        "Animation",
+                        "Biography",
+                        "Comedy",
+                        "Crime",
+                        "Documentary",
+                        "Drama",
+                        "Family",
+                        "Fantasy",
+                        "History",
+                        "Horror",
+                        "Mystery",
+                        "Romance",
+                        "Sci-Fi",
+                        "Sport",
+                        "Thriller",
+                        "War",
+                        "Western",
+                        "Reality-TV",
+                        "Talk-Show",
+                        "Game-Show"
+                      ],
+                      "optionsLimit": 1
+                    },
+                    {
+                      "name": "search",
+                      "isRequired": false,
+                      "options": [],
+                      "optionsLimit": 1
+                    },
+                    {
+                      "name": "skip",
+                      "isRequired": false,
+                      "options": [],
+                      "optionsLimit": 1
+                    }
+                  ]
+                },
+                {
+                  "id": "year",
+                  "type": "movie",
+                  "name": "New",
+                  "extra": [
+                    {
+                      "name": "genre",
+                      "isRequired": true,
+                      "options": [
+                        "2026",
+                        "2025",
+                        "2024",
+                        "2023",
+                        "2022",
+                        "2021",
+                        "2020",
+                        "2019",
+                        "2018",
+                        "2017",
+                        "2016",
+                        "2015",
+                        "2014",
+                        "2013",
+                        "2012",
+                        "2011",
+                        "2010",
+                        "2009",
+                        "2008",
+                        "2007",
+                        "2006",
+                        "2005",
+                        "2004",
+                        "2003",
+                        "2002",
+                        "2001",
+                        "2000",
+                        "1999",
+                        "1998",
+                        "1997",
+                        "1996",
+                        "1995",
+                        "1994",
+                        "1993",
+                        "1992",
+                        "1991",
+                        "1990",
+                        "1989",
+                        "1988",
+                        "1987",
+                        "1986",
+                        "1985",
+                        "1984",
+                        "1983",
+                        "1982",
+                        "1981",
+                        "1980",
+                        "1979",
+                        "1978",
+                        "1977",
+                        "1976",
+                        "1975",
+                        "1974",
+                        "1973",
+                        "1972",
+                        "1971",
+                        "1970",
+                        "1969",
+                        "1968",
+                        "1967",
+                        "1966",
+                        "1965",
+                        "1964",
+                        "1963",
+                        "1962",
+                        "1961",
+                        "1960",
+                        "1959",
+                        "1958",
+                        "1957",
+                        "1956",
+                        "1955",
+                        "1954",
+                        "1953",
+                        "1952",
+                        "1951",
+                        "1950",
+                        "1949",
+                        "1948",
+                        "1947",
+                        "1946",
+                        "1945",
+                        "1944",
+                        "1943",
+                        "1942",
+                        "1941",
+                        "1940",
+                        "1939",
+                        "1938",
+                        "1937",
+                        "1936",
+                        "1935",
+                        "1934",
+                        "1933",
+                        "1932",
+                        "1931",
+                        "1930",
+                        "1929",
+                        "1928",
+                        "1927",
+                        "1926",
+                        "1925",
+                        "1924",
+                        "1923",
+                        "1922",
+                        "1921",
+                        "1920"
+                      ],
+                      "optionsLimit": 1
+                    },
+                    {
+                      "name": "skip",
+                      "isRequired": false,
+                      "options": [],
+                      "optionsLimit": 1
+                    }
+                  ]
+                },
+                {
+                  "id": "year",
+                  "type": "series",
+                  "name": "New",
+                  "extra": [
+                    {
+                      "name": "genre",
+                      "isRequired": true,
+                      "options": [
+                        "2026",
+                        "2025",
+                        "2024",
+                        "2023",
+                        "2022",
+                        "2021",
+                        "2020",
+                        "2019",
+                        "2018",
+                        "2017",
+                        "2016",
+                        "2015",
+                        "2014",
+                        "2013",
+                        "2012",
+                        "2011",
+                        "2010",
+                        "2009",
+                        "2008",
+                        "2007",
+                        "2006",
+                        "2005",
+                        "2004",
+                        "2003",
+                        "2002",
+                        "2001",
+                        "2000",
+                        "1999",
+                        "1998",
+                        "1997",
+                        "1996",
+                        "1995",
+                        "1994",
+                        "1993",
+                        "1992",
+                        "1991",
+                        "1990",
+                        "1989",
+                        "1988",
+                        "1987",
+                        "1986",
+                        "1985",
+                        "1984",
+                        "1983",
+                        "1982",
+                        "1981",
+                        "1980",
+                        "1979",
+                        "1978",
+                        "1977",
+                        "1976",
+                        "1975",
+                        "1974",
+                        "1973",
+                        "1972",
+                        "1971",
+                        "1970",
+                        "1969",
+                        "1968",
+                        "1967",
+                        "1966",
+                        "1965",
+                        "1964",
+                        "1963",
+                        "1962",
+                        "1961",
+                        "1960"
+                      ],
+                      "optionsLimit": 1
+                    },
+                    {
+                      "name": "skip",
+                      "isRequired": false,
+                      "options": [],
+                      "optionsLimit": 1
+                    }
+                  ]
+                },
+                {
+                  "id": "imdbRating",
+                  "type": "movie",
+                  "name": "Featured",
+                  "extra": [
+                    {
+                      "name": "genre",
+                      "isRequired": false,
+                      "options": [
+                        "Action",
+                        "Adventure",
+                        "Animation",
+                        "Biography",
+                        "Comedy",
+                        "Crime",
+                        "Documentary",
+                        "Drama",
+                        "Family",
+                        "Fantasy",
+                        "History",
+                        "Horror",
+                        "Mystery",
+                        "Romance",
+                        "Sci-Fi",
+                        "Sport",
+                        "Thriller",
+                        "War",
+                        "Western"
+                      ],
+                      "optionsLimit": 1
+                    },
+                    {
+                      "name": "skip",
+                      "isRequired": false,
+                      "options": [],
+                      "optionsLimit": 1
+                    }
+                  ]
+                },
+                {
+                  "id": "imdbRating",
+                  "type": "series",
+                  "name": "Featured",
+                  "extra": [
+                    {
+                      "name": "genre",
+                      "isRequired": false,
+                      "options": [
+                        "Action",
+                        "Adventure",
+                        "Animation",
+                        "Biography",
+                        "Comedy",
+                        "Crime",
+                        "Documentary",
+                        "Drama",
+                        "Family",
+                        "Fantasy",
+                        "History",
+                        "Horror",
+                        "Mystery",
+                        "Romance",
+                        "Sci-Fi",
+                        "Sport",
+                        "Thriller",
+                        "War",
+                        "Western",
+                        "Reality-TV",
+                        "Talk-Show",
+                        "Game-Show"
+                      ],
+                      "optionsLimit": 1
+                    },
+                    {
+                      "name": "skip",
+                      "isRequired": false,
+                      "options": [],
+                      "optionsLimit": 1
+                    }
+                  ]
+                },
+                {
+                  "id": "last-videos",
+                  "type": "series",
+                  "name": "Last videos",
+                  "extra": [
+                    {
+                      "name": "lastVideosIds",
+                      "isRequired": true,
+                      "options": [],
+                      "optionsLimit": 100
+                    }
+                  ]
+                },
+                {
+                  "id": "calendar-videos",
+                  "type": "series",
+                  "name": "Calendar videos",
+                  "extra": [
+                    {
+                      "name": "calendarVideosIds",
+                      "isRequired": true,
+                      "options": [],
+                      "optionsLimit": 100
+                    }
+                  ]
+                }
+              ],
+              "addonCatalogs": [
+                {
+                  "id": "official",
+                  "type": "all",
+                  "name": "Official",
+                  "extraRequired": [],
+                  "extraSupported": []
+                },
+                {
+                  "id": "official",
+                  "type": "movie",
+                  "name": "Official",
+                  "extraRequired": [],
+                  "extraSupported": []
+                },
+                {
+                  "id": "official",
+                  "type": "series",
+                  "name": "Official",
+                  "extraRequired": [],
+                  "extraSupported": []
+                },
+                {
+                  "id": "official",
+                  "type": "channel",
+                  "name": "Official",
+                  "extraRequired": [],
+                  "extraSupported": []
+                },
+                {
+                  "id": "community",
+                  "type": "all",
+                  "name": "Community",
+                  "extraRequired": [],
+                  "extraSupported": []
+                },
+                {
+                  "id": "community",
+                  "type": "movie",
+                  "name": "Community",
+                  "extraRequired": [],
+                  "extraSupported": []
+                },
+                {
+                  "id": "community",
+                  "type": "series",
+                  "name": "Community",
+                  "extraRequired": [],
+                  "extraSupported": []
+                },
+                {
+                  "id": "community",
+                  "type": "channel",
+                  "name": "Community",
+                  "extraRequired": [],
+                  "extraSupported": []
+                },
+                {
+                  "id": "community",
+                  "type": "tv",
+                  "name": "Community",
+                  "extraRequired": [],
+                  "extraSupported": []
+                },
+                {
+                  "id": "community",
+                  "type": "Podcasts",
+                  "name": "Community",
+                  "extraRequired": [],
+                  "extraSupported": []
+                },
+                {
+                  "id": "community",
+                  "type": "other",
+                  "name": "Community",
+                  "extraRequired": [],
+                  "extraSupported": []
+                }
+              ],
+              "behaviorHints": {
+                "adult": false,
+                "p2p": false,
+                "configurable": false,
+                "configurationRequired": false
+              }
+            },
+            "transportUrl": "https://v3-cinemeta.strem.io/manifest.json",
+            "flags": {
+              "official": true,
+              "protected": true
+            }
+          },
+          {
+            "manifest": {
+              "id": "kino.fixture",
+              "version": "1.0.0",
+              "name": "Contract fixture",
+              "contactEmail": null,
+              "description": null,
+              "logo": null,
+              "background": null,
+              "types": ["series"],
+              "resources": ["catalog", "meta", "stream", "subtitles"],
+              "idPrefixes": null,
+              "catalogs": [
+                {
+                  "id": "fixture",
+                  "type": "series",
+                  "name": "Fixture",
+                  "extra": [
+                    {
+                      "name": "search",
+                      "isRequired": false,
+                      "options": [],
+                      "optionsLimit": 1
+                    },
+                    {
+                      "name": "genre",
+                      "isRequired": false,
+                      "options": ["Drama", "Comedy"],
+                      "optionsLimit": 1
+                    },
+                    {
+                      "name": "skip",
+                      "isRequired": false,
+                      "options": [],
+                      "optionsLimit": 1
+                    }
+                  ]
+                }
+              ],
+              "addonCatalogs": [],
+              "behaviorHints": {
+                "adult": false,
+                "p2p": false,
+                "configurable": false,
+                "configurationRequired": false
+              }
+            },
+            "transportUrl": "https://fixture.invalid/manifest.json",
+            "flags": {
+              "official": false,
+              "protected": false
+            }
+          }
+        ],
+        "addonsLocked": false,
+        "settings": {
+          "interfaceLanguage": "eng",
+          "interfaceScale": 100,
+          "hideSpoilers": false,
+          "gamepadSupport": false,
+          "streamingServerUrl": "http://127.0.0.1:11470/",
+          "playerType": null,
+          "bingeWatching": true,
+          "playInBackground": true,
+          "hardwareDecoding": true,
+          "gpuVideoProcessing": false,
+          "videoMode": null,
+          "frameRateMatchingStrategy": "Disabled",
+          "nextVideoNotificationDuration": 35000,
+          "audioPassthrough": false,
+          "audioLanguage": "eng",
+          "secondaryAudioLanguage": null,
+          "subtitlesLanguage": "eng",
+          "secondarySubtitlesLanguage": null,
+          "subtitlesAutoSelect": true,
+          "subtitlesSize": 100,
+          "subtitlesFont": "Roboto",
+          "subtitlesBold": false,
+          "subtitlesOffset": 5,
+          "subtitlesTextColor": "#FFFFFFFF",
+          "subtitlesBackgroundColor": "#00000000",
+          "subtitlesOutlineColor": "#000000",
+          "subtitlesOpacity": 100,
+          "assSubtitlesStyling": false,
+          "escExitFullscreen": true,
+          "seekTimeDuration": 10000,
+          "seekShortTimeDuration": 3000,
+          "pauseOnMinimize": false,
+          "quitOnClose": true,
+          "surroundSound": false,
+          "streamingServerWarningDismissed": null,
+          "serverInForeground": false,
+          "sendCrashReports": true,
+          "discordRpcEnabled": false
+        }
+      }
+    }
+  },
+  "loading_discover": {
+    "model": "discover",
+    "state": {
+      "catalog": {
+        "content": {
+          "type": "Loading"
+        },
+        "installed": true
+      },
+      "selectable": {
+        "types": [
+          {
+            "type": "movie",
+            "selected": false,
+            "deepLinks": {
+              "discover": "#/discover/https%3A%2F%2Fv3-cinemeta.strem.io%2Fmanifest.json/movie/top?"
+            }
+          },
+          {
+            "type": "series",
+            "selected": true,
+            "deepLinks": {
+              "discover": "#/discover/https%3A%2F%2Fv3-cinemeta.strem.io%2Fmanifest.json/series/top?"
+            }
+          },
+          {
+            "type": "channel",
+            "selected": false,
+            "deepLinks": {
+              "discover": "#/discover/https%3A%2F%2Fv3-channels.strem.io%2Fmanifest.json/channel/top?"
+            }
+          }
+        ],
+        "catalogs": [
+          {
+            "id": "top",
+            "name": "Popular",
+            "type": "series",
+            "addon": {
+              "manifest": {
+                "id": "com.linvo.cinemeta",
+                "name": "Cinemeta"
+              }
+            },
+            "selected": false,
+            "deepLinks": {
+              "discover": "#/discover/https%3A%2F%2Fv3-cinemeta.strem.io%2Fmanifest.json/series/top?"
+            }
+          },
+          {
+            "id": "year",
+            "name": "New",
+            "type": "series",
+            "addon": {
+              "manifest": {
+                "id": "com.linvo.cinemeta",
+                "name": "Cinemeta"
+              }
+            },
+            "selected": false,
+            "deepLinks": {
+              "discover": "#/discover/https%3A%2F%2Fv3-cinemeta.strem.io%2Fmanifest.json/series/year?genre=2026"
+            }
+          },
+          {
+            "id": "imdbRating",
+            "name": "Featured",
+            "type": "series",
+            "addon": {
+              "manifest": {
+                "id": "com.linvo.cinemeta",
+                "name": "Cinemeta"
+              }
+            },
+            "selected": false,
+            "deepLinks": {
+              "discover": "#/discover/https%3A%2F%2Fv3-cinemeta.strem.io%2Fmanifest.json/series/imdbRating?"
+            }
+          },
+          {
+            "id": "fixture",
+            "name": "Fixture",
+            "type": "series",
+            "addon": {
+              "manifest": {
+                "id": "kino.fixture",
+                "name": "Contract fixture"
+              }
+            },
+            "selected": true,
+            "deepLinks": {
+              "discover": "#/discover/https%3A%2F%2Ffixture.invalid%2Fmanifest.json/series/fixture?"
+            }
+          }
+        ],
+        "extra": [
+          {
+            "name": "genre",
+            "isRequired": false,
+            "options": [
+              {
+                "value": null,
+                "selected": false,
+                "deepLinks": {
+                  "discover": "#/discover/https%3A%2F%2Ffixture.invalid%2Fmanifest.json/series/fixture?"
+                }
+              },
+              {
+                "value": "Drama",
+                "selected": true,
+                "deepLinks": {
+                  "discover": "#/discover/https%3A%2F%2Ffixture.invalid%2Fmanifest.json/series/fixture?genre=Drama"
+                }
+              },
+              {
+                "value": "Comedy",
+                "selected": false,
+                "deepLinks": {
+                  "discover": "#/discover/https%3A%2F%2Ffixture.invalid%2Fmanifest.json/series/fixture?genre=Comedy"
+                }
+              }
+            ]
+          }
+        ],
+        "nextPage": false
+      },
+      "selected": {
+        "request": {
+          "base": "https://fixture.invalid/manifest.json",
+          "path": {
+            "resource": "catalog",
+            "type": "series",
+            "id": "fixture",
+            "extra": [["genre", "Drama"]]
+          }
+        }
+      }
+    }
+  },
+  "ready_discover": {
+    "model": "discover",
+    "state": {
+      "catalog": {
+        "content": {
+          "type": "Ready",
+          "content": [
+            {
+              "id": "kino-fixture",
+              "type": "series",
+              "name": "Synthetic series",
+              "poster": "https://fixture.invalid/poster.jpg",
+              "background": null,
+              "logo": null,
+              "description": null,
+              "releaseInfo": "2024-",
+              "runtime": null,
+              "released": null,
+              "posterShape": "landscape",
+              "links": [],
+              "behaviorHints": {
+                "defaultVideoId": null,
+                "featuredVideoId": null,
+                "hasScheduledVideos": false
+              },
+              "watched": false,
+              "inLibrary": true
+            }
+          ]
+        },
+        "installed": true
+      },
+      "selectable": {
+        "types": [
+          {
+            "type": "movie",
+            "selected": false,
+            "deepLinks": {
+              "discover": "#/discover/https%3A%2F%2Fv3-cinemeta.strem.io%2Fmanifest.json/movie/top?"
+            }
+          },
+          {
+            "type": "series",
+            "selected": true,
+            "deepLinks": {
+              "discover": "#/discover/https%3A%2F%2Fv3-cinemeta.strem.io%2Fmanifest.json/series/top?"
+            }
+          },
+          {
+            "type": "channel",
+            "selected": false,
+            "deepLinks": {
+              "discover": "#/discover/https%3A%2F%2Fv3-channels.strem.io%2Fmanifest.json/channel/top?"
+            }
+          }
+        ],
+        "catalogs": [
+          {
+            "id": "top",
+            "name": "Popular",
+            "type": "series",
+            "addon": {
+              "manifest": {
+                "id": "com.linvo.cinemeta",
+                "name": "Cinemeta"
+              }
+            },
+            "selected": false,
+            "deepLinks": {
+              "discover": "#/discover/https%3A%2F%2Fv3-cinemeta.strem.io%2Fmanifest.json/series/top?"
+            }
+          },
+          {
+            "id": "year",
+            "name": "New",
+            "type": "series",
+            "addon": {
+              "manifest": {
+                "id": "com.linvo.cinemeta",
+                "name": "Cinemeta"
+              }
+            },
+            "selected": false,
+            "deepLinks": {
+              "discover": "#/discover/https%3A%2F%2Fv3-cinemeta.strem.io%2Fmanifest.json/series/year?genre=2026"
+            }
+          },
+          {
+            "id": "imdbRating",
+            "name": "Featured",
+            "type": "series",
+            "addon": {
+              "manifest": {
+                "id": "com.linvo.cinemeta",
+                "name": "Cinemeta"
+              }
+            },
+            "selected": false,
+            "deepLinks": {
+              "discover": "#/discover/https%3A%2F%2Fv3-cinemeta.strem.io%2Fmanifest.json/series/imdbRating?"
+            }
+          },
+          {
+            "id": "fixture",
+            "name": "Fixture",
+            "type": "series",
+            "addon": {
+              "manifest": {
+                "id": "kino.fixture",
+                "name": "Contract fixture"
+              }
+            },
+            "selected": true,
+            "deepLinks": {
+              "discover": "#/discover/https%3A%2F%2Ffixture.invalid%2Fmanifest.json/series/fixture?"
+            }
+          }
+        ],
+        "extra": [
+          {
+            "name": "genre",
+            "isRequired": false,
+            "options": [
+              {
+                "value": null,
+                "selected": false,
+                "deepLinks": {
+                  "discover": "#/discover/https%3A%2F%2Ffixture.invalid%2Fmanifest.json/series/fixture?"
+                }
+              },
+              {
+                "value": "Drama",
+                "selected": true,
+                "deepLinks": {
+                  "discover": "#/discover/https%3A%2F%2Ffixture.invalid%2Fmanifest.json/series/fixture?genre=Drama"
+                }
+              },
+              {
+                "value": "Comedy",
+                "selected": false,
+                "deepLinks": {
+                  "discover": "#/discover/https%3A%2F%2Ffixture.invalid%2Fmanifest.json/series/fixture?genre=Comedy"
+                }
+              }
+            ]
+          }
+        ],
+        "nextPage": true
+      },
+      "selected": {
+        "request": {
+          "base": "https://fixture.invalid/manifest.json",
+          "path": {
+            "resource": "catalog",
+            "type": "series",
+            "id": "fixture",
+            "extra": [["genre", "Drama"]]
+          }
+        }
+      }
+    }
+  },
+  "ready_library": {
+    "model": "library",
+    "state": {
+      "catalog": [
+        {
+          "_id": "kino-fixture",
+          "name": "Synthetic series",
+          "type": "series",
+          "poster": "https://fixture.invalid/poster.jpg",
+          "posterShape": "square",
+          "notifications": 0,
+          "progress": 0,
+          "watched": false
+        }
+      ],
+      "selectable": {
+        "types": [
+          {
+            "type": null,
+            "selected": false
+          },
+          {
+            "type": "series",
+            "selected": true
+          }
+        ],
+        "sorts": [
+          {
+            "sort": "lastwatched",
+            "selected": true
+          },
+          {
+            "sort": "name",
+            "selected": false
+          },
+          {
+            "sort": "namereverse",
+            "selected": false
+          },
+          {
+            "sort": "timeswatched",
+            "selected": false
+          },
+          {
+            "sort": "watched",
+            "selected": false
+          },
+          {
+            "sort": "notwatched",
+            "selected": false
+          }
+        ],
+        "nextPage": false
+      },
+      "selected": {
+        "request": {
+          "type": "series",
+          "sort": "lastwatched",
+          "page": 1
+        }
+      }
+    }
+  },
+  "ready_meta_details": {
+    "model": "meta_details",
+    "state": {
+      "libraryItem": {
+        "_id": "kino-fixture",
+        "name": "Synthetic series",
+        "type": "series",
+        "poster": "https://fixture.invalid/poster.jpg",
+        "posterShape": "landscape",
+        "removed": false,
+        "temp": false,
+        "_ctime": "2026-09-05T18:18:09.894Z",
+        "_mtime": "2026-09-05T18:18:09.894Z",
+        "state": {
+          "lastWatched": "2026-09-05T18:18:09.894Z",
+          "timeWatched": 0,
+          "timeOffset": 0,
+          "overallTimeWatched": 0,
+          "timesWatched": 0,
+          "flaggedWatched": 0,
+          "duration": 0,
+          "video_id": null,
+          "watched": null,
+          "noNotif": false
+        },
+        "behaviorHints": {
+          "defaultVideoId": null,
+          "featuredVideoId": null,
+          "hasScheduledVideos": false
+        }
+      },
+      "metaItem": {
+        "content": {
+          "type": "Ready",
+          "content": {
+            "id": "kino-fixture",
+            "type": "series",
+            "name": "Synthetic series",
+            "poster": "https://fixture.invalid/poster.jpg",
+            "background": null,
+            "logo": null,
+            "description": null,
+            "releaseInfo": "2024-",
+            "runtime": null,
+            "released": null,
+            "posterShape": "landscape",
+            "links": [],
+            "behaviorHints": {
+              "defaultVideoId": null,
+              "featuredVideoId": null,
+              "hasScheduledVideos": false
+            },
+            "videos": [
+              {
+                "id": "kino-fixture:1:1",
+                "title": "Pilot",
+                "released": null,
+                "overview": null,
+                "thumbnail": null,
+                "streams": [],
+                "season": 1,
+                "episode": 1,
+                "upcoming": false,
+                "watched": false,
+                "progress": null,
+                "scheduled": false
+              }
+            ],
+            "inLibrary": true,
+            "watched": false
+          }
+        },
+        "addon": {
+          "manifest": {
+            "id": "kino.fixture",
+            "name": "Contract fixture",
+            "logo": null
+          },
+          "transportUrl": "https://fixture.invalid/manifest.json"
+        }
+      },
+      "selected": {
+        "metaPath": {
+          "resource": "meta",
+          "type": "series",
+          "id": "kino-fixture",
+          "extra": []
+        },
+        "streamPath": {
+          "resource": "stream",
+          "type": "series",
+          "id": "kino-fixture:1:1",
+          "extra": []
+        },
+        "guessStream": true
+      },
+      "streams": [
+        {
+          "content": {
+            "type": "Ready",
+            "content": [
+              {
+                "url": "https://media.invalid/fixture.mp4",
+                "name": "Direct",
+                "behaviorHints": {
+                  "proxyHeaders": {
+                    "request": {
+                      "Authorization": "synthetic"
+                    }
+                  },
+                  "filename": "fixture.mkv",
+                  "videoHash": "0123456789abcdef",
+                  "videoSize": 123456
+                },
+                "progress": null,
+                "lastUsed": false
+              },
+              {
+                "infoHash": "0123456789abcdef0123456789abcdef01234567",
+                "fileIdx": 0,
+                "announce": ["tracker:https://tracker.invalid/announce", "dht:0123456789abcdef"],
+                "name": "Torrent",
+                "progress": null,
+                "lastUsed": false
+              },
+              {
+                "externalUrl": "https://external.invalid/watch",
+                "name": "External",
+                "progress": null,
+                "lastUsed": false
+              },
+              {
+                "playerFrameUrl": "https://embedded.invalid/watch",
+                "name": "Embedded",
+                "progress": null,
+                "lastUsed": false
+              },
+              {
+                "ytId": "synthetic",
+                "name": "Youtube",
+                "progress": null,
+                "lastUsed": false
+              }
+            ]
+          },
+          "addon": {
+            "manifest": {
+              "id": "kino.fixture",
+              "name": "Contract fixture",
+              "logo": null
+            },
+            "transportUrl": "https://fixture.invalid/manifest.json"
+          }
+        }
+      ],
+      "title": "Synthetic series - Pilot (1x1)"
+    }
+  },
+  "player_direct": {
+    "model": "player",
+    "state": {
+      "libraryItem": {
+        "_id": "kino-fixture",
+        "state": {
+          "timeOffset": 0,
+          "video_id": null
+        }
+      },
+      "selected": {
+        "stream": {
+          "url": "https://media.invalid/fixture.mp4",
+          "name": "Direct",
+          "behaviorHints": {
+            "proxyHeaders": {
+              "request": {
+                "Authorization": "synthetic"
+              }
+            },
+            "filename": "fixture.mkv",
+            "videoHash": "0123456789abcdef",
+            "videoSize": 123456
+          }
+        },
+        "streamRequest": {
+          "base": "https://fixture.invalid/manifest.json",
+          "path": {
+            "resource": "stream",
+            "type": "series",
+            "id": "kino-fixture:1:1",
+            "extra": []
+          }
+        },
+        "metaRequest": {
+          "base": "https://fixture.invalid/manifest.json",
+          "path": {
+            "resource": "meta",
+            "type": "series",
+            "id": "kino-fixture",
+            "extra": []
+          }
+        },
+        "subtitlesPath": {
+          "resource": "subtitles",
+          "type": "series",
+          "id": "kino-fixture:1:1",
+          "extra": []
+        }
+      },
+      "stream": {
+        "type": "Ready",
+        "content": {
+          "url": "http://127.0.0.1:11470/proxy/d=https%3A%2F%2Fmedia.invalid&h=Authorization%3Asynthetic/fixture.mp4",
+          "name": "Direct",
+          "behaviorHints": {
+            "filename": "fixture.mkv",
+            "videoHash": "0123456789abcdef",
+            "videoSize": 123456
+          }
+        }
+      },
+      "subtitles": [
+        {
+          "id": "https://fixture.invalid/manifest.json_0",
+          "lang": "eng",
+          "url": "https://fixture.invalid/en.srt",
+          "addonSubtitleId": "sub-en",
+          "origin": "Contract fixture"
+        },
+        {
+          "id": "https://fixture.invalid/manifest.json_1",
+          "lang": "ger",
+          "url": "http://fixture.invalid/de.srt",
+          "addonSubtitleId": "sub-plain",
+          "origin": "Contract fixture"
+        }
+      ],
+      "title": "Synthetic series - Pilot (1x1)"
+    }
+  },
+  "player_torrent": {
+    "model": "player",
+    "state": {
+      "libraryItem": {
+        "_id": "kino-fixture",
+        "state": {
+          "timeOffset": 0,
+          "video_id": null
+        }
+      },
+      "selected": {
+        "stream": {
+          "infoHash": "0123456789abcdef0123456789abcdef01234567",
+          "fileIdx": 0,
+          "announce": ["tracker:https://tracker.invalid/announce", "dht:0123456789abcdef"],
+          "name": "Torrent"
+        },
+        "streamRequest": {
+          "base": "https://fixture.invalid/manifest.json",
+          "path": {
+            "resource": "stream",
+            "type": "series",
+            "id": "kino-fixture:1:1",
+            "extra": []
+          }
+        },
+        "metaRequest": {
+          "base": "https://fixture.invalid/manifest.json",
+          "path": {
+            "resource": "meta",
+            "type": "series",
+            "id": "kino-fixture",
+            "extra": []
+          }
+        },
+        "subtitlesPath": {
+          "resource": "subtitles",
+          "type": "series",
+          "id": "kino-fixture:1:1",
+          "extra": []
+        }
+      },
+      "stream": {
+        "type": "Ready",
+        "content": {
+          "url": "http://127.0.0.1:11470/0123456789abcdef0123456789abcdef01234567/0?tr=tracker%3Ahttps%3A%2F%2Ftracker.invalid%2Fannounce&tr=dht%3A0123456789abcdef",
+          "infoHash": "0123456789abcdef0123456789abcdef01234567",
+          "fileIdx": 0,
+          "announce": ["tracker:https://tracker.invalid/announce", "dht:0123456789abcdef"],
+          "name": "Torrent"
+        }
+      },
+      "subtitles": [],
+      "title": "Synthetic series - Pilot (1x1)"
+    }
+  },
+  "player_external": {
+    "model": "player",
+    "state": {
+      "libraryItem": {
+        "_id": "kino-fixture",
+        "state": {
+          "timeOffset": 0,
+          "video_id": null
+        }
+      },
+      "selected": {
+        "stream": {
+          "externalUrl": "https://external.invalid/watch",
+          "name": "External"
+        },
+        "streamRequest": {
+          "base": "https://fixture.invalid/manifest.json",
+          "path": {
+            "resource": "stream",
+            "type": "series",
+            "id": "kino-fixture:1:1",
+            "extra": []
+          }
+        },
+        "metaRequest": {
+          "base": "https://fixture.invalid/manifest.json",
+          "path": {
+            "resource": "meta",
+            "type": "series",
+            "id": "kino-fixture",
+            "extra": []
+          }
+        },
+        "subtitlesPath": {
+          "resource": "subtitles",
+          "type": "series",
+          "id": "kino-fixture:1:1",
+          "extra": []
+        }
+      },
+      "stream": {
+        "type": "Ready",
+        "content": {
+          "externalUrl": "https://external.invalid/watch",
+          "name": "External"
+        }
+      },
+      "subtitles": [],
+      "title": "Synthetic series - Pilot (1x1)"
+    }
+  },
+  "player_embedded": {
+    "model": "player",
+    "state": {
+      "libraryItem": {
+        "_id": "kino-fixture",
+        "state": {
+          "timeOffset": 0,
+          "video_id": null
+        }
+      },
+      "selected": {
+        "stream": {
+          "playerFrameUrl": "https://embedded.invalid/watch",
+          "name": "Embedded"
+        },
+        "streamRequest": {
+          "base": "https://fixture.invalid/manifest.json",
+          "path": {
+            "resource": "stream",
+            "type": "series",
+            "id": "kino-fixture:1:1",
+            "extra": []
+          }
+        },
+        "metaRequest": {
+          "base": "https://fixture.invalid/manifest.json",
+          "path": {
+            "resource": "meta",
+            "type": "series",
+            "id": "kino-fixture",
+            "extra": []
+          }
+        },
+        "subtitlesPath": {
+          "resource": "subtitles",
+          "type": "series",
+          "id": "kino-fixture:1:1",
+          "extra": []
+        }
+      },
+      "stream": {
+        "type": "Ready",
+        "content": {
+          "playerFrameUrl": "https://embedded.invalid/watch",
+          "name": "Embedded"
+        }
+      },
+      "subtitles": [],
+      "title": "Synthetic series - Pilot (1x1)"
+    }
+  },
+  "player_youtube": {
+    "model": "player",
+    "state": {
+      "libraryItem": {
+        "_id": "kino-fixture",
+        "state": {
+          "timeOffset": 0,
+          "video_id": null
+        }
+      },
+      "selected": {
+        "stream": {
+          "ytId": "synthetic",
+          "name": "Youtube"
+        },
+        "streamRequest": {
+          "base": "https://fixture.invalid/manifest.json",
+          "path": {
+            "resource": "stream",
+            "type": "series",
+            "id": "kino-fixture:1:1",
+            "extra": []
+          }
+        },
+        "metaRequest": {
+          "base": "https://fixture.invalid/manifest.json",
+          "path": {
+            "resource": "meta",
+            "type": "series",
+            "id": "kino-fixture",
+            "extra": []
+          }
+        },
+        "subtitlesPath": {
+          "resource": "subtitles",
+          "type": "series",
+          "id": "kino-fixture:1:1",
+          "extra": []
+        }
+      },
+      "stream": {
+        "type": "Ready",
+        "content": {
+          "url": "http://127.0.0.1:11470/yt/synthetic",
+          "ytId": "synthetic",
+          "name": "Youtube"
+        }
+      },
+      "subtitles": [],
+      "title": "Synthetic series - Pilot (1x1)"
+    }
+  },
+  "continue_watching": {
+    "model": "continue_watching_preview",
+    "state": {
+      "items": [
+        {
+          "_id": "kino-fixture",
+          "name": "Synthetic series",
+          "type": "series",
+          "poster": "https://fixture.invalid/poster.jpg",
+          "posterShape": "square",
+          "progress": 25,
+          "state": {
+            "videoId": "kino-fixture:1:1"
+          },
+          "notifications": 0
+        }
+      ]
+    }
+  },
+  "failed_search": {
+    "model": "search",
+    "state": {
+      "catalogs": [
+        {
+          "id": "top",
+          "name": "Popular",
+          "type": "movie",
+          "addon": {
+            "manifest": {
+              "id": "com.linvo.cinemeta",
+              "name": "Cinemeta"
+            }
+          },
+          "content": {
+            "type": "Err",
+            "content": "Env: Failed to fetch: Unexpected HTTP status code 503"
+          },
+          "deepLinks": {
+            "discover": "#/discover/https%3A%2F%2Fv3-cinemeta.strem.io%2Fmanifest.json/movie/top?search=failed"
+          }
+        },
+        {
+          "id": "top",
+          "name": "Popular",
+          "type": "series",
+          "addon": {
+            "manifest": {
+              "id": "com.linvo.cinemeta",
+              "name": "Cinemeta"
+            }
+          },
+          "content": {
+            "type": "Err",
+            "content": "Env: Failed to fetch: Unexpected HTTP status code 503"
+          },
+          "deepLinks": {
+            "discover": "#/discover/https%3A%2F%2Fv3-cinemeta.strem.io%2Fmanifest.json/series/top?search=failed"
+          }
+        },
+        {
+          "id": "top",
+          "name": "YouTube",
+          "type": "channel",
+          "addon": {
+            "manifest": {
+              "id": "com.linvo.stremiochannels",
+              "name": "YouTube"
+            }
+          },
+          "content": {
+            "type": "Err",
+            "content": "Env: Failed to fetch: Unexpected HTTP status code 503"
+          },
+          "deepLinks": {
+            "discover": "#/discover/https%3A%2F%2Fv3-channels.strem.io%2Fmanifest.json/channel/top?search=failed"
+          }
+        },
+        {
+          "id": "videos",
+          "name": "YouTube",
+          "type": "channel",
+          "addon": {
+            "manifest": {
+              "id": "com.linvo.stremiochannels",
+              "name": "YouTube"
+            }
+          },
+          "content": {
+            "type": "Err",
+            "content": "Env: Failed to fetch: Unexpected HTTP status code 503"
+          },
+          "deepLinks": {
+            "discover": "#/discover/https%3A%2F%2Fv3-channels.strem.io%2Fmanifest.json/channel/videos?search=failed"
+          }
+        },
+        {
+          "id": "publicdomainmovies",
+          "name": "Public Domain Movies",
+          "type": "movie",
+          "addon": {
+            "manifest": {
+              "id": "org.stremio.pubdomainmovies",
+              "name": "Public Domain Movies"
+            }
+          },
+          "content": {
+            "type": "Err",
+            "content": "Env: Failed to fetch: Unexpected HTTP status code 503"
+          },
+          "deepLinks": {
+            "discover": "#/discover/https%3A%2F%2Fcaching.stremio.net%2Fpublicdomainmovies.now.sh%2Fmanifest.json/movie/publicdomainmovies?search=failed"
+          }
+        },
+        {
+          "id": "fixture",
+          "name": "Fixture",
+          "type": "series",
+          "addon": {
+            "manifest": {
+              "id": "kino.fixture",
+              "name": "Contract fixture"
+            }
+          },
+          "content": {
+            "type": "Err",
+            "content": "Env: Failed to fetch: Unexpected HTTP status code 503"
+          },
+          "deepLinks": {
+            "discover": "#/discover/https%3A%2F%2Ffixture.invalid%2Fmanifest.json/series/fixture?search=failed"
+          }
+        }
+      ],
+      "selected": {
+        "type": null,
+        "extra": [["search", "failed"]]
+      }
+    }
+  },
+  "failed_meta_details": {
+    "model": "meta_details",
+    "state": {
+      "libraryItem": null,
+      "metaItem": {
+        "content": {
+          "type": "Err",
+          "content": {
+            "type": "Env",
+            "content": {
+              "code": 1,
+              "message": "Failed to fetch: Unexpected HTTP status code 503"
+            }
+          }
+        },
+        "addon": {
+          "manifest": {
+            "id": "kino.fixture",
+            "name": "Contract fixture",
+            "logo": null
+          },
+          "transportUrl": "https://fixture.invalid/manifest.json"
+        }
+      },
+      "selected": {
+        "metaPath": {
+          "resource": "meta",
+          "type": "series",
+          "id": "failed",
+          "extra": []
+        },
+        "streamPath": {
+          "resource": "stream",
+          "type": "series",
+          "id": "failed:1:1",
+          "extra": []
+        },
+        "guessStream": true
+      },
+      "streams": [
+        {
+          "content": {
+            "type": "Err",
+            "content": {
+              "type": "Env",
+              "content": {
+                "code": 1,
+                "message": "Failed to fetch: Unexpected HTTP status code 503"
+              }
+            }
+          },
+          "addon": {
+            "manifest": {
+              "id": "kino.fixture",
+              "name": "Contract fixture",
+              "logo": null
+            },
+            "transportUrl": "https://fixture.invalid/manifest.json"
+          }
+        }
+      ],
+      "title": null
+    }
+  }
+}

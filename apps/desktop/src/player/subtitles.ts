@@ -1,4 +1,7 @@
 import { t as enUS } from '../locales';
+import type { AddonSubtitle } from '../core/types';
+
+export type { AddonSubtitle };
 
 export interface SubtitleTrack {
   codec?: string;
@@ -9,12 +12,6 @@ export interface SubtitleTrack {
   lang?: string;
   selected: boolean;
   title?: string;
-}
-
-export interface AddonSubtitle {
-  id: string;
-  lang: string;
-  url: string;
 }
 
 const codecLabels: Record<string, string> = {
@@ -66,17 +63,6 @@ export function parseSubtitleTracks(value: unknown): SubtitleTrack[] {
         ...(typeof entry.title === 'string' ? { title: entry.title } : {}),
       },
     ];
-  });
-}
-
-export function parseAddonSubtitles(value: unknown): AddonSubtitle[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((candidate): AddonSubtitle[] => {
-    if (!candidate || typeof candidate !== 'object') return [];
-    const entry = candidate as Record<string, unknown>;
-    if (typeof entry.url !== 'string' || !entry.url.startsWith('https://')) return [];
-    const lang = typeof entry.lang === 'string' ? entry.lang : '';
-    return [{ id: typeof entry.id === 'string' ? entry.id : entry.url, lang, url: entry.url }];
   });
 }
 

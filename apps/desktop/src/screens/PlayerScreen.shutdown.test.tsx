@@ -3,6 +3,8 @@ import { StrictMode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CoreContext } from '../core/context';
+import type { CoreTransport } from '../core/transport';
+import { preview, urlSource, video } from '../test/coreState';
 import { defaultSettings } from '../settings';
 import { PlayerScreen } from './PlayerScreen';
 
@@ -57,8 +59,13 @@ async function mountPlayer({ upNext = true, hasNextVideo = true } = {}) {
         action.action === 'Player' ? `${args?.action}:${args?.args?.time ?? ''}` : action.action,
       );
     }),
-    getState: async <State,>() =>
-      ({ selected: { stream }, stream: { type: 'Ready', content: stream } }) as State,
+    getState: (async () => ({
+      libraryItem: null,
+      selected: { stream },
+      stream: { type: 'Ready', content: { source: stream.source } },
+      subtitles: [],
+      title: null,
+    })) as CoreTransport['getState'],
     subscribe: () => () => {},
     onBeforeDestroy: (callback: () => Promise<void>) => {
       closing.add(callback);
@@ -73,11 +80,11 @@ async function mountPlayer({ upNext = true, hasNextVideo = true } = {}) {
       calls.push('saved');
     }),
   };
-  const stream = { url: 'https://media.invalid/fixture.mp4', deepLinks: { player: '' } };
+  const stream = urlSource('https://media.invalid/fixture.mp4');
   const onBack = vi.fn();
   const onSourceFailure = vi.fn();
   const onUpNext = vi.fn();
-  const nextVideo = { id: 'ep2', title: 'Episode two', season: 1, episode: 2 };
+  const nextVideo = video({ id: 'ep2', title: 'Episode two', season: 1, episode: 2 });
   const view = render(
     <StrictMode>
       <CoreContext.Provider
@@ -91,17 +98,11 @@ async function mountPlayer({ upNext = true, hasNextVideo = true } = {}) {
       >
         <PlayerScreen
           selection={{
-            meta: {
-              id: 'show',
-              name: 'Test series',
-              type: 'series',
-              inLibrary: false,
-              watched: false,
-            },
+            meta: preview({ id: 'show', name: 'Test series', type: 'series' }),
             stream,
             streamTransportUrl: 'https://addon.invalid/manifest.json',
             metaTransportUrl: 'https://addon.invalid/manifest.json',
-            video: { id: 'ep1', title: 'Episode one', season: 1, episode: 1 },
+            video: video({ id: 'ep1', title: 'Episode one', season: 1, episode: 1 }),
             nextVideo: hasNextVideo ? nextVideo : null,
           }}
           settings={{ ...defaultSettings, upNext }}

@@ -11,7 +11,9 @@
   },
   "scripts": {
     "build": "pnpm --filter @kino/desktop build",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm core:check-streams && pnpm core:check-pagination && pnpm core:check-subtitles && pnpm core:check-shutdown && pnpm core:check-addon-transports && pnpm engine:check-vendor && pnpm build",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm core:check-contract && pnpm core:check-streams && pnpm core:check-pagination && pnpm core:check-subtitles && pnpm core:check-shutdown && pnpm core:check-addon-transports && pnpm engine:check-vendor && pnpm build",
+    "core:capture-fixtures": "node scripts/capture-core-fixtures.mjs",
+    "core:check-contract": "node scripts/check-core-contract.mjs",
     "core:check-streams": "node scripts/check-core-streams.mjs",
     "core:check-subtitles": "node scripts/check-core-subtitles.mjs",
     "core:check-shutdown": "node scripts/check-core-shutdown.mjs",

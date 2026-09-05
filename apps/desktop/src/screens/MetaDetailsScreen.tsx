@@ -20,31 +20,20 @@ import {
   sourceTitle,
   unsupportedSourceReason,
 } from '../core/sources';
-import type {
-  CoreMetaItem,
-  CoreMetaPreview,
-  CoreStream,
-  CoreVideo,
-  MetaDetailsState,
-} from '../core/types';
+import type { CoreMetaItem, CoreMetaPreview, CoreSource, CoreVideo } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
 
 interface SourceChoice {
   addonName: string;
-  stream: CoreStream;
+  source: CoreSource;
   transportUrl: string;
 }
 
-function metadata(item: CoreMetaItem) {
+function metadata(item: CoreMetaPreview) {
   return [item.releaseInfo, item.runtime, item.type === 'series' ? 'Series' : 'Movie']
     .filter(Boolean)
     .join(' · ');
-}
-
-function defaultVideoId(item: CoreMetaPreview) {
-  const value = item.behaviorHints?.defaultVideoId;
-  return typeof value === 'string' ? value : null;
 }
 
 export function MetaDetailsScreen({
@@ -62,12 +51,12 @@ export function MetaDetailsScreen({
 }) {
   const { transport } = useCore();
   const [videoId, setVideoId] = useState<string | null>(
-    () => initialVideoId ?? defaultVideoId(item),
+    () => initialVideoId ?? item.defaultVideoId,
   );
   const [profileTransport, setProfileTransport] = useState(transport);
   const [startOver, setStartOver] = useState(false);
   const [libraryOverride, setLibraryOverride] = useState<{ value: boolean } | null>(null);
-  const result = useCoreModel<MetaDetailsState>(
+  const result = useCoreModel(
     'meta_details',
     loadMetaDetailsAction(item, videoId),
     `${item.type}:${item.id}:${videoId ?? 'guess'}`,
@@ -105,8 +94,10 @@ export function MetaDetailsScreen({
     return () => window.clearTimeout(timeout);
   }, [item.type, videoId, videos]);
 
+  // A video Core did not place in a season gets no tab. Its season stays null so
+  // the episode list below still shows it under the same null selection.
   const seasons = useMemo(
-    () => [...new Set(videos.map((video) => video.season).filter((value) => value !== undefined))],
+    () => [...new Set(videos.flatMap((video) => (video.season === null ? [] : [video.season])))],
     [videos],
   );
   const activeVideo =
@@ -114,7 +105,7 @@ export function MetaDetailsScreen({
     videos.find((video) => (video.season ?? 0) > 0) ??
     videos[0] ??
     null;
-  const activeSeason = activeVideo?.season ?? seasons[0];
+  const activeSeason = activeVideo?.season ?? seasons[0] ?? null;
   const visibleVideos = videos.filter((video) => video.season === activeSeason);
   const selected = result.state?.selected;
   // The hook retains old state during Load, and NewState reads can arrive late.
@@ -140,12 +131,12 @@ export function MetaDetailsScreen({
 
   const sources = useMemo<SourceChoice[]>(
     () =>
-      result.state?.streams.flatMap((sourceResource) =>
-        sourceResource.content.type === 'Ready'
-          ? sourceResource.content.content.map((stream) => ({
-              addonName: sourceResource.addon.manifest.name,
-              stream,
-              transportUrl: sourceResource.addon.transportUrl ?? '',
+      result.state?.streams.flatMap((resource) =>
+        resource.content.type === 'Ready'
+          ? resource.content.content.map((source) => ({
+              addonName: resource.addon.manifest.name,
+              source,
+              transportUrl: resource.addon.transportUrl ?? '',
             }))
           : [],
       ) ?? [],
@@ -154,7 +145,7 @@ export function MetaDetailsScreen({
   const display = meta ?? item;
   const sourceSelection = { meta: display, video: activeVideo };
   const visibleSourceKeys = new Set(
-    sources.map((source) => sourceKey(source.stream, source.transportUrl, sourceSelection)),
+    sources.map((choice) => sourceKey(choice.source, choice.transportUrl, sourceSelection)),
   );
   const [externalChoice, setExternalChoice] = useState<{
     key: string;
@@ -179,11 +170,10 @@ export function MetaDetailsScreen({
   const savedProgress = result.state?.libraryItem;
   const canResume =
     sourcesCurrent &&
-    savedProgress?._id === item.id &&
-    Number.isFinite(savedProgress.state.timeOffset) &&
-    savedProgress.state.timeOffset > 0 &&
-    (savedProgress.state.video_id === (activeVideo?.id ?? item.id) ||
-      (item.type !== 'series' && !savedProgress.state.video_id));
+    savedProgress?.id === item.id &&
+    savedProgress.timeOffset > 0 &&
+    (savedProgress.videoId === (activeVideo?.id ?? item.id) ||
+      (item.type !== 'series' && !savedProgress.videoId));
 
   const chooseVideo = (id: string) => {
     setStartOver(false);
@@ -221,7 +211,7 @@ export function MetaDetailsScreen({
         </button>
         <div className={styles.detailCopy}>
           <h1>{display.name}</h1>
-          <p className={styles.detailMetadata}>{metadata(display as CoreMetaItem)}</p>
+          <p className={styles.detailMetadata}>{metadata(display)}</p>
           {display.description ? (
             <ExpandableText
               className={styles.detailDescription}
@@ -357,24 +347,27 @@ export function MetaDetailsScreen({
             <p className={styles.inlineEmpty}>{enUS.details.noSources}</p>
           ) : null}
           <div className={styles.sourceList}>
-            {sources.map((source, index) => {
-              const support = classifySource(source.stream);
+            {sources.map((choice, index) => {
+              const support = classifySource(choice.source.source);
               const playable =
-                (support === 'direct' || support === 'torrent') && Boolean(source.transportUrl);
+                (support === 'direct' || support === 'torrent') && Boolean(choice.transportUrl);
               const external =
-                support === 'external' ? externalWebUrl(source.stream.externalUrl) : null;
+                choice.source.source.kind === 'external'
+                  ? externalWebUrl(choice.source.source.externalUrl)
+                  : null;
               const selectable = playable || Boolean(external);
-              const key = sourceKey(source.stream, source.transportUrl, sourceSelection);
+              const key = sourceKey(choice.source, choice.transportUrl, sourceSelection);
               const failed = failedSources.has(key);
               const unavailable =
                 support === 'direct' || support === 'torrent'
                   ? enUS.details.sourceUnsupported.addon
-                  : enUS.details.sourceUnsupported[unsupportedSourceReason(source.stream)];
+                  : enUS.details.sourceUnsupported[unsupportedSourceReason(choice.source.source)];
+              const size = sourceSize(choice.source);
               return (
                 <button
                   className={styles.sourceButton}
                   disabled={!selectable || !sourcesCurrent}
-                  key={`${source.transportUrl}:${index}`}
+                  key={`${choice.transportUrl}:${index}`}
                   onClick={() => {
                     if (!sourcesCurrent) return;
                     if (external) {
@@ -387,16 +380,16 @@ export function MetaDetailsScreen({
                       meta: display,
                       metaTransportUrl: resource.addon.transportUrl,
                       nextVideo: nextEpisode,
-                      stream: source.stream,
-                      streamTransportUrl: source.transportUrl,
+                      stream: choice.source,
+                      streamTransportUrl: choice.transportUrl,
                       video: activeVideo,
                     });
                   }}
                   type="button"
                 >
                   <span className={styles.sourcePrimary}>
-                    <strong>{sourceTitle(source.stream)}</strong>
-                    <small>{sourceDetails(source.stream)}</small>
+                    <strong>{sourceTitle(choice.source)}</strong>
+                    <small>{sourceDetails(choice.source)}</small>
                     {external ? (
                       <small className={styles.sourceExplanation}>
                         {enUS.details.openExternal} · {external.host}
@@ -407,8 +400,8 @@ export function MetaDetailsScreen({
                     ) : null}
                   </span>
                   <span className={styles.sourceMeta}>
-                    {sourceSize(source.stream) ? <span>{sourceSize(source.stream)}</span> : null}
-                    <span>{source.addonName}</span>
+                    {size ? <span>{size}</span> : null}
+                    <span>{choice.addonName}</span>
                     {!selectable ? <em>{enUS.details.unavailable}</em> : null}
                     {playable && failed ? <em>{enUS.details.failed}</em> : null}
                   </span>

@@ -3,50 +3,10 @@ import { expect, it, vi } from 'vitest';
 
 import { CoreContext } from '../core/context';
 import type { CoreTransport } from '../core/transport';
-import type { LibraryRequest } from '../core/types';
+import type { LibraryRequest, LibraryState } from '../core/types';
 import { LibraryScreen } from './LibraryScreen';
 
-it('uses serialized type options to filter Movies, Series, and All', async () => {
-  let request: LibraryRequest = { page: 1, sort: 'lastwatched', type: null };
-  const catalog = ['movie', 'series'].map((type) => ({
-    _id: `kino-${type}`,
-    name: `Synthetic ${type}`,
-    type,
-    poster: null,
-    posterShape: 'poster',
-  }));
-  const target: CoreTransport = {
-    destroy: async () => {},
-    flush: async () => {},
-    prepareClose: async () => {},
-    init: async () => {},
-    onBeforeDestroy: () => () => {},
-    subscribe: () => () => {},
-    dispatch: vi.fn(async (action) => {
-      if (action.action !== 'Load') return;
-      request = (action.args as { args: { request: LibraryRequest } }).args.request;
-    }),
-    getState: async <State,>() =>
-      ({
-        selected: { request },
-        selectable: {
-          nextPage: false,
-          sorts: [
-            {
-              sort: 'lastwatched',
-              selected: true,
-              deepLinks: { library: '#/library?sort=lastwatched' },
-            },
-          ],
-          types: [null, 'movie', 'series'].map((type) => ({
-            type,
-            selected: type === request.type,
-            deepLinks: { library: `#/library${type ? `/${type}` : ''}?sort=lastwatched` },
-          })),
-        },
-        catalog: catalog.filter((item) => !request.type || item.type === request.type),
-      }) as State,
-  };
+function mount(target: CoreTransport) {
   render(
     <CoreContext.Provider
       value={{
@@ -60,6 +20,56 @@ it('uses serialized type options to filter Movies, Series, and All', async () =>
       <LibraryScreen onOpen={vi.fn()} />
     </CoreContext.Provider>,
   );
+}
+
+const idle = {
+  destroy: async () => {},
+  flush: async () => {},
+  prepareClose: async () => {},
+  init: async () => {},
+  onBeforeDestroy: () => () => {},
+  subscribe: () => () => {},
+};
+
+it('uses the requests derived from serialized type options to filter Movies, Series, and All', async () => {
+  let request: LibraryRequest = { page: 1, sort: 'lastwatched', type: null };
+  const catalog = ['movie', 'series'].map((type) => ({
+    id: `kino-${type}`,
+    name: `Synthetic ${type}`,
+    poster: null,
+    posterShape: 'poster' as const,
+    progress: 0,
+    type,
+  }));
+  const target: CoreTransport = {
+    ...idle,
+    dispatch: vi.fn(async (action) => {
+      if (action.action !== 'Load') return;
+      request = (action.args as { args: { request: LibraryRequest } }).args.request;
+    }),
+    getState: (async (): Promise<LibraryState> => ({
+      selected: { request },
+      selectable: {
+        nextPage: false,
+        sorts: [
+          {
+            request: { page: 1, sort: 'lastwatched', type: request.type },
+            selected: true,
+            sort: 'lastwatched',
+          },
+        ],
+        // The adapter derives each option's request from its own value and the
+        // selected sort; the screen never sees a Core link.
+        types: [null, 'movie', 'series'].map((type) => ({
+          request: { page: 1, sort: 'lastwatched', type },
+          selected: type === request.type,
+          type,
+        })),
+      },
+      catalog: catalog.filter((item) => !request.type || item.type === request.type),
+    })) as CoreTransport['getState'],
+  };
+  mount(target);
   await screen.findByText('Synthetic movie');
   for (const [label, type] of [
     ['Movie', 'movie'],
@@ -81,12 +91,7 @@ it('loads entries 101-125, retains visible entries on failure, and retries the s
   let request: LibraryRequest = { page: 1, sort: 'lastwatched', type: null };
   let failNext = true;
   const target: CoreTransport = {
-    destroy: async () => {},
-    flush: async () => {},
-    prepareClose: async () => {},
-    init: async () => {},
-    onBeforeDestroy: () => () => {},
-    subscribe: () => () => {},
+    ...idle,
     dispatch: vi.fn(async (action) => {
       if (action.action !== 'Load') return;
       const next = (action.args as { args: { request: LibraryRequest } }).args.request;
@@ -96,30 +101,20 @@ it('loads entries 101-125, retains visible entries on failure, and retries the s
       }
       request = next;
     }),
-    getState: async <State,>() =>
-      ({
-        selected: { request },
-        selectable: { nextPage: request.page === 1, types: [], sorts: [] },
-        catalog: Array.from({ length: request.page === 1 ? 100 : 125 }, (_, i) => ({
-          _id: `title-${i}`,
-          name: `Saved title ${i + 1}`,
-          type: 'movie',
-        })),
-      }) as State,
+    getState: (async (): Promise<LibraryState> => ({
+      selected: { request },
+      selectable: { nextPage: request.page === 1, types: [], sorts: [] },
+      catalog: Array.from({ length: request.page === 1 ? 100 : 125 }, (_, i) => ({
+        id: `title-${i}`,
+        name: `Saved title ${i + 1}`,
+        poster: null,
+        posterShape: 'poster' as const,
+        progress: 0,
+        type: 'movie',
+      })),
+    })) as CoreTransport['getState'],
   };
-  render(
-    <CoreContext.Provider
-      value={{
-        transport: target,
-        session: 'guest',
-        status: 'ready',
-        error: null,
-        selectSession: vi.fn(),
-      }}
-    >
-      <LibraryScreen onOpen={vi.fn()} />
-    </CoreContext.Provider>,
-  );
+  mount(target);
   await screen.findByText('Saved title 100');
   fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
   await screen.findByRole('alert');

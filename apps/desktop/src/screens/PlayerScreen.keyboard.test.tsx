@@ -2,11 +2,27 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 
+import type { CoreSource } from '../core/types';
 import { defaultSettings } from '../settings';
+import { preview } from '../test/coreState';
 import { PlayerScreen } from './PlayerScreen';
 
 const fixture = vi.hoisted(() => ({
-  stream: { url: 'https://media.invalid/fixture.mp4', deepLinks: { player: '' } },
+  stream: {
+    description: null,
+    name: null,
+    source: { kind: 'url', url: 'https://media.invalid/fixture.mp4' },
+    hints: {
+      bingeGroup: null,
+      countryWhitelist: null,
+      filename: null,
+      notWebReady: null,
+      proxyRequestHeaders: null,
+      proxyResponseHeaders: null,
+      videoHash: null,
+      videoSize: null,
+    },
+  } satisfies CoreSource,
   transport: { dispatch: vi.fn().mockResolvedValue(undefined) },
   unload: vi.fn().mockResolvedValue(undefined),
   native: {
@@ -55,7 +71,7 @@ async function mountPlayer() {
   render(
     <PlayerScreen
       selection={{
-        meta: { id: 'fixture', type: 'movie', name: 'Fixture', inLibrary: false, watched: false },
+        meta: preview({ id: 'fixture', name: 'Fixture', type: 'movie' }),
         stream: fixture.stream,
         metaTransportUrl: 'https://addon.invalid/manifest.json',
         streamTransportUrl: 'https://addon.invalid/manifest.json',

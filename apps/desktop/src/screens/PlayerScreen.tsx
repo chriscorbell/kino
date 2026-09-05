@@ -17,8 +17,7 @@ import styles from '../App.module.css';
 import { loadPlayerAction, playerAction, type PlaybackSelection } from '../core/actions';
 import { useCore } from '../core/context';
 import type { CoreTransport } from '../core/transport';
-import { classifySource } from '../core/sources';
-import type { CoreVideo, PlayerState } from '../core/types';
+import type { CoreVideo } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import {
   lookupCommunityIntro,
@@ -31,7 +30,6 @@ import { connectNativePlayer, nativeShellPresent, type NativePlayer } from '../n
 import {
   addonSubtitleLabel,
   labelAddonSubtitles,
-  parseAddonSubtitles,
   parseSubtitleTracks,
   preferredSubtitleTrack,
   labelSubtitleTracks,
@@ -42,6 +40,7 @@ import {
   resolveFileIndex,
   torrentCreateRequest,
   torrentMediaUrl,
+  type TorrentSource,
   type TorrentStats,
 } from '../player/torrent';
 import { subtitlePositionRange, subtitleSizeRange, type KinoSettings } from '../settings';
@@ -61,12 +60,13 @@ function formatTime(milliseconds: number) {
 }
 
 function introIdentity(selection: PlaybackSelection, durationMs: number) {
-  const imdbId = /^tt\d+$/.test(selection.meta.id) ? selection.meta.id : undefined;
+  const imdbId = /^tt\d+$/.test(selection.meta.id) ? selection.meta.id : null;
+  const { episode = null, season = null } = selection.video ?? {};
   return {
     durationMs,
-    ...(selection.video?.episode === undefined ? {} : { episode: selection.video.episode }),
-    ...(imdbId === undefined ? {} : { imdbId }),
-    ...(selection.video?.season === undefined ? {} : { season: selection.video.season }),
+    ...(episode === null ? {} : { episode }),
+    ...(imdbId === null ? {} : { imdbId }),
+    ...(season === null ? {} : { season }),
   };
 }
 
@@ -175,26 +175,40 @@ export function PlayerScreen({
   const [ended, setEnded] = useState(false);
   const [torrentUrl, setTorrentUrl] = useState<string | null>(null);
   const [engineUrl, setEngineUrl] = useState<string | null>(null);
-  const result = useCoreModel<PlayerState>(
+  const result = useCoreModel(
     'player',
     loadPlayerAction(selection),
     `${selection.meta.id}:${selection.video?.id ?? 'movie'}:${selection.streamTransportUrl}`,
     { beforeUnload: (target, loaded) => saveBeforeUnload(target, loaded) },
   );
-  const stream = result.state?.stream?.type === 'Ready' ? result.state.stream.content : null;
-  const isTorrent = stream ? classifySource(stream) === 'torrent' : false;
+  const resolved = result.state?.stream?.type === 'Ready' ? result.state.stream.content : null;
+  const resolvedTorrent = resolved?.source.kind === 'torrent' ? resolved.source : null;
+  // Every Player snapshot rebuilds the adapted stream, so a progress or subtitle
+  // update would hand the effects below a new object for the same torrent and
+  // restart the streaming engine mid-transfer. Hold it steady by its own value.
+  // The adapter already checked these fields and keeps each peer hint verbatim,
+  // so the key has to be lossless: a hint may contain any characters, and
+  // splitting one apart would invent a tracker the add-on never offered.
+  const torrentKey = resolvedTorrent === null ? null : JSON.stringify(resolvedTorrent);
+  const torrent = useMemo<TorrentSource | null>(
+    () => (torrentKey === null ? null : (JSON.parse(torrentKey) as TorrentSource)),
+    [torrentKey],
+  );
   // Core wraps direct streams with proxy headers in a URL for the account's
   // Stremio Service. The native backend can send those headers itself, using
   // the original source URL independently of that service's address.
-  const directSource = selection.stream.url?.startsWith('https://') ? selection.stream : null;
-  const streamUrl = stream
-    ? ((isTorrent ? torrentUrl : (directSource?.url ?? stream.url)) ?? null)
+  const chosen = selection.stream.source;
+  const directUrl = chosen.kind === 'url' && chosen.url.startsWith('https://') ? chosen.url : null;
+  const streamUrl = resolved
+    ? torrent
+      ? torrentUrl
+      : (directUrl ?? (resolved.source.kind === 'url' ? resolved.source.url : null))
     : null;
   const requestHeaders = useMemo(
-    () => (!isTorrent ? directSource?.behaviorHints?.proxyHeaders?.request : undefined) ?? {},
-    [directSource, isTorrent],
+    () => (directUrl ? (selection.stream.hints.proxyRequestHeaders ?? {}) : {}),
+    [directUrl, selection.stream],
   );
-  const resumeTime = result.state?.libraryItem?.state.timeOffset ?? 0;
+  const resumeTime = result.state?.libraryItem?.timeOffset ?? 0;
   const nativeShell = nativeShellPresent();
   const controlsVisible = useIdleControls(
     topbarRef,
@@ -206,10 +220,7 @@ export function PlayerScreen({
       !streamUrl ||
       Boolean(shutdownError || fullscreenError),
   );
-  const addonSubtitles = useMemo(
-    () => parseAddonSubtitles(result.state?.subtitles),
-    [result.state],
-  );
+  const addonSubtitles = result.state?.subtitles ?? [];
   const selectedSubtitleId = subtitleTracks.find((track) => track.selected)?.id ?? null;
   const chapterMarker = useMemo(
     () => markerFromChapterCues(chapterCues, duration),
@@ -505,7 +516,7 @@ export function PlayerScreen({
   }, [subtitleMenuOpen]);
 
   useEffect(() => {
-    if (!isTorrent || !nativePlayer) return;
+    if (!torrent || !nativePlayer) return;
     const onEngine = (url: string, error: string) => {
       if (error) {
         reportFailure(error);
@@ -516,12 +527,12 @@ export function PlayerScreen({
     nativePlayer.streamingEngineChanged.connect(onEngine);
     nativePlayer.startStreamingEngine();
     return () => nativePlayer.streamingEngineChanged.disconnect(onEngine);
-  }, [isTorrent, nativePlayer, reportFailure]);
+  }, [nativePlayer, reportFailure, torrent]);
 
   useEffect(() => {
-    if (!isTorrent || !engineUrl || !stream || torrentUrl) return;
+    if (!torrent || !engineUrl || torrentUrl) return;
     const controller = new AbortController();
-    const request = torrentCreateRequest(engineUrl, stream);
+    const request = torrentCreateRequest(engineUrl, torrent);
 
     void fetch(request.createUrl, {
       body: JSON.stringify(request.body),
@@ -532,11 +543,11 @@ export function PlayerScreen({
       .then(async (response) => {
         if (!response.ok) throw new Error(`Engine returned ${response.status}.`);
         const stats = (await response.json()) as TorrentStats;
-        const fileIndex = resolveFileIndex(stream, stats);
+        const fileIndex = resolveFileIndex(torrent, stats);
         if (fileIndex === null) {
           throw new Error('The engine could not identify a playable file.');
         }
-        setTorrentUrl(torrentMediaUrl(engineUrl, stream, fileIndex));
+        setTorrentUrl(torrentMediaUrl(engineUrl, torrent, fileIndex));
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === 'AbortError') return;
@@ -545,7 +556,7 @@ export function PlayerScreen({
         });
       });
     return () => controller.abort();
-  }, [engineUrl, isTorrent, reportFailure, stream, torrentUrl]);
+  }, [engineUrl, reportFailure, torrent, torrentUrl]);
 
   useEffect(() => {
     if (!nativePlayer || !streamUrl) return;
@@ -878,7 +889,7 @@ export function PlayerScreen({
         {nativeShell && !nativePlayer ? (
           <div className={styles.playerStatus}>Preparing native player…</div>
         ) : null}
-        {isTorrent && nativePlayer && !streamUrl ? (
+        {torrent && nativePlayer && !streamUrl ? (
           <div className={styles.playerStatus}>{enUS.player.preparingTorrent}</div>
         ) : null}
         {streamUrl && buffering ? <div className={styles.playerStatus}>Buffering…</div> : null}

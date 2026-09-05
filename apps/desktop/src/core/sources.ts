@@ -1,13 +1,20 @@
 import type { PlaybackSelection } from './actions';
-import type { CoreStream } from './types';
+import type { CoreSource, CoreStreamSource } from './types';
 
 export type SourceSupport = 'direct' | 'external' | 'torrent' | 'unsupported';
 
-export function classifySource(stream: CoreStream): SourceSupport {
-  if (stream.url?.startsWith('https://')) return 'direct';
-  if (stream.infoHash) return 'torrent';
-  if (stream.externalUrl) return 'external';
-  return 'unsupported';
+export function classifySource(source: CoreStreamSource): SourceSupport {
+  switch (source.kind) {
+    case 'torrent':
+      return 'torrent';
+    case 'url':
+      return source.url.startsWith('https://') ? 'direct' : 'unsupported';
+    case 'external':
+      return 'external';
+    case 'playerFrame':
+    case 'youtube':
+      return 'unsupported';
+  }
 }
 
 // Require an explicit web scheme and reject spellings that URL would silently
@@ -22,58 +29,74 @@ export function externalWebUrl(value: string | null | undefined): URL | null {
   }
 }
 
-export function unsupportedSourceReason(stream: CoreStream) {
-  if (stream.externalUrl) return 'external';
-  if (stream.ytId) return 'youtube';
-  if (stream.playerFrameUrl) return 'embedded';
-  if (stream.url?.startsWith('http://')) return 'insecure';
-  if (stream.url) return 'protocol';
-  return 'unknown';
+export function unsupportedSourceReason(source: CoreStreamSource) {
+  switch (source.kind) {
+    case 'external':
+      return 'external';
+    case 'youtube':
+      return 'youtube';
+    case 'playerFrame':
+      return 'embedded';
+    case 'url':
+      return source.url.startsWith('http://') ? 'insecure' : 'protocol';
+    case 'torrent':
+      return 'unknown';
+  }
+}
+
+function sourceIdentity(source: CoreStreamSource, requestHeaders: Array<[string, string]>) {
+  switch (source.kind) {
+    case 'torrent':
+      // Explicit files in a pack and guesses for different episodes are
+      // separate attempts, and different peer sources are different attempts
+      // at the same swarm.
+      return [
+        'torrent',
+        source.infoHash.toLowerCase(),
+        source.fileIdx,
+        [...new Set(source.sources)].sort(),
+      ];
+    case 'url':
+      return ['direct', source.url, requestHeaders];
+    case 'external':
+      return ['external', source.externalUrl];
+    case 'playerFrame':
+      return ['embedded', source.playerFrameUrl];
+    case 'youtube':
+      return ['youtube', source.ytId];
+  }
 }
 
 export function sourceKey(
-  stream: CoreStream,
+  source: CoreSource,
   transportUrl: string,
   selection: Pick<PlaybackSelection, 'meta' | 'video'>,
 ) {
-  const requestHeaders = Object.entries(stream.behaviorHints?.proxyHeaders?.request ?? {})
+  const requestHeaders = Object.entries(source.hints.proxyRequestHeaders ?? {})
     .map(([name, value]): [string, string] => [name.toLowerCase(), value])
     .sort(([left], [right]) => left.localeCompare(right));
-  const identity = stream.url
-    ? ['direct', stream.url, requestHeaders]
-    : stream.infoHash
-      ? [
-          'torrent',
-          stream.infoHash.toLowerCase(),
-          stream.fileIdx ?? null,
-          [...new Set(stream.sources ?? [])].sort(),
-        ]
-      : stream.externalUrl
-        ? ['external', stream.externalUrl]
-        : ['unsupported', stream.ytId ?? null, stream.playerFrameUrl ?? null];
-  // Explicit files in a pack and guesses for different episodes are separate
-  // attempts. Display metadata and progress do not change the source identity.
+  // Display metadata and progress do not change the source identity.
   return JSON.stringify([
     transportUrl,
     selection.meta.type,
     selection.meta.id,
     selection.video?.id ?? selection.meta.id,
-    identity,
+    sourceIdentity(source.source, requestHeaders),
   ]);
 }
 
-export function sourceTitle(stream: CoreStream) {
-  return stream.name?.trim() || stream.description?.split('\n')[0]?.trim() || 'Unnamed source';
+export function sourceTitle(source: CoreSource) {
+  return source.name?.trim() || source.description?.split('\n')[0]?.trim() || 'Unnamed source';
 }
 
-export function sourceDetails(stream: CoreStream) {
-  const detail = stream.description?.trim();
-  if (detail && detail !== sourceTitle(stream)) return detail;
+export function sourceDetails(source: CoreSource) {
+  const detail = source.description?.trim();
+  if (detail && detail !== sourceTitle(source)) return detail;
 
-  const filename = stream.behaviorHints?.filename?.trim();
+  const filename = source.hints.filename?.trim();
   if (filename) return filename;
 
-  switch (classifySource(stream)) {
+  switch (classifySource(source.source)) {
     case 'direct':
       return 'HTTPS direct stream';
     case 'torrent':
@@ -85,8 +108,8 @@ export function sourceDetails(stream: CoreStream) {
   }
 }
 
-export function sourceSize(stream: CoreStream) {
-  const bytes = stream.behaviorHints?.videoSize;
+export function sourceSize(source: CoreSource) {
+  const bytes = source.hints.videoSize;
   if (!bytes || bytes <= 0) return null;
   const gibibytes = bytes / 1024 ** 3;
   return `${gibibytes < 1 ? gibibytes.toFixed(2) : gibibytes.toFixed(1)} GB`;

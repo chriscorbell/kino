@@ -4,26 +4,25 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { CoreContext } from '../core/context';
 import type { CoreTransport } from '../core/transport';
 import type { CoreMetaItem, CoreRuntimeEvent, MetaDetailsState } from '../core/types';
+import { metaItem, source, urlSource, video } from '../test/coreState';
 import { MetaDetailsScreen } from './MetaDetailsScreen';
 
 const openExternalUrl = vi.hoisted(() => vi.fn());
 vi.mock('../native/externalNavigation', () => ({ openExternalUrl }));
 vi.mock('../native/player', () => ({ nativeShellPresent: () => true }));
 
-const meta: CoreMetaItem = {
+const meta: CoreMetaItem = metaItem({
   id: 'show',
   name: 'Test series',
   type: 'series',
-  inLibrary: false,
-  watched: false,
   videos: [
-    { id: 'ep1', title: 'Episode one', season: 1, episode: 1 },
-    { id: 'ep2', title: 'Episode two', season: 1, episode: 2 },
-    { id: 'ep3', title: 'Episode three', season: 1, episode: 3 },
+    video({ id: 'ep1', title: 'Episode one', season: 1, episode: 1 }),
+    video({ id: 'ep2', title: 'Episode two', season: 1, episode: 2 }),
+    video({ id: 'ep3', title: 'Episode three', season: 1, episode: 3 }),
   ],
-};
+});
 const addon = {
-  manifest: { id: 'test', name: 'Test add-on' },
+  manifest: { id: 'test', logo: null, name: 'Test add-on' },
   transportUrl: 'https://addon.invalid/manifest.json',
 };
 
@@ -32,6 +31,7 @@ const addon = {
 function details(videoId: string, item = meta): MetaDetailsState {
   return {
     libraryItem: null,
+    title: null,
     selected: {
       metaPath: { resource: 'meta', type: item.type, id: item.id, extra: [] },
       streamPath: { resource: 'stream', type: item.type, id: videoId, extra: [] },
@@ -44,11 +44,7 @@ function details(videoId: string, item = meta): MetaDetailsState {
         content: {
           type: 'Ready',
           content: [
-            {
-              name: `${videoId} source`,
-              url: `https://media.invalid/${videoId}.mp4`,
-              deepLinks: { player: '' },
-            },
+            urlSource(`https://media.invalid/${videoId}.mp4`, { name: `${videoId} source` }),
           ],
         },
       },
@@ -71,7 +67,7 @@ function mountDetails(
     onBeforeDestroy: () => () => {},
     dispatch,
     init: vi.fn().mockResolvedValue(undefined),
-    getState: async <State,>() => state as State,
+    getState: (async () => state) as CoreTransport['getState'],
     subscribe: (listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -108,6 +104,32 @@ describe('episode source identity', () => {
     Element.prototype.scrollIntoView = vi.fn();
   });
 
+  it('gives a seasonless episode no season tab and still lists it', async () => {
+    // Core reports an absent season as null. A tab per distinct season must skip
+    // that, and the episode itself still belongs in the list.
+    const seasonless = metaItem({
+      id: 'show',
+      name: 'Test series',
+      type: 'series',
+      videos: [
+        video({ id: 'only', title: 'Sole episode', episode: 1 }),
+        video({ id: 'other', title: 'Second episode', episode: 2 }),
+      ],
+    });
+    mountDetails(details('only', seasonless), seasonless, 'only');
+
+    expect(await screen.findByRole('button', { name: /Sole episode/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Second episode/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Season/ })).not.toBeInTheDocument();
+  });
+
+  it('lists only the selected season when Core numbered the episodes', async () => {
+    mountDetails();
+    await screen.findByRole('button', { name: /ep1 source/ });
+    expect(screen.getByRole('button', { name: 'Season 1' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /Episode/ })).toHaveLength(3);
+  });
+
   it('prevents playing a retained source while the new Load is pending or still returns old state', async () => {
     const { dispatch, onPlay, publish } = mountDetails();
     const firstSource = await screen.findByRole('button', { name: /ep1 source/ });
@@ -138,7 +160,9 @@ describe('episode source identity', () => {
     expect(onPlay).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
         video: meta.videos[1],
-        stream: expect.objectContaining({ url: 'https://media.invalid/ep2.mp4' }),
+        stream: expect.objectContaining({
+          source: { kind: 'url', url: 'https://media.invalid/ep2.mp4' },
+        }),
       }),
     );
   });
@@ -165,7 +189,9 @@ describe('episode source identity', () => {
     expect(onPlay).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
         video: meta.videos[2],
-        stream: expect.objectContaining({ url: 'https://media.invalid/ep3.mp4' }),
+        stream: expect.objectContaining({
+          source: { kind: 'url', url: 'https://media.invalid/ep3.mp4' },
+        }),
       }),
     );
   });
@@ -216,20 +242,21 @@ describe('external source approval', () => {
     state.streams[0]!.content = {
       type: 'Ready',
       content: [
-        {
-          name: 'Watch online',
-          externalUrl: 'https://watch.example/title/123?region=us',
-          deepLinks: { player: '' },
-        },
-        { name: 'Local file', externalUrl: 'file:///tmp/movie', deepLinks: { player: '' } },
-        {
-          name: 'Credentials',
-          externalUrl: 'https://user:password@watch.example/',
-          deepLinks: { player: '' },
-        },
-        { name: 'Video ID', ytId: '123', deepLinks: { player: '' } },
-        { name: 'Frame', playerFrameUrl: 'https://watch.example/frame', deepLinks: { player: '' } },
-        { name: 'FTP stream', url: 'ftp://watch.example/movie', deepLinks: { player: '' } },
+        source(
+          { kind: 'external', externalUrl: 'https://watch.example/title/123?region=us' },
+          { name: 'Watch online' },
+        ),
+        source({ kind: 'external', externalUrl: 'file:///tmp/movie' }, { name: 'Local file' }),
+        source(
+          { kind: 'external', externalUrl: 'https://user:password@watch.example/' },
+          { name: 'Credentials' },
+        ),
+        source({ kind: 'youtube', ytId: '123' }, { name: 'Video ID' }),
+        source(
+          { kind: 'playerFrame', playerFrameUrl: 'https://watch.example/frame' },
+          { name: 'Frame' },
+        ),
+        urlSource('ftp://watch.example/movie', { name: 'FTP stream' }),
       ],
     };
     return state;
@@ -301,10 +328,10 @@ describe('external source approval', () => {
 });
 
 describe('Start Over', () => {
-  function resumableDetails(videoId: string) {
+  function resumableDetails(videoId: string): MetaDetailsState {
     return {
       ...details(videoId),
-      libraryItem: { _id: meta.id, state: { timeOffset: 30_000, video_id: 'ep2' } },
+      libraryItem: { id: meta.id, timeOffset: 30_000, videoId: 'ep2' },
     };
   }
 
@@ -320,7 +347,9 @@ describe('Start Over', () => {
       expect.objectContaining({
         resumeMode: 'start-over',
         video: meta.videos[1],
-        stream: expect.objectContaining({ url: 'https://media.invalid/ep2.mp4' }),
+        stream: expect.objectContaining({
+          source: { kind: 'url', url: 'https://media.invalid/ep2.mp4' },
+        }),
       }),
     );
   });

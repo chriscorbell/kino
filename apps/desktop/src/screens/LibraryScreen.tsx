@@ -5,6 +5,7 @@ import { LoadMore } from '../components/LoadMore';
 import { useCore } from '../core/context';
 import type { CoreTransport } from '../core/transport';
 import { loadLibraryAction } from '../core/actions';
+import { savedTitlePreview } from '../core/preview';
 import type { CoreMetaPreview, LibraryState } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
@@ -20,7 +21,7 @@ export function LibraryScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => v
   const [request, setRequest] = useBrowseState('library');
   const [attempt, setAttempt] = useState(0);
   const filterKey = `${request?.type ?? 'all'}:${request?.sort ?? 'lastwatched'}`;
-  const result = useCoreModel<LibraryState>(
+  const result = useCoreModel(
     'library',
     loadLibraryAction(request),
     `${filterKey}:${request?.page ?? 1}:${attempt}`,
@@ -52,12 +53,9 @@ export function LibraryScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => v
               className={option.selected ? styles.pillActive : styles.pill}
               key={option.type ?? 'all'}
               onClick={() => {
-                if (option.selected) return;
-                setRequest({
-                  page: 1,
-                  sort: state?.selected?.request.sort ?? 'lastwatched',
-                  type: option.type,
-                });
+                // The adapter derived this request from the option and the
+                // selected sort, so the screen never builds a Core link.
+                if (!option.selected) setRequest(option.request);
               }}
               type="button"
             >
@@ -82,19 +80,11 @@ export function LibraryScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => v
       {items.length > 0 ? (
         <div className={styles.mediaGrid}>
           {items.map((item) => {
-            const preview: CoreMetaPreview = {
-              id: item._id,
-              inLibrary: true,
-              name: item.name,
-              ...(item.poster === undefined ? {} : { poster: item.poster }),
-              posterShape: item.posterShape ?? 'Poster',
-              type: item.type,
-              watched: false,
-            };
+            const preview = savedTitlePreview(item);
             return (
               <MediaCard
                 item={preview}
-                key={`${item.type}:${item._id}`}
+                key={`${item.type}:${item.id}`}
                 onOpen={() => onOpen(preview)}
               />
             );

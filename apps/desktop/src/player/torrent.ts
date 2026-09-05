@@ -1,4 +1,6 @@
-import type { CorePlayerStream } from '../core/types';
+import type { CoreStreamSource } from '../core/types';
+
+export type TorrentSource = Extract<CoreStreamSource, { kind: 'torrent' }>;
 
 export interface TorrentRequest {
   body: { peerSearch: { sources: string[] }; guessFileIdx: boolean };
@@ -13,27 +15,26 @@ export interface TorrentStats {
 
 // The engine speaks Stremio's streaming-server API: create the engine for an
 // infoHash, then read the chosen file over HTTP ranges (ADR 0015).
-export function torrentCreateRequest(engineUrl: string, stream: CorePlayerStream): TorrentRequest {
-  const infoHash = String(stream.infoHash).toLowerCase();
-  const trackers = (stream.announce ?? [])
-    .map((source) => (source.startsWith('tracker:') ? source.slice('tracker:'.length) : source))
-    .filter((source) => /^(https?|udp):\/\//.test(source));
+export function torrentCreateRequest(engineUrl: string, source: TorrentSource): TorrentRequest {
+  const infoHash = source.infoHash.toLowerCase();
+  const trackers = source.sources
+    .map((entry) => (entry.startsWith('tracker:') ? entry.slice('tracker:'.length) : entry))
+    .filter((entry) => /^(https?|udp):\/\//.test(entry));
   return {
     body: {
       peerSearch: { sources: [...new Set(trackers)] },
-      guessFileIdx: stream.fileIdx === undefined || stream.fileIdx === null,
+      guessFileIdx: source.fileIdx === null,
     },
     createUrl: `${engineUrl.replace(/\/$/, '')}/${infoHash}/create`,
   };
 }
 
-export function torrentMediaUrl(engineUrl: string, stream: CorePlayerStream, fileIdx: number) {
-  const infoHash = String(stream.infoHash).toLowerCase();
-  return `${engineUrl.replace(/\/$/, '')}/${infoHash}/${fileIdx}`;
+export function torrentMediaUrl(engineUrl: string, source: TorrentSource, fileIdx: number) {
+  return `${engineUrl.replace(/\/$/, '')}/${source.infoHash.toLowerCase()}/${fileIdx}`;
 }
 
-export function resolveFileIndex(stream: CorePlayerStream, stats: TorrentStats): number | null {
-  if (typeof stream.fileIdx === 'number' && stream.fileIdx >= 0) return stream.fileIdx;
+export function resolveFileIndex(source: TorrentSource, stats: TorrentStats): number | null {
+  if (source.fileIdx !== null && source.fileIdx >= 0) return source.fileIdx;
   if (typeof stats.guessedFileIdx === 'number' && stats.guessedFileIdx >= 0) {
     return stats.guessedFileIdx;
   }

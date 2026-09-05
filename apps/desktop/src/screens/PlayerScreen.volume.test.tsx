@@ -1,12 +1,28 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { beforeEach, expect, it, vi } from 'vitest';
+import type { CoreSource } from '../core/types';
 import { defaultSettings, loadSettings, saveSettings } from '../settings';
+import { preview } from '../test/coreState';
 import { PlayerScreen } from './PlayerScreen';
 
 const fixture = vi.hoisted(() => ({
   nativeShell: true,
-  stream: { url: 'https://media.invalid/fixture.mp4', deepLinks: { player: '' } },
+  stream: {
+    description: null,
+    name: null,
+    source: { kind: 'url', url: 'https://media.invalid/fixture.mp4' },
+    hints: {
+      bingeGroup: null,
+      countryWhitelist: null,
+      filename: null,
+      notWebReady: null,
+      proxyRequestHeaders: null,
+      proxyResponseHeaders: null,
+      videoHash: null,
+      videoSize: null,
+    },
+  } satisfies CoreSource,
   transport: { dispatch: vi.fn().mockResolvedValue(undefined) },
   unload: async () => {},
   native: {
@@ -40,7 +56,7 @@ beforeEach(() => {
   localStorage.clear();
 });
 const selection = {
-  meta: { id: 'fixture', type: 'movie', name: 'Fixture', inLibrary: false, watched: false },
+  meta: preview({ id: 'fixture', name: 'Fixture', type: 'movie' }),
   stream: fixture.stream,
   metaTransportUrl: 'https://addon.invalid/manifest.json',
   streamTransportUrl: 'https://addon.invalid/manifest.json',
