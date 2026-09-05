@@ -912,23 +912,21 @@
   font-variant-numeric: tabular-nums;
 }
 
-.dialogBackdrop {
-  position: fixed;
-  z-index: calc(var(--kino-layer-dialog) + 1);
-  inset: 0;
-  display: grid;
-  padding: 24px;
-  place-items: center;
+.accountDialog::backdrop {
   background: rgb(0 0 0 / 72%);
   backdrop-filter: blur(12px);
 }
 
 .accountDialog {
-  position: relative;
-  width: min(100%, 420px);
+  position: fixed;
+  inset: 0;
+  width: min(calc(100% - 48px), 420px);
+  max-height: calc(100% - 48px);
+  margin: auto;
   padding: 34px;
   border: 1px solid var(--kino-border);
   border-radius: var(--kino-panel-radius);
+  color: var(--kino-text);
   background: var(--kino-surface);
   box-shadow: 0 24px 80px rgb(0 0 0 / 48%);
   animation: enter var(--kino-duration-standard) var(--kino-ease-out);

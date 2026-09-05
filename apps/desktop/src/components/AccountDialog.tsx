@@ -1,5 +1,5 @@
 import { X } from '@phosphor-icons/react';
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 
 import logo from '../assets/kino.svg';
 import styles from '../App.module.css';
@@ -19,6 +19,10 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const user = profile.state?.profile.auth?.user;
+  const signedIn = Boolean(user);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   const close = useCallback(() => {
     if (!user) selectSession('guest');
@@ -30,12 +34,21 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
   }, [selectSession, session]);
 
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !submitting) close();
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const trigger = document.activeElement;
+    dialog.showModal();
+    return () => {
+      dialog.close();
+      if (trigger instanceof HTMLElement && trigger.isConnected) trigger.focus();
     };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [close, submitting]);
+  }, []);
+
+  useEffect(() => {
+    if (submitting) dialogRef.current?.focus();
+    else if (signedIn || status !== 'ready') closeRef.current?.focus();
+    else emailRef.current?.focus();
+  }, [signedIn, status, submitting]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -85,79 +98,113 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className={styles.dialogBackdrop} role="presentation">
-      <section
-        aria-labelledby="account-title"
-        aria-modal="true"
-        className={styles.accountDialog}
-        role="dialog"
+    <dialog
+      aria-labelledby="account-title"
+      aria-modal="true"
+      className={styles.accountDialog}
+      onKeyDown={(event) => {
+        if (event.key !== 'Tab' || event.altKey || event.ctrlKey || event.metaKey) return;
+        const dialog = event.currentTarget;
+        const controls = Array.from(
+          dialog.querySelectorAll<HTMLElement>(
+            'button:not(:disabled), input:not(:disabled), a[href]',
+          ),
+        ).filter((control) => control.tabIndex >= 0 && control.getClientRects().length > 0);
+        const first = controls[0];
+        const last = controls.at(-1);
+        if (!first || !last) {
+          event.preventDefault();
+          dialog.focus();
+        } else if (
+          event.shiftKey &&
+          (document.activeElement === first || document.activeElement === dialog)
+        ) {
+          event.preventDefault();
+          last.focus();
+        } else if (
+          !event.shiftKey &&
+          (document.activeElement === last || document.activeElement === dialog)
+        ) {
+          event.preventDefault();
+          first.focus();
+        }
+      }}
+      ref={dialogRef}
+      onCancel={(event) => {
+        event.preventDefault();
+        if (!submitting) close();
+      }}
+    >
+      <button
+        aria-label="Close"
+        className={styles.dialogClose}
+        disabled={submitting}
+        onClick={close}
+        ref={closeRef}
+        type="button"
       >
-        <button
-          aria-label="Close"
-          className={styles.dialogClose}
-          disabled={submitting}
-          onClick={close}
-          type="button"
-        >
-          <X aria-hidden size={18} />
-        </button>
-        <img alt="" src={logo} />
-        {user ? (
-          <>
-            <h1 id="account-title">Stremio account</h1>
-            <p>{user.email || user.name || 'Signed in'}</p>
-            <button
-              className={styles.secondaryAction}
-              onClick={() => {
-                if (!transport) return;
-                void transport
-                  .dispatch({ action: 'Ctx', args: { action: 'Logout' } })
-                  .finally(() => {
-                    selectSession('guest');
-                    onClose();
-                  });
-              }}
-              type="button"
-            >
-              Sign out
-            </button>
-          </>
-        ) : (
-          <form onSubmit={submit}>
-            <h1 id="account-title">Sign in to Stremio</h1>
-            <p>Your credentials go directly to Stremio. Kino keeps guest activity separate.</p>
-            <label htmlFor="stremio-email">Email</label>
-            <input
-              autoComplete="username"
-              autoFocus
-              disabled={status !== 'ready' || submitting}
-              id="stremio-email"
-              onChange={(event) => setEmail(event.target.value)}
-              required
-              type="email"
-              value={email}
-            />
-            <label htmlFor="stremio-password">Password</label>
-            <input
-              autoComplete="current-password"
-              disabled={status !== 'ready' || submitting}
-              id="stremio-password"
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              type="password"
-              value={password}
-            />
-            {error ? <p className={styles.formError}>{error}</p> : null}
-            <button
-              className={styles.primaryAction}
-              disabled={status !== 'ready' || submitting}
-              type="submit"
-            >
-              {status !== 'ready' ? 'Preparing account…' : submitting ? 'Signing in…' : 'Sign in'}
-            </button>
-          </form>
-        )}
-      </section>
-    </div>
+        <X aria-hidden size={18} />
+      </button>
+      <img alt="" src={logo} />
+      {user ? (
+        <>
+          <h1 id="account-title">Stremio account</h1>
+          <p>{user.email || user.name || 'Signed in'}</p>
+          <button
+            className={styles.secondaryAction}
+            onClick={() => {
+              if (!transport) return;
+              void transport.dispatch({ action: 'Ctx', args: { action: 'Logout' } }).finally(() => {
+                selectSession('guest');
+                onClose();
+              });
+            }}
+            type="button"
+          >
+            Sign out
+          </button>
+        </>
+      ) : (
+        <form onSubmit={submit}>
+          <h1 id="account-title">Sign in to Stremio</h1>
+          <p>Your credentials go directly to Stremio. Kino keeps guest activity separate.</p>
+          <label htmlFor="stremio-email">Email</label>
+          <input
+            autoComplete="username"
+            aria-describedby={error ? 'account-error' : undefined}
+            disabled={status !== 'ready' || submitting}
+            id="stremio-email"
+            ref={emailRef}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+            type="email"
+            value={email}
+          />
+          <label htmlFor="stremio-password">Password</label>
+          <input
+            aria-describedby={error ? 'account-error' : undefined}
+            autoComplete="current-password"
+            disabled={status !== 'ready' || submitting}
+            id="stremio-password"
+            onChange={(event) => setPassword(event.target.value)}
+            required
+            type="password"
+            value={password}
+          />
+          {error ? (
+            <p className={styles.formError} id="account-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <button
+            className={styles.primaryAction}
+            disabled={status !== 'ready' || submitting}
+            type="submit"
+          >
+            {status !== 'ready' ? 'Preparing account…' : submitting ? 'Signing in…' : 'Sign in'}
+          </button>
+        </form>
+      )}
+    </dialog>
   );
 }
