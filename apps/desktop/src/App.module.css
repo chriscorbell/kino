@@ -112,6 +112,22 @@
   animation: enter var(--kino-duration-standard) var(--kino-ease-out);
 }
 
+.shell[hidden],
+.content[hidden] {
+  display: none;
+}
+
+.playbackMain {
+  position: fixed;
+  inset: 0;
+}
+
+.content:focus-visible,
+.content h1:focus-visible {
+  outline: 2px solid var(--kino-accent);
+  outline-offset: -2px;
+}
+
 .page {
   width: min(100%, 1500px);
   min-height: 100%;
@@ -495,6 +511,20 @@
   border-color: var(--kino-accent);
   color: var(--kino-on-accent);
   background: var(--kino-accent);
+}
+
+.resumeChoice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 16px;
+}
+
+.resumeChoice button {
+  transition:
+    color 150ms ease,
+    border-color 150ms ease,
+    background-color 150ms ease;
 }
 
 .episodeList,
@@ -1031,6 +1061,14 @@
 .accountDialog .formError {
   margin: 12px 0 0;
   color: var(--kino-danger);
+}
+
+.accountCreate {
+  justify-self: center;
+  margin-top: 20px;
+  color: var(--kino-text-muted);
+  font-size: 13px;
+  text-underline-offset: 4px;
 }
 
 @keyframes pulse {
@@ -1607,6 +1645,7 @@
   .navButton,
   .addonRemove,
   .secondaryButton,
+  .resumeChoice button,
   .skipLink,
   .switch,
   .switch span {
