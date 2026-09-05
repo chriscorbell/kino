@@ -590,14 +590,20 @@ export function PlayerScreen({
   }, [nativePlayer, preferredSubtitleLanguage, settings.subtitles, subtitleTracks]);
 
   useEffect(() => {
-    if (resumeAppliedRef.current || duration <= 0 || resumeTime <= 0 || resumeTime >= duration)
+    if (
+      selection.resumeMode === 'start-over' ||
+      resumeAppliedRef.current ||
+      duration <= 0 ||
+      resumeTime <= 0 ||
+      resumeTime >= duration
+    )
       return;
     const timeout = window.setTimeout(() => {
       resumeAppliedRef.current = true;
       seekTo(resumeTime);
     }, 0);
     return () => window.clearTimeout(timeout);
-  }, [duration, resumeTime, seekTo]);
+  }, [duration, resumeTime, seekTo, selection.resumeMode]);
 
   useEffect(() => {
     if (!duration || chapterMarker) return;
