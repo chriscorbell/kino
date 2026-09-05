@@ -649,6 +649,23 @@
   object-fit: contain;
 }
 
+.playerTopbar,
+.playerControls {
+  opacity: 1;
+  transition: opacity var(--kino-duration-fast) ease;
+}
+
+.player.controlsHidden,
+.player.controlsHidden * {
+  cursor: none;
+}
+
+.controlsHidden .playerTopbar,
+.controlsHidden .playerControls {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .playerTopbar {
   position: absolute;
   top: 0;
@@ -1673,6 +1690,8 @@
   .navButton,
   .addonRemove,
   .secondaryButton,
+  .playerTopbar,
+  .playerControls,
   .resumeChoice button,
   .skipLink,
   .switch,
