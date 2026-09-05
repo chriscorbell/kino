@@ -147,6 +147,7 @@ jobs:
           pnpm macos:check-launch
           pnpm macos:check-engine
           pnpm macos:check-fullscreen
+          pnpm macos:check-web-console
 
   validate:
     name: Validate
