@@ -3,13 +3,14 @@
 import Bridge from '@stremio/stremio-core-web/bridge.js';
 import wasmUrl from '@stremio/stremio-core-web/stremio_core_web_bg.wasm?url';
 import { createAddonNetwork } from './addonNetwork';
+import { CatalogPaging } from './catalogPaging';
 import { PendingCoreWork, trackCoreSync } from './pendingWork';
-import type { ProfileState } from './types';
+import type { CatalogWithFiltersState, CoreAction, CoreRuntimeEvent, ProfileState } from './types';
 
 interface CoreWorkerScope extends DedicatedWorkerGlobalScope {
   app_version: string;
   decodeStream(stream: string): unknown;
-  dispatch(action: unknown, field: unknown, locationHash: string): void;
+  dispatch(action: unknown, field: unknown, locationHash: string): void | Promise<void>;
   document: { baseURI: string };
   encodeStream(stream: unknown): string | null;
   get_location_hash(): Promise<unknown>;
@@ -44,7 +45,28 @@ scope.init = async ({ appVersion, shellVersion }) => {
     typeof loadedCore.default === 'function'
       ? loadedCore
       : (loadedCore.default as unknown as typeof loadedCore);
-  scope.dispatch = core.dispatch;
+  const paging = new CatalogPaging(
+    {
+      dispatch: core.dispatch,
+      getState: () => core.get_state('discover') as CatalogWithFiltersState,
+    },
+    () => {
+      void bridge.call(['onCoreEvent'], [{ name: 'NewState', args: ['discover'] }]);
+    },
+  );
+  scope.dispatch = (value, field, hash) => {
+    const action = value as CoreAction;
+    if (field === 'discover') {
+      if (
+        action.action === 'CatalogWithFilters' &&
+        (action.args as { action?: string } | undefined)?.action === 'LoadNextPage'
+      ) {
+        return paging.loadNext(hash);
+      }
+      if (action.action === 'Load' || action.action === 'Unload') paging.reset();
+    }
+    core.dispatch(value, field, hash);
+  };
   scope.decodeStream = core.decode_stream;
   scope.encodeStream = core.encode_stream;
 
@@ -54,14 +76,19 @@ scope.init = async ({ appVersion, shellVersion }) => {
   const network = createAddonNetwork(scope.fetch.bind(scope), import.meta.env.DEV, () => {
     void bridge.call(['onCoreEvent'], [{ name: 'NewState', args: ['ctx'] }]);
   });
-  scope.fetch = network.coreFetch;
+  scope.fetch = paging.observeFetch(network.coreFetch);
   scope.getState = (field) => {
     const state = core.get_state(field);
+    if (field === 'discover') return paging.snapshot(state as CatalogWithFiltersState);
     if (field === 'ctx') {
       const context = state as ProfileState;
       context.profile.addons = context.profile.addons.map(network.describeAddon);
     }
     return state;
   };
-  await core.initialize_runtime((event) => bridge.call(['onCoreEvent'], [event]));
+  await core.initialize_runtime((value) => {
+    const event = value as CoreRuntimeEvent;
+    if (event.name === 'NewState' && event.args.includes('discover')) paging.updated();
+    return bridge.call(['onCoreEvent'], [event]);
+  });
 };

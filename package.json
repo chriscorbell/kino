@@ -11,7 +11,7 @@
   },
   "scripts": {
     "build": "pnpm --filter @kino/desktop build",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm core:check-streams && pnpm core:check-subtitles && pnpm core:check-shutdown && pnpm core:check-addon-transports && pnpm engine:check-vendor && pnpm build",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm core:check-streams && pnpm core:check-pagination && pnpm core:check-subtitles && pnpm core:check-shutdown && pnpm core:check-addon-transports && pnpm engine:check-vendor && pnpm build",
     "core:check-streams": "node scripts/check-core-streams.mjs",
     "core:check-subtitles": "node scripts/check-core-subtitles.mjs",
     "core:check-shutdown": "node scripts/check-core-shutdown.mjs",
@@ -28,8 +28,10 @@
     "macos:check-engine": "./scripts/check-macos-engine.sh",
     "macos:check-engine-ui": "node scripts/check-macos-engine-ui.mjs",
     "macos:check-engine-retry": "node scripts/check-macos-engine-retry.mjs",
-    "macos:check-fullscreen": "node scripts/check-macos-fullscreen.mjs",
     "macos:check-scale": "node scripts/check-macos-scale.mjs",
+    "macos:check-fullscreen": "node scripts/check-macos-fullscreen.mjs",
+    "macos:check-volume": "node scripts/check-macos-volume.mjs",
+    "macos:check-web-console": "node scripts/check-macos-web-console.mjs",
     "macos:check-launch": "./scripts/check-macos-launch.sh",
     "macos:check-playback": "node scripts/check-macos-playback.mjs",
     "macos:check-request-headers": "node scripts/check-macos-request-headers.mjs",
@@ -37,7 +39,8 @@
     "macos:check-addon-transports": "node scripts/check-macos-addon-transports.mjs",
     "macos:package": "node scripts/package-macos.mjs",
     "test": "pnpm --filter @kino/desktop test",
-    "typecheck": "pnpm --filter @kino/desktop typecheck"
+    "typecheck": "pnpm --filter @kino/desktop typecheck",
+    "core:check-pagination": "node scripts/check-core-pagination.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

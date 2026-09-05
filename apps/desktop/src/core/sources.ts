@@ -10,6 +10,27 @@ export function classifySource(stream: CoreStream): SourceSupport {
   return 'unsupported';
 }
 
+// Require an explicit web scheme and reject spellings that URL would silently
+// repair before showing the destination in the confirmation.
+export function externalWebUrl(value: string | null | undefined): URL | null {
+  if (!value || !/^https?:\/\//i.test(value) || /[\s\\]/u.test(value)) return null;
+  try {
+    const url = new URL(value);
+    return url.host && !url.username && !url.password ? url : null;
+  } catch {
+    return null;
+  }
+}
+
+export function unsupportedSourceReason(stream: CoreStream) {
+  if (stream.externalUrl) return 'external';
+  if (stream.ytId) return 'youtube';
+  if (stream.playerFrameUrl) return 'embedded';
+  if (stream.url?.startsWith('http://')) return 'insecure';
+  if (stream.url) return 'protocol';
+  return 'unknown';
+}
+
 export function sourceKey(
   stream: CoreStream,
   transportUrl: string,

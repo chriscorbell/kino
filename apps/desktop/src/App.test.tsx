@@ -75,6 +75,10 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Sign in to Stremio' }));
 
     expect(screen.getByRole('dialog', { name: 'Sign in to Stremio' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Create account' })).toHaveAttribute(
+      'href',
+      'https://www.stremio.com/register',
+    );
 
     fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true }));
 

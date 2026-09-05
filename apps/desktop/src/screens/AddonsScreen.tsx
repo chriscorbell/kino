@@ -1,8 +1,16 @@
 import { Trash } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import styles from '../App.module.css';
-import { installAddonAction, uninstallAddonAction } from '../core/actions';
+import { uninstallAddonAction } from '../core/actions';
+import {
+  addonConfigurationUrl,
+  addonManifestUrl,
+  AddonReplacementError,
+  installAddonConfiguration,
+} from '../core/addonConfiguration';
+import { openExternalUrl } from '../native/externalNavigation';
+import { nativeShellPresent } from '../native/player';
 import { AddonTransportError, addonTransportIssue, createAddonNetwork } from '../core/addonNetwork';
 import { useCore } from '../core/context';
 import type { CoreAddon, ProfileState } from '../core/types';
@@ -24,30 +32,100 @@ export function AddonsScreen() {
   const [manifestUrl, setManifestUrl] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [requiredConfiguration, setRequiredConfiguration] = useState<CoreAddon | null>(null);
+  const [pendingInstall, setPendingInstall] = useState<{
+    addon: CoreAddon;
+    previous: CoreAddon[];
+  } | null>(null);
+  const [profileTransport, setProfileTransport] = useState(transport);
+  const epoch = useRef(0);
+  useEffect(
+    () => () => {
+      epoch.current += 1;
+    },
+    [transport],
+  );
+  if (profileTransport !== transport) {
+    setProfileTransport(transport);
+    setManifestUrl('');
+    setBusy(false);
+    setError(null);
+    setMessage(null);
+    setRequiredConfiguration(null);
+    setPendingInstall(null);
+  }
   const addons = profile.state?.profile.addons ?? [];
+
+  const completeInstall = async (addon: CoreAddon, previous: CoreAddon[] = []) => {
+    if (!transport || busy) return;
+    const current = epoch.current;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await installAddonConfiguration(transport, addon, previous);
+      if (current !== epoch.current) return;
+      setManifestUrl('');
+      setPendingInstall(null);
+      setRequiredConfiguration(null);
+      setMessage(previous.length > 0 ? enUS.addons.configurationReplaced : enUS.addons.installed);
+    } catch (cause) {
+      if (current !== epoch.current) return;
+      setError(
+        cause instanceof AddonReplacementError
+          ? enUS.addons.replaceFailed
+          : enUS.addons.installFailed,
+      );
+    } finally {
+      if (current === epoch.current) setBusy(false);
+    }
+  };
 
   const install = async (event: React.FormEvent) => {
     event.preventDefault();
-    const url = manifestUrl.trim();
+    const url = addonManifestUrl(manifestUrl);
     if (!transport || !url || busy) return;
     const issue = addonTransportIssue(url, import.meta.env.DEV);
     if (issue) {
       setError(enUS.addons.transportIssues[issue]);
       return;
     }
-
+    const current = epoch.current;
     setBusy(true);
     setError(null);
+    setMessage(null);
+    setRequiredConfiguration(null);
+    setPendingInstall(null);
     try {
       const response = await createAddonNetwork(fetch, import.meta.env.DEV).fetch(url, {
         headers: { Accept: 'application/json' },
       });
-      if (!response.ok) throw new Error(`Manifest returned ${response.status}.`);
+      if (!response.ok) throw new Error('Manifest request failed.');
       const manifest: unknown = await response.json();
       if (!isManifest(manifest)) throw new Error('That URL did not return an add-on manifest.');
-      await transport.dispatch(installAddonAction({ flags: {}, manifest, transportUrl: url }));
+      if (current !== epoch.current) return;
+      const addon = { flags: {}, manifest, transportUrl: url };
+      if (manifest.behaviorHints?.configurationRequired === true) {
+        setRequiredConfiguration(addon);
+        setMessage(enUS.addons.configurationInstructions);
+        return;
+      }
+      const context = await transport.getState<ProfileState>('ctx');
+      if (current !== epoch.current) return;
+      const previous = context.profile.addons.filter(
+        (installed) => installed.manifest.id === manifest.id && installed.transportUrl !== url,
+      );
+      if (previous.length > 0) {
+        setPendingInstall({ addon, previous });
+        return;
+      }
+      await installAddonConfiguration(transport, addon);
+      if (current !== epoch.current) return;
       setManifestUrl('');
+      setMessage(enUS.addons.installed);
     } catch (cause: unknown) {
+      if (current !== epoch.current) return;
       setError(
         cause instanceof AddonTransportError
           ? enUS.addons.transportIssues[cause.issue]
@@ -55,12 +133,43 @@ export function AddonsScreen() {
       );
       console.error('[kino:addons] install failed');
     } finally {
-      setBusy(false);
+      if (current === epoch.current) setBusy(false);
     }
   };
 
+  const configure = async (event: React.MouseEvent<HTMLAnchorElement>, url: string) => {
+    const current = epoch.current;
+    setMessage(enUS.addons.configurationInstructions);
+    setError(null);
+    if (!nativeShellPresent()) return;
+    event.preventDefault();
+    try {
+      await openExternalUrl(url);
+    } catch {
+      if (current === epoch.current) setError(enUS.addons.configurationOpenFailed);
+    }
+  };
+
+  const configurationLink = (addon: CoreAddon) => {
+    const url = addonConfigurationUrl(addon, import.meta.env.DEV);
+    return url ? (
+      <a
+        aria-label={`${enUS.addons.configure} ${addon.manifest.name}`}
+        className={styles.secondaryButton}
+        href={url}
+        onClick={(event) => {
+          void configure(event, url);
+        }}
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        {enUS.addons.configure}
+      </a>
+    ) : null;
+  };
+
   const uninstall = (addon: CoreAddon) => {
-    if (!transport) return;
+    if (!transport || busy) return;
     void transport.dispatch(uninstallAddonAction(addon)).catch((cause: unknown) => {
       setError(enUS.addons.removeFailed);
       console.error('[kino:addons] remove failed', cause);
@@ -79,7 +188,13 @@ export function AddonsScreen() {
         <input
           className={styles.textField}
           id="addon-url"
-          onChange={(event) => setManifestUrl(event.target.value)}
+          disabled={busy}
+          onChange={(event) => {
+            setManifestUrl(event.target.value);
+            setRequiredConfiguration(null);
+            setPendingInstall(null);
+            setError(null);
+          }}
           placeholder={enUS.addons.manifestPlaceholder}
           type="url"
           value={manifestUrl}
@@ -88,8 +203,60 @@ export function AddonsScreen() {
           {busy ? enUS.addons.installing : enUS.addons.install}
         </button>
       </form>
+      {pendingInstall ? (
+        <div className={styles.addonConfiguration}>
+          <p>
+            <strong>{pendingInstall.addon.manifest.name}</strong> {enUS.addons.configurationExists}
+          </p>
+          {pendingInstall.previous.some((addon) => addon.flags?.protected) ? (
+            <p>{enUS.addons.requiredConfigurationProtected}</p>
+          ) : null}
+          <div className={styles.addonActions}>
+            <button
+              className={styles.secondaryButton}
+              disabled={busy || pendingInstall.previous.some((addon) => addon.flags?.protected)}
+              onClick={() => {
+                void completeInstall(pendingInstall.addon, pendingInstall.previous);
+              }}
+              type="button"
+            >
+              {enUS.addons.replaceExisting}
+            </button>
+            <button
+              className={styles.secondaryButton}
+              disabled={busy}
+              onClick={() => {
+                void completeInstall(pendingInstall.addon);
+              }}
+              type="button"
+            >
+              {enUS.addons.keepBoth}
+            </button>
+            <button
+              className={styles.secondaryButton}
+              disabled={busy}
+              onClick={() => setPendingInstall(null)}
+              type="button"
+            >
+              {enUS.actions.cancel}
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {requiredConfiguration ? (
+        <div className={styles.addonConfiguration}>{configurationLink(requiredConfiguration)}</div>
+      ) : null}
       <div aria-live="polite">
-        {error ? <p className={styles.loadError}>{error}</p> : null}
+        {message ? (
+          <p className={styles.inlineEmpty} role="status">
+            {message}
+          </p>
+        ) : null}
+        {error ? (
+          <p className={styles.loadError} role="alert">
+            {error}
+          </p>
+        ) : null}
         {profile.loading ? <p className={styles.inlineEmpty}>{enUS.addons.loading}</p> : null}
         {!profile.loading && addons.length === 0 ? (
           <p className={styles.inlineEmpty}>{enUS.addons.empty}</p>
@@ -113,23 +280,30 @@ export function AddonsScreen() {
                   {addon.manifest.version ? <small> {addon.manifest.version}</small> : null}
                 </strong>
                 {addon.manifest.description ? <p>{addon.manifest.description}</p> : null}
+                {addon.manifest.behaviorHints?.configurationRequired === true ? (
+                  <p role="status">{enUS.addons.configurationRequired}</p>
+                ) : null}
                 {issue ? <p role="status">{enUS.addons.transportIssues[issue]}</p> : null}
                 <span className={styles.addonTypes}>
                   {(addon.manifest.types ?? []).join(' · ') || addon.manifest.id}
                 </span>
               </div>
-              {addon.flags?.protected ? (
-                <span className={styles.addonBadge}>{enUS.addons.protectedAddon}</span>
-              ) : (
-                <button
-                  aria-label={`${enUS.addons.remove} ${addon.manifest.name}`}
-                  className={styles.addonRemove}
-                  onClick={() => uninstall(addon)}
-                  type="button"
-                >
-                  <Trash aria-hidden size={16} />
-                </button>
-              )}
+              <div className={styles.addonActions}>
+                {!issue ? configurationLink(addon) : null}
+                {addon.flags?.protected ? (
+                  <span className={styles.addonBadge}>{enUS.addons.protectedAddon}</span>
+                ) : (
+                  <button
+                    aria-label={`${enUS.addons.remove} ${addon.manifest.name}`}
+                    className={styles.addonRemove}
+                    disabled={busy}
+                    onClick={() => uninstall(addon)}
+                    type="button"
+                  >
+                    <Trash aria-hidden size={16} />
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}

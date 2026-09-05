@@ -56,6 +56,10 @@ ApplicationWindow {
         id: diagnostics
     }
 
+    ExternalNavigation {
+        id: externalNavigation
+    }
+
     QtObject {
         id: interfaceBridge
 
@@ -75,6 +79,10 @@ ApplicationWindow {
 
         signal playerEvent(string name, var payload)
         signal streamingEngineChanged(string url, string error)
+
+        function openAccountCreation() {
+            return Qt.openUrlExternally("https://www.stremio.com/register")
+        }
 
         function startStreamingEngine() {
             if (streamEngine.url) {
@@ -110,6 +118,10 @@ ApplicationWindow {
 
         function setNowPlayingMetadata(title, subtitle) {
             nowPlaying.setMetadata(title, subtitle)
+        }
+
+        function setVolume(percent) {
+            player.setVolume(percent)
         }
 
         function setPaused(paused) {
@@ -181,6 +193,7 @@ ApplicationWindow {
             registerObject("kinoSecureStore", secureStore)
             registerObject("kinoDiagnostics", diagnostics)
             registerObject("kinoLifecycle", lifecycle)
+            registerObject("kinoExternalNavigation", externalNavigation)
         }
     }
 
@@ -203,6 +216,10 @@ ApplicationWindow {
         onFullScreenRequested: function(request) {
             root.setFullscreen(request.toggleOn)
             request.accept()
+        }
+
+        onJavaScriptConsoleMessage: function(level, message, lineNumber, sourceID) {
+            diagnostics.logWebMessage(level, message)
         }
 
         onLoadingChanged: function(request) {

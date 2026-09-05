@@ -148,3 +148,27 @@ void installLocalLogger(const QString &directory) {
     logger = std::make_unique<RotatingLogger>(directory);
     qInstallMessageHandler(messageHandler);
 }
+
+void logWebConsoleMessage(QtMsgType type, const QString &message) {
+    // Web messages may contain provider URLs or account data. Omit the entire
+    // message if sanitization changes it, and never attach the script URL.
+    if (sanitize(message) != message) return;
+    QString record = message;
+    record.replace(QLatin1Char('\r'), QStringLiteral("\\r"));
+    record.replace(QLatin1Char('\n'), QStringLiteral("\\n"));
+    const QByteArray encoded = record.toUtf8();
+    const QMessageLogger web(nullptr, 0, nullptr, "kino.web");
+    switch (type) {
+    case QtInfoMsg:
+        web.info("%s", encoded.constData());
+        break;
+    case QtWarningMsg:
+        web.warning("%s", encoded.constData());
+        break;
+    case QtCriticalMsg:
+        web.critical("%s", encoded.constData());
+        break;
+    default:
+        break;
+    }
+}

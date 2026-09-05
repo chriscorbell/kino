@@ -14,6 +14,7 @@ export interface NativePlayer {
     connect(listener: () => void): void;
     disconnect(listener: () => void): void;
   };
+  openAccountCreation(): Promise<boolean>;
   addSubtitles(url: string, title: string, lang: string): void;
   load(url: string, forceStereo: boolean, headers: Record<string, string>): void;
   pauseAndSnapshot(): Promise<{ duration: number; time: number }>;
@@ -22,6 +23,7 @@ export interface NativePlayer {
   seek(seconds: number): void;
   setFullscreen(enabled: boolean): void;
   setMuted(muted: boolean): void;
+  setVolume(percent: number): void;
   setNowPlayingMetadata(title: string, subtitle: string): void;
   setPaused(paused: boolean): void;
   setSubtitleDelay(seconds: number): void;
@@ -38,7 +40,12 @@ export interface NativeInterface {
   setScale(percent: number): Promise<boolean>;
 }
 
+export interface NativeExternalNavigation {
+  openUrl(url: string): Promise<boolean>;
+}
+
 export interface NativeDiagnostics {
+  copyDiagnosticSummary(): Promise<boolean>;
   cacheBytes(): Promise<number>;
   clearCache(): Promise<boolean>;
   revealLogs(): Promise<boolean>;
@@ -61,6 +68,7 @@ export interface NativeSecureStore {
 
 interface NativeShellConnection {
   interface: NativeInterface | null;
+  externalNavigation: NativeExternalNavigation | null;
   lifecycle: NativeLifecycle | null;
   diagnostics: NativeDiagnostics;
   player: NativePlayer;
@@ -71,6 +79,7 @@ interface WebChannelResult {
   objects: {
     kinoDiagnostics?: NativeDiagnostics;
     kinoInterface?: NativeInterface;
+    kinoExternalNavigation?: NativeExternalNavigation;
     kinoLifecycle?: NativeLifecycle;
     kinoNative?: NativePlayer;
     kinoSecureStore?: NativeSecureStore;
@@ -145,6 +154,7 @@ function connectNativeShell(): Promise<NativeShellConnection | null> {
           resolve({
             interface: channel.objects.kinoInterface ?? null,
             diagnostics,
+            externalNavigation: channel.objects.kinoExternalNavigation ?? null,
             player,
             secureStore,
             lifecycle: channel.objects.kinoLifecycle ?? null,
@@ -163,6 +173,13 @@ export async function connectNativePlayer() {
   return (await connectNativeShell())?.player ?? null;
 }
 
+export async function openAccountCreation() {
+  const player = await connectNativePlayer();
+  if (!player || !(await player.openAccountCreation())) {
+    throw new Error('Account creation could not be opened.');
+  }
+}
+
 export async function connectNativeLifecycle() {
   return (await connectNativeShell())?.lifecycle ?? null;
 }
@@ -173,6 +190,10 @@ export async function connectNativeDiagnostics() {
 
 export async function connectNativeSecureStore() {
   return (await connectNativeShell())?.secureStore ?? null;
+}
+
+export async function connectNativeExternalNavigation() {
+  return (await connectNativeShell())?.externalNavigation ?? null;
 }
 
 export async function connectNativeInterface() {
