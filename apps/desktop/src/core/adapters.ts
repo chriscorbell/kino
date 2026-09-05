@@ -35,20 +35,38 @@ import type {
 } from './types';
 
 /**
+ * Adapters run in the Core worker, and structured clone drops an Error's class
+ * and its own properties on the way back. This marker travels in the message,
+ * so the main thread can still tell a contract failure from any other rejection.
+ */
+export const CORE_CONTRACT_MARKER = '[kino:core-contract]';
+
+/**
  * A Core payload contradicted the contract the application depends on. The
  * message names the model and the field path only. It never carries the
  * offending value, which can be a stream URL, an add-on token, or a credential.
+ * It is a diagnostic: what a person reads comes from the locale catalog.
  */
 export class CoreContractError extends Error {
   readonly field: string;
   readonly model: string;
 
   constructor(model: string, field: string, expectation: string) {
-    super(`Stremio Core sent ${model}.${field} in an unusable form: ${expectation}.`);
+    super(
+      `${CORE_CONTRACT_MARKER} Stremio Core sent ${model}.${field} in an unusable form: ${expectation}.`,
+    );
     this.name = 'CoreContractError';
     this.field = field;
     this.model = model;
   }
+}
+
+/** Recognizes a contract failure whether or not it survived a worker hop. */
+export function isCoreContractFailure(error: unknown) {
+  return (
+    error instanceof CoreContractError ||
+    (error instanceof Error && error.message.startsWith(CORE_CONTRACT_MARKER))
+  );
 }
 
 /* Checked readers ---------------------------------------------------------- */

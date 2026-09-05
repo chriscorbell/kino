@@ -185,21 +185,14 @@ export function PlayerScreen({
   const resolvedTorrent = resolved?.source.kind === 'torrent' ? resolved.source : null;
   // Every Player snapshot rebuilds the adapted stream, so a progress or subtitle
   // update would hand the effects below a new object for the same torrent and
-  // restart the streaming engine mid-transfer. Hold it steady by its own values.
-  const infoHash = resolvedTorrent?.infoHash ?? null;
-  const fileIdx = resolvedTorrent?.fileIdx ?? null;
-  const peerSources = resolvedTorrent?.sources.join('\n') ?? null;
+  // restart the streaming engine mid-transfer. Hold it steady by its own value.
+  // The adapter already checked these fields and keeps each peer hint verbatim,
+  // so the key has to be lossless: a hint may contain any characters, and
+  // splitting one apart would invent a tracker the add-on never offered.
+  const torrentKey = resolvedTorrent === null ? null : JSON.stringify(resolvedTorrent);
   const torrent = useMemo<TorrentSource | null>(
-    () =>
-      infoHash === null
-        ? null
-        : {
-            fileIdx,
-            infoHash,
-            kind: 'torrent',
-            sources: peerSources ? peerSources.split('\n') : [],
-          },
-    [fileIdx, infoHash, peerSources],
+    () => (torrentKey === null ? null : (JSON.parse(torrentKey) as TorrentSource)),
+    [torrentKey],
   );
   // Core wraps direct streams with proxy headers in a URL for the account's
   // Stremio Service. The native backend can send those headers itself, using

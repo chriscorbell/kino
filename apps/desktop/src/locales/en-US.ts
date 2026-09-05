@@ -224,5 +224,7 @@ export const enUS = {
   errors: {
     title: 'Kino could not render this screen.',
     retry: 'Try Again',
+    // Reads after the prefixes Home already puts in front of a Core failure.
+    coreContract: 'Kino could not read this response. The local log has the details.',
   },
 } as const;

@@ -4,6 +4,7 @@ import { connectNativeLifecycle } from '../native/player';
 
 import { ensureGuestCatalog } from './bootstrap';
 import { CoreContext, type CoreContextValue } from './context';
+import { coreFailureDetail, coreFailureMessage } from './errors';
 import { loadSession, saveSession, type CoreSession } from './storage';
 import { createCoreTransport, type CoreTransport } from './transport';
 
@@ -14,9 +15,7 @@ interface RuntimeState {
   transport: CoreTransport | null;
 }
 
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : 'Stremio Core could not start.';
-}
+const startupFailed = 'Stremio Core could not start.';
 
 export function CoreProvider({ children }: { children: ReactNode }) {
   const teardown = useRef(Promise.resolve());
@@ -80,9 +79,16 @@ export function CoreProvider({ children }: { children: ReactNode }) {
         if (!disposed) setRuntime({ error: null, session, status: 'ready', transport });
       })
       .catch((error: unknown) => {
-        console.error('[kino:core] initialization failed', errorMessage(error));
+        // Guest initialization reads ctx through the adapter, so a contract
+        // failure reaches this catch and renders on Home.
+        console.error('[kino:core] initialization failed', coreFailureDetail(error, startupFailed));
         if (!disposed) {
-          setRuntime({ error: errorMessage(error), session, status: 'error', transport: null });
+          setRuntime({
+            error: coreFailureMessage(error, startupFailed),
+            session,
+            status: 'error',
+            transport: null,
+          });
         }
       });
 

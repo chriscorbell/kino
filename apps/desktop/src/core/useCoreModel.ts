@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
 
 import { useCore } from './context';
+import { coreFailureDetail, coreFailureMessage } from './errors';
 import type { CoreTransport } from './transport';
 import type { CoreAction, CoreModelName, CoreRuntimeEvent, CoreStateMap } from './types';
 
@@ -16,18 +17,11 @@ interface CoreModelSnapshot<State> extends Omit<CoreModelResult<State>, 'unload'
   transport: CoreTransport | null;
 }
 
-function errorMessage(error: unknown) {
-  if (error instanceof Error) return error.message;
-  if (typeof error === 'string' && error.trim()) return error;
-  // Stremio Core rejects with plain values; keep them legible in the log.
-  try {
-    const serialized = JSON.stringify(error);
-    if (serialized && serialized !== '{}') return serialized;
-  } catch {
-    /* fall through to the generic message */
-  }
-  return 'The Stremio model failed to load.';
-}
+const modelFailed = 'The Stremio model failed to load.';
+const failureDetail = (error: unknown) => coreFailureDetail(error, modelFailed);
+// A screen renders this string, so a contract failure reads as locale copy
+// while the model and field path stay in the log above it.
+const failureMessage = (error: unknown) => coreFailureMessage(error, modelFailed);
 
 export function useCoreModel<Model extends CoreModelName>(
   model: Model,
@@ -64,11 +58,11 @@ export function useCoreModel<Model extends CoreModelName>(
         const state = await transport.getState(model);
         if (!disposed) setResult({ actionKey, error: null, loading: false, state, transport });
       } catch (error) {
-        console.error(`[kino:core] ${model} state failed`, errorMessage(error));
+        console.error(`[kino:core] ${model} state failed`, failureDetail(error));
         if (!disposed)
           setResult({
             actionKey,
-            error: errorMessage(error),
+            error: failureMessage(error),
             loading: false,
             state: null,
             transport,
@@ -109,11 +103,11 @@ export function useCoreModel<Model extends CoreModelName>(
         await loaded;
         await read();
       } catch (error) {
-        console.error(`[kino:core] ${model} action failed`, errorMessage(error));
+        console.error(`[kino:core] ${model} action failed`, failureDetail(error));
         if (!disposed)
           setResult({
             actionKey,
-            error: errorMessage(error),
+            error: failureMessage(error),
             loading: false,
             state: null,
             transport,
