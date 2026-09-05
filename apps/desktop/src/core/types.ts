@@ -218,9 +218,9 @@ export interface LibraryItem {
 export interface LibraryState {
   catalog: LibraryItem[];
   selectable: {
-    nextPage: { request: LibraryRequest } | null;
-    sorts: Array<{ request: LibraryRequest; selected: boolean; sort: string }>;
-    types: Array<{ request: LibraryRequest; selected: boolean; type: string | null }>;
+    nextPage: boolean;
+    sorts: Array<{ deepLinks: { library: string }; selected: boolean; sort: string }>;
+    types: Array<{ deepLinks: { library: string }; selected: boolean; type: string | null }>;
   } | null;
   selected: { request: LibraryRequest } | null;
 }

@@ -32,7 +32,14 @@ export function LibraryScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => v
               aria-pressed={option.selected}
               className={option.selected ? styles.pillActive : styles.pill}
               key={option.type ?? 'all'}
-              onClick={() => setRequest(option.request)}
+              onClick={() => {
+                if (option.selected) return;
+                setRequest({
+                  page: 1,
+                  sort: result.state?.selected?.request.sort ?? 'lastwatched',
+                  type: option.type,
+                });
+              }}
               type="button"
             >
               {typeLabel(option.type)}
