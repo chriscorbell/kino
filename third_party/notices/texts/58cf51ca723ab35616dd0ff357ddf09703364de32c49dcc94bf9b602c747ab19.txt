@@ -1,0 +1,5 @@
+This software is based in part on the work of the Independent JPEG Group.
+
+Kino includes the IJG-derived jfdctfst.c, jfdctint_template.c, and jrevdct.c code as part of FFmpeg 9.0.1, packaged by Homebrew as 9.0.1_1. Kino has made no changes to those FFmpeg source files. The installed Homebrew formula applies no source patches.
+
+The accompanying source-header notices retain the original copyright, license, and upstream implementation comments. The complete FFmpeg source release is available at https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz.

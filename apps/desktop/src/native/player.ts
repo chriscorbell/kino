@@ -53,6 +53,7 @@ export interface NativeExternalNavigation {
 }
 
 export interface NativeDiagnostics {
+  openNotices(): Promise<boolean>;
   copyDiagnosticSummary(): Promise<boolean>;
   cacheBytes(): Promise<number>;
   clearCache(): Promise<boolean>;

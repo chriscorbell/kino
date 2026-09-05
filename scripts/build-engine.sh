@@ -45,6 +45,9 @@ for patch in "${kino_engine_dir}"/patches/*.patch; do
   git -C "${kino_vendor_dir}" apply "${patch}"
 done
 
+# Offline packaging reads locked package metadata, including inactive optional manifests.
+cargo fetch --locked --target aarch64-apple-darwin --manifest-path "${kino_engine_dir}/Cargo.toml"
+
 CXXFLAGS="${CXXFLAGS:-} -I$(brew --prefix)/include" \
   CARGO_TARGET_DIR="${kino_target_dir}" \
   cargo build --locked --release --manifest-path "${kino_engine_dir}/Cargo.toml"

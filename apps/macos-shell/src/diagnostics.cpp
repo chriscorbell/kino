@@ -6,6 +6,7 @@
 #include <QDesktopServices>
 #include <QDir>
 #include <QDirIterator>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QStandardPaths>
 #include <QSysInfo>
@@ -88,6 +89,12 @@ bool Diagnostics::revealLogs() {
         qWarning("[kino:diagnostics] log folder could not be opened");
     }
     return opened;
+}
+
+bool Diagnostics::openNotices() {
+    const QString path = QCoreApplication::applicationDirPath() +
+                         QStringLiteral("/../Resources/licenses/index.html");
+    return QFileInfo::exists(path) && QDesktopServices::openUrl(QUrl::fromLocalFile(path));
 }
 
 bool Diagnostics::copyDiagnosticSummary() {

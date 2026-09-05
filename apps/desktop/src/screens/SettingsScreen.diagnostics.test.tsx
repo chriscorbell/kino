@@ -9,6 +9,7 @@ const fixture = vi.hoisted(() => ({
     cacheBytes: vi.fn().mockResolvedValue(0),
     clearCache: vi.fn(),
     revealLogs: vi.fn(),
+    openNotices: vi.fn(),
     copyDiagnosticSummary: vi.fn(),
   },
 }));
@@ -61,6 +62,12 @@ it.each([false, new Error('Synthetic clipboard failure')])(
 );
 
 it.each([
+  [
+    'openNotices',
+    /Read notices/,
+    'License notices could not be opened. Try again.',
+    'License notices opened.',
+  ],
   [
     'clearCache',
     /Clear cache/,
