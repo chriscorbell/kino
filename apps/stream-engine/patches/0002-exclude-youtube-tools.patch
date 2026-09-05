@@ -1,0 +1,50 @@
+diff --git a/server/src/lib.rs b/server/src/lib.rs
+index 69db2f9..3e3e880 100644
+--- a/server/src/lib.rs
++++ b/server/src/lib.rs
+@@ -53,7 +53,6 @@ mod ssdp;
+ mod state;
+ mod tui;
+ mod updater;
+-pub mod ytdlp;
+ 
+ pub use ffmpeg_setup::MissingFfmpegError;
+ 
+@@ -361,19 +360,6 @@ async fn run_inner(
+         );
+     }
+ 
+-    // yt-dlp is only needed for YouTube trailers, but downloading it while a
+-    // hover preview waits is very visible. Warming it here off the startup path
+-    // means the first trailer usually finds it already installed, and a failure
+-    // only costs the trailer rather than the server.
+-    {
+-        let config_dir = config_dir.clone();
+-        tokio::spawn(async move {
+-            if let Err(error) = ytdlp::resolve(&config_dir).await {
+-                tracing::warn!(%error, "could not prepare yt-dlp; YouTube trailers will be unavailable");
+-            }
+-        });
+-    }
+-
+     let default_settings = routes::system::ServerSettings {
+         cache_root: cache_dir.to_string_lossy().to_string(),
+         ..routes::system::ServerSettings::default()
+@@ -830,7 +816,7 @@ pub fn build_router(state: AppState) -> Router {
+         .route("/device-info", get(routes::system::get_device_info))
+         .route("/hwaccel-profiler", get(routes::system::hwaccel_profiler))
+         .route("/get-https", get(routes::system::get_https))
+-        .nest("/yt", routes::youtube::router())
++        .route("/yt/{id}", get(|| async { StatusCode::NOT_FOUND }))
+         .nest("/rar", routes::archive::router())
+         .nest("/zip", routes::archive::router())
+         .nest("/7zip", routes::archive::router())
+diff --git a/server/src/routes/mod.rs b/server/src/routes/mod.rs
+index a2bd941..9e20696 100644
+--- a/server/src/routes/mod.rs
++++ b/server/src/routes/mod.rs
+@@ -13,4 +13,3 @@ pub mod stream;
+ pub mod subtitles;
+ pub mod system;
+ pub mod update;
+-pub mod youtube;

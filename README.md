@@ -53,11 +53,14 @@ Torrent sources play through a pinned build of the open [stream-server](https://
 ```sh
 brew install rust libtorrent-rasterbar boost
 pnpm engine:build
+pnpm engine:check-profile
 pnpm macos:build
 pnpm macos:check-engine
 ```
 
 Each engine build reconstructs `build/vendor/stream-server` from the pinned revision and current patches, then enforces Cargo's lockfile. Keep upstream changes in `apps/stream-engine/patches`; edits inside the generated vendor directory are discarded. `pnpm engine:check-vendor` checks patch changes and failed retries without requiring the native toolchain.
+
+Kino excludes the upstream YouTube resolver and yt-dlp downloader from its engine. `pnpm engine:check-profile` starts the helper with a fresh cache and a blocking HTTP proxy, then checks that startup and an unsupported YouTube request create no executable tools or release-download requests. The engine's tracker-list data refreshes remain allowed.
 
 Run the complete local validation suite with:
 
