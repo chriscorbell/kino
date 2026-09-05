@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 
 import styles from '../App.module.css';
+import { ActionFeedback } from '../components/ActionFeedback';
+import { useActionFeedback } from '../components/useActionFeedback';
 import { updateProfileSettingsAction } from '../core/actions';
 import { useCore } from '../core/context';
 import { useCoreModel } from '../core/useCoreModel';
@@ -47,6 +49,7 @@ function SettingSwitch({ checked, description, label, onChange }: SettingSwitchP
 }
 
 function SettingSelect({
+  disabled = false,
   description,
   id,
   label,
@@ -54,6 +57,7 @@ function SettingSelect({
   options,
   value,
 }: {
+  disabled?: boolean;
   description: string;
   id: string;
   label: string;
@@ -69,6 +73,7 @@ function SettingSelect({
       </span>
       <select
         className={styles.select}
+        disabled={disabled}
         id={id}
         onChange={(event) => onChange(event.target.value)}
         value={value}
@@ -105,7 +110,9 @@ export function SettingsScreen({
   const { transport } = useCore();
   const profile = useCoreModel('ctx', null, 'settings-profile');
   const [cacheBytes, setCacheBytes] = useState<number | null>(null);
-  const [clearing, setClearing] = useState(false);
+  const cacheAction = useActionFeedback();
+  const logsAction = useActionFeedback();
+  const languageAction = useActionFeedback(transport);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle');
   const nativeShell = nativeShellPresent();
   const profileSettings = profile.state?.profile.settings;
@@ -116,14 +123,19 @@ export function SettingsScreen({
 
   const updateProfile = (patch: Record<string, string>) => {
     if (!profileSettings || !transport) return;
-    void transport
-      .dispatch(updateProfileSettingsAction(profileSettings, patch))
-      .catch((error: unknown) => {
-        console.error(
-          '[kino:settings] profile update failed',
-          error instanceof Error ? error.message : error,
-        );
-      });
+    languageAction.run(
+      async () => {
+        // UpdateSettings replaces the record; read current values before retrying.
+        const latest = await transport.getState('ctx');
+        await transport.dispatch(updateProfileSettingsAction(latest.profile.settings, patch));
+        await transport.flush();
+      },
+      {
+        pending: enUS.settings.savingLanguage,
+        success: enUS.settings.languageSaved,
+        failed: enUS.settings.languageFailed,
+      },
+    );
   };
 
   const readCacheSize = () => {
@@ -138,22 +150,23 @@ export function SettingsScreen({
   useEffect(readCacheSize, [nativeShell]);
 
   const clearCache = () => {
-    if (!nativeShell || clearing) return;
-    setClearing(true);
-    void connectNativeDiagnostics()
-      .then(async (diagnostics) => {
-        if (diagnostics) await diagnostics.clearCache();
-      })
-      .catch((error: unknown) => {
-        console.error(
-          '[kino:settings] cache clear failed',
-          error instanceof Error ? error.message : error,
-        );
-      })
-      .finally(() => {
-        setClearing(false);
-        readCacheSize();
-      });
+    if (!nativeShell) return;
+    cacheAction.run(
+      async () => {
+        try {
+          const diagnostics = await connectNativeDiagnostics();
+          if (!diagnostics || !(await diagnostics.clearCache()))
+            throw new Error('Cache clear failed.');
+        } finally {
+          readCacheSize();
+        }
+      },
+      {
+        pending: enUS.settings.clearing,
+        success: enUS.settings.cacheCleared,
+        failed: enUS.settings.cacheClearFailed,
+      },
+    );
   };
 
   const copyDiagnosticSummary = () => {
@@ -169,14 +182,18 @@ export function SettingsScreen({
   };
 
   const revealLogs = () => {
-    void connectNativeDiagnostics()
-      .then((diagnostics) => diagnostics?.revealLogs())
-      .catch((error: unknown) => {
-        console.error(
-          '[kino:settings] reveal logs failed',
-          error instanceof Error ? error.message : error,
-        );
-      });
+    logsAction.run(
+      async () => {
+        const diagnostics = await connectNativeDiagnostics();
+        if (!diagnostics || !(await diagnostics.revealLogs()))
+          throw new Error('Log folder could not be opened.');
+      },
+      {
+        pending: enUS.settings.revealingLogs,
+        success: enUS.settings.logsRevealed,
+        failed: enUS.settings.revealLogsFailed,
+      },
+    );
   };
 
   return (
@@ -278,6 +295,7 @@ export function SettingsScreen({
         />
         <SettingSelect
           description={enUS.settings.subtitleLanguageDescription}
+          disabled={!profileSettings || !transport || languageAction.pending}
           id="subtitle-language"
           label={enUS.settings.subtitleLanguage}
           onChange={(value) => updateProfile({ subtitlesLanguage: value })}
@@ -286,12 +304,14 @@ export function SettingsScreen({
         />
         <SettingSelect
           description={enUS.settings.audioLanguageDescription}
+          disabled={!profileSettings || !transport || languageAction.pending}
           id="audio-language"
           label={enUS.settings.audioLanguage}
           onChange={(value) => updateProfile({ audioLanguage: value })}
           options={subtitleLanguages}
           value={profileSettings?.audioLanguage ?? 'eng'}
         />
+        <ActionFeedback action={languageAction} />
       </section>
 
       <section className={styles.settingsGroup} aria-labelledby="storage-settings-title">
@@ -302,8 +322,14 @@ export function SettingsScreen({
             <div className={styles.settingDescription}>{enUS.settings.cacheDescription}</div>
           </div>
           {nativeShell ? (
-            <button className={styles.secondaryButton} onClick={clearCache} type="button">
-              {clearing
+            <button
+              className={styles.secondaryButton}
+              disabled={cacheAction.pending}
+              aria-busy={cacheAction.pending}
+              onClick={clearCache}
+              type="button"
+            >
+              {cacheAction.pending
                 ? enUS.settings.clearing
                 : `${enUS.settings.clearCache}${cacheBytes === null ? '' : ` (${formatBytes(cacheBytes)})`}`}
             </button>
@@ -311,6 +337,7 @@ export function SettingsScreen({
             <span className={styles.activeValue}>{enUS.settings.desktopOnly}</span>
           )}
         </div>
+        <ActionFeedback action={cacheAction} />
       </section>
 
       <section className={styles.settingsGroup} aria-labelledby="diagnostic-settings-title">
@@ -353,13 +380,20 @@ export function SettingsScreen({
             <div className={styles.settingDescription}>{enUS.settings.localLoggingDescription}</div>
           </div>
           {nativeShell ? (
-            <button className={styles.secondaryButton} onClick={revealLogs} type="button">
-              {enUS.settings.revealLogs}
+            <button
+              className={styles.secondaryButton}
+              disabled={logsAction.pending}
+              aria-busy={logsAction.pending}
+              onClick={revealLogs}
+              type="button"
+            >
+              {logsAction.pending ? enUS.settings.revealingLogs : enUS.settings.revealLogs}
             </button>
           ) : (
             <span className={styles.activeValue}>{enUS.settings.active}</span>
           )}
         </div>
+        <ActionFeedback action={logsAction} />
       </section>
     </div>
   );

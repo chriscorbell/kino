@@ -7,6 +7,8 @@ import { SettingsScreen } from './SettingsScreen';
 const fixture = vi.hoisted(() => ({
   diagnostics: {
     cacheBytes: vi.fn().mockResolvedValue(0),
+    clearCache: vi.fn(),
+    revealLogs: vi.fn(),
     copyDiagnosticSummary: vi.fn(),
   },
 }));
@@ -53,6 +55,45 @@ it.each([false, new Error('Synthetic clipboard failure')])(
     );
     fireEvent.click(copy);
     expect(await screen.findByRole('status')).toHaveTextContent('Diagnostic summary copied.');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  },
+);
+
+it.each([
+  [
+    'clearCache',
+    /Clear cache/,
+    'The local cache could not be cleared. Try again.',
+    'The local cache was cleared.',
+  ],
+  [
+    'revealLogs',
+    /Reveal logs/,
+    'The log folder could not be opened. Try again.',
+    'The log folder was opened.',
+  ],
+] as const)(
+  'announces native false results, blocks duplicates, and retries %s',
+  async (method, label, failure, success) => {
+    let finish!: (value: boolean) => void;
+    fixture.diagnostics[method]
+      .mockReturnValueOnce(
+        new Promise<boolean>((resolve) => {
+          finish = resolve;
+        }),
+      )
+      .mockResolvedValue(true);
+    render(<SettingsScreen settings={defaultSettings} onChange={vi.fn()} />);
+    const button = screen.getByRole('button', { name: label });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    await waitFor(() => expect(fixture.diagnostics[method]).toHaveBeenCalledOnce());
+    expect(button).toBeDisabled();
+    finish(false);
+    expect(await screen.findByRole('alert')).toHaveTextContent(failure);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(success));
+    expect(fixture.diagnostics[method]).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   },
 );

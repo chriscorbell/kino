@@ -3,6 +3,8 @@ import { useEffect, useMemo } from 'react';
 import { X } from '@phosphor-icons/react';
 
 import styles from '../App.module.css';
+import { ActionFeedback } from '../components/ActionFeedback';
+import { useActionFeedback } from '../components/useActionFeedback';
 import { MediaCard } from '../components/MediaCard';
 import { loadBoardAction, rewindLibraryItemAction } from '../core/actions';
 import { useCore } from '../core/context';
@@ -43,6 +45,7 @@ export function HomeScreen({
   onOpen: (item: CoreMetaPreview, videoId?: string | null) => void;
 }) {
   const core = useCore();
+  const dismissal = useActionFeedback(core.transport);
   const board = useCoreModel('board', loadBoardAction, 'board');
   const continueWatching = useCoreModel('continue_watching_preview', null, 'continue-watching');
   const context = useCoreModel('ctx', null, 'context');
@@ -73,14 +76,20 @@ export function HomeScreen({
     [continueWatching.state],
   );
 
-  const dismissContinueWatching = (id: string) => {
-    if (!core.transport) return;
-    void core.transport.dispatch(rewindLibraryItemAction(id)).catch((error: unknown) => {
-      console.error(
-        '[kino:home] could not dismiss the continue watching item',
-        error instanceof Error ? error.message : error,
-      );
-    });
+  const dismissContinueWatching = (id: string, name: string) => {
+    const transport = core.transport;
+    if (!transport) return;
+    dismissal.run(
+      async () => {
+        await transport.dispatch(rewindLibraryItemAction(id));
+        await transport.flush();
+      },
+      {
+        pending: enUS.home.dismissing(name),
+        success: enUS.home.dismissed(name),
+        failed: enUS.home.dismissFailed(name),
+      },
+    );
   };
 
   return (
@@ -112,7 +121,9 @@ export function HomeScreen({
                 <button
                   aria-label={`${enUS.home.dismiss} ${item.name}`}
                   className={styles.continueDismiss}
-                  onClick={() => dismissContinueWatching(item.id)}
+                  disabled={dismissal.pending}
+                  aria-busy={dismissal.pending}
+                  onClick={() => dismissContinueWatching(item.id, item.name)}
                   title={enUS.home.dismiss}
                   type="button"
                 >
@@ -122,6 +133,7 @@ export function HomeScreen({
             ))}
           </div>
         ) : null}
+        <ActionFeedback action={dismissal} />
       </section>
 
       {catalogsPending && typedRows.length === 0 ? (
