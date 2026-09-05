@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import styles from '../App.module.css';
 import { MediaCard } from '../components/MediaCard';
@@ -11,16 +11,27 @@ import { t as enUS } from '../locales';
 export function SearchScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => void }) {
   const { transport } = useCore();
   const [query, setQuery] = useState('');
-  const deferredQuery = useDeferredValue(query.trim());
-  const result = useCoreModel<BoardState>(
-    'search',
-    deferredQuery ? loadSearchAction(deferredQuery) : null,
-    deferredQuery,
-  );
-  const catalogCount = result.state?.catalogs.length ?? 0;
+  const [submittedQuery, setSubmittedQuery] = useState('');
+  const normalizedQuery = query.trim();
 
   useEffect(() => {
-    if (!transport || !deferredQuery || catalogCount === 0) return;
+    if (normalizedQuery === submittedQuery) return;
+    const timer = window.setTimeout(() => setSubmittedQuery(normalizedQuery), 300);
+    return () => window.clearTimeout(timer);
+  }, [normalizedQuery, submittedQuery]);
+
+  const result = useCoreModel<BoardState>(
+    'search',
+    submittedQuery ? loadSearchAction(submittedQuery) : null,
+    submittedQuery,
+  );
+  const stateQuery = result.state?.selected?.extra.find(([name]) => name === 'search')?.[1];
+  const currentState = submittedQuery && stateQuery === submittedQuery ? result.state : null;
+  const catalogCount = currentState?.catalogs.length ?? 0;
+  const pending = normalizedQuery !== submittedQuery;
+
+  useEffect(() => {
+    if (!transport || !submittedQuery || catalogCount === 0) return;
     void transport.dispatch(
       {
         action: 'CatalogsWithExtra',
@@ -28,40 +39,52 @@ export function SearchScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => vo
       },
       'search',
     );
-  }, [catalogCount, deferredQuery, transport]);
+  }, [catalogCount, submittedQuery, transport]);
   const items = useMemo(() => {
-    if (!deferredQuery) return [];
+    if (pending || !submittedQuery) return [];
     const unique = new Map<string, CoreMetaPreview>();
-    result.state?.catalogs.forEach((catalog) => {
+    currentState?.catalogs.forEach((catalog) => {
       if (catalog.content?.type !== 'Ready') return;
       catalog.content.content.forEach((item) => unique.set(`${item.type}:${item.id}`, item));
     });
     return [...unique.values()];
-  }, [deferredQuery, result.state]);
+  }, [currentState, pending, submittedQuery]);
 
   return (
     <div className={styles.page}>
       <h1 className={styles.visuallyHidden}>{enUS.search.title}</h1>
-      <label className={styles.visuallyHidden} htmlFor="catalog-search">
-        {enUS.search.placeholder}
-      </label>
-      <input
-        autoFocus
-        className={styles.searchInput}
-        id="catalog-search"
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder={enUS.search.placeholder}
-        type="search"
-        value={query}
-      />
-      {deferredQuery ? (
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          setSubmittedQuery(normalizedQuery);
+        }}
+        role="search"
+      >
+        <label className={styles.visuallyHidden} htmlFor="catalog-search">
+          {enUS.search.placeholder}
+        </label>
+        <input
+          autoFocus
+          className={styles.searchInput}
+          id="catalog-search"
+          onChange={(event) => {
+            const value = event.target.value;
+            setQuery(value);
+            if (!value.trim()) setSubmittedQuery('');
+          }}
+          placeholder={enUS.search.placeholder}
+          type="search"
+          value={query}
+        />
+      </form>
+      {normalizedQuery ? (
         <p className={styles.searchHelp} role="status">
-          {result.loading ? enUS.search.loading : `${items.length} results`}
+          {pending || result.loading ? enUS.search.loading : `${items.length} results`}
         </p>
       ) : (
         <p className={styles.searchHelp}>{enUS.search.idle}</p>
       )}
-      {result.error ? <p className={styles.loadError}>{enUS.search.error}</p> : null}
+      {!pending && result.error ? <p className={styles.loadError}>{enUS.search.error}</p> : null}
       {items.length > 0 ? (
         <div className={styles.mediaGrid}>
           {items.map((item) => (
