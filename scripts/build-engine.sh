@@ -31,18 +31,22 @@ if [[ ! -d "${kino_vendor_dir}/.git" ]]; then
   git -C "${kino_vendor_dir}" remote add origin "${KINO_ENGINE_REPOSITORY}"
 fi
 
-if [[ "$(git -C "${kino_vendor_dir}" rev-parse HEAD 2>/dev/null || true)" != "${KINO_ENGINE_REVISION}" ]]; then
+if ! git -C "${kino_vendor_dir}" cat-file -e "${KINO_ENGINE_REVISION}^{commit}" 2>/dev/null; then
   git -C "${kino_vendor_dir}" fetch --quiet --depth 1 origin "${KINO_ENGINE_REVISION}"
-  git -C "${kino_vendor_dir}" checkout --quiet --force "${KINO_ENGINE_REVISION}"
-  git -C "${kino_vendor_dir}" clean --quiet -fd
-  for patch in "${kino_engine_dir}"/patches/*.patch; do
-    echo "Applying $(basename "${patch}")"
-    git -C "${kino_vendor_dir}" apply "${patch}"
-  done
 fi
+
+# This generated directory is disposable. Reconstruct it on every build so
+# patch edits, removals, and failed attempts cannot leave stale source behind.
+git -C "${kino_vendor_dir}" checkout --quiet --force "${KINO_ENGINE_REVISION}"
+git -C "${kino_vendor_dir}" clean --quiet -ffdqx
+for patch in "${kino_engine_dir}"/patches/*.patch; do
+  [[ -f "${patch}" ]] || continue
+  echo "Applying $(basename "${patch}")"
+  git -C "${kino_vendor_dir}" apply "${patch}"
+done
 
 CXXFLAGS="${CXXFLAGS:-} -I$(brew --prefix)/include" \
   CARGO_TARGET_DIR="${kino_target_dir}" \
-  cargo build --release --manifest-path "${kino_engine_dir}/Cargo.toml"
+  cargo build --locked --release --manifest-path "${kino_engine_dir}/Cargo.toml"
 
 echo "Built ${kino_target_dir}/release/kino-stream-engine"

@@ -57,6 +57,8 @@ pnpm macos:build
 pnpm macos:check-engine
 ```
 
+Each engine build reconstructs `build/vendor/stream-server` from the pinned revision and current patches, then enforces Cargo's lockfile. Keep upstream changes in `apps/stream-engine/patches`; edits inside the generated vendor directory are discarded. `pnpm engine:check-vendor` checks patch changes and failed retries without requiring the native toolchain.
+
 Run the complete local validation suite with:
 
 ```sh
