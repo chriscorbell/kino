@@ -2,6 +2,8 @@ import { ArrowLeft, Check, Play, Plus } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import styles from '../App.module.css';
+import { ActionFeedback } from '../components/ActionFeedback';
+import { useActionFeedback } from '../components/useActionFeedback';
 import { ExternalSourceDialog } from '../components/ExternalSourceDialog';
 import { ExpandableText } from '../components/ExpandableText';
 import {
@@ -50,6 +52,7 @@ export function MetaDetailsScreen({
   onPlay: (selection: PlaybackSelection) => void;
 }) {
   const { transport } = useCore();
+  const libraryAction = useActionFeedback(transport);
   const [videoId, setVideoId] = useState<string | null>(
     () => initialVideoId ?? item.defaultVideoId,
   );
@@ -184,18 +187,26 @@ export function MetaDetailsScreen({
     if (!transport || !libraryReady) return;
     const next = !inLibrary;
     const change = { value: next };
-    setLibraryOverride(change);
-    void transport
-      .dispatch(next ? addToLibraryAction(display) : removeFromLibraryAction(display.id))
-      .catch((error: unknown) => {
-        // A failure from an earlier profile or mutation must not overwrite the
-        // currently displayed profile's newer optimistic action.
-        setLibraryOverride((current) => (current === change ? null : current));
-        console.error(
-          '[kino:library] update failed',
-          error instanceof Error ? error.message : error,
-        );
-      });
+    libraryAction.run(
+      async () => {
+        setLibraryOverride(change);
+        try {
+          await transport.dispatch(
+            next ? addToLibraryAction(display) : removeFromLibraryAction(display.id),
+          );
+          await transport.flush();
+        } catch (error) {
+          // A late failure must not overwrite another profile's action.
+          setLibraryOverride((current) => (current === change ? null : current));
+          throw error;
+        }
+      },
+      {
+        pending: enUS.details.savingLibrary,
+        success: next ? enUS.details.libraryAdded : enUS.details.libraryRemoved,
+        failed: enUS.details.libraryFailed,
+      },
+    );
   };
 
   return (
@@ -223,7 +234,8 @@ export function MetaDetailsScreen({
           ) : null}
           <button
             className={styles.libraryButton}
-            disabled={!libraryReady}
+            disabled={!libraryReady || libraryAction.pending}
+            aria-busy={libraryAction.pending}
             onClick={toggleLibrary}
             type="button"
           >
@@ -240,6 +252,7 @@ export function MetaDetailsScreen({
                 ? enUS.details.inLibrary
                 : enUS.details.addToLibrary}
           </button>
+          <ActionFeedback action={libraryAction} />
         </div>
       </header>
 

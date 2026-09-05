@@ -82,6 +82,7 @@ it('does not let a late guest failure overwrite the account mutation', async () 
   await waitFor(() => expect(screen.getByRole('button', { name: 'Add to Library' })).toBeEnabled());
   fireEvent.click(screen.getByRole('button', { name: 'Add to Library' }));
   await act(async () => rejectGuest(new Error('Old guest request failed.')));
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'In Library' })).toBeInTheDocument();
 });
 
@@ -105,4 +106,34 @@ it('waits for current-profile metadata before showing or changing membership', a
   expect(account.dispatch.mock.calls.some(([action]) => action.action === 'Ctx')).toBe(false);
   await act(async () => finishLoad());
   expect(screen.getByRole('button', { name: 'Add to Library' })).toBeEnabled();
+});
+
+it('announces library failure, rolls back the optimistic state, and retries the requested change', async () => {
+  const target = transport(false);
+  let reject!: (reason: Error) => void;
+  const pending = new Promise<void>((_resolve, fail) => {
+    reject = fail;
+  });
+  target.dispatch.mockImplementation((action) =>
+    action.action === 'Ctx' ? pending : Promise.resolve(),
+  );
+  render(view(target, 'guest'));
+  const add = await screen.findByRole('button', { name: 'Add to Library' });
+  await waitFor(() => expect(add).toBeEnabled());
+  fireEvent.click(add);
+  fireEvent.click(add);
+  expect(screen.getByRole('button', { name: 'In Library' })).toBeDisabled();
+  expect(target.dispatch.mock.calls.filter(([action]) => action.action === 'Ctx')).toHaveLength(1);
+  await act(async () => reject(new Error('Synthetic storage failure')));
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'The library change could not be saved. Try again.',
+  );
+  expect(screen.getByRole('button', { name: 'Add to Library' })).toBeEnabled();
+  target.dispatch.mockResolvedValue(undefined);
+  fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+  await waitFor(() =>
+    expect(screen.getByRole('status')).toHaveTextContent('Added to your library.'),
+  );
+  expect(screen.getByRole('button', { name: 'In Library' })).toBeEnabled();
+  expect(target.flush).toHaveBeenCalledOnce();
 });
