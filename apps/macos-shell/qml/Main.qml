@@ -66,7 +66,7 @@ ApplicationWindow {
         signal streamingEngineChanged(string url, string error)
 
         function startStreamingEngine() {
-            if (streamEngine.url || streamEngine.error) {
+            if (streamEngine.url) {
                 nativeBridge.streamingEngineChanged(streamEngine.url, streamEngine.error)
                 return
             }

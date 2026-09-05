@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QProcess>
 #include <QString>
+#include <QTimer>
 #include <QtQml/qqmlregistration.h>
 
 // Supervises the bundled kino-stream-engine helper. The helper is optional:
@@ -32,6 +33,8 @@ private:
     void consumeDiagnostics(const QByteArray &bytes);
 
     QProcess process_;
+    QTimer startupDeadline_;
+    QString pendingFailure_;
     QString error_;
     QString url_;
     QByteArray diagnosticBuffer_;
