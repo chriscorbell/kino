@@ -1,3 +1,4 @@
+import type { PlaybackSelection } from './actions';
 import type { CoreStream } from './types';
 
 export type SourceSupport = 'direct' | 'external' | 'torrent' | 'unsupported';
@@ -9,8 +10,35 @@ export function classifySource(stream: CoreStream): SourceSupport {
   return 'unsupported';
 }
 
-export function sourceKey(stream: CoreStream, transportUrl: string) {
-  return `${transportUrl}|${stream.url ?? stream.infoHash ?? 'unknown'}`;
+export function sourceKey(
+  stream: CoreStream,
+  transportUrl: string,
+  selection: Pick<PlaybackSelection, 'meta' | 'video'>,
+) {
+  const requestHeaders = Object.entries(stream.behaviorHints?.proxyHeaders?.request ?? {})
+    .map(([name, value]): [string, string] => [name.toLowerCase(), value])
+    .sort(([left], [right]) => left.localeCompare(right));
+  const identity = stream.url
+    ? ['direct', stream.url, requestHeaders]
+    : stream.infoHash
+      ? [
+          'torrent',
+          stream.infoHash.toLowerCase(),
+          stream.fileIdx ?? null,
+          [...new Set(stream.sources ?? [])].sort(),
+        ]
+      : stream.externalUrl
+        ? ['external', stream.externalUrl]
+        : ['unsupported', stream.ytId ?? null, stream.playerFrameUrl ?? null];
+  // Explicit files in a pack and guesses for different episodes are separate
+  // attempts. Display metadata and progress do not change the source identity.
+  return JSON.stringify([
+    transportUrl,
+    selection.meta.type,
+    selection.meta.id,
+    selection.video?.id ?? selection.meta.id,
+    identity,
+  ]);
 }
 
 export function sourceTitle(stream: CoreStream) {
