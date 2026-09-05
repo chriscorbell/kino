@@ -1370,12 +1370,10 @@
   flex: 0 0 auto;
 }
 
-.genreButton {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.genreSelect {
+  appearance: none;
   min-height: 32px;
-  padding: 0 14px;
+  padding: 0 34px 0 14px;
   border: 1px solid var(--kino-border);
   border-radius: var(--kino-pill-radius);
   color: var(--kino-text-muted);
@@ -1386,47 +1384,17 @@
   transition: border-color var(--kino-duration-fast) ease;
 }
 
-.genreButton:hover {
+.genreSelect:hover {
   border-color: var(--kino-text-faint);
 }
 
-.genreList {
+.genreMenu > svg {
   position: absolute;
-  z-index: var(--kino-layer-navigation);
-  top: calc(100% + 8px);
-  right: 0;
-  display: grid;
-  overflow-y: auto;
-  min-width: 180px;
-  max-height: 320px;
-  padding: 6px;
-  border: 1px solid var(--kino-border);
-  border-radius: var(--kino-panel-radius);
-  background: var(--kino-surface);
-  box-shadow: 0 12px 32px rgb(0 0 0 / 50%);
-  animation: enter var(--kino-duration-fast) var(--kino-ease-out);
-}
-
-.genreList button {
-  min-height: 32px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: var(--kino-control-radius);
+  top: 50%;
+  right: 14px;
   color: var(--kino-text-muted);
-  background: transparent;
-  font: inherit;
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.genreList button:hover {
-  color: var(--kino-text);
-  background: var(--kino-border);
-}
-
-.genreList button[aria-pressed='true'] {
-  color: var(--kino-accent);
+  pointer-events: none;
+  transform: translateY(-50%);
 }
 
 .settingsGroup {
@@ -1612,7 +1580,6 @@
 @media (prefers-reduced-motion: reduce) {
   .accountDialog,
   .content,
-  .genreList,
   .skipIntro,
   .subtitlePanel,
   .upNext {
@@ -1622,7 +1589,7 @@
   .catalogTab,
   .catalogTabActive,
   .continueDismiss,
-  .genreButton,
+  .genreSelect,
   .libraryButton,
   .logoButton,
   .navButton,

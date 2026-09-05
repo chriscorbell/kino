@@ -38,6 +38,7 @@ export const enUS = {
     typeLabel: 'Media type',
     catalogLabel: 'Catalog',
     allGenres: 'All Genres',
+    genreLabel: 'Genre',
   },
   library: {
     title: 'Library',
