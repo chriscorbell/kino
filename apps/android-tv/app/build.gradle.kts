@@ -84,6 +84,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
     implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.compose.animation:animation")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.tv:tv-material:1.0.1")
     implementation("io.coil-kt.coil3:coil-compose:3.3.0")

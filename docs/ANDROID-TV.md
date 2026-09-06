@@ -2,7 +2,7 @@
 
 Kino has a native Kotlin and Compose TV app in `apps/android-tv`. The first build targets ARM64 devices running Android 9 or newer and is tested on an NVIDIA Shield.
 
-This is the first runnable TV version. It includes Stremio device-link sign-in, guest browsing, Home, Search, Library, movie and episode details, explicit source selection, and fullscreen Media3 playback. Continue Watching uses poster cards with titles below, a centered play icon, and saved progress. A remembered source resumes only if it is still returned by its add-on; otherwise its source list opens without an unavailable-source notice.
+This is the first runnable TV version. It includes Stremio device-link sign-in, guest browsing, Home, Search, Library, movie and episode details, explicit source selection, and fullscreen Media3 playback. Continue Watching uses poster cards with titles below, a centered play icon, and saved progress. Opening a Continue Watching item shows a loading screen until the remembered source comes back from its add-on, then plays it; Back during that wait reveals the details page for a manual choice. If every add-on answers without that source, the loading screen gives way to the source list without an unavailable-source notice.
 
 ## Interface
 
