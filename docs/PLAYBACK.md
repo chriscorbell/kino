@@ -61,7 +61,7 @@ PGS and other bitmap subtitles are images. Any background they contain is part o
 
 Desktop provides Space or K for play/pause, arrow-key seeking, M for mute, and F for fullscreen. System media keys and the operating system Now Playing surface expose play, pause, seek, and metadata. Kino prevents display and system sleep only while video is actively playing.
 
-TV playback is always fullscreen. Back first closes the active menu or hides controls; when neither is open, it stops playback, saves progress, and returns to the media details screen.
+TV playback is always fullscreen. A directional key or OK reveals hidden controls without activating anything behind them, and the playback surface keeps remote focus for the whole session, including each time the controls hide again. Back first closes the active menu or hides controls; when neither is open, it stops playback, saves progress, and returns to the media details screen.
 
 Playback always runs at the normal rate. Neither presentation offers a playback-rate control, key, or remote action, and the TV player withholds the Media3 command its control view would list a Speed row for. Audio and subtitle selection stay reachable on both.
 
