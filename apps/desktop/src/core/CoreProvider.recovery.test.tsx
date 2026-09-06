@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import { App } from '../App';
 import { CoreRecovery } from '../components/CoreRecovery';
+import { t as enUS } from '../locales';
 import { profile } from '../test/coreState';
 import { CoreProvider } from './CoreProvider';
 import { useCore } from './context';
@@ -138,7 +139,7 @@ it('shows account initialization failures with retry and a working guest escape'
     </CoreProvider>,
   );
   await waitFor(() => expect(control.init).toHaveBeenCalledWith('guest'));
-  fireEvent.click(screen.getByRole('button', { name: 'Sign in to Stremio' }));
+  fireEvent.click(screen.getByRole('button', { name: enUS.account.signInTitle }));
   const dialog = within(screen.getByRole('dialog'));
   expect(await dialog.findByRole('alert')).toHaveTextContent('Account storage unavailable.');
   expect(dialog.queryByRole('button', { name: 'Preparing account…' })).not.toBeInTheDocument();
