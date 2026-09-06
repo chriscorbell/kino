@@ -23,7 +23,7 @@ A change to what Kino does adds or extends a gate. A change to how it does it us
 
 Assert the observable result rather than the code path. A gate that reads a value back from the live player survives a refactor; one that greps source text does not.
 
-Some gates need hardware. `pnpm android:check` needs a Shield reachable over network ADB, and the macOS checks need a built app bundle. CI compiles and lints the TV app but never runs it on a device. When you could not run a gate, say which one and why.
+Some gates need hardware. The macOS checks need a built app bundle. `pnpm android:check 10.0.0.191:5555` runs the TV suite on the development Shield over network ADB; it is the only path that bundles fixtures, so a hand-built test APK fails every media test on a missing file. CI compiles and lints the TV app but never runs it on a device. `docs/ANDROID-TV.md` under "Driving and observing the Shield" has the commands for reaching playback and reading the device's real state, and the traps: `dumpsys activity top` shows other apps too, uiautomator cannot see the player, and nobody but a person at the TV can hear it. When you could not run a gate, say which one and why.
 
 ## Keep the documents true
 
