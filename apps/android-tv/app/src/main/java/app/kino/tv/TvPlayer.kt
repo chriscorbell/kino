@@ -197,7 +197,17 @@ fun withoutCaptionFills(cue: Cue): Cue {
  * row is gated on COMMAND_GET_TRACKS and COMMAND_SET_TRACK_SELECTION_PARAMETERS
  * instead.
  */
-class TvPresentationPlayer(player: Player) : ForwardingSimpleBasePlayer(player) {
+class TvPresentationPlayer(
+    player: Player,
+    private val onTrackSelection: (TrackSelectionParameters) -> Unit = {},
+) : ForwardingSimpleBasePlayer(player) {
+    override fun handleSetTrackSelectionParameters(
+        parameters: TrackSelectionParameters
+    ): com.google.common.util.concurrent.ListenableFuture<*> {
+        onTrackSelection(parameters)
+        return super.handleSetTrackSelectionParameters(parameters)
+    }
+
     override fun getState(): SimpleBasePlayer.State {
         val state = super.getState()
         val builder =
@@ -313,7 +323,7 @@ fun tvPlayerView(context: Context, player: Player): PlayerView =
 @Composable
 fun FullscreenPlayer(
     source: Source,
-    title: String,
+    media: Media,
     core: TvCore,
     onExit: () -> Unit,
     onFailure: (Int) -> Unit,
@@ -338,7 +348,28 @@ fun FullscreenPlayer(
             )
         }
     val session = remember(player) { MediaSession.Builder(context, player).build() }
-    val presented = remember(player) { TvPresentationPlayer(player) }
+    val trackSelection =
+        remember(player, media.type, media.id) {
+            val settings = context.getSharedPreferences("kino", Context.MODE_PRIVATE)
+            val languages = core.state.value
+            TitleTrackSelection(
+                player,
+                settings,
+                media.type,
+                media.id,
+                player.trackSelectionParameters
+                    .buildUpon()
+                    .setPreferredAudioLanguage(languages.audioLanguage)
+                    .setPreferredTextLanguage(languages.subtitleLanguage)
+                    .setTrackTypeDisabled(
+                        C.TRACK_TYPE_TEXT,
+                        !settings.getBoolean("subtitles", false),
+                    )
+                    .build(),
+            )
+        }
+    val presented =
+        remember(player, trackSelection) { TvPresentationPlayer(player, trackSelection::select) }
     var view by remember { mutableStateOf<PlayerView?>(null) }
     val currentExit by rememberUpdatedState(onExit)
     val currentFailure by rememberUpdatedState(onFailure)
@@ -361,7 +392,7 @@ fun FullscreenPlayer(
         player.setMediaItem(
             MediaItem.Builder()
                 .setUri(source.stream.url!!.url)
-                .setMediaMetadata(MediaMetadata.Builder().setTitle(title).build())
+                .setMediaMetadata(MediaMetadata.Builder().setTitle(media.title).build())
                 .build()
         )
         player.prepare()
@@ -489,6 +520,7 @@ fun FullscreenPlayer(
             // player twice.
             view?.player = null
             session.release()
+            trackSelection.close()
             player.removeListener(listener)
             player.release()
             activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -530,4 +562,3 @@ private fun logAudioTracks(tracks: Tracks) {
 fun stereoOutputPreferred(context: Context): Boolean =
     context.getSharedPreferences("kino", Context.MODE_PRIVATE).getString("audio_output", "auto") ==
         "stereo"
-

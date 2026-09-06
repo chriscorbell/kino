@@ -35,6 +35,7 @@
     "macos:check-focus": "node scripts/check-macos-focus.mjs",
     "macos:check-resume": "node scripts/check-macos-resume.mjs",
     "macos:check-fullscreen": "node scripts/check-macos-fullscreen.mjs",
+    "macos:check-track-choices": "node scripts/check-macos-track-choices.mjs",
     "macos:check-audio": "node scripts/check-macos-audio.mjs",
     "macos:check-volume": "node scripts/check-macos-volume.mjs",
     "macos:check-web-console": "node scripts/check-macos-web-console.mjs",

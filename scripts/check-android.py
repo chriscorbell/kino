@@ -11,6 +11,7 @@ if not device:
     sys.exit("Usage: pnpm android:check <ADB serial>")
 fixture_env = {**os.environ, "KINO_FIXTURES_DIR": str(root / "build/android-fixtures")}
 subprocess.run(["node", "scripts/check-macos-playback.mjs", "--generate-only"], cwd=root, env=fixture_env, check=True)
+subprocess.run(["node", "scripts/test-support/track-fixtures.mjs", str(root / "build/android-fixtures")], cwd=root, check=True)
 subprocess.run([sys.executable, "scripts/build-android.py", ":app:assembleDebug", ":app:assembleDebugAndroidTest"], cwd=root, check=True)
 adb = ["adb", "-s", device]
 for path in ["debug/app-debug.apk", "androidTest/debug/app-debug-androidTest.apk"]:

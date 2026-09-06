@@ -6,14 +6,16 @@ import { createServer } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
-export async function withWebEngine(ui, entry, check) {
+export async function withWebEngine(ui, entry, check, { native = false } = {}) {
+  const requests = [];
   const server = createServer(async (request, response) => {
+    requests.push(request.url);
     const path = resolve(ui, '.' + new URL(request.url, 'http://localhost').pathname);
     if (path !== ui && !path.startsWith(ui + sep)) return response.writeHead(403).end();
     try {
       const file = path === ui ? resolve(ui, 'index.html') : path;
       let body = await readFile(file);
-      if (extname(file) === '.html') {
+      if (extname(file) === '.html' && !native) {
         // Isolate browsing from the user's native account and external catalogs.
         // The production App, navigation effects, and styles still run unchanged.
         body = body
@@ -114,7 +116,7 @@ export async function withWebEngine(ui, entry, check) {
       pending.get(message.id)?.(message);
       pending.delete(message.id);
     });
-    await check({ evaluate, key, command, until, origin });
+    await check({ evaluate, key, command, until, origin, requests });
   } finally {
     socket?.close();
     if (child && child.exitCode === null && child.signalCode === null) {

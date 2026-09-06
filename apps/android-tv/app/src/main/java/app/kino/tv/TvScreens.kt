@@ -188,7 +188,7 @@ fun KinoApp(
                 playing != null ->
                     FullscreenPlayer(
                         playing!!,
-                        selected?.title.orEmpty(),
+                        selected!!,
                         core,
                         onExit = { playing = null },
                         onFailure = { error ->

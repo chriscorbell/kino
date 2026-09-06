@@ -41,7 +41,7 @@ jobs:
           // Inputs to the native build, its tests, and its startup probes. A
           // change anywhere else, including the Android workflow and its
           // scripts, leaves the macOS job skipped.
-          const nativePaths = /^(\.github\/workflows\/ci\.yml$|apps\/(macos-shell|stream-engine)\/|apps\/desktop\/src\/(native\/|test\/(browser\/|resumeState\.ts$|coreState\.ts$))|scripts\/(build-engine\.sh|build-macos\.sh|check-engine-|check-macos-|test-support\/webengine\.mjs$|package-macos\.mjs$)|third_party\/|package\.json$|pnpm-lock\.yaml$|\.node-version$)/;
+          const nativePaths = /^(\.github\/workflows\/ci\.yml$|apps\/(macos-shell|stream-engine)\/|apps\/desktop\/src\/(native\/|player\/|screens\/PlayerScreen\.tsx$|components\/AudioTrackPicker\.tsx$|test\/(browser\/|resumeState\.ts$|coreState\.ts$))|scripts\/(build-engine\.sh|build-macos\.sh|check-engine-|check-macos-|test-support\/|package-macos\.mjs$)|third_party\/|package\.json$|pnpm-lock\.yaml$|\.node-version$)/;
           // Inputs to the packaged bundle and the notices it carries. On a pull
           // request the packaging step runs only for these; every push to main
           // packages regardless, so a release artifact is never first built at
@@ -178,6 +178,7 @@ jobs:
           pnpm macos:check-fullscreen
           pnpm macos:check-volume
           pnpm macos:check-audio
+          pnpm macos:check-track-choices
           pnpm macos:check-web-console
 
       # Packaging is a release-artifact check, not a correctness check, and it

@@ -71,7 +71,7 @@ adb -s "$ANDROID_SERIAL" logcat -s KinoCore:I KinoPlayer:I KinoProbe:I
 
 `KinoPlayer` reports the hardware video decoder, each audio track's format, layout, and support verdict, the audio decoder, and sink errors, with no titles, URLs, or identifiers.
 
-As of September 6, 2026, the suite is 32 instrumented tests covering native Core browsing, device-link creation, saved progress, startup routing, hardware H.264 and HEVC SDR playback with NVIDIA codecs, rejection of unsupported video, surround audio through AC-3, E-AC-3, and DTS fixtures under both audio output settings, the stereo downmix, caption styling, the presentation player, remote focus on the playback surface, and the source field parser. The correctly tagged HDR10 and HLG probes both failed before rendering with Media3 error 7001; the ordinary player rejects HDR rather than displaying unvalidated output.
+As of September 6, 2026, the suite is 34 instrumented tests covering native Core browsing, device-link creation, saved progress, startup routing, hardware H.264 and HEVC SDR playback with NVIDIA codecs, rejection of unsupported video, surround audio through AC-3, E-AC-3, and DTS fixtures under both audio output settings, the stereo downmix, caption styling, the presentation player, remote focus on the playback surface, the source field parser, and remembered audio/subtitle choices across movie/show reopening and replacement sources. The track checks also cover unavailable-language fallback, subtitle Off, title separation, and returning to automatic audio selection. The correctly tagged HDR10 and HLG probes both failed before rendering with Media3 error 7001; the ordinary player rejects HDR rather than displaying unvalidated output.
 
 ### Driving and observing the Shield
 
