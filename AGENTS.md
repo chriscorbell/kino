@@ -43,6 +43,6 @@ Editing a document includes removing what it no longer needs: a limitation now f
 
 ## Shipping
 
-Work on a branch. Ship each validated chunk as its own pull request rather than accumulating several. Squash-merge once CI is green, then delete the branch.
+Work on a branch inside this checkout, never in a separate worktree, so `main` here stays what `main` is. If the tree holds unrelated uncommitted work, stash it or ask; branching around it hides it. Ship each validated chunk as its own pull request rather than accumulating several. Squash-merge once CI is green, delete the branch, and fast-forward `main` to `origin/main` before starting the next.
 
 `pnpm check` is the local equivalent of the CI web job. The macOS native job runs only when native inputs change, and packaging runs on pushes to `main`, so a green pull request does not always mean the bundle was rebuilt.
