@@ -101,7 +101,9 @@ it('waits for the remembered add-on and resumes once, returning to selection aft
     }),
   );
   fireEvent.click(screen.getByRole('button', { name: 'Fail playback' }));
-  expect(await screen.findByRole('dialog', { name: 'Saved episode' })).toBeInTheDocument();
+  expect(
+    await screen.findByRole('heading', { name: 'Saved episode', level: 1 }),
+  ).toBeInTheDocument();
   const source = await screen.findByRole('button', { name: /Previous source/ });
   await waitFor(() => expect(source).toBeEnabled());
   expect(screen.queryByRole('button', { name: 'Fail playback' })).not.toBeInTheDocument();
@@ -120,7 +122,7 @@ it('silently offers sources for the saved episode when the remembered URL has ch
   const changedSource = await screen.findByRole('button', { name: /Changed source/ });
   await waitFor(() => expect(changedSource).toBeEnabled());
   expect(screen.queryByText(/previous source is unavailable or changed/)).not.toBeInTheDocument();
-  expect(screen.getByRole('dialog', { name: 'Saved episode' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Saved episode', level: 1 })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Resume' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Start over' })).not.toBeInTheDocument();
   expect(played).not.toHaveBeenCalled();

@@ -71,7 +71,17 @@ class ShieldPlaybackTest {
                     com.stremio.core.types.addon.ResourcePath("stream", media.type, media.id),
                 ),
             )
-        instrumentation.runOnMainSync { core.startPlayer(source) }
+        instrumentation.runOnMainSync {
+            assertFalse(
+                "A different episode cannot start from the current source page",
+                core.startPlayer(
+                    source.copy(
+                        request = source.request.copy(path = source.request.path.copy(id = "other-episode"))
+                    )
+                ),
+            )
+            assertTrue(core.startPlayer(source))
+        }
         Thread.sleep(300)
         instrumentation.runOnMainSync { core.progress(12000, 30000, false) }
         Thread.sleep(300)

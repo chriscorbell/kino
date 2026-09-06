@@ -77,10 +77,7 @@ for (const kind of ['movie', 'series']) {
       () => evaluate(`!document.querySelector('dialog[aria-label="Loading playback"]')`),
       'Escape cancellation',
     );
-    const target =
-      kind === 'movie'
-        ? `document.querySelector('main:not([hidden]) h1')`
-        : `document.querySelector('button[aria-label="Close source picker"]')`;
+    const target = `[...document.querySelectorAll('main:not([hidden]) h1')].find(element => !element.closest('[hidden]'))`;
     assert.equal(
       await evaluate(`document.activeElement === ${target}`),
       true,

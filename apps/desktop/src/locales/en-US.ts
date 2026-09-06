@@ -255,6 +255,18 @@ export const enUS = {
     cancel: 'Cancel',
   },
   details: {
+    selectSeason: 'Season',
+    specials: 'Specials',
+    otherEpisodes: 'Other episodes',
+    watched: 'Watched',
+    inProgress: 'In progress',
+    episodeIdentity: (season: number | null, episode: number | null) =>
+      [
+        season === null ? null : season === 0 ? 'Specials' : `Season ${season}`,
+        episode === null ? null : `Episode ${episode}`,
+      ]
+        .filter(Boolean)
+        .join(' · '),
     season: (number: number) => `Season ${number}`,
     episode: (number: number | null) => (number === null ? 'Episode' : `Episode ${number}`),
     loadingPlayback: 'Loading playback',
@@ -262,7 +274,6 @@ export const enUS = {
     error: 'Title details could not be loaded.',
     episodes: 'Episodes',
     sources: 'Sources',
-    closeSources: 'Close source picker',
     inspectSource: 'Details',
     filename: 'Filename',
     sourceAddon: 'Add-on',

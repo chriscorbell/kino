@@ -573,29 +573,58 @@
   margin-top: 34px;
 }
 
-.seasonTabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.seasonButton,
-.seasonActive {
-  min-height: 32px;
+.seasonSelector select {
+  min-height: 38px;
   padding: 0 14px;
   border: 1px solid var(--kino-border);
-  border-radius: var(--kino-pill-radius);
-  color: var(--kino-text-muted);
-  background: transparent;
+  border-radius: 7px;
+  color: var(--kino-text);
+  background: var(--kino-bg);
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
 }
 
-.seasonActive {
-  border-color: var(--kino-accent);
-  color: var(--kino-on-accent);
-  background: var(--kino-accent);
+.episodeSourcesPage {
+  padding: 28px var(--kino-page-gutter) 48px;
+  animation: detailArrival 160ms ease-out;
+}
+
+.episodeSourcesPage > .backButton {
+  position: static;
+}
+
+.episodeSourcesHeader {
+  margin-top: 36px;
+}
+
+.episodeSourcesHeader > p {
+  color: var(--kino-text-muted);
+}
+
+.episodeSourcesHeader h1 {
+  max-width: 900px;
+  margin: 8px 0 12px;
+  font-size: clamp(24px, 3vw, 38px);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+@keyframes detailArrival {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .episodeSourcesPage {
+    animation: none;
+  }
 }
 
 .episodeList,
@@ -711,6 +740,13 @@
   font-size: 14px;
   font-weight: 600;
   overflow-wrap: anywhere;
+}
+
+.episodeText > span {
+  display: block;
+  margin-top: 5px;
+  color: var(--kino-text-muted);
+  font-size: 12px;
 }
 
 .episodeOverview {
@@ -1140,7 +1176,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.sourcePickerDialog::backdrop,
 .accountDialog::backdrop {
   background: rgb(0 0 0 / 72%);
   backdrop-filter: blur(12px);
@@ -1932,7 +1967,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sourcePickerDialog,
   .accountDialog,
   .content,
   .skipIntro,
@@ -2065,44 +2099,4 @@
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-}
-
-.sourcePickerDialog {
-  position: fixed;
-  inset: 0;
-  margin: auto;
-  width: min(704px, calc(100vw - 32px));
-  max-height: calc(100dvh - 32px);
-  padding: 24px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  border: 1px solid var(--kino-border);
-  border-radius: var(--kino-panel-radius);
-  color: var(--kino-text);
-  background: var(--kino-surface);
-  animation: enter var(--kino-duration-standard) var(--kino-ease-out);
-}
-
-.sourcePickerHeader {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
-}
-
-.sourcePickerHeader h2 {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  margin: 0;
-  font-size: 20px;
-  line-height: 1.35;
-}
-
-.sourcePickerHeader .dialogClose {
-  position: static;
-  flex-shrink: 0;
-}
-
-.sourcePickerDialog .detailSection {
-  margin-top: 24px;
 }
