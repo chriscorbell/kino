@@ -128,6 +128,11 @@
   outline-offset: -2px;
 }
 
+.content.navigationFocus:focus,
+.content h1.navigationFocus:focus {
+  outline: none;
+}
+
 .page {
   width: min(100%, 1500px);
   min-height: 100%;
