@@ -87,3 +87,19 @@ _Avoid_: Analytics, telemetry
 **Local cache**:
 Bounded, disposable artwork, metadata, and subtitle data. Clearing it does not remove authentication, profiles, library state, progress, add-ons, or Kino settings.
 _Avoid_: Download, offline library
+
+**Release**:
+A tagged version of Kino with a packaged binary and checksums published on GitHub. A release is either a pre-release, which is unsigned and unannounced, or a public release, which is signed, notarized, and cleared for public use.
+_Avoid_: Build, snapshot
+
+**Release check**:
+The set of validations that must all pass on the release candidate before its tag is created. It covers the automated code checks, the native launch, playback, and engine probes, and a clean package build.
+_Avoid_: Validation gate, CI
+
+**Update notice**:
+The prompt Kino shows when a newer release exists. It offers to download the release, dismiss the notice until the next daily check, or skip that version. Download hands the release's disk image to the system browser; Kino never downloads or installs an update on its own.
+_Avoid_: Auto-update, upgrade prompt
+
+**Skipped version**:
+The single release version the user chose not to be reminded about. Only a release newer than the skipped version prompts again. A manual check from Settings reports the skipped version anyway.
+_Avoid_: Skip Intro, ignored update
