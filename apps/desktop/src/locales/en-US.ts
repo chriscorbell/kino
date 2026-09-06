@@ -257,7 +257,7 @@ export const enUS = {
   details: {
     season: (number: number) => `Season ${number}`,
     episode: (number: number | null) => (number === null ? 'Episode' : `Episode ${number}`),
-    checkingResume: 'Checking the previous source…',
+    loadingPlayback: 'Loading playback',
     loading: 'Loading title details…',
     error: 'Title details could not be loaded.',
     episodes: 'Episodes',

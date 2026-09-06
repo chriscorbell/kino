@@ -33,6 +33,7 @@
     "macos:check-engine-retry": "node scripts/check-macos-engine-retry.mjs",
     "macos:check-scale": "node scripts/check-macos-scale.mjs",
     "macos:check-focus": "node scripts/check-macos-focus.mjs",
+    "macos:check-resume": "node scripts/check-macos-resume.mjs",
     "macos:check-fullscreen": "node scripts/check-macos-fullscreen.mjs",
     "macos:check-audio": "node scripts/check-macos-audio.mjs",
     "macos:check-volume": "node scripts/check-macos-volume.mjs",

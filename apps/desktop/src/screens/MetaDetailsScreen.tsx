@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import styles from '../App.module.css';
 import { SourcePickerDialog } from '../components/SourcePickerDialog';
+import { ResumeCover } from '../components/ResumeCover';
 import { ActionFeedback } from '../components/ActionFeedback';
 import { useActionFeedback } from '../components/useActionFeedback';
 import { ResourceFailures } from '../components/ResourceFailures';
@@ -259,11 +260,6 @@ export function MetaDetailsScreen({
 
   const sourceSection = (
     <section aria-labelledby="sources-heading" className={styles.detailSection}>
-      {checkingResume ? (
-        <p className={styles.inlineEmpty} role="status">
-          {enUS.details.checkingResume}
-        </p>
-      ) : null}
       <ResourceFailures
         names={failures}
         error={result.error ? enUS.details.error : null}
@@ -308,7 +304,7 @@ export function MetaDetailsScreen({
           return (
             <SourceRow
               addonName={choice.addonName}
-              disabled={checkingResume || !selectable || !sourcesCurrent || !choice.current}
+              disabled={!selectable || !sourcesCurrent || !choice.current}
               external={external}
               failed={playable && failed}
               fields={fields}
@@ -461,7 +457,7 @@ export function MetaDetailsScreen({
 
         {item.type !== 'series' ? sourceSection : null}
       </div>
-      {item.type === 'series' && sourcePickerOpen ? (
+      {item.type === 'series' && sourcePickerOpen && !checkingResume ? (
         <SourcePickerDialog
           returnFocus={selectedEpisodeRef}
           title={activeVideo?.title || display.name}
@@ -476,6 +472,7 @@ export function MetaDetailsScreen({
       {currentExternal ? (
         <ExternalSourceDialog url={currentExternal.url} onClose={() => setExternalChoice(null)} />
       ) : null}
+      {checkingResume ? <ResumeCover onCancel={() => onCancelResume?.()} /> : null}
     </div>
   );
 }

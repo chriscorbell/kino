@@ -122,6 +122,50 @@
   inset: 0;
 }
 
+.resumeCover {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--kino-bg);
+  outline: none;
+}
+
+.resumeCover[open] {
+  display: grid;
+  place-items: center;
+}
+
+.resumeCover::backdrop {
+  background: var(--kino-bg);
+}
+
+.resumeSpinner {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--kino-border);
+  border-top-color: var(--kino-text-strong);
+  border-radius: 50%;
+  animation: resumeSpin 750ms linear infinite;
+}
+
+@keyframes resumeSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .resumeSpinner {
+    animation: none;
+  }
+}
+
 .content:focus-visible,
 .content h1:focus-visible {
   outline: 2px solid var(--kino-accent);
