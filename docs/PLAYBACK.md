@@ -44,7 +44,7 @@ Kino supports AAC, AC-3, E-AC-3 including Atmos metadata, TrueHD, DTS, DTS-HD, D
 
 Audio output is a device-local setting:
 
-- **Auto**, the default, negotiates with the operating system and connected audio equipment. On TV it passes through lossless and object-based formats when the sink supports them; otherwise it decodes to compatible multichannel PCM or stereo.
+- **Auto**, the default, negotiates with the operating system and connected audio equipment. On TV it passes through lossless and object-based formats when the sink supports them; otherwise it decodes to compatible multichannel PCM or stereo. The Shield offers apps no decoder for AC-3, E-AC-3, DTS, or TrueHD, so when its surround setting or the sink rules out passthrough, Kino decodes those tracks with its bundled FFmpeg audio renderer, as recorded in [ADR 0019](adr/0019-decode-surround-audio-in-software-on-tv.md). A source with audio no renderer can play fails with a reason rather than playing silently.
 - **Stereo** always decodes and downmixes to two-channel PCM inside Kino.
 
 Audio preferences start with the Stremio profile language and may be overridden per device.

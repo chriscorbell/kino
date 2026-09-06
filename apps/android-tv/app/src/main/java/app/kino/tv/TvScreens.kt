@@ -971,6 +971,48 @@ private fun SettingsScreen(
             }
         }
         item {
+            val context = LocalContext.current
+            var stereo by remember { mutableStateOf(stereoOutputPreferred(context)) }
+            Column(
+                Modifier.padding(horizontal = PageGutter),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    stringResource(R.string.audio_output),
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    stringResource(
+                        if (stereo) R.string.audio_output_stereo_body
+                        else R.string.audio_output_auto_body
+                    ),
+                    color = Muted,
+                    fontSize = 16.sp,
+                )
+                // A Kino setting: device-local, applied to the next playback.
+                OutlinedButton(
+                    {
+                        stereo = !stereo
+                        context
+                            .getSharedPreferences("kino", Context.MODE_PRIVATE)
+                            .edit()
+                            .putString("audio_output", if (stereo) "stereo" else "auto")
+                            .apply()
+                    },
+                    shape = ButtonDefaults.shape(RoundedCornerShape(8.dp)),
+                    border = kinoOutlinedBorder(),
+                ) {
+                    Text(
+                        stringResource(
+                            if (stereo) R.string.audio_output_stereo else R.string.audio_output_auto
+                        ),
+                        fontSize = 15.sp,
+                    )
+                }
+            }
+        }
+        item {
             Text(
                 stringResource(R.string.version, BuildConfig.VERSION_NAME),
                 Modifier.padding(horizontal = PageGutter),

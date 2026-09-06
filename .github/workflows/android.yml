@@ -63,6 +63,8 @@ jobs:
             build/vendor/stremio-core-kotlin
             build/vendor/stremio-core-kotlin.stamp
             build/stremio-core-kotlin-1.15.0.tar.gz
+            build/android-ffmpeg
+            build/android-ffmpeg.stamp
           key: android-core-${{ runner.os }}-${{ hashFiles('scripts/build-android.py', 'apps/android-tv/core/Cargo.lock', 'apps/android-tv/core/patches/**') }}
           restore-keys: android-core-${{ runner.os }}-
       - name: Restore Gradle caches
@@ -89,6 +91,8 @@ jobs:
             build/vendor/stremio-core-kotlin
             build/vendor/stremio-core-kotlin.stamp
             build/stremio-core-kotlin-1.15.0.tar.gz
+            build/android-ffmpeg
+            build/android-ffmpeg.stamp
           key: ${{ steps.core-cache.outputs.cache-primary-key }}
       - name: Save Gradle caches
         if: steps.gradle-cache.outputs.cache-hit != 'true'

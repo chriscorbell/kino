@@ -60,8 +60,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_21
     }
     kotlinOptions { jvmTarget = "21" }
-    sourceSets["main"].jniLibs.srcDir("../../../build/android-core/jniLibs")
-    sourceSets["main"].java.srcDir(generatedTokens)
+    sourceSets["main"].jniLibs.srcDirs(
+        "../../../build/android-core/jniLibs",
+        // Media3's FFmpeg audio renderer, built by scripts/build-android.py.
+        "../../../build/android-ffmpeg/jniLibs",
+    )
+    sourceSets["main"].java.srcDirs(generatedTokens, "../../../build/android-ffmpeg/java")
     sourceSets["androidTest"].assets.srcDir("../../../build/android-fixtures")
     packaging {
         resources.merges +=
