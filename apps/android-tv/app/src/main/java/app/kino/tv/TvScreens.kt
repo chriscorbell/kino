@@ -27,8 +27,10 @@ import androidx.compose.foundation.lazy.layout.LazyLayoutCacheWindow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -935,6 +937,14 @@ internal fun SearchScreen(
     onOpen: (Media) -> Unit,
 ) {
     var inputFocused by remember { mutableStateOf(false) }
+    var keyboardRequested by remember { mutableStateOf(false) }
+    // The String overload ignores showKeyboardOnFocus and lets the IME capture remote keys.
+    val input = rememberTextFieldState(query)
+    val currentOnQuery by rememberUpdatedState(onQuery)
+    LaunchedEffect(query) {
+        if (input.text.toString() != query) input.setTextAndPlaceCursorAtEnd(query)
+    }
+    LaunchedEffect(input) { snapshotFlow { input.text.toString() }.collect { currentOnQuery(it) } }
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     val navigation = LocalNavigationFocus.current
@@ -946,11 +956,13 @@ internal fun SearchScreen(
     ) {
         PageTitle(R.string.search)
         BasicTextField(
-            query,
-            onQuery,
+            input,
             Modifier.padding(horizontal = PageGutter)
                 .fillMaxWidth()
-                .onFocusChanged { inputFocused = it.isFocused }
+                .onFocusChanged {
+                    inputFocused = it.isFocused
+                    if (!it.isFocused) keyboardRequested = false
+                }
                 .onPreviewKeyEvent {
                     if (it.type != KeyEventType.KeyDown) false
                     else
@@ -963,6 +975,7 @@ internal fun SearchScreen(
                                 if (query.isEmpty()) navigation.requestFocus() else false
                             Key.DirectionCenter,
                             Key.Enter -> {
+                                keyboardRequested = true
                                 keyboard?.show()
                                 true
                             }
@@ -978,18 +991,18 @@ internal fun SearchScreen(
                 .padding(16.dp),
             textStyle =
                 MaterialTheme.typography.bodyLarge.copy(color = KinoColors.Text, fontSize = 18.sp),
-            singleLine = true,
+            lineLimits = TextFieldLineLimits.SingleLine,
             keyboardOptions =
-                KeyboardOptions(imeAction = ImeAction.Search, showKeyboardOnFocus = false),
-            keyboardActions =
-                KeyboardActions(
-                    onSearch = {
-                        keyboard?.hide()
-                        focusManager.moveFocus(FocusDirection.Down)
-                    }
+                KeyboardOptions(
+                    imeAction = ImeAction.Search,
+                    showKeyboardOnFocus = keyboardRequested,
                 ),
+            onKeyboardAction = {
+                keyboard?.hide()
+                focusManager.moveFocus(FocusDirection.Down)
+            },
             cursorBrush = androidx.compose.ui.graphics.SolidColor(KinoColors.TextStrong),
-            decorationBox = { inner ->
+            decorator = { inner ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),

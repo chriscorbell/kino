@@ -608,25 +608,21 @@ fun FullscreenPlayer(
                     (ended ||
                         (duration > 0 && position >= duration - minOf(120_000L, duration / 10)))
             }
+        val nextTitle =
+            next?.let {
+                it.title?.takeIf(String::isNotBlank)
+                    ?: it.seriesInfo?.let { series ->
+                        stringResource(R.string.season_episode, series.season, series.episode)
+                    }
+                    ?: stringResource(R.string.episode)
+            }
         key(player) {
             AndroidView(
                 factory = {
                     TvPlayerLayout(it, presented).also { created -> view = created.playerView }
                 },
                 update = { layout ->
-                    layout.showUpNext(
-                        next?.let {
-                            it.title?.takeIf(String::isNotBlank)
-                                ?: it.seriesInfo?.let { series ->
-                                    context.getString(
-                                        R.string.season_episode,
-                                        series.season,
-                                        series.episode,
-                                    )
-                                }
-                                ?: context.getString(R.string.episode)
-                        }
-                    ) {
+                    layout.showUpNext(nextTitle) {
                         if (next != null) close(destination = { currentUpNext(next) })
                     }
                 },

@@ -10,3 +10,12 @@
 -keep,allowoptimization class androidx.tv.material3.** { public protected *; }
 -keep,allowoptimization class pbandk.** { public protected *; }
 -keep,allowoptimization class kotlinx.coroutines.** { public protected *; }
+-keep,allowoptimization class androidx.core.view.ViewCompat {
+    public static androidx.core.view.WindowInsetsCompat getRootWindowInsets(android.view.View);
+}
+-keep,allowoptimization class androidx.core.view.WindowInsetsCompat {
+    public boolean isVisible(int);
+}
+-keep,allowoptimization class androidx.core.view.WindowInsetsCompat$Type {
+    public static int ime();
+}
