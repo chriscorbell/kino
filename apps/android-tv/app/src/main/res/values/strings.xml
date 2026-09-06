@@ -74,4 +74,6 @@
     <string name="other_episodes">Other episodes</string>
     <string name="watched">Watched</string>
     <string name="in_progress">In progress</string>
+    <string name="saving_progress">Saving progress…</string>
+    <string name="progress_save_failed">Progress could not be saved. Try closing playback again.</string>
 </resources>

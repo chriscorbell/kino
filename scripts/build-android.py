@@ -214,6 +214,21 @@ def main():
     library.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(BUILD / "android-core-target/aarch64-linux-android/release/libstremio_core_kotlin.so", library)
     run(llvm / "llvm-strip", "--strip-unneeded", library)
+    fixture_symbols = [b"Java_app_kino_tv_PlaybackProbeActivity_requestPersistenceFixture", b"Java_app_kino_tv_PlaybackProbeActivity_configureCoreFixture"]
+    exported = subprocess.run([llvm / "llvm-nm", "--dynamic", "--defined-only", library], capture_output=True, check=True).stdout
+    if any(symbol in exported for symbol in fixture_symbols):
+        sys.exit("Distributed Core contains instrumentation entry points")
+    if any("Benchmark" in task for task in sys.argv[1:]):
+        # Loopback transport fixtures exist only in the benchmark native library.
+        run(toolchain_bin / "cargo", "build", "--locked", "--release", "--target", "aarch64-linux-android",
+            "--manifest-path", VENDOR / "Cargo.toml", "-p", "stremio-core-kotlin", "--features", "kino-testing", env=env)
+        test_library = BUILD / "android-core-test/jniLibs/arm64-v8a/libstremio_core_kotlin.so"
+        test_library.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(BUILD / "android-core-target/aarch64-linux-android/release/libstremio_core_kotlin.so", test_library)
+        run(llvm / "llvm-strip", "--strip-unneeded", test_library)
+        exported = subprocess.run([llvm / "llvm-nm", "--dynamic", "--defined-only", test_library], capture_output=True, check=True).stdout
+        if any(symbol not in exported for symbol in fixture_symbols):
+            sys.exit("Benchmark Core is missing its instrumentation entry point")
     # Always build the distributed artifact, even when callers add lint or test tasks.
     # Copying an existing debug APK after an unrelated Gradle task could publish stale code.
     tasks = list(dict.fromkeys([":app:assembleRelease", *sys.argv[1:]]))

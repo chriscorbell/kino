@@ -11,6 +11,8 @@ import com.stremio.core.types.resource.Stream
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.full.companionObjectInstance
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import pbandk.Message
 import pbandk.decodeFromByteArray
 import pbandk.encodeToByteArray
@@ -41,6 +43,13 @@ object Core {
     private external fun decodeStreamDataNative(streamData: String): ByteArray?
 
     external fun getStateNative(field: Field): ByteArray
+
+    private external fun drainNative(retry: Boolean): Boolean
+
+    // Dispatch updates Core's model synchronously, then schedules persistence.
+    // Keep the UI responsive while waiting for durable writes and library puts.
+    suspend fun drainWrites(retry: Boolean = false): Boolean =
+        withContext(Dispatchers.IO) { drainNative(retry) }
 
     external fun sendNextAnalyticsBatch()
 

@@ -94,11 +94,19 @@ fun secureUrl(value: String?): Boolean =
     }
 
 /** The only presentation-facing boundary to the pinned Kotlin/JNI Core. */
-class TvCore(context: Context, profile: String = "guest") {
-    private val storage = CoreStorage(context, profile)
+class TvCore(
+    context: Context,
+    profile: String = "guest",
+    private val storage: com.stremio.core.Storage = CoreStorage(context, profile),
+) {
     private val handler = Handler(Looper.getMainLooper())
     private val mutable = MutableStateFlow(TvState())
     val state = mutable.asStateFlow()
+    internal var playerGeneration = 0L
+        private set
+
+    internal val pendingPlaybackSave = TvPendingPlaybackSave()
+
     private var initialized = false
     private var linking = false
     private var authenticating = false
@@ -235,7 +243,13 @@ class TvCore(context: Context, profile: String = "guest") {
     }
 
     fun startPlayer(source: Source): Boolean {
-        if (!source.playable || source.request.path != detailSelection?.streamPath) return false
+        if (
+            pendingPlaybackSave.status.value != TvPendingPlaybackSave.Status.Idle ||
+                !source.playable ||
+                source.request.path != detailSelection?.streamPath
+        )
+            return false
+        playerGeneration++
         load(
             ActionLoad.Args.Player(
                 Player.Selected(
@@ -301,6 +315,7 @@ class TvCore(context: Context, profile: String = "guest") {
     }
 
     fun stopPlayer() {
+        playerGeneration++
         Core.dispatch(Action(Action.Type.Unload(Action.ActionUnload())), Field.PLAYER)
         loadLibrary()
     }

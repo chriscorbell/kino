@@ -1,0 +1,426 @@
+--- a/stremio-core-kotlin/Cargo.toml
++++ b/stremio-core-kotlin/Cargo.toml
+@@ -7,6 +7,7 @@
+ rust-version = "1.77"
+ 
+ [features]
++kino-testing = []
+ default = ["kotlin"]
+ kotlin = [
+     # for fetch (making requests):
+--- a/stremio-core-kotlin/src/commonMain/rust/env/fetch.rs
++++ b/stremio-core-kotlin/src/commonMain/rust/env/fetch.rs
+@@ -24,14 +24,31 @@
+     .build().expect("HTTPS client initialization failed"));
+ 
+ pub fn fetch<IN: Serialize + Send + 'static, OUT: for<'de> Deserialize<'de> + Send + 'static>(request: Request<IN>) -> TryEnvFuture<OUT> {
++    #[cfg(feature = "kino-testing")]
++    let destination = {
++        let port = FIXTURE_PORT.load(std::sync::atomic::Ordering::SeqCst);
++        Url::parse(&request.uri().to_string()).ok().filter(|url|
++            port != 0 && url.host_str() == Some("kino-fixture.invalid")
++        ).map(|url| Url::parse(&format!("http://127.0.0.1:{port}{}", url.path())).expect("Fixture URL failed"))
++    };
++    #[cfg(not(feature = "kino-testing"))]
++    let destination = None;
++    fetch_at(request, destination)
++}
++
++fn fetch_at<IN: Serialize + Send + 'static, OUT: for<'de> Deserialize<'de> + Send + 'static>(request: Request<IN>, destination: Option<Url>) -> TryEnvFuture<OUT> {
+     let (parts, body) = request.into_parts();
+     let url = match Url::parse(&parts.uri.to_string()) {
+         Ok(url) if allowed(&url) => url,
+         _ => return future::err(EnvError::Fetch("Transport blocked".into())).boxed_env(),
+     };
++    let pending = (parts.method == Method::POST
++        && url.host_str() == Some("api.strem.io") && url.path() == "/api/datastorePut")
++        .then(super::persistence::LibraryPut::new);
+     async move {
++        let _pending = pending;
+         let client = if parts.method == Method::GET { &*CLIENT } else { &*NO_REDIRECT_CLIENT };
+-        let mut request = client.request(parts.method.clone(), url).headers(parts.headers);
++        let mut request = client.request(parts.method.clone(), destination.unwrap_or(url)).headers(parts.headers);
+         if parts.method != Method::GET { request = request.json(&body); }
+         let response = request.send().await.map_err(|_| EnvError::Fetch("Network request failed".into()))?;
+         if !response.status().is_success() { return Err(EnvError::Fetch(format!("HTTP {}", response.status().as_u16()))); }
+@@ -45,3 +62,22 @@
+         serde_json::from_slice(&bytes).map_err(|_| EnvError::Serde("Invalid response".into()))
+     }.boxed_env()
+ }
++
++// Only the benchmark JNI library compiles this loopback fixture. Production
++// requests always use the original validated destination above.
++#[cfg(feature = "kino-testing")]
++pub fn persistence_fixture(port: u16, put: bool) -> TryEnvFuture<serde_json::Value> {
++    let request = Request::builder()
++        .method(if put { Method::POST } else { Method::GET })
++        .uri(if put { "https://api.strem.io/api/datastorePut" } else { "https://api.strem.io/api/kino-fixture" })
++        .body(serde_json::json!({"authKey": "kino-fixture-only"})).expect("Fixture request failed");
++    fetch_at(request, Some(Url::parse(&format!("http://127.0.0.1:{port}/fixture")).expect("Fixture URL failed")))
++}
++
++#[cfg(feature = "kino-testing")]
++static FIXTURE_PORT: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(0);
++
++#[cfg(feature = "kino-testing")]
++pub fn configure_fixture(port: u16) {
++    FIXTURE_PORT.store(port, std::sync::atomic::Ordering::SeqCst);
++}
+--- /dev/null
++++ b/stremio-core-kotlin/src/commonMain/rust/env/persistence.rs
+@@ -0,0 +1,127 @@
++use super::storage::StoredValue;
++use futures::channel::oneshot;
++use once_cell::sync::Lazy;
++use std::collections::HashMap;
++use std::sync::{mpsc, Condvar, Mutex};
++use std::time::{Duration, Instant};
++use stremio_core::runtime::EnvError;
++
++#[derive(Default)]
++struct State {
++    generation: u64,
++    latest: HashMap<String, u64>,
++    failed: HashMap<String, Option<StoredValue>>,
++    writes: usize,
++    puts: usize,
++}
++
++struct Write {
++    value: StoredValue,
++    generation: u64,
++    complete: oneshot::Sender<Result<(), EnvError>>,
++}
++
++static STATE: Lazy<(Mutex<State>, Condvar)> =
++    Lazy::new(|| (Mutex::new(State::default()), Condvar::new()));
++static WRITER: Lazy<mpsc::Sender<Write>> = Lazy::new(|| {
++    let (sender, receiver) = mpsc::channel::<Write>();
++    std::thread::Builder::new()
++        .name("KinoStorage".into())
++        .spawn(move || {
++            for write in receiver {
++                let result = write.value.persist();
++                {
++                    let mut state = STATE.0.lock().expect("Persistence lock failed");
++                    state.writes -= 1;
++                    if state.latest.get(&write.value.key) == Some(&write.generation) {
++                        if result.is_ok() {
++                            state.failed.remove(&write.value.key);
++                        } else {
++                            state
++                                .failed
++                                .insert(write.value.key.clone(), Some(write.value));
++                        }
++                    }
++                    STATE.1.notify_all();
++                }
++                let _ = write.complete.send(result);
++            }
++        })
++        .expect("Storage worker initialization failed");
++    sender
++});
++
++fn enqueue(state: &mut State, value: StoredValue) -> oneshot::Receiver<Result<(), EnvError>> {
++    state.generation += 1;
++    let generation = state.generation;
++    state.latest.insert(value.key.clone(), generation);
++    state.failed.remove(&value.key);
++    state.writes += 1;
++    let (complete, receiver) = oneshot::channel();
++    // Registration and enqueue share the lock: an older snapshot cannot be
++    // committed after a newer one just because Tokio polls futures out of order.
++    WRITER
++        .send(Write {
++            value,
++            generation,
++            complete,
++        })
++        .expect("Storage worker stopped");
++    receiver
++}
++
++pub(super) fn write(value: StoredValue) -> oneshot::Receiver<Result<(), EnvError>> {
++    enqueue(&mut STATE.0.lock().expect("Persistence lock failed"), value)
++}
++
++pub(super) fn serialization_failed(key: &str) {
++    let mut state = STATE.0.lock().expect("Persistence lock failed");
++    state.generation += 1;
++    let generation = state.generation;
++    state.latest.insert(key.to_owned(), generation);
++    state.failed.insert(key.to_owned(), None);
++    STATE.1.notify_all();
++}
++
++/// Registered before the API future is returned; dropped only after its body
++/// has been read, on failure, or on cancellation. A catalog GET never owns one.
++pub(super) struct LibraryPut;
++impl LibraryPut {
++    pub(super) fn new() -> Self {
++        STATE.0.lock().expect("Persistence lock failed").puts += 1;
++        Self
++    }
++}
++impl Drop for LibraryPut {
++    fn drop(&mut self) {
++        let mut state = STATE.0.lock().expect("Persistence lock failed");
++        state.puts -= 1;
++        STATE.1.notify_all();
++    }
++}
++
++/// True acknowledges durable local writes and completion of library puts. A
++/// failed account request does not discard progress already stored locally.
++pub fn drain(retry: bool) -> bool {
++    let deadline = Instant::now() + Duration::from_secs(25);
++    let mut state = STATE.0.lock().expect("Persistence lock failed");
++    if retry {
++        // Core already holds the updated item and may deduplicate the same
++        // PausedChanged action. Retry the serialized value that failed instead.
++        let failed: Vec<_> = state.failed.values().filter_map(Clone::clone).collect();
++        for value in failed {
++            let _ = enqueue(&mut state, value);
++        }
++    }
++    while state.writes != 0 || state.puts != 0 {
++        let Some(remaining) = deadline.checked_duration_since(Instant::now()) else {
++            return false;
++        };
++        state = STATE
++            .1
++            .wait_timeout(state, remaining)
++            .expect("Persistence wait failed")
++            .0;
++    }
++    state.failed.is_empty()
++}
+--- a/stremio-core-kotlin/src/commonMain/rust/env/storage.rs
++++ b/stremio-core-kotlin/src/commonMain/rust/env/storage.rs
+@@ -8,6 +8,14 @@
+ use std::convert::{Into, TryInto};
+ use std::sync::Arc;
+ use stremio_core::runtime::{EnvError, EnvFutureExt, TryEnvFuture};
++
++#[derive(Clone)]
++pub(super) struct StoredValue {
++    pub(super) key: String,
++    value: Option<String>,
++    storage: GlobalRef,
++    java_vm: Arc<JavaVM>,
++}
+ 
+ pub struct Storage {
+     storage: GlobalRef,
+@@ -113,74 +121,88 @@
+         .boxed_env()
+     }
+     pub fn set<T: Serialize>(&self, key: &str, value: Option<&T>) -> TryEnvFuture<()> {
+-        let key = key.to_owned();
+-        let value = value.map(|value| serde_json::to_string(&value));
+-        let value = match value.transpose() {
++        let value = match value.map(serde_json::to_string).transpose() {
+             Ok(value) => value,
+-            Err(error) => return future::err(EnvError::Serde(error.to_string())).boxed_env(),
++            Err(error) => {
++                super::persistence::serialization_failed(key);
++                return future::err(EnvError::Serde(error.to_string())).boxed_env();
++            }
+         };
+-        let java_vm = self.java_vm.clone();
+-        let storage = self.storage.clone();
+-        future::lazy(move |_| {
+-            let env = java_vm
+-                .attach_current_thread_permanently()
+-                .map_err(|error| EnvError::Other(error.to_string()))?;
+-            let key = env
+-                .new_string(key)
+-                .map_err(|error| EnvError::Other(error.to_string()))?;
+-            let key = env.auto_local(key);
+-            let value = match value {
+-                Some(value) => env
+-                    .new_string(&value)
+-                    .map_err(|error| EnvError::Other(error.to_string()))?
+-                    .into(),
+-                _ => JObject::null(),
+-            };
+-            let value = env.auto_local(value);
+-            let storage_result = env
+-                .call_method(
+-                    storage.as_obj(),
+-                    "set",
+-                    format!(
+-                        "(Ljava/lang/String;Ljava/lang/String;)L{};",
+-                        KotlinClassName::Storage_Result.value()
+-                    ),
+-                    &[key.as_obj().into(), value.as_obj().into()],
+-                )
+-                .map_err(|error| EnvError::StorageReadError(error.to_string()))?
+-                .l()
+-                .map_err(|error| EnvError::StorageReadError(error.to_string()))?;
+-            let storage_result = env.auto_local(storage_result);
+-            let storage_result_class_name = storage_result
+-                .as_obj()
+-                .get_class_name(&env)
+-                .map_err(|error| EnvError::StorageReadError(error.to_string()))?;
+-            match storage_result_class_name.replace('.', "/").try_into() {
+-                Ok(KotlinClassName::Storage_Result_Ok) => Ok(()),
+-                Ok(KotlinClassName::Storage_Result_Err) => {
+-                    let message = env
+-                        .call_method(
+-                            storage_result.as_obj(),
+-                            "getMessage",
+-                            "()Ljava/lang/String;",
+-                            &[],
+-                        )
+-                        .map_err(|error| EnvError::StorageReadError(error.to_string()))?
+-                        .l()
+-                        .map_err(|error| EnvError::StorageReadError(error.to_string()))?;
+-                    let message = env.auto_local(message);
+-                    let message = env
+-                        .get_string(message.as_obj().into())
+-                        .map_err(|error| EnvError::StorageReadError(error.to_string()))?
+-                        .to_string_lossy()
+-                        .into_owned();
+-                    Err(EnvError::StorageReadError(message))
+-                }
+-                _ => Err(EnvError::StorageReadError(format!(
+-                    "Invalid Storage$Result: {storage_result_class_name}"
+-                ))),
++        let complete = super::persistence::write(StoredValue {
++            key: key.to_owned(),
++            value,
++            java_vm: self.java_vm.clone(),
++            storage: self.storage.clone(),
++        });
++        async move {
++            complete
++                .await
++                .map_err(|_| EnvError::StorageReadError("Storage worker stopped".into()))?
++        }
++        .boxed_env()
++    }
++}
++
++impl StoredValue {
++    pub(super) fn persist(&self) -> Result<(), EnvError> {
++        let env = self
++            .java_vm
++            .attach_current_thread_permanently()
++            .map_err(|error| EnvError::Other(error.to_string()))?;
++        let key = env
++            .new_string(&self.key)
++            .map_err(|error| EnvError::Other(error.to_string()))?;
++        let key = env.auto_local(key);
++        let value = match &self.value {
++            Some(value) => env
++                .new_string(value)
++                .map_err(|error| EnvError::Other(error.to_string()))?
++                .into(),
++            _ => JObject::null(),
++        };
++        let value = env.auto_local(value);
++        let storage_result = env
++            .call_method(
++                self.storage.as_obj(),
++                "set",
++                format!(
++                    "(Ljava/lang/String;Ljava/lang/String;)L{};",
++                    KotlinClassName::Storage_Result.value()
++                ),
++                &[key.as_obj().into(), value.as_obj().into()],
++            )
++            .map_err(|error| EnvError::StorageReadError(error.to_string()))?
++            .l()
++            .map_err(|error| EnvError::StorageReadError(error.to_string()))?;
++        let storage_result = env.auto_local(storage_result);
++        let storage_result_class_name = storage_result
++            .as_obj()
++            .get_class_name(&env)
++            .map_err(|error| EnvError::StorageReadError(error.to_string()))?;
++        match storage_result_class_name.replace('.', "/").try_into() {
++            Ok(KotlinClassName::Storage_Result_Ok) => Ok(()),
++            Ok(KotlinClassName::Storage_Result_Err) => {
++                let message = env
++                    .call_method(
++                        storage_result.as_obj(),
++                        "getMessage",
++                        "()Ljava/lang/String;",
++                        &[],
++                    )
++                    .map_err(|error| EnvError::StorageReadError(error.to_string()))?
++                    .l()
++                    .map_err(|error| EnvError::StorageReadError(error.to_string()))?;
++                let message = env.auto_local(message);
++                let message = env
++                    .get_string(message.as_obj().into())
++                    .map_err(|error| EnvError::StorageReadError(error.to_string()))?
++                    .to_string_lossy()
++                    .into_owned();
++                Err(EnvError::StorageReadError(message))
+             }
+-        })
+-        .boxed_env()
+-    }
+-}
++            _ => Err(EnvError::StorageReadError(format!(
++                "Invalid Storage$Result: {storage_result_class_name}"
++            ))),
++        }
++    }
++}
+--- a/stremio-core-kotlin/src/commonMain/rust/lib.rs
++++ b/stremio-core-kotlin/src/commonMain/rust/lib.rs
+@@ -28,6 +28,8 @@
+     mod kotlin_class_name;
+     pub use kotlin_class_name::*;
+ 
++    pub mod persistence;
++
+     mod storage;
+     pub use storage::*;
+ }
+--- a/stremio-core-kotlin/src/commonMain/rust/stremio_core_kotlin.rs
++++ b/stremio-core-kotlin/src/commonMain/rust/stremio_core_kotlin.rs
+@@ -286,3 +286,40 @@
+ ) {
+     AndroidEnv::exec_concurrent(AndroidEnv::send_next_analytics_batch());
+ }
++
++#[no_mangle]
++pub unsafe extern "C" fn Java_com_stremio_core_Core_drainNative(
++    _env: JNIEnv,
++    _class: JClass,
++    retry: jni::sys::jboolean,
++) -> jni::sys::jboolean {
++    crate::env::persistence::drain(retry != 0) as jni::sys::jboolean
++}
++
++#[cfg(feature = "kino-testing")]
++#[no_mangle]
++pub unsafe extern "C" fn Java_app_kino_tv_PlaybackProbeActivity_requestPersistenceFixture(
++    _env: JNIEnv,
++    _activity: JObject,
++    port: jni::sys::jint,
++    put: jni::sys::jboolean,
++    delay_ms: jni::sys::jint,
++) {
++    use stremio_core::runtime::Env;
++    if !(1..=65535).contains(&port) || !(0..=1000).contains(&delay_ms) { return; }
++    let future = crate::env::persistence_fixture(port as u16, put != 0);
++    AndroidEnv::exec_concurrent(async move {
++        tokio::time::sleep(std::time::Duration::from_millis(delay_ms as u64)).await;
++        let _ = future.await;
++    });
++}
++
++#[cfg(feature = "kino-testing")]
++#[no_mangle]
++pub unsafe extern "C" fn Java_app_kino_tv_PlaybackProbeActivity_configureCoreFixture(
++    _env: JNIEnv,
++    _activity: JObject,
++    port: jni::sys::jint,
++) {
++    if (0..=65535).contains(&port) { crate::env::configure_fixture(port as u16); }
++}
