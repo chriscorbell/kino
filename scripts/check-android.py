@@ -13,6 +13,7 @@ fixture_env = {**os.environ, "KINO_FIXTURES_DIR": str(root / "build/android-fixt
 subprocess.run(["node", "scripts/check-macos-playback.mjs", "--generate-only"], cwd=root, env=fixture_env, check=True)
 subprocess.run(["node", "scripts/test-support/track-fixtures.mjs", str(root / "build/android-fixtures")], cwd=root, check=True)
 subprocess.run(["node", "scripts/test-support/tv-ending-fixtures.mjs", str(root / "build/android-fixtures")], cwd=root, check=True)
+subprocess.run(["node", "scripts/test-support/tv-intro-fixtures.mjs", str(root / "build/android-fixtures")], cwd=root, check=True)
 subprocess.run([sys.executable, "scripts/build-android.py", ":app:assembleBenchmark", ":app:assembleBenchmarkAndroidTest"], cwd=root, check=True)
 adb = ["adb", "-s", device]
 try:

@@ -26,7 +26,7 @@ Configurable add-ons open their provider's settings page in the system browser. 
 
 ### Android TV
 
-The native Kotlin/Compose development app runs on the NVIDIA Shield. The distributed development APK is non-debuggable and optimized with R8; `pnpm android:check` includes remote navigation and frame-time gates on the device. It includes remote navigation, Stremio device-link sign-in, browsing, details, source selection, and hardware SDR playback. TV offers Up Next near an episode ending and opens the next episode's sources only after saving progress. TV Settings controls Up Next, subtitle and language defaults, clears cached artwork, and copies a diagnostic summary. The Shield suite checks the real cache, clipboard, playback tracks and preferences after process restart. See [Android TV development](docs/ANDROID-TV.md) for toolchain setup, device checks, and current limitations.
+The native Kotlin/Compose development app runs on the NVIDIA Shield. The distributed development APK is non-debuggable and optimized with R8; `pnpm android:check` includes remote navigation and frame-time gates on the device. It includes remote navigation, Stremio device-link sign-in, browsing, details, source selection, and hardware SDR playback. TV offers Up Next near an episode ending and opens the next episode's sources only after saving progress. TV also resolves trusted embedded or community intro markers, marks them on the timeline, and supports manual or optional automatic skipping with Undo. TV Settings controls Up Next, Skip Intro, subtitle and language defaults, clears cached artwork, and copies a diagnostic summary. The Shield suite checks the real cache, clipboard, playback tracks and preferences after process restart. See [Android TV development](docs/ANDROID-TV.md) for toolchain setup, device checks, and current limitations.
 
 ```sh
 pnpm android:build
@@ -81,7 +81,7 @@ KINO_LIFETIME_MEDIA="$PWD/build/fixtures/h264-sdr-aac.mp4" \
 
 Direct media uses the add-on's original HTTPS URL and required request headers in libmpv, independent of any Stremio Service URL saved in the account. TLS certificate verification is required. The native header check drives the production WebChannel and player through a protected media request, external subtitles, and a second source. It verifies literal header values, prevents headers from carrying into subtitles or later sources, rejects header injection and untrusted certificates, and checks diagnostic output for synthetic credentials. It uses `openssl` for the untrusted certificate and generates a short H.264 fixture with `ffmpeg`, or uses `KINO_PLAYBACK_FIXTURE` when provided.
 
-Community intro markers require an exact known runtime. `pnpm intro:check` exercises the bundled client against HTTP fixtures, and `pnpm macos:check-intro` repeats the match and cancellation checks in Qt WebEngine.
+Community intro markers require an exact known runtime. `pnpm intro:check` exercises the bundled client against HTTP fixtures, `pnpm macos:check-intro` repeats the match and cancellation checks in Qt WebEngine, and `pnpm android:check` drives the real Media3 player and remote on the Shield.
 
 ### Streaming engine
 

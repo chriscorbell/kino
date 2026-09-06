@@ -24,6 +24,12 @@
     <string name="sources">Sources</string>
     <string name="up_next">Up Next</string>
     <string name="up_next_description">Offer the next episode near the ending</string>
+    <string name="skip_intro">Skip Intro</string>
+    <string name="skip_intro_description">Show Skip Intro for trusted opening markers</string>
+    <string name="automatic_intro">Skip intros automatically</string>
+    <string name="automatic_intro_description">Skip once per intro and offer Undo for eight seconds</string>
+    <string name="intro_skipped">Intro skipped</string>
+    <string name="undo">Undo</string>
     <string name="choose_source">Choose source</string>
     <string name="episodes">Episodes</string>
     <string name="add_library">Add to Library</string>

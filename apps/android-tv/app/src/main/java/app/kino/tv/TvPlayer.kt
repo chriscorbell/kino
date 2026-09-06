@@ -5,11 +5,13 @@ package app.kino.tv
 
 import android.content.Context
 import android.graphics.Color
+import android.net.Uri
 import android.os.Handler
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.style.BackgroundColorSpan
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -34,6 +36,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.*
 import androidx.media3.common.text.Cue
 import androidx.media3.common.text.CueGroup
+import androidx.media3.common.util.Util
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -49,6 +52,7 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.video.MediaCodecVideoRenderer
 import androidx.media3.exoplayer.video.VideoRendererEventListener
+import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
@@ -243,6 +247,7 @@ fun createTvPlayer(
     context: Context,
     renderers: HardwareRenderers,
     headers: Map<String, String> = emptyMap(),
+    extractorsFactory: ExtractorsFactory? = null,
 ): ExoPlayer {
     // ExoPlayer's default throwable logging includes request URLs. Emit only stable event names.
     androidx.media3.common.util.Log.setLogger(
@@ -274,7 +279,8 @@ fun createTvPlayer(
     renderers.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
     return ExoPlayer.Builder(context, renderers)
         .setMediaSourceFactory(
-            DefaultMediaSourceFactory(context)
+            (extractorsFactory?.let { DefaultMediaSourceFactory(context, it) }
+                    ?: DefaultMediaSourceFactory(context))
                 .setDataSourceFactory(DefaultDataSource.Factory(context, http))
         )
         .setAudioAttributes(
@@ -301,40 +307,42 @@ fun tvPlayerView(
     player: Player,
     retainExternalFocus: () -> Boolean = { false },
 ): PlayerView =
-    PlayerView(context).apply {
-        this.player = player
-        subtitleView?.apply {
-            // Keep italics and the other authored text styling; only the fills
-            // are dropped, by the style and by the presentation.
-            setApplyEmbeddedStyles(true)
-            setStyle(outlinedCaptionStyle)
-        }
-        setShowSubtitleButton(true)
-        setShowNextButton(false)
-        setShowPreviousButton(false)
-        controllerShowTimeoutMs = 3500
-        keepScreenOn = false
-        isFocusable = true
-        addOnAttachStateChangeListener(
-            object : View.OnAttachStateChangeListener {
-                override fun onViewAttachedToWindow(attached: View) {
-                    // Focus is only grantable once the view has a window, and
-                    // the first layout pass has to land before it can take it.
-                    attached.post { attached.requestFocus() }
-                }
+    (LayoutInflater.from(context).inflate(R.layout.kino_player_view, null, false) as PlayerView)
+        .apply {
+            this.player = player
+            subtitleView?.apply {
+                // Keep italics and the other authored text styling; only the fills
+                // are dropped, by the style and by the presentation.
+                setApplyEmbeddedStyles(true)
+                setStyle(outlinedCaptionStyle)
+            }
+            setShowSubtitleButton(true)
+            setShowNextButton(false)
+            setShowPreviousButton(false)
+            controllerShowTimeoutMs = 3500
+            keepScreenOn = false
+            isFocusable = true
+            addOnAttachStateChangeListener(
+                object : View.OnAttachStateChangeListener {
+                    override fun onViewAttachedToWindow(attached: View) {
+                        // Focus is only grantable once the view has a window, and
+                        // the first layout pass has to land before it can take it.
+                        attached.post { attached.requestFocus() }
+                    }
 
-                override fun onViewDetachedFromWindow(detached: View) = Unit
-            }
-        )
-        // Hiding the controls takes their focused button away with them, and
-        // Compose reclaims focus from the surrounding hierarchy. Taking it back
-        // on every hide is what keeps the next remote press revealing them.
-        setControllerVisibilityListener(
-            PlayerView.ControllerVisibilityListener { visibility ->
-                if (visibility != View.VISIBLE) post { if (!retainExternalFocus()) requestFocus() }
-            }
-        )
-    }
+                    override fun onViewDetachedFromWindow(detached: View) = Unit
+                }
+            )
+            // Hiding the controls takes their focused button away with them, and
+            // Compose reclaims focus from the surrounding hierarchy. Taking it back
+            // on every hide is what keeps the next remote press revealing them.
+            setControllerVisibilityListener(
+                PlayerView.ControllerVisibilityListener { visibility ->
+                    if (visibility != View.VISIBLE)
+                        post { if (!retainExternalFocus()) requestFocus() }
+                }
+            )
+        }
 
 @Composable
 fun FullscreenPlayer(
@@ -344,36 +352,111 @@ fun FullscreenPlayer(
     onExit: () -> Unit,
     onFailure: (Int) -> Unit,
     onUpNext: (com.stremio.core.types.resource.Video) -> Unit,
+    introEndpoint: String = IntroCommunityClient.DEFAULT_ENDPOINT,
 ) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val activity = context as ComponentActivity
+    val sourceHeaders =
+        remember(source) {
+            source.stream.behaviorHints.proxyHeaders
+                ?.request
+                .orEmpty()
+                .mapNotNull { (key, value) ->
+                    if (key != null && value != null) key to value else null
+                }
+                .toMap()
+        }
+    var position by remember(source) { mutableLongStateOf(0L) }
+    var duration by remember(source) { mutableLongStateOf(C.TIME_UNSET) }
+    var ended by remember(source) { mutableStateOf(false) }
+    var embeddedDiscovery by
+        remember(source) {
+            val contentType = Util.inferContentType(Uri.parse(source.stream.url!!.url))
+            mutableStateOf<IntroDiscovery>(
+                if (
+                    contentType == C.CONTENT_TYPE_HLS ||
+                        contentType == C.CONTENT_TYPE_DASH ||
+                        contentType == C.CONTENT_TYPE_SS
+                )
+                    IntroDiscovery.Absent
+                else IntroDiscovery.Unknown
+            )
+        }
+    var chapterPayload by remember(source) { mutableStateOf<ByteArray?>(null) }
+    var chapterPayloadReceived by remember(source) { mutableStateOf(false) }
+    var chapterOffset by remember(source) { mutableLongStateOf(-1L) }
+    val introSession =
+        remember(source) {
+            IntroDiscoverySession(
+                onSelected = { matroska ->
+                    if (!matroska) embeddedDiscovery = IntroDiscovery.Absent
+                },
+                onChapters = { payload ->
+                    chapterPayload = payload
+                    chapterPayloadReceived = true
+                },
+                onChapterOffset = { chapterOffset = it },
+            )
+        }
+    val introExtractors = remember(source) { IntroExtractorsFactory(introSession) }
     val stereo = remember(source) { stereoOutputPreferred(context) }
     val renderers = remember(source) { HardwareRenderers(context, stereo) }
     val player =
-        remember(source) {
-            createTvPlayer(
-                context,
-                renderers,
-                source.stream.behaviorHints.proxyHeaders
-                    ?.request
-                    .orEmpty()
-                    .mapNotNull { (key, value) ->
-                        if (key != null && value != null) key to value else null
-                    }
-                    .toMap(),
-            )
-        }
+        remember(source) { createTvPlayer(context, renderers, sourceHeaders, introExtractors) }
     val session = remember(player) { MediaSession.Builder(context, player).build() }
     val upNext = remember(player) { kinoSettings(context).getBoolean("up_next", true) }
+    val skipIntro = remember(player) { kinoSettings(context).getBoolean("skip_intro", true) }
+    val automaticIntro =
+        remember(player) { kinoSettings(context).getBoolean("automatic_intro", false) }
     val coreState by core.state.collectAsState()
-    var position by remember(player) { mutableLongStateOf(0L) }
-    var duration by remember(player) { mutableLongStateOf(C.TIME_UNSET) }
-    var ended by remember(player) { mutableStateOf(false) }
+    val communityIdentity =
+        introIdentity(media, source.request.path.id, coreState.details.meta, duration)
+    var introMarker by remember(player) { mutableStateOf<TvIntroMarker?>(null) }
+    var automaticConsumed by remember(player) { mutableStateOf(false) }
+    var automaticSuppressed by remember(player) { mutableStateOf(false) }
     fun updateEnding() {
         position = player.currentPosition
         duration = player.duration
         ended = player.playbackState == Player.STATE_ENDED
+    }
+    LaunchedEffect(chapterPayloadReceived, chapterPayload, duration) {
+        if (chapterPayloadReceived && duration > 0) {
+            embeddedDiscovery =
+                chapterPayload?.let { MatroskaChapters.parse(it, duration) }
+                    ?: IntroDiscovery.Unknown
+        }
+    }
+    LaunchedEffect(chapterOffset, duration, skipIntro) {
+        if (
+            skipIntro &&
+                chapterOffset >= 0 &&
+                duration > 0 &&
+                embeddedDiscovery !is IntroDiscovery.Found
+        ) {
+            val payload =
+                readIndexedChapters(
+                    context,
+                    Uri.parse(source.stream.url!!.url),
+                    sourceHeaders,
+                    chapterOffset,
+                )
+            if (embeddedDiscovery !is IntroDiscovery.Found) {
+                embeddedDiscovery =
+                    payload?.let { MatroskaChapters.parse(it, duration) } ?: IntroDiscovery.Unknown
+            }
+        }
+    }
+    LaunchedEffect(embeddedDiscovery, communityIdentity, skipIntro, introEndpoint) {
+        introMarker =
+            when (val embedded = embeddedDiscovery) {
+                is IntroDiscovery.Found -> embedded.marker
+                IntroDiscovery.Unknown -> null
+                IntroDiscovery.Absent -> {
+                    if (!skipIntro) null
+                    else communityIdentity?.let { IntroCommunityClient(introEndpoint).lookup(it) }
+                }
+            }
     }
     val trackSelection =
         remember(player, media.type, media.id) {
@@ -398,6 +481,7 @@ fun FullscreenPlayer(
     val presented =
         remember(player, trackSelection) { TvPresentationPlayer(player, trackSelection::select) }
     var view by remember(player) { mutableStateOf<PlayerView?>(null) }
+    var playerLayout by remember(player) { mutableStateOf<TvPlayerLayout?>(null) }
     val currentExit by rememberUpdatedState(onExit)
     val currentFailure by rememberUpdatedState(onFailure)
     val currentUpNext by rememberUpdatedState(onUpNext)
@@ -452,6 +536,32 @@ fun FullscreenPlayer(
         while (!closing && !closed && !saveFailed) {
             updateEnding()
             delay(100)
+        }
+    }
+    LaunchedEffect(
+        introMarker,
+        position,
+        automaticIntro,
+        skipIntro,
+        automaticConsumed,
+        automaticSuppressed,
+    ) {
+        val marker = introMarker
+        if (
+            marker != null &&
+                skipIntro &&
+                automaticIntro &&
+                !automaticConsumed &&
+                !automaticSuppressed &&
+                position in marker.startMs until marker.endMs
+        ) {
+            automaticConsumed = true
+            player.seekTo(marker.endMs)
+            playerLayout?.showIntroNotice {
+                automaticSuppressed = true
+                player.seekTo(marker.startMs)
+                updateEnding()
+            }
         }
     }
     DisposableEffect(player) {
@@ -581,6 +691,7 @@ fun FullscreenPlayer(
             player.pause()
             lifecycle.removeObserver(observer)
             view?.player = null
+            introSession.release()
             session.release()
             trackSelection.close()
             player.removeListener(listener)
@@ -619,9 +730,21 @@ fun FullscreenPlayer(
         key(player) {
             AndroidView(
                 factory = {
-                    TvPlayerLayout(it, presented).also { created -> view = created.playerView }
+                    TvPlayerLayout(it, presented).also { created ->
+                        playerLayout = created
+                        view = created.playerView
+                    }
                 },
                 update = { layout ->
+                    val marker = introMarker.takeIf { skipIntro }
+                    layout.showIntro(
+                        marker,
+                        duration,
+                        marker != null && position in marker.startMs until marker.endMs,
+                    ) {
+                        automaticConsumed = true
+                        player.seekTo(marker?.endMs ?: return@showIntro)
+                    }
                     layout.showUpNext(nextTitle) {
                         if (next != null) close(destination = { currentUpNext(next) })
                     }
@@ -680,6 +803,35 @@ private fun logAudioTracks(tracks: Tracks) {
         }
     }
     if (!tracks.isTypeSelected(C.TRACK_TYPE_AUDIO)) Log.w("KinoPlayer", "Audio selected=none")
+}
+
+private fun introIdentity(
+    media: Media,
+    videoId: String,
+    meta: com.stremio.core.types.resource.MetaItem?,
+    durationMs: Long,
+): IntroIdentity? {
+    if (durationMs <= 0) return null
+    val imdb = media.id.takeIf { it.matches(Regex("tt[0-9]{7,8}")) }
+    val tmdb = Regex("tmdb:([0-9]+)").matchEntire(media.id)?.groupValues?.get(1)?.toLongOrNull()
+    if ((imdb == null) == (tmdb == null)) return null
+    val series =
+        if (media.type == "series") {
+            meta?.videos?.firstOrNull { it.id == videoId }?.seriesInfo ?: return null
+        } else null
+    if (
+        series != null &&
+            (series.season !in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong() ||
+                series.episode !in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong())
+    )
+        return null
+    return IntroIdentity(
+        durationMs = durationMs,
+        imdbId = imdb,
+        tmdbId = tmdb,
+        season = series?.season?.toInt(),
+        episode = series?.episode?.toInt(),
+    )
 }
 
 /** The device-local Kino audio output setting: "stereo" or the default "auto". */
