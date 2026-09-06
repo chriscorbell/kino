@@ -51,6 +51,8 @@ Settings can copy a diagnostic summary with application, macOS, Qt, Core, player
 
 The player saves volume locally between launches. Its slider and Up/Down shortcuts adjust 0-100% volume; M toggles mute, and raising volume unmutes playback. Focused sliders keep their native keyboard step. Run `pnpm macos:check-volume` to verify the production WebChannel method and libmpv volume notifications, including bounds.
 
+Desktop navigation moves focus to the page or heading without drawing an outline. Keyboard controls and Skip to content retain their visible focus indicators. `pnpm macos:check-focus` exercises the production bundle in Qt WebEngine through launch, navigation, Tab, and Skip to content.
+
 The fullscreen button and F toggle the current window state. Escape exits fullscreen after closing any open subtitle menu. The native bridge follows Qt window visibility, including changes through macOS window controls. Run `pnpm macos:check-fullscreen` to verify the actual WebChannel property and change notifications through repeated entry and exit.
 
 Validate the playback contract against generated legal fixtures — codecs, HDR ranges, audio formats, subtitles, chapters, and failure paths — with:

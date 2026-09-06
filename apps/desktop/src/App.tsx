@@ -210,6 +210,12 @@ export function App() {
     const target =
       heading && !heading.classList.contains(styles.visuallyHidden ?? '') ? heading : main;
     target.tabIndex = -1;
+    // WebEngine treats cold-launch focus as keyboard focus. Suppress only this
+    // navigation focus, then restore the indicator when the target loses focus.
+    target.classList.add(styles.navigationFocus!);
+    target.addEventListener('blur', () => target.classList.remove(styles.navigationFocus!), {
+      once: true,
+    });
     target.focus({ preventScroll: true });
   }, [entry, playback, screen, view]);
 
@@ -253,7 +259,9 @@ export function App() {
           href="#main-content"
           onClick={(event) => {
             event.preventDefault();
-            (screen === 'detail' ? detailMain.current : browseMain.current)?.focus();
+            const main = screen === 'detail' ? detailMain.current : browseMain.current;
+            main?.classList.remove(styles.navigationFocus!);
+            main?.focus();
           }}
         >
           {enUS.navigation.skipToContent}
