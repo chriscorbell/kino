@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { App } from './App';
+import { t as enUS } from './locales';
 import { SETTINGS_STORAGE_KEY } from './settings';
 
 describe('App', () => {
@@ -72,9 +73,9 @@ describe('App', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole('button', { name: 'Sign in to Stremio' }));
+    await user.click(screen.getByRole('button', { name: enUS.account.signInTitle }));
 
-    expect(screen.getByRole('dialog', { name: 'Sign in to Stremio' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: enUS.account.signInTitle })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Create account' })).toHaveAttribute(
       'href',
       'https://www.stremio.com/register',
@@ -82,8 +83,10 @@ describe('App', () => {
 
     fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true }));
 
-    expect(screen.queryByRole('dialog', { name: 'Sign in to Stremio' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('dialog', { name: enUS.account.signInTitle }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Home' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Sign in to Stremio' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: enUS.account.signInTitle })).toHaveFocus();
   });
 });

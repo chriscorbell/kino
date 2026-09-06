@@ -36,7 +36,7 @@ export const enUS = {
   },
   account: {
     title: 'Stremio account',
-    signInTitle: 'Sign in to Stremio',
+    signInTitle: 'Sign in with Stremio',
     signedIn: 'Signed in',
     signOut: 'Sign out',
     description: 'Your credentials go directly to Stremio. Kino keeps guest activity separate.',
