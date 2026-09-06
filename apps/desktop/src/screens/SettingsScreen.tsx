@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 
 import styles from '../App.module.css';
 import { SettingSelect, SettingSwitch } from '../components/SettingControls';
-import { EngineSettings } from '../components/EngineSettings';
 import { ActionFeedback } from '../components/ActionFeedback';
 import { useActionFeedback } from '../components/useActionFeedback';
 import { updateProfileSettingsAction } from '../core/actions';
@@ -248,8 +247,6 @@ export function SettingsScreen({
         />
         <ActionFeedback action={languageAction} />
       </section>
-
-      <EngineSettings />
 
       <section className={styles.settingsGroup} aria-labelledby="storage-settings-title">
         <h2 id="storage-settings-title">{enUS.settings.storage}</h2>

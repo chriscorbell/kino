@@ -221,22 +221,6 @@ export const enUS = {
     noticesOpened: 'License notices opened.',
     noticesFailed: 'License notices could not be opened. Try again.',
   },
-  engine: {
-    title: 'Torrent streaming',
-    description: 'Stored on this device. Changes apply to the running engine.',
-    loading: 'Loading torrent settings…',
-    loadFailed: 'Torrent settings could not be loaded.',
-    seeding: 'Seeding',
-    seedingDescription: 'Share completed torrents with other peers',
-    downloadLimit: 'Download limit',
-    limitDescription: 'MiB/s means 1,048,576 bytes per second. Unlimited removes the rate cap.',
-    unlimited: 'Unlimited',
-    rate: (value: number) =>
-      `${value.toLocaleString(undefined, { maximumFractionDigits: 6 })} MiB/s`,
-    saving: 'Saving torrent settings…',
-    saved: 'Torrent settings saved.',
-    saveFailed: 'Torrent settings could not be saved. Try again.',
-  },
   updates: {
     title: 'Updates',
     current: 'Current version',
