@@ -14,6 +14,10 @@ Series have a season selector above full-width episode rows. New viewers start a
 
 Choosing a season does not request sources. Choosing an episode opens a separate page, and source rows must match that episode before they can play. Back restores the episode list and focus, including after leaving playback or a playback failure. Guest and account entries keep separate navigation state. `SeasonNavigationTest` checks the season rules and drives this path with remote keys on the Shield.
 
+Posters enlarge over 140 ms; the drawer and page entry use 160 ms transitions. New input replaces a running transition, and only the current page can receive focus. Compose's motion duration scale applies to these animations. `NavigationMotionTest` checks disabled motion without changing device settings.
+
+Library renders its grid as cached rows, keeping a viewport on either side of the visible rows. Poster titles and their year/type caption are announced together on the card. `NavigationPerformanceTest` exercises loaded and loading artwork, repeated remote input, shelf changes, the drawer, and long episode/source lists on the Shield. [Frame measurements](validation/android-navigation.md) record the build comparison and the device gate.
+
 Gradle generates Android colors from `packages/design-tokens/src/tokens.css`. The TV app uses native Compose TV controls with Geist typography and Lucide icons, matching the Mac app's palette and visual language. The four bundled Geist weights were converted from the repository's locked `@fontsource-variable/geist` 5.3.0 Latin font. Lucide vectors come from commit `94e4cb9d9db5907053ebf3636a97c45529cf776b`. Their licenses are included in the APK's `assets/licenses` directory.
 
 ## Build and install
@@ -32,16 +36,18 @@ pnpm android:run "$ANDROID_SERIAL"
 
 The build also requires `rustup`, Python 3, and Git. It installs Rust 1.93.1 with the Android ARM64 standard library through rustup. `JAVA_HOME` and `ANDROID_HOME` override the Homebrew defaults on other hosts. Gradle 8.13 is downloaded by the checked-in wrapper and verified by SHA-256.
 
-The development-signed APK and its checksum are written to `build/android/Kino-TV.apk` and `build/android/Kino-TV.apk.sha256`. The app appears as **Kino** in the TV launcher. Select **Settings → Sign in** to link Stremio using a phone. This does not copy the Mac's credentials or profile to the TV.
+The non-debuggable, R8-optimized, development-signed APK and its checksum are written to `build/android/Kino-TV.apk` and `build/android/Kino-TV.apk.sha256`. The app appears as **Kino** in the TV launcher. Select **Settings → Sign in** to link Stremio using a phone. This does not copy the Mac's credentials or profile to the TV.
 
 After the first native build, Kotlin-only iteration can use the commands below. Gradle refuses to build until `pnpm android:build` has produced the FFmpeg audio renderer under `build/android-ffmpeg`, since an APK without it fails every surround source on the Shield.
 
 ```sh
 cd apps/android-tv
-./gradlew :app:assembleDebug
-adb -s "$ANDROID_SERIAL" install -r app/build/outputs/apk/debug/app-debug.apk
+./gradlew :app:assembleRelease
+adb -s "$ANDROID_SERIAL" install -r app/build/outputs/apk/release/app-release.apk
 adb -s "$ANDROID_SERIAL" shell am start -n app.kino.tv/.MainActivity
 ```
+
+Use `:app:assembleDebug` only when attaching a debugger. Its Compose runtime and frame timings differ from the installed development artifact.
 
 The Android TV GitHub Actions workflow builds the APK, compiles the device tests, and runs Android lint. It uploads the APK and checksum as a workflow artifact. Hardware checks still run on the Shield.
 
@@ -63,7 +69,7 @@ Startup routes to the saved account process before composing the guest interface
 pnpm android:check "$ANDROID_SERIAL"
 ```
 
-This generates legal synthetic media in `build/android-fixtures`, builds and installs the APKs, wakes the Shield, and runs instrumentation. Test Core storage is isolated from both user profiles. The tests exercise native catalog and metadata requests, device-link creation, saved progress and its display fraction, backward seeking, startup routing, hardware H.264/HEVC SDR playback, and rejection of unsupported video. A separate instrumentation-only player probes OpenGL HDR-to-SDR conversion without enabling it in Kino.
+This generates legal synthetic media in `build/android-fixtures`, builds and installs the non-debuggable benchmark APK and its test APK, wakes the Shield, and runs instrumentation. The benchmark variant retains the APIs called from the separate test APK; the distributed release variant removes unused APIs. The command reinstalls `build/android/Kino-TV.apk` after the checks, including after a failure. Test Core storage is isolated from both user profiles. The tests exercise native catalog and metadata requests, device-link creation, saved progress and its display fraction, backward seeking, startup routing, hardware H.264/HEVC SDR playback, and rejection of unsupported video. A separate instrumentation-only player probes OpenGL HDR-to-SDR conversion without enabling it in Kino.
 
 The shared fixture generator checks HDR primaries and transfer metadata with ffprobe. It regenerates stale fixtures whose names say HDR but whose video is missing those tags.
 
@@ -75,17 +81,19 @@ adb -s "$ANDROID_SERIAL" logcat -s KinoCore:I KinoPlayer:I KinoProbe:I
 
 `KinoPlayer` reports the hardware video decoder, each audio track's format, layout, and support verdict, the audio decoder, and sink errors, with no titles, URLs, or identifiers.
 
-As of September 6, 2026, the suite is 37 instrumented tests covering native Core browsing, device-link creation, saved progress, startup routing, hardware H.264 and HEVC SDR playback with NVIDIA codecs, rejection of unsupported video, surround audio through AC-3, E-AC-3, and DTS fixtures under both audio output settings, the stereo downmix, caption styling, the presentation player, remote focus on the playback surface, the source field parser, and remembered audio/subtitle choices across movie/show reopening and replacement sources. The season checks cover Core completion semantics, remote selection, delayed source identity, and focus/scroll restoration through playback and profile changes. The track checks also cover unavailable-language fallback, subtitle Off, title separation, and returning to automatic audio selection. The correctly tagged HDR10 and HLG probes both failed before rendering with Media3 error 7001; the ordinary player rejects HDR rather than displaying unvalidated output.
+The instrumented suite covers native Core browsing, device-link creation, saved progress, startup routing, hardware H.264 and HEVC SDR playback with NVIDIA codecs, rejection of unsupported video, surround audio through AC-3, E-AC-3, and DTS fixtures under both audio output settings, the stereo downmix, caption styling, the presentation player, remote focus on the playback surface, the source field parser, and remembered audio/subtitle choices across movie/show reopening and replacement sources. The season checks cover Core completion semantics, remote selection, delayed source identity, and focus/scroll restoration through playback and profile changes. The track checks also cover unavailable-language fallback, subtitle Off, title separation, and returning to automatic audio selection. The correctly tagged HDR10 and HLG probes both failed before rendering with Media3 error 7001; the ordinary player rejects HDR rather than displaying unvalidated output.
 
 ### Driving and observing the Shield
 
 The development Shield is on the local network at `10.0.0.191`. `adb connect 10.0.0.191:5555` attaches it; `adb shell input keyevent KEYCODE_WAKEUP` wakes it before instrumentation, which `pnpm android:check` does itself.
 
-Only `pnpm android:check` bundles the fixtures into the test APK. Building with `scripts/build-android.py` or gradle alone and then running instrumentation fails every media test with `FileNotFoundException` on a fixture name; that is a missing asset, not a regression. One class runs with:
+Only `pnpm android:check` bundles the fixtures into the test APK. Building with `scripts/build-android.py` or gradle alone and then running instrumentation fails every media test with `FileNotFoundException` on a fixture name; that is a missing asset, not a regression. To rerun one class after the suite restores the distributed APK, first reinstall the benchmark host:
 
 ```sh
+adb -s "$ANDROID_SERIAL" install -r apps/android-tv/app/build/outputs/apk/benchmark/app-benchmark.apk
 adb -s "$ANDROID_SERIAL" shell am instrument -w -r -e class app.kino.tv.ShieldAudioTest \
   app.kino.tv.test/app.kino.tv.ShieldTestRunner
+adb -s "$ANDROID_SERIAL" install -r build/android/Kino-TV.apk
 ```
 
 A signed-in Shield launches into `AccountActivity`, the same interface in the account process, so seeing that activity name means sign-in worked. From Home, `KEYCODE_DPAD_CENTER` on the focused Continue Watching item resumes playback directly; `KEYCODE_DPAD_DOWN` then `KEYCODE_DPAD_CENTER` opens a details page with live sources instead.

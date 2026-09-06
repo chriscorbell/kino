@@ -22,11 +22,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.layout.LazyLayoutCacheWindow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -61,6 +59,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -232,7 +231,12 @@ fun KinoApp(
                         navigate,
                         onAccount = { if (state.signedIn) navigate("settings") else onSignIn() },
                     ) {
-                        Box(Modifier.fillMaxSize().focusRequester(contentFocus).focusGroup()) {
+                        Box(
+                            Modifier.fillMaxSize()
+                                .pageTransition(listOf(destination, selected?.id, videoId))
+                                .focusRequester(contentFocus)
+                                .focusGroup()
+                        ) {
                             if (selected != null) {
                                 savedDetails.SaveableStateProvider(detailEntry) {
                                     DetailScreen(
@@ -327,7 +331,7 @@ private fun groupedMedia(shelves: List<Shelf>): List<Pair<Int, List<Media>>> {
 }
 
 @Composable
-private fun HomeScreen(state: TvState, onOpen: (Media) -> Unit, onRetry: () -> Unit) {
+internal fun HomeScreen(state: TvState, onOpen: (Media) -> Unit, onRetry: () -> Unit) {
     val groups = remember(state.shelves) { groupedMedia(state.shelves) }
     LazyColumn(
         state = rememberLazyListState(),
@@ -423,8 +427,13 @@ private fun PosterCard(
     val registry = LocalPosterFocus.current
     val navigation = LocalNavigationFocus.current
     val focus = remember(focusKey) { FocusRequester() }
+    val caption =
+        media.year?.take(4)?.takeIf { it.all(Char::isDigit) }
+            ?: stringResource(if (media.type == "movie") R.string.movie else R.string.series)
+    // The card announces both lines. Its sibling captions must not repeat them as separate stops.
     val accessibilityLabel =
-        if (resume) stringResource(R.string.resume_title, media.title) else media.title
+        if (resume) stringResource(R.string.resume_title, media.title)
+        else listOf(media.title, caption).joinToString(", ")
     var artworkFailed by remember(media.poster) { mutableStateOf(false) }
     DisposableEffect(focusKey) {
         registry.requesters[focusKey] = focus
@@ -435,6 +444,7 @@ private fun PosterCard(
             onClick,
             Modifier.width(PosterWidth)
                 .height(PosterHeight)
+                .quickFocusScale()
                 .focusRequester(focus)
                 .focusProperties { if (firstInRow) left = navigation }
                 .onFocusChanged { if (it.isFocused) registry.lastFocusedKey = focusKey }
@@ -448,13 +458,13 @@ private fun PosterCard(
                             shape = RoundedCornerShape(10.dp),
                         )
                 ),
-            scale = CardDefaults.scale(focusedScale = 1.04f),
+            scale = CardDefaults.scale(focusedScale = 1f, pressedScale = 1f),
         ) {
             Box(Modifier.fillMaxSize().background(SurfaceColor)) {
                 if (media.poster == null || artworkFailed)
                     Text(
                         media.title.take(1),
-                        Modifier.align(Alignment.Center),
+                        Modifier.align(Alignment.Center).clearAndSetSemantics {},
                         fontSize = 42.sp,
                         color = KinoColors.TextFaint,
                     )
@@ -494,7 +504,7 @@ private fun PosterCard(
         }
         Text(
             media.title,
-            Modifier.padding(top = 10.dp).fillMaxWidth(),
+            Modifier.padding(top = 10.dp).fillMaxWidth().clearAndSetSemantics {},
             fontSize = 14.sp,
             lineHeight = 18.sp,
             fontWeight = FontWeight.SemiBold,
@@ -502,11 +512,8 @@ private fun PosterCard(
         )
         if (!resume)
             Text(
-                media.year?.take(4)?.takeIf { it.all(Char::isDigit) }
-                    ?: stringResource(
-                        if (media.type == "movie") R.string.movie else R.string.series
-                    ),
-                Modifier.padding(top = 3.dp),
+                caption,
+                Modifier.padding(top = 3.dp).clearAndSetSemantics {},
                 fontSize = 12.sp,
                 lineHeight = 16.sp,
                 color = KinoColors.TextFaint,
@@ -684,7 +691,10 @@ internal fun DetailScreen(
                     )
                 }
             }
-            LaunchedEffect(resuming) { if (!resuming && lastEpisode == null) focus.requestFocus() }
+            LaunchedEffect(resuming) {
+                if (!resuming && (media.type != "series" || lastEpisode == null))
+                    focus.requestFocus()
+            }
         }
         if (media.preview != null || meta != null)
             item {
@@ -893,7 +903,7 @@ private fun Spinner() {
 }
 
 @Composable
-private fun SearchScreen(
+internal fun SearchScreen(
     query: String,
     onQuery: (String) -> Unit,
     shelves: List<Shelf>,
@@ -1006,8 +1016,9 @@ private fun PageTitle(title: Int) {
     )
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun LibraryScreen(media: List<Media>, onOpen: (Media) -> Unit) {
+internal fun LibraryScreen(media: List<Media>, onOpen: (Media) -> Unit) {
     var selectedType by rememberSaveable { mutableStateOf<String?>(null) }
     val navigation = LocalNavigationFocus.current
     val filtered =
@@ -1048,9 +1059,18 @@ private fun LibraryScreen(media: List<Media>, onOpen: (Media) -> Unit) {
                     ((maxWidth - PageGutter * 2 + 16.dp) / (PosterWidth + 16.dp))
                         .toInt()
                         .coerceAtLeast(1)
-                LazyVerticalGrid(
-                    GridCells.Fixed(columns),
+                // A vertical focus move brings in a whole row. Composing that row together
+                // avoids the grid's repeated per-cell work on the Shield.
+                val rows = remember(filtered, columns) { filtered.chunked(columns) }
+                LazyColumn(
                     Modifier.fillMaxSize(),
+                    state =
+                        rememberLazyListState(
+                            cacheWindow =
+                                remember {
+                                    LazyLayoutCacheWindow(aheadFraction = 1f, behindFraction = 1f)
+                                }
+                        ),
                     contentPadding =
                         PaddingValues(
                             start = PageGutter,
@@ -1058,19 +1078,26 @@ private fun LibraryScreen(media: List<Media>, onOpen: (Media) -> Unit) {
                             top = 8.dp,
                             bottom = 40.dp,
                         ),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalArrangement = Arrangement.spacedBy(24.dp),
                 ) {
-                    itemsIndexed(filtered, key = { _, it -> "${it.type}:${it.id}" }) { index, item
-                        ->
-                        Box(contentAlignment = Alignment.TopCenter) {
-                            PosterCard(
-                                item,
-                                false,
-                                "library:${item.type}:${item.id}",
-                                index % columns == 0,
-                            ) {
-                                onOpen(item)
+                    items(rows, key = { "${it.first().type}:${it.first().id}" }) { row ->
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
+                            repeat(columns) { column ->
+                                Box(Modifier.weight(1f), contentAlignment = Alignment.TopCenter) {
+                                    row.getOrNull(column)?.let { item ->
+                                        PosterCard(
+                                            item,
+                                            false,
+                                            "library:${item.type}:${item.id}",
+                                            column == 0,
+                                        ) {
+                                            onOpen(item)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

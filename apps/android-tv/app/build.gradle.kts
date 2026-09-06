@@ -55,6 +55,21 @@ android {
         compose = true
         buildConfig = true
     }
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            // This is still a development artifact, using the existing development key.
+            signingConfig = signingConfigs.getByName("debug")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+        create("benchmark") {
+            initWith(getByName("release"))
+            matchingFallbacks += "release"
+            proguardFiles("benchmark-rules.pro")
+        }
+    }
+    testBuildType = "benchmark"
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
@@ -67,6 +82,8 @@ android {
     )
     sourceSets["main"].java.srcDirs(generatedTokens, "../../../build/android-ffmpeg/java")
     sourceSets["androidTest"].assets.srcDir("../../../build/android-fixtures")
+    sourceSets["benchmark"].java.srcDir("src/debug/java")
+    sourceSets["benchmark"].manifest.srcFile("src/debug/AndroidManifest.xml")
     packaging {
         resources.merges +=
             setOf("META-INF/AL2.0", "META-INF/LGPL2.1", "META-INF/LICENSE", "META-INF/NOTICE")
@@ -93,7 +110,7 @@ dependencies {
     implementation(files("../../../build/android-core/classes.jar"))
     implementation("pro.streem.pbandk:pbandk-runtime-android:0.16.0")
     implementation("org.jetbrains.kotlin:kotlin-reflect:2.2.20")
-    implementation(platform("androidx.compose:compose-bom:2025.09.01"))
+    implementation(platform("androidx.compose:compose-bom:2026.03.01"))
     implementation("androidx.activity:activity-compose:1.11.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
