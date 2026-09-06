@@ -8,8 +8,14 @@ import android.view.KeyEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.tv.material3.Text
 import com.stremio.core.Core
@@ -77,6 +83,58 @@ class SeasonNavigationTest {
                 "season-entry-fixture:2:2",
                 Core.getState<MetaDetails>(Field.META_DETAILS).selected?.streamPath?.id,
             )
+        }
+    }
+
+    @Test
+    fun movieEntryFocusesContentAndOneBackReturnsToBrowsing() {
+        val activity =
+            instrumentation.startActivitySync(
+                Intent(context, PlaybackProbeActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            ) as PlaybackProbeActivity
+        val navigation = TvDestinations.associate { it.route to FocusRequester() }
+        val contentFocus = FocusRequester()
+        val movie = Media("movie-focus", "movie", "Movie focus fixture", null)
+        var opened by mutableStateOf(false)
+        try {
+            instrumentation.runOnMainSync {
+                activity.setContent {
+                    KinoTheme {
+                        BackHandler(opened) { opened = false }
+                        TvNavigation("library", navigation, contentFocus, false, {}, {}) {
+                            Box(Modifier.fillMaxSize().focusRequester(contentFocus).focusGroup()) {
+                                if (opened) {
+                                    DetailScreen(
+                                        movie,
+                                        movie.entryVideoId(),
+                                        Details(),
+                                        null,
+                                        false,
+                                        { opened = false },
+                                        {},
+                                        {},
+                                        {},
+                                        {},
+                                    )
+                                } else Text("Browsing fixture")
+                            }
+                        }
+                    }
+                }
+            }
+            waitFor("Browsing fixture")
+            instrumentation.runOnMainSync { navigation.getValue("library").requestFocus() }
+            instrumentation.waitForIdleSync()
+            instrumentation.runOnMainSync { opened = true }
+            waitFor("Movie focus fixture")
+            waitUntil("Movie entry transfers focus out of the drawer") {
+                node(context.getString(R.string.back))?.let(::focused) == true
+            }
+            key(KeyEvent.KEYCODE_BACK)
+            waitFor("Browsing fixture")
+        } finally {
+            instrumentation.runOnMainSync { activity.finish() }
         }
     }
 

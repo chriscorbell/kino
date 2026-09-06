@@ -52,7 +52,7 @@ internal fun TvNavigation(
     var expanded by remember { mutableStateOf(false) }
     val width by animateDpAsState(if (expanded) 208.dp else RailWidth, tween(160), label = "drawer")
     val scrim = animateFloatAsState(if (expanded) .45f else 0f, tween(160), label = "drawer-scrim")
-    BackHandler(expanded) { contentFocus.requestFocus() }
+    BackHandler(expanded) { if (!contentFocus.requestFocus()) expanded = false }
     Box(Modifier.fillMaxSize()) {
         CompositionLocalProvider(
             LocalNavigationFocus provides navigationFocus.getValue(destination)

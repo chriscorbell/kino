@@ -691,7 +691,10 @@ internal fun DetailScreen(
                     )
                 }
             }
-            LaunchedEffect(resuming) { if (!resuming && lastEpisode == null) focus.requestFocus() }
+            LaunchedEffect(resuming) {
+                if (!resuming && (media.type != "series" || lastEpisode == null))
+                    focus.requestFocus()
+            }
         }
         if (media.preview != null || meta != null)
             item {

@@ -26,3 +26,26 @@ The strongest controlled effect is the debuggable flag. R8 and the newer Compose
 The gate records Android `FrameMetrics.TOTAL_DURATION` and counts frames exceeding one refresh interval. On the Shield's Android 11, that duration includes the delay from intended vsync through frame completion, as defined by [AOSP's FrameMetrics implementation](https://android.googlesource.com/platform/frameworks/base/+/refs/tags/android-11.0.0_r48/core/java/android/view/FrameMetrics.java). It rejects a 90th-percentile duration of two refresh intervals or more. It excludes the window's first draw, but does not discard slow scrolling frames.
 
 The benchmark APK keeps public APIs used by the separate instrumentation APK. The distributed APK can remove those unused APIs. Live-account measurements use the distributed APK; the synthetic gate verifies focus and timing without depending on an add-on's response time.
+
+## Final component gate
+
+The complete Shield suite passed all 40 checks. The navigation run below kept Button Mapper enabled and exercised held horizontal and vertical input, Home, Search, Library, the drawer, episodes, and sources. Poster focus settles in 140 ms; the drawer and page fade take 160 ms. A separate disabled-motion check observes settled poster and drawer bounds within two frames. It also checks Back from an expanded drawer when Home is loading or empty, including delivery of a second Back to its parent.
+
+| Component                                  | Frames | 90th-percentile duration | Frames over 16.68 ms |
+| ------------------------------------------ | -----: | -----------------------: | -------------------: |
+| Home, including artwork loading            |    406 |                 14.22 ms |                   16 |
+| Search                                     |     91 |                 13.46 ms |                    1 |
+| Library, first scroll with artwork loading |     44 |                 28.60 ms |                   19 |
+| Library, loaded artwork                    |    153 |                 25.02 ms |                   38 |
+| Episodes                                   |     90 |                 11.91 ms |                    0 |
+| Sources                                    |     90 |                 12.38 ms |                    0 |
+
+Library's initial scroll originally exceeded 50 ms at the 90th percentile in the optimized benchmark. It now uses cached rows with the same poster columns and spacing, and poster accessibility descriptions include the title and caption once. The component gate preserves selected media through repeated row changes. These changes brought that first-scroll result to 28.60 ms. Library still misses some individual refresh deadlines; the measurements establish the reduced stall, not a guarantee that every frame finishes within one refresh interval.
+
+## Distributed APK
+
+The final distributed APK was also checked against the saved account. Movie details receives focus immediately, and one Back restores the same Library poster at exactly the same bounds. This caught a movie-entry focus defect that the series gate did not cover; `SeasonNavigationTest` now gates that case too.
+
+The original unpaced 14-key shell burst sends every key without a pause. In the final APK, three warm repeats measured 37.0 / 35.8 / 37.7 ms at the 90th percentile, down from the original debug baseline of 56.3 ms. The shorter focus animation also produces fewer frames per burst, so the sample counts differ from the original build comparisons.
+
+A second measurement spaces the same 14 keys by 80 ms in one shell process, matching the repeated-input component gate. Its three warm repeats were 16.6 / 16.2 / 17.1 ms at the 90th percentile. Respectively, 9 of 87, 8 of 90, and 10 of 89 frames exceeded 16.68 ms. The first sequence after launch was slower at 48.3 ms, with 53 of 81 frames over budget; the next two were 20.5 and 24.8 ms before reaching the warm results. Cold startup work and occasional browsing deadlines remain visible in these measurements.

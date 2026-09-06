@@ -7,6 +7,7 @@ import android.graphics.Rect
 import android.view.Choreographer
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
@@ -42,6 +43,11 @@ class NavigationMotionTest {
             object : MotionDurationScale {
                 override val scaleFactor = 0f
             }
+        var empty by mutableStateOf(false)
+        var loading by mutableStateOf(false)
+        var parentBacks = 0
+        val contentFocus = FocusRequester()
+        val navigationFocus = TvDestinations.associate { it.route to FocusRequester() }
         try {
             instrumentation.runOnMainSync {
                 WindowRecomposerPolicy.withFactory(
@@ -49,10 +55,9 @@ class NavigationMotionTest {
                 ) {
                     activity.setContent {
                         KinoTheme {
-                            val focus = remember { FocusRequester() }
-                            val navigation = remember {
-                                TvDestinations.associate { it.route to FocusRequester() }
-                            }
+                            val focus = contentFocus
+                            val navigation = navigationFocus
+                            BackHandler { parentBacks++ }
                             TvNavigation("home", navigation, focus, false, {}, {}) {
                                 Box(Modifier.fillMaxSize().focusRequester(focus).focusGroup()) {
                                     HomeScreen(
@@ -62,15 +67,17 @@ class NavigationMotionTest {
                                                     Shelf(
                                                         "movies",
                                                         "Movies",
-                                                        (1..3).map {
-                                                            Media(
-                                                                "$it",
-                                                                "movie",
-                                                                "Motion $it",
-                                                                null,
-                                                            )
-                                                        },
-                                                        false,
+                                                        (if (empty) emptyList()
+                                                            else (1..3).toList())
+                                                            .map {
+                                                                Media(
+                                                                    "$it",
+                                                                    "movie",
+                                                                    "Motion $it",
+                                                                    null,
+                                                                )
+                                                            },
+                                                        loading,
                                                         false,
                                                     )
                                                 )
@@ -118,6 +125,37 @@ class NavigationMotionTest {
                 "Back restores the drawer width without waiting for an animation",
                 abs(collapsed - closedWidth) <= 2,
             )
+            for (isLoading in listOf(true, false)) {
+                instrumentation.runOnMainSync {
+                    empty = true
+                    loading = isLoading
+                }
+                frames(2)
+                instrumentation.runOnMainSync { navigationFocus.getValue("home").requestFocus() }
+                frames(2)
+                assertTrue(
+                    "Empty content still allows the drawer to open",
+                    bounds(context.getString(R.string.home)).width() > closedWidth,
+                )
+                instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+                frames(2)
+                assertTrue(
+                    "Back collapses the drawer when content has no focusable target (loading=$isLoading)",
+                    abs(bounds(context.getString(R.string.home)).width() - closedWidth) <= 2,
+                )
+                val before = parentBacks
+                instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+                frames(2)
+                assertEquals(
+                    "The collapsed drawer does not consume another Back",
+                    before + 1,
+                    parentBacks,
+                )
+                instrumentation.runOnMainSync { empty = false }
+                frames(2)
+                instrumentation.runOnMainSync { contentFocus.requestFocus() }
+                frames(2)
+            }
         } finally {
             instrumentation.runOnMainSync { activity.finish() }
         }
