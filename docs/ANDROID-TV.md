@@ -69,7 +69,30 @@ Sanitized diagnostics are available through:
 adb -s "$ANDROID_SERIAL" logcat -s KinoCore:I KinoPlayer:I KinoProbe:I
 ```
 
-On September 5, 2026, the Shield passed all five instrumentation tests, including hardware H.264 and HEVC SDR decoding with NVIDIA codecs, seeking, resume, native Core browsing, device-link creation, and startup routing. The correctly tagged HDR10 and HLG probes both failed before rendering with Media3 error 7001. The ordinary player rejects HDR rather than displaying unvalidated output. The corrected fixtures also passed all 15 existing macOS playback cases.
+`KinoPlayer` reports the hardware video decoder, each audio track's format, layout, and support verdict, the audio decoder, and sink errors, with no titles, URLs, or identifiers.
+
+As of September 6, 2026, the suite is 32 instrumented tests covering native Core browsing, device-link creation, saved progress, startup routing, hardware H.264 and HEVC SDR playback with NVIDIA codecs, rejection of unsupported video, surround audio through AC-3, E-AC-3, and DTS fixtures under both audio output settings, the stereo downmix, caption styling, the presentation player, remote focus on the playback surface, and the source field parser. The correctly tagged HDR10 and HLG probes both failed before rendering with Media3 error 7001; the ordinary player rejects HDR rather than displaying unvalidated output.
+
+### Driving and observing the Shield
+
+The development Shield is on the local network at `10.0.0.191`. `adb connect 10.0.0.191:5555` attaches it; `adb shell input keyevent KEYCODE_WAKEUP` wakes it before instrumentation, which `pnpm android:check` does itself.
+
+Only `pnpm android:check` bundles the fixtures into the test APK. Building with `scripts/build-android.py` or gradle alone and then running instrumentation fails every media test with `FileNotFoundException` on a fixture name; that is a missing asset, not a regression. One class runs with:
+
+```sh
+adb -s "$ANDROID_SERIAL" shell am instrument -w -r -e class app.kino.tv.ShieldAudioTest \
+  app.kino.tv.test/app.kino.tv.ShieldTestRunner
+```
+
+A signed-in Shield launches into `AccountActivity`, the same interface in the account process, so seeing that activity name means sign-in worked. From Home, `KEYCODE_DPAD_CENTER` on the focused Continue Watching item resumes playback directly; `KEYCODE_DPAD_DOWN` then `KEYCODE_DPAD_CENTER` opens a details page with live sources instead.
+
+To read state rather than guess at it:
+
+- `adb shell dumpsys activity top` prints every foreground app's view hierarchy. Scope it to the `ACTIVITY app.kino.tv` section; SmartTube runs on the same device and also has `exo_` views. The flag string after each view starts with its visibility (`V`, `I`, `G`), and the second group shows `.F......` for the focused view.
+- `uiautomator dump` sees Compose text on browsing screens but not the player's `PlayerView` subtree.
+- `screencap` returns the video layer black; controls and Compose overlays render.
+- `adb shell dumpsys media_session` shows playback state (`state=3` is playing) and the rate.
+- Audio: this Shield declares no AC-3, E-AC-3, DTS, or TrueHD decoder for apps, and with its surround setting on manual and nothing enabled the HDMI plug intent advertises PCM and IEC61937 only, so passthrough is refused and the FFmpeg renderer decodes. An agent cannot hear the output; audible checks need a person at the TV.
 
 A recording of the signed-in cold launch reproduced the old "waiting for sign-in" flash. The same frame/OCR check passed after the startup change and confirmed that Home loaded. On-device navigation checks covered wrapped card titles, the expanded drawer, and returning from details to the selected poster.
 
