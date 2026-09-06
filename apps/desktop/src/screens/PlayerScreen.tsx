@@ -174,7 +174,11 @@ export function PlayerScreen({
     toggle: toggleFullscreen,
   } = useFullscreen(containerRef, nativePlayer);
   const [chapterCues, setChapterCues] = useState<ChapterCue[]>([]);
-  const [communityMarker, setCommunityMarker] = useState<IntroMarker | null>(null);
+  const [communityLookup, setCommunityLookup] = useState<{
+    selection: PlaybackSelection;
+    duration: number;
+    marker: IntroMarker | null;
+  } | null>(null);
   const [automaticSkipComplete, setAutomaticSkipComplete] = useState(false);
   const [automaticNotice, setAutomaticNotice] = useState(false);
   const [audioTracks, setAudioTracks] = useState<AudioTrack[]>([]);
@@ -257,6 +261,10 @@ export function PlayerScreen({
     () => markerFromChapterCues(chapterCues, duration),
     [chapterCues, duration],
   );
+  const communityMarker =
+    communityLookup?.selection === selection && communityLookup.duration === duration
+      ? communityLookup.marker
+      : null;
   const marker = chapterMarker ?? communityMarker;
   const nearEnd =
     Number.isFinite(duration) &&
@@ -804,7 +812,8 @@ export function PlayerScreen({
     const controller = new AbortController();
     void lookupCommunityIntro(introIdentity(selection, duration), controller.signal)
       .then((communityMarker) => {
-        setCommunityMarker(communityMarker);
+        if (controller.signal.aborted) return;
+        setCommunityLookup({ selection, duration, marker: communityMarker });
         console.info(
           communityMarker
             ? '[kino:intro] trusted community marker'
