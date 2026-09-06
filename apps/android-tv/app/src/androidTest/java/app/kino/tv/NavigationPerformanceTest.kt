@@ -26,6 +26,8 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.test.platform.app.InstrumentationRegistry
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
@@ -170,6 +172,7 @@ class NavigationPerformanceTest {
                 watched = false,
                 receiveNotifications = false,
             )
+        var searchQuery by mutableStateOf("fixture")
         var route by mutableStateOf("home")
         var details by mutableStateOf(false)
         var episode by mutableStateOf<String?>(null)
@@ -270,7 +273,11 @@ class NavigationPerformanceTest {
                                                     {},
                                                 )
                                             "search" ->
-                                                SearchScreen("fixture", {}, shelves) {
+                                                SearchScreen(
+                                                    searchQuery,
+                                                    { searchQuery = it },
+                                                    shelves,
+                                                ) {
                                                     details = true
                                                 }
                                             else ->
@@ -313,7 +320,39 @@ class NavigationPerformanceTest {
             assertFocused(context.getString(R.string.home))
             key(KeyEvent.KEYCODE_DPAD_DOWN)
             key(KeyEvent.KEYCODE_DPAD_CENTER)
-            waitFor("Movie 1")
+            assertFocused("fixture", timeoutMs = 1000)
+            fun keyboardVisible(): Boolean {
+                var visible = false
+                instrumentation.runOnMainSync {
+                    visible =
+                        ViewCompat.getRootWindowInsets(activity.window.decorView)
+                            ?.isVisible(WindowInsetsCompat.Type.ime()) == true
+                }
+                return visible
+            }
+            assertFalse("Focusing Search does not open the keyboard", keyboardVisible())
+            key(KeyEvent.KEYCODE_DPAD_CENTER)
+            waitUntil("Select opens the keyboard") { keyboardVisible() }
+            key(KeyEvent.KEYCODE_BACK)
+            waitUntil("Back dismisses the keyboard") { !keyboardVisible() }
+            assertTrue(
+                node("fixture")!!.performAction(
+                    AccessibilityNodeInfo.ACTION_SET_TEXT,
+                    android.os.Bundle().apply {
+                        putCharSequence(
+                            AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                            "typed fixture",
+                        )
+                    },
+                )
+            )
+            waitUntil("Input updates the parent query") { searchQuery == "typed fixture" }
+            instrumentation.runOnMainSync { searchQuery = "restored fixture" }
+            assertFocused("restored fixture", timeoutMs = 1000)
+            key(KeyEvent.KEYCODE_DPAD_DOWN)
+            waitUntil("Down reaches a search result", timeoutMs = 200) {
+                focusedLabel().startsWith("Movie ")
+            }
             focus("Movie 1")
             frames.clear()
             burst(KeyEvent.KEYCODE_DPAD_RIGHT, 16)
@@ -322,11 +361,11 @@ class NavigationPerformanceTest {
             focus(context.getString(R.string.search))
             key(KeyEvent.KEYCODE_DPAD_DOWN)
             key(KeyEvent.KEYCODE_DPAD_CENTER)
-            waitFor(context.getString(R.string.all))
+            assertFocused(context.getString(R.string.all), timeoutMs = 1000)
             key(KeyEvent.KEYCODE_DPAD_LEFT)
             assertFocused(context.getString(R.string.library))
             key(KeyEvent.KEYCODE_BACK)
-            assertFocused(context.getString(R.string.all))
+            assertFocused(context.getString(R.string.all), timeoutMs = 1000)
             focus("Movie 1")
             frames.clear()
             burst(KeyEvent.KEYCODE_DPAD_DOWN, 6)
@@ -354,12 +393,18 @@ class NavigationPerformanceTest {
             assertFocused("Source 17")
             reportFrames("sources", frames)
             key(KeyEvent.KEYCODE_BACK)
-            assertFocused("Episode 17")
+            assertFocused("Episode 17", timeoutMs = 1000)
             assertTrue(
                 "Frame budgets: $frameResults",
                 frameResults.values.all { it < 2_000 / refreshRate },
             )
         } finally {
+            if (
+                InstrumentationRegistry.getArguments().getString("navigationScreenshot") == "true"
+            ) {
+                android.util.Log.i("KinoGate", "Navigation capture ready")
+                Thread.sleep(10000)
+            }
             instrumentation.runOnMainSync {
                 activity.window.removeOnFrameMetricsAvailableListener(listener)
                 activity.finish()
@@ -438,8 +483,9 @@ class NavigationPerformanceTest {
             }
             .orEmpty()
 
-    private fun assertFocused(text: String) =
-        waitUntil("Expected focus $text, got ${focusedLabel()}", timeoutMs = 200) {
+    // Page changes can leave an outgoing or incomplete accessibility node during the fade.
+    private fun assertFocused(text: String, timeoutMs: Long = 200) =
+        waitUntil("Expected focus $text, got ${focusedLabel()}", timeoutMs = timeoutMs) {
             var target = node(text)
             while (target != null && !target.isFocused) target = target.parent
             target?.isFocused == true

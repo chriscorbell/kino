@@ -56,6 +56,7 @@ class PlaybackShutdownTest {
                                     failures.incrementAndGet()
                                     departed = true
                                 },
+                                onUpNext = {},
                             )
                     }
                 }
@@ -185,7 +186,7 @@ class PlaybackShutdownTest {
         withFixture { activity, fixture, source ->
             onMain {
                 activity.setContent {
-                    KinoTheme { FullscreenPlayer(source, fixture.media, app.core, {}, {}) }
+                    KinoTheme { FullscreenPlayer(source, fixture.media, app.core, {}, {}, {}) }
                 }
             }
             waitUntil("Fullscreen player must decode before Activity replacement") {

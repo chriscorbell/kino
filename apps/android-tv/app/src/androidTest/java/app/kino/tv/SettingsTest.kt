@@ -39,6 +39,30 @@ class SettingsTest {
         get() = context.applicationContext as ShieldTestApplication
 
     @Test
+    fun upNextDefaultsOnAndTheRemoteCanTurnItOffAndOn() = runBlocking {
+        onMain { app.core.initialize() }
+        assertTrue(Core.drainWrites())
+        app.settings.edit().remove("up_next").commit()
+        val activity = activity()
+        try {
+            showSettings(activity)
+            focusRow(R.string.up_next)
+            assertTrue(focusedText().contains("On"))
+            key(KeyEvent.KEYCODE_DPAD_CENTER)
+            waitFor("The Up Next switch must save Off") {
+                !app.settings.getBoolean("up_next", true) && focusedText().contains("Off")
+            }
+            key(KeyEvent.KEYCODE_DPAD_CENTER)
+            waitFor("The Up Next switch must save On") {
+                app.settings.getBoolean("up_next", false) && focusedText().contains("On")
+            }
+        } finally {
+            onMain { activity.finish() }
+            app.settings.edit().remove("up_next").commit()
+        }
+    }
+
+    @Test
     fun remoteLanguagePickerRestoresFocusAndSavesEveryLanguageWithoutReplacingOtherSettings() =
         runBlocking {
             onMain { app.core.initialize() }
@@ -337,6 +361,7 @@ class SettingsTest {
                                 app.core,
                                 onExit = {},
                                 onFailure = {},
+                                onUpNext = {},
                             )
                         }
                     }
@@ -493,6 +518,7 @@ class SettingsTest {
             app.settings
                 .edit()
                 .putBoolean("subtitles", !account)
+                .putBoolean("up_next", account)
                 .putString("audio_output", if (account) "stereo" else "auto")
                 .putString("tracks-v1:restart", "remembered track fixture")
                 .commit()
@@ -506,6 +532,7 @@ class SettingsTest {
             assertEquals(language.code, app.core.state.value.audioLanguage)
             assertEquals(language.code, app.core.state.value.subtitleLanguage)
             assertEquals(!account, app.settings.getBoolean("subtitles", account))
+            assertEquals(account, app.settings.getBoolean("up_next", !account))
             assertEquals(account, stereoOutputPreferred(context))
             assertTrue(clearArtworkCache(context))
             assertEquals(
@@ -515,6 +542,8 @@ class SettingsTest {
             val activity = activity()
             try {
                 showSettings(activity)
+                focusRow(R.string.up_next)
+                assertTrue(focusedText().contains(if (account) "On" else "Off"))
                 focusRow(R.string.audio_language)
                 assertTrue(focusedText().contains(context.getString(language.label)))
                 key(KeyEvent.KEYCODE_DPAD_CENTER)

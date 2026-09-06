@@ -1,5 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
+        <provider android:name=".EndingFixtureProvider" android:authorities="${applicationId}.ending-fixture" android:exported="false" />
         <activity android:name=".SettingsCoverActivity" android:exported="false" android:screenOrientation="landscape" />
         <provider android:name=".SettingsFixtureProvider" android:authorities="${applicationId}.settings-fixture" android:exported="false" />
         <service android:name=".SettingsProbeService" android:exported="false" android:process=":account" />

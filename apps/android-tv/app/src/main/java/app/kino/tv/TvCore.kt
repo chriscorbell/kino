@@ -15,6 +15,7 @@ import com.stremio.core.types.api.AuthRequest
 import com.stremio.core.types.resource.MetaItem
 import com.stremio.core.types.resource.MetaItemPreview
 import com.stremio.core.types.resource.Stream
+import com.stremio.core.types.resource.Video
 import java.net.URI
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -83,6 +84,7 @@ data class TvState(
     val link: String? = null,
     val qrCode: String? = null,
     val linkFailed: Boolean = false,
+    val nextVideo: Video? = null,
 )
 
 fun secureUrl(value: String?): Boolean =
@@ -111,6 +113,7 @@ class TvCore(
     private var linking = false
     private var authenticating = false
     private var detailSelection: MetaDetails.Selected? = null
+    private var playerSelection: Player.Selected? = null
     private val update = Runnable { refresh() }
     private val listener =
         Core.EventListener {
@@ -264,17 +267,16 @@ class TvCore(
         )
             return false
         playerGeneration++
-        load(
-            ActionLoad.Args.Player(
-                Player.Selected(
-                    stream = source.stream,
-                    streamRequest = source.request,
-                    metaRequest = mutable.value.details.metaRequest,
-                    subtitlesPath = source.request.path.copy(resource = "subtitles"),
-                )
-            ),
-            Field.PLAYER,
-        )
+        val selected =
+            Player.Selected(
+                stream = source.stream,
+                streamRequest = source.request,
+                metaRequest = mutable.value.details.metaRequest,
+                subtitlesPath = source.request.path.copy(resource = "subtitles"),
+            )
+        playerSelection = selected
+        mutable.value = mutable.value.copy(nextVideo = null)
+        load(ActionLoad.Args.Player(selected), Field.PLAYER)
         return true
     }
 
@@ -330,6 +332,8 @@ class TvCore(
 
     fun stopPlayer() {
         playerGeneration++
+        playerSelection = null
+        mutable.value = mutable.value.copy(nextVideo = null)
         Core.dispatch(Action(Action.Type.Unload(Action.ActionUnload())), Field.PLAYER)
         loadLibrary()
     }
@@ -396,6 +400,27 @@ class TvCore(
                         secureUrl(it.request.base)
                 }
             val auth = Core.getState<AuthLink>(Field.AUTH_LINK)
+            // Read once at the Core event boundary, not on the playback position ticker.
+            val player = playerSelection?.let { Core.getState<Player>(Field.PLAYER) }
+            val nextVideo =
+                player
+                    ?.takeIf {
+                        // Core rebuilds stream deep links for each model. Match the
+                        // actual source and requests, not those derived navigation links.
+                        val selected = it.selected
+                        selected != null &&
+                            selected.streamRequest == playerSelection?.streamRequest &&
+                            selected.metaRequest == playerSelection?.metaRequest &&
+                            selected.stream.source == playerSelection?.stream?.source &&
+                            selected.stream.behaviorHints.proxyHeaders ==
+                                playerSelection?.stream?.behaviorHints?.proxyHeaders
+                    }
+                    ?.nextVideo
+                    ?.takeIf {
+                        playerSelection?.streamRequest?.path?.type == "series" &&
+                            it.id != playerSelection?.streamRequest?.path?.id &&
+                            !it.upcoming
+                    }
             val signedIn = profile.auth != null
             if (linking && !authenticating && auth.data?.ready != null) {
                 authenticating = true
@@ -455,6 +480,7 @@ class TvCore(
                     link = auth.code?.ready?.link,
                     qrCode = auth.code?.ready?.qrcode,
                     linkFailed = auth.code?.error != null,
+                    nextVideo = nextVideo,
                 )
         } catch (_: Exception) {
             Log.e("KinoCore", "Core state could not be read")

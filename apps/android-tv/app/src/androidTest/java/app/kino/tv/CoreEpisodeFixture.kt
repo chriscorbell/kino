@@ -11,13 +11,22 @@ import java.net.SocketException
 import java.util.concurrent.atomic.AtomicReference
 
 /** Only the benchmark JNI transport routes this reserved host to the loopback server. */
-internal class CoreEpisodeFixture(private val activity: PlaybackProbeActivity) : AutoCloseable {
+internal class CoreEpisodeFixture(
+    private val activity: PlaybackProbeActivity,
+    private val nextSeason: Int = 1,
+    private val firstEpisode: Int = 1,
+) : AutoCloseable {
     val seriesId = "kino-fixture-series"
-    val firstVideoId = "$seriesId-1-1"
-    val secondVideoId = "$seriesId-1-2"
+    val firstVideoId = "$seriesId-1-$firstEpisode"
+    private val nextEpisode = if (nextSeason == 1) firstEpisode + 1 else 1
+    val secondVideoId = "$seriesId-$nextSeason-$nextEpisode"
     val media = Media(seriesId, "series", "Kino fixture", null)
     private val server = ServerSocket(0, 8, InetAddress.getByName("127.0.0.1"))
     private val failure = AtomicReference<Throwable>()
+    private val earlierVideos =
+        (1 until firstEpisode).joinToString("") {
+            """{"id":"$seriesId-1-$it","title":"Earlier episode $it","season":1,"episode":$it,"released":"2020-01-01T00:00:00.000Z"},"""
+        }
     private val addon =
         AddonDescriptor(
             manifest =
@@ -53,7 +62,7 @@ internal class CoreEpisodeFixture(private val activity: PlaybackProbeActivity) :
                         val body =
                             when {
                                 path.startsWith("/meta/") ->
-                                    """{"meta":{"id":"$seriesId","type":"series","name":"Kino fixture","videos":[{"id":"$firstVideoId","title":"First episode","season":1,"episode":1,"released":"2020-01-01T00:00:00.000Z"},{"id":"$secondVideoId","title":"Second episode","season":1,"episode":2,"released":"2020-01-02T00:00:00.000Z"}]}}"""
+                                    """{"meta":{"id":"$seriesId","type":"series","name":"Kino fixture","videos":[$earlierVideos{"id":"$firstVideoId","title":"First episode","season":1,"episode":$firstEpisode,"released":"2020-01-01T00:00:00.000Z"},{"id":"$secondVideoId","title":"Second episode","season":$nextSeason,"episode":$nextEpisode,"released":"2020-01-02T00:00:00.000Z"}]}}"""
                                 path.startsWith("/stream/") ->
                                     """{"streams":[{"url":"https://kino-fixture.invalid/video/${path.substringAfterLast('/').removeSuffix(".json")}.mp4"}]}"""
                                 else -> "{}"
