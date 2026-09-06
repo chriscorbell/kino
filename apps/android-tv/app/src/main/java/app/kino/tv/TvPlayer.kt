@@ -3,7 +3,11 @@
 package app.kino.tv
 
 import android.content.Context
+import android.graphics.Color
 import android.os.Handler
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.BackgroundColorSpan
 import android.util.Log
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -17,6 +21,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.*
+import androidx.media3.common.text.Cue
+import androidx.media3.common.text.CueGroup
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
@@ -29,6 +35,7 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.video.MediaCodecVideoRenderer
 import androidx.media3.exoplayer.video.VideoRendererEventListener
 import androidx.media3.session.MediaSession
+import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.delay
 
@@ -122,6 +129,52 @@ class HardwareRenderers(context: Context) : DefaultRenderersFactory(context) {
     }
 }
 
+/**
+ * White glyphs with a black outline and nothing filled behind them. Media3
+ * otherwise takes the device caption style, whose default paints a black
+ * rectangle behind every line.
+ */
+val outlinedCaptionStyle =
+    CaptionStyleCompat(
+        Color.WHITE,
+        Color.TRANSPARENT,
+        Color.TRANSPARENT,
+        CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+        Color.BLACK,
+        null,
+    )
+
+/**
+ * Removes the fills a cue asks for itself. Media3's SSA parser turns an
+ * authored `BorderStyle: 3` into a background span, and WebVTT cues can set a
+ * window colour; both draw the rectangle the caption style already refuses.
+ * Italics, bold, text colour, alignment, and line breaks are left alone.
+ */
+fun withoutCaptionFills(cue: Cue): Cue {
+    val text = cue.text
+    val fills =
+        (text as? Spanned)?.getSpans(0, text.length, BackgroundColorSpan::class.java) ?: emptyArray()
+    if (!cue.windowColorSet && fills.isEmpty()) return cue
+    val builder = cue.buildUpon().clearWindowColor()
+    if (fills.isNotEmpty()) {
+        val stripped = SpannableString(text)
+        for (fill in fills) stripped.removeSpan(fill)
+        builder.setText(stripped)
+    }
+    return builder.build()
+}
+
+/** Applies [withoutCaptionFills] to the cues the player view renders. */
+class OutlinedCaptions(player: Player) : ForwardingSimpleBasePlayer(player) {
+    override fun getState(): SimpleBasePlayer.State {
+        val state = super.getState()
+        val group = state.currentCues
+        if (group.cues.isEmpty()) return state
+        val cues = CueGroup(group.cues.map(::withoutCaptionFills), group.presentationTimeUs)
+        return state.buildUpon().setCurrentCues(cues).build()
+    }
+}
+
 fun createTvPlayer(
     context: Context,
     renderers: HardwareRenderers,
@@ -190,6 +243,7 @@ fun FullscreenPlayer(
             )
         }
     val session = remember(player) { MediaSession.Builder(context, player).build() }
+    val captioned = remember(player) { OutlinedCaptions(player) }
     var view by remember { mutableStateOf<PlayerView?>(null) }
     val currentExit by rememberUpdatedState(onExit)
     val currentFailure by rememberUpdatedState(onFailure)
@@ -295,6 +349,9 @@ fun FullscreenPlayer(
                 core.stopPlayer()
             }
             lifecycle.removeObserver(observer)
+            // Drop the cue wrapper's listeners before the player it forwards to
+            // goes away; releasing it here would release that player twice.
+            view?.player = null
             session.release()
             player.removeListener(listener)
             player.release()
@@ -304,7 +361,13 @@ fun FullscreenPlayer(
     AndroidView(
         factory = {
             PlayerView(it).apply {
-                this.player = player
+                this.player = captioned
+                subtitleView?.apply {
+                    // Keep italics and the other authored text styling; only the
+                    // fills are dropped, by the style and by OutlinedCaptions.
+                    setApplyEmbeddedStyles(true)
+                    setStyle(outlinedCaptionStyle)
+                }
                 setShowSubtitleButton(true)
                 setShowNextButton(false)
                 setShowPreviousButton(false)

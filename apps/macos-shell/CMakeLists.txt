@@ -21,7 +21,9 @@ find_package(
     WebChannel
     WebEngineQuick
 )
-pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv)
+# libmpv 2.4 (mpv 0.40) renamed the subtitle outline options Kino pins for
+# its caption style. An older library would reject them at startup.
+pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv>=2.4)
 find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
 find_library(IOKIT_FRAMEWORK IOKit REQUIRED)
 find_library(MEDIAPLAYER_FRAMEWORK MediaPlayer REQUIRED)

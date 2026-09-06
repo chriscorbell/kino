@@ -28,6 +28,7 @@ private:
     bool finished_ = false;
     bool hardwareDecoding_ = false;
     bool subtitlesAdded_ = false;
+    bool subtitleSelected_ = false;
     qlonglong chapterCount_ = 0;
     qlonglong timeMs_ = 0;
     MpvItem *player_;
