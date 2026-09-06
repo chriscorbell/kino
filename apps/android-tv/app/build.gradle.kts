@@ -76,12 +76,14 @@ android {
     }
     kotlinOptions { jvmTarget = "21" }
     sourceSets["main"].jniLibs.srcDirs(
-        "../../../build/android-core/jniLibs",
         // Media3's FFmpeg audio renderer, built by scripts/build-android.py.
         "../../../build/android-ffmpeg/jniLibs",
     )
     sourceSets["main"].java.srcDirs(generatedTokens, "../../../build/android-ffmpeg/java")
     sourceSets["androidTest"].assets.srcDir("../../../build/android-fixtures")
+    sourceSets["release"].jniLibs.srcDir("../../../build/android-core/jniLibs")
+    sourceSets["debug"].jniLibs.srcDir("../../../build/android-core/jniLibs")
+    sourceSets["benchmark"].jniLibs.srcDir("../../../build/android-core-test/jniLibs")
     sourceSets["benchmark"].java.srcDir("src/debug/java")
     sourceSets["benchmark"].manifest.srcFile("src/debug/AndroidManifest.xml")
     packaging {

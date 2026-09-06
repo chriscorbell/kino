@@ -1,3 +1,4 @@
+@file:OptIn(androidx.tv.material3.ExperimentalTvMaterial3Api::class)
 @file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 
 package app.kino.tv
@@ -13,17 +14,27 @@ import android.view.View
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.*
 import androidx.media3.common.text.Cue
 import androidx.media3.common.text.CueGroup
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
@@ -41,13 +52,14 @@ import androidx.media3.exoplayer.video.VideoRendererEventListener
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
-import kotlinx.coroutines.delay
+import androidx.tv.material3.Button
+import androidx.tv.material3.Text
+import kotlinx.coroutines.*
 
 /**
- * Reject unvalidated HDR before configuring a decoder or exposing a video
- * surface. With [stereo] set, the sink accepts PCM only, so every track is
- * decoded and folded to two channels by [StereoDownmixProcessor] inside Kino
- * rather than passed through or left to the platform mixer.
+ * Reject unvalidated HDR before configuring a decoder or exposing a video surface. With [stereo]
+ * set, the sink accepts PCM only, so every track is decoded and folded to two channels by
+ * [StereoDownmixProcessor] inside Kino rather than passed through or left to the platform mixer.
  */
 class HardwareRenderers(context: Context, private val stereo: Boolean = false) :
     DefaultRenderersFactory(context) {
@@ -154,9 +166,8 @@ class HardwareRenderers(context: Context, private val stereo: Boolean = false) :
 }
 
 /**
- * White glyphs with a black outline and nothing filled behind them. Media3
- * otherwise takes the device caption style, whose default paints a black
- * rectangle behind every line.
+ * White glyphs with a black outline and nothing filled behind them. Media3 otherwise takes the
+ * device caption style, whose default paints a black rectangle behind every line.
  */
 val outlinedCaptionStyle =
     CaptionStyleCompat(
@@ -169,15 +180,16 @@ val outlinedCaptionStyle =
     )
 
 /**
- * Removes the fills a cue asks for itself. Media3's SSA parser turns an
- * authored `BorderStyle: 3` into a background span, and WebVTT cues can set a
- * window colour; both draw the rectangle the caption style already refuses.
- * Italics, bold, text colour, alignment, and line breaks are left alone.
+ * Removes the fills a cue asks for itself. Media3's SSA parser turns an authored `BorderStyle: 3`
+ * into a background span, and WebVTT cues can set a window colour; both draw the rectangle the
+ * caption style already refuses. Italics, bold, text colour, alignment, and line breaks are left
+ * alone.
  */
 fun withoutCaptionFills(cue: Cue): Cue {
     val text = cue.text
     val fills =
-        (text as? Spanned)?.getSpans(0, text.length, BackgroundColorSpan::class.java) ?: emptyArray()
+        (text as? Spanned)?.getSpans(0, text.length, BackgroundColorSpan::class.java)
+            ?: emptyArray()
     if (!cue.windowColorSet && fills.isEmpty()) return cue
     val builder = cue.buildUpon().clearWindowColor()
     if (fills.isNotEmpty()) {
@@ -189,13 +201,11 @@ fun withoutCaptionFills(cue: Cue): Cue {
 }
 
 /**
- * The player as the TV presentation exposes it: captions stripped of their
- * fills by [withoutCaptionFills], and no playback-rate control. Media3's
- * control view lists its Speed row whenever the player advertises
- * COMMAND_SET_SPEED_AND_PITCH, and dropping it also refuses the rate changes
- * that row would have made. The settings button stays, because its audio-track
- * row is gated on COMMAND_GET_TRACKS and COMMAND_SET_TRACK_SELECTION_PARAMETERS
- * instead.
+ * The player as the TV presentation exposes it: captions stripped of their fills by
+ * [withoutCaptionFills], and no playback-rate control. Media3's control view lists its Speed row
+ * whenever the player advertises COMMAND_SET_SPEED_AND_PITCH, and dropping it also refuses the rate
+ * changes that row would have made. The settings button stays, because its audio-track row is gated
+ * on COMMAND_GET_TRACKS and COMMAND_SET_TRACK_SELECTION_PARAMETERS instead.
  */
 class TvPresentationPlayer(
     player: Player,
@@ -263,7 +273,10 @@ fun createTvPlayer(
     // decode itself once passthrough is unavailable. Video stays hardware-only.
     renderers.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
     return ExoPlayer.Builder(context, renderers)
-        .setMediaSourceFactory(DefaultMediaSourceFactory(context).setDataSourceFactory(http))
+        .setMediaSourceFactory(
+            DefaultMediaSourceFactory(context)
+                .setDataSourceFactory(DefaultDataSource.Factory(context, http))
+        )
         .setAudioAttributes(
             AudioAttributes.Builder()
                 .setUsage(C.USAGE_MEDIA)
@@ -278,11 +291,10 @@ fun createTvPlayer(
 /**
  * The playback surface and its controls.
  *
- * The remote reveals hidden controls through [PlayerView.dispatchKeyEvent],
- * which the view only receives while it holds Android focus. Compose owns focus
- * inside an `AndroidView`, and a `requestFocus()` call made while the view is
- * still detached does nothing, so focus is claimed once the view reaches a
- * window instead.
+ * The remote reveals hidden controls through [PlayerView.dispatchKeyEvent], which the view only
+ * receives while it holds Android focus. Compose owns focus inside an `AndroidView`, and a
+ * `requestFocus()` call made while the view is still detached does nothing, so focus is claimed
+ * once the view reaches a window instead.
  */
 fun tvPlayerView(context: Context, player: Player): PlayerView =
     PlayerView(context).apply {
@@ -373,21 +385,37 @@ fun FullscreenPlayer(
     var view by remember { mutableStateOf<PlayerView?>(null) }
     val currentExit by rememberUpdatedState(onExit)
     val currentFailure by rememberUpdatedState(onFailure)
-    var closed by remember { mutableStateOf(false) }
-    var resumeApplied by remember { mutableStateOf(false) }
-    fun save() {
-        core.progress(player.currentPosition, player.duration, true)
-    }
+    val shutdown = remember(player) { TvPlaybackShutdown(player, core) }
+    val scope = remember(player) { CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) }
+    var closed by remember(player) { mutableStateOf(false) }
+    var closing by remember(player) { mutableStateOf(false) }
+    var saveFailed by remember(player) { mutableStateOf(false) }
+    var disposed by remember(player) { mutableStateOf(false) }
+    var closeTask by remember(player) { mutableStateOf<Job?>(null) }
+    var departure by remember(player) { mutableStateOf<(() -> Unit)?>(null) }
+    var resumeApplied by remember(player) { mutableStateOf(false) }
     fun close(error: Int? = null) {
-        if (closed) return
-        closed = true
-        player.pause()
-        save()
-        player.stop()
-        core.stopPlayer()
-        if (error == null) currentExit() else currentFailure(error)
+        if (closed || closing) return
+        if (departure == null)
+            departure = { if (error == null) currentExit() else currentFailure(error) }
+        closing = true
+        view?.useController = false
+        closeTask =
+            scope.launch {
+                val saved = shutdown.finish(retry = saveFailed)
+                closing = false
+                saveFailed = !saved
+                if (saved) {
+                    closed = true
+                    if (!disposed) departure?.invoke()
+                }
+            }
     }
-    BackHandler { if (view?.isControllerFullyVisible == true) view?.hideController() else close() }
+    BackHandler {
+        if (closing) return@BackHandler
+        if (!saveFailed && view?.isControllerFullyVisible == true) view?.hideController()
+        else close()
+    }
     LaunchedEffect(player) {
         player.setMediaItem(
             MediaItem.Builder()
@@ -397,9 +425,10 @@ fun FullscreenPlayer(
         )
         player.prepare()
         player.playWhenReady = true
-        while (!closed) {
+        while (!closed && !closing && !saveFailed) {
             delay(2000)
-            core.progress(player.currentPosition, player.duration, !player.isPlaying)
+            if (!closed && !closing && !saveFailed)
+                core.progress(player.currentPosition, player.duration, !player.isPlaying)
         }
     }
     DisposableEffect(player) {
@@ -410,7 +439,12 @@ fun FullscreenPlayer(
                     newPosition: Player.PositionInfo,
                     reason: Int,
                 ) {
-                    if (reason == Player.DISCONTINUITY_REASON_SEEK)
+                    if (
+                        !closing &&
+                            !closed &&
+                            !saveFailed &&
+                            reason == Player.DISCONTINUITY_REASON_SEEK
+                    )
                         core.seek(newPosition.positionMs, player.duration)
                 }
 
@@ -446,6 +480,10 @@ fun FullscreenPlayer(
                 }
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    if (isPlaying && (closing || closed || saveFailed)) {
+                        player.pause()
+                        return
+                    }
                     if (isPlaying)
                         activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                     else activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -509,34 +547,63 @@ fun FullscreenPlayer(
         player.addAnalyticsListener(analytics)
         lifecycle.addObserver(observer)
         onDispose {
-            if (!closed) {
-                player.pause()
-                save()
-                core.stopPlayer()
-            }
+            disposed = true
+            player.pause()
             lifecycle.removeObserver(observer)
-            // Drop the presentation wrapper's listeners before the player it
-            // forwards to goes away; releasing it here would release that
-            // player twice.
             view?.player = null
             session.release()
             trackSelection.close()
             player.removeListener(listener)
-            player.release()
+            player.removeAnalyticsListener(analytics)
             activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (shutdown.complete) {
+                player.release()
+                scope.cancel()
+            } else {
+                core.pendingPlaybackSave.retain(shutdown, closeTask) {
+                    player.release()
+                    scope.cancel()
+                }
+            }
         }
     }
-    AndroidView(
-        factory = { tvPlayerView(it, presented).also { created -> view = created } },
-        modifier = Modifier.fillMaxSize(),
-    )
+    Box(Modifier.fillMaxSize()) {
+        AndroidView(
+            factory = { tvPlayerView(it, presented).also { created -> view = created } },
+            modifier = Modifier.fillMaxSize(),
+        )
+        if (closing) {
+            Box(
+                Modifier.fillMaxSize().background(Background.copy(alpha = .8f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(stringResource(R.string.saving_progress), fontSize = 18.sp)
+            }
+        }
+        if (saveFailed && !closing) {
+            Dialog(onDismissRequest = {}) {
+                val retryFocus = remember { FocusRequester() }
+                Column(
+                    Modifier.width(420.dp)
+                        .background(Background, RoundedCornerShape(12.dp))
+                        .padding(28.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                ) {
+                    Text(stringResource(R.string.progress_save_failed), fontSize = 18.sp)
+                    Button({ close() }, Modifier.focusRequester(retryFocus)) {
+                        Text(stringResource(R.string.retry))
+                    }
+                }
+                LaunchedEffect(Unit) { retryFocus.requestFocus() }
+            }
+        }
+    }
 }
 
 /**
- * Sanitized audio diagnostics: format, layout, and the renderer's support
- * verdict for each audio track. No titles, URLs, or identifiers. A source
- * that advances video with no supported audio must be visible in the log
- * rather than passing as a silent success.
+ * Sanitized audio diagnostics: format, layout, and the renderer's support verdict for each audio
+ * track. No titles, URLs, or identifiers. A source that advances video with no supported audio must
+ * be visible in the log rather than passing as a silent success.
  */
 private fun logAudioTracks(tracks: Tracks) {
     val groups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
@@ -562,3 +629,30 @@ private fun logAudioTracks(tracks: Tracks) {
 fun stereoOutputPreferred(context: Context): Boolean =
     context.getSharedPreferences("kino", Context.MODE_PRIVATE).getString("audio_output", "auto") ==
         "stereo"
+
+@Composable
+internal fun PendingPlaybackSaveDialog(core: TvCore) {
+    val status by core.pendingPlaybackSave.status.collectAsState()
+    if (status == TvPendingPlaybackSave.Status.Idle) return
+    Dialog(onDismissRequest = {}) {
+        val retryFocus = remember { FocusRequester() }
+        Column(
+            Modifier.width(420.dp).background(Background, RoundedCornerShape(12.dp)).padding(28.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            Text(
+                stringResource(
+                    if (status == TvPendingPlaybackSave.Status.Saving) R.string.saving_progress
+                    else R.string.progress_save_failed
+                ),
+                fontSize = 18.sp,
+            )
+            if (status == TvPendingPlaybackSave.Status.Failed) {
+                Button({ core.pendingPlaybackSave.retry() }, Modifier.focusRequester(retryFocus)) {
+                    Text(stringResource(R.string.retry))
+                }
+                LaunchedEffect(Unit) { retryFocus.requestFocus() }
+            }
+        }
+    }
+}

@@ -9,3 +9,4 @@
 -keep,allowoptimization class androidx.activity.compose.** { public protected *; }
 -keep,allowoptimization class androidx.tv.material3.** { public protected *; }
 -keep,allowoptimization class pbandk.** { public protected *; }
+-keep,allowoptimization class kotlinx.coroutines.** { public protected *; }

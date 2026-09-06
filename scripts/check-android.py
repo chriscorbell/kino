@@ -18,10 +18,21 @@ try:
     for path in ["benchmark/app-benchmark.apk", "androidTest/benchmark/app-benchmark-androidTest.apk"]:
         subprocess.run([*adb, "install", "-r", str(root / "apps/android-tv/app/build/outputs/apk" / path)], check=True)
     subprocess.run([*adb, "shell", "input", "keyevent", "KEYCODE_WAKEUP"], check=True)
-    result = subprocess.run([*adb, "shell", "am", "instrument", "-w", "-r", "app.kino.tv.test/app.kino.tv.ShieldTestRunner"], capture_output=True, text=True, check=True, timeout=300)
-    print(result.stdout)
-    if "OK (" not in result.stdout or "FAILURES" in result.stdout:
-        sys.exit("Shield checks failed")
+    def instrument(*arguments):
+        result = subprocess.run([*adb, "shell", "am", "instrument", "-w", "-r", *arguments,
+            "app.kino.tv.test/app.kino.tv.ShieldTestRunner"], capture_output=True, text=True, check=True, timeout=300)
+        print(result.stdout)
+        if "OK (" not in result.stdout or "FAILURES" in result.stdout:
+            sys.exit("Shield checks failed")
+
+    instrument()
+    # The first process leaves only its isolated instrumentation profile. The
+    # second must restore the actual Unload snapshot without any Core memory.
+    instrument("-e", "class", "app.kino.tv.PlaybackShutdownTest#backWaitsForTheFinalPositionAndTheUnloadSnapshot",
+        "-e", "persistencePhase", "prepare")
+    subprocess.run([*adb, "shell", "am", "force-stop", "app.kino.tv"], check=True)
+    instrument("-e", "class", "app.kino.tv.PlaybackShutdownTest#savedEpisodeSurvivesProcessRestart",
+        "-e", "persistencePhase", "verify")
 finally:
     # Leave the same optimized APK that android:run and CI distribute on the device.
     subprocess.run([*adb, "shell", "am", "force-stop", "app.kino.tv"], check=True)

@@ -339,6 +339,7 @@ export const enUS = {
     exitFullscreen: 'Exit fullscreen',
     fullscreenFailed: 'Fullscreen could not be changed. Try again.',
     saveFailed: 'Progress could not be saved. Try closing playback again.',
+    savingProgress: 'Saving progress…',
     upNext: 'Up Next',
     chooseSource: 'Choose source',
     preparingTorrent: 'Finding peers for this torrent…',

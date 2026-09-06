@@ -39,6 +39,7 @@ open class MainActivity : ComponentActivity() {
                         Process.killProcess(Process.myPid())
                     },
                 )
+                PendingPlaybackSaveDialog(app.core)
             }
         }
     }
