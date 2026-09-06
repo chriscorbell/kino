@@ -61,6 +61,7 @@ class SettingsTest {
                 waitFor("Every language must be reachable with the remote") {
                     focusedText().contains("Arabic")
                 }
+                capture("language-picker")
                 key(KeyEvent.KEYCODE_DPAD_CENTER)
                 waitFor("Choosing Arabic must return focus to Audio language") {
                     app.core.state.value.audioLanguage == "ara" &&
@@ -181,20 +182,23 @@ class SettingsTest {
         val disk = loader.diskCache!!
         val sentinel = "KINO_PRIVATE_ACCOUNT_SOURCE_PATH_SENTINEL"
         val settings = app.settings
-        val original = settings.all
+        val original = (settings as LocalKinoSettings).all
         val profile = Core.getState<Ctx>(Field.CTX).profile
         val clipboard = context.getSystemService(ClipboardManager::class.java)
         val previousClip = onMain { clipboard.primaryClip }
         try {
             assertTrue(disk.directory.name.endsWith("instrumentation"))
             disk.clear()
-            val editor = disk.openEditor("settings-artwork")!!
-            File(editor.data.toString()).writeBytes(ByteArray(2_000_000) { 42 })
-            File(editor.metadata.toString()).writeText(sentinel)
-            editor.commit()
-            val bitmap = Bitmap.createBitmap(4, 4, Bitmap.Config.ARGB_8888)
-            loader.memoryCache!![MemoryCache.Key("settings-artwork")] =
-                MemoryCache.Value(bitmap.asImage())
+            fun populateArtwork() {
+                val editor = disk.openEditor("settings-artwork")!!
+                File(editor.data.toString()).writeBytes(ByteArray(2_000_000) { 42 })
+                File(editor.metadata.toString()).writeText(sentinel)
+                editor.commit()
+                val bitmap = Bitmap.createBitmap(4, 4, Bitmap.Config.ARGB_8888)
+                loader.memoryCache!![MemoryCache.Key("settings-artwork")] =
+                    MemoryCache.Value(bitmap.asImage())
+            }
+            populateArtwork()
             settings
                 .edit()
                 .putString("fixture-private-data", sentinel)
@@ -208,6 +212,8 @@ class SettingsTest {
                 clearArtworkCache(context),
             )
             held.close()
+            populateArtwork()
+            assertTrue(artworkCacheSize(context) >= 2_000_000L)
             showSettings(activity)
             focusRow(R.string.clear_cache)
             key(KeyEvent.KEYCODE_DPAD_CENTER)
@@ -432,6 +438,11 @@ class SettingsTest {
             suspend fun request(command: Int): android.os.Bundle {
                 remote.send(android.os.Message.obtain(null, command).apply { replyTo = replies })
                 return withTimeout(5000) { responses.receive() }
+            }
+            // More than Binder can transfer at once, written in small independent edits.
+            // Ordinary reads from the account process must return only their requested key.
+            repeat(128) { index ->
+                shared.edit().putString("tracks-v1:large-$index", "x".repeat(16_384)).apply()
             }
             val initial = request(1)
             assertNotEquals(android.os.Process.myPid(), initial.getInt("pid"))

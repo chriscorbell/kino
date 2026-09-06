@@ -9,8 +9,6 @@ import android.os.Bundle
 
 /** Device preferences have one writer even while guest and account processes coexist. */
 internal interface KinoSettingsStore {
-    val all: Map<String, *>
-
     fun getString(key: String, fallback: String?): String?
 
     fun getBoolean(key: String, fallback: Boolean): Boolean
@@ -38,16 +36,13 @@ internal class SharedKinoSettings(
 ) : KinoSettingsStore {
     private val resolver = context.applicationContext.contentResolver
 
-    @Suppress("DEPRECATION")
-    override val all: Map<String, *>
-        get() {
-            val values = checkNotNull(resolver.call(uri, "read", null, null))
-            return values.keySet().associateWith { values.get(it) }
-        }
+    override fun getString(key: String, fallback: String?): String? =
+        checkNotNull(resolver.call(uri, "string", key, null)).getString("value") ?: fallback
 
-    override fun getString(key: String, fallback: String?) = all[key] as String? ?: fallback
-
-    override fun getBoolean(key: String, fallback: Boolean) = all[key] as Boolean? ?: fallback
+    override fun getBoolean(key: String, fallback: Boolean): Boolean {
+        val result = checkNotNull(resolver.call(uri, "boolean", key, null))
+        return if (result.containsKey("value")) result.getBoolean("value") else fallback
+    }
 
     override fun edit(): KinoSettingsStore.Editor =
         object : KinoSettingsStore.Editor {
@@ -104,13 +99,15 @@ open class KinoSettingsProvider : ContentProvider() {
 
     @Suppress("DEPRECATION")
     override fun call(method: String, arg: String?, extras: Bundle?): Bundle {
-        if (method == "read")
+        if (method == "string" || method == "boolean") {
+            val key = requireNotNull(arg)
             return Bundle().apply {
-                for ((key, value) in preferences.all) when (value) {
-                    is String -> putString(key, value)
-                    is Boolean -> putBoolean(key, value)
+                if (preferences.contains(key)) {
+                    if (method == "string") putString("value", preferences.getString(key, null))
+                    else putBoolean("value", preferences.getBoolean(key, false))
                 }
             }
+        }
         require(method == "apply" || method == "commit")
         val request = requireNotNull(extras)
         val edit = preferences.edit()

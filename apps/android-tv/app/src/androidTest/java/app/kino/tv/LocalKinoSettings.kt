@@ -4,7 +4,7 @@ import android.content.SharedPreferences
 
 /** Isolated preferences for gates that do not exercise cross-process ownership. */
 internal class LocalKinoSettings(private val preferences: SharedPreferences) : KinoSettingsStore {
-    override val all
+    val all
         get() = preferences.all
 
     override fun getString(key: String, fallback: String?) = preferences.getString(key, fallback)
