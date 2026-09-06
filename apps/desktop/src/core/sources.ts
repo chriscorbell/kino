@@ -1,4 +1,3 @@
-import { t as enUS } from '../locales/index.ts';
 import type { PlaybackSelection } from './actions';
 import type { CoreSource, CoreStreamSource } from './types';
 
@@ -84,34 +83,4 @@ export function sourceKey(
     selection.video?.id ?? selection.meta.id,
     sourceIdentity(source.source, requestHeaders),
   ]);
-}
-
-export function sourceTitle(source: CoreSource) {
-  return source.name?.trim() || source.description?.split('\n')[0]?.trim() || enUS.sources.unnamed;
-}
-
-export function sourceDetails(source: CoreSource) {
-  const detail = source.description?.trim();
-  if (detail && detail !== sourceTitle(source)) return detail;
-
-  const filename = source.hints.filename?.trim();
-  if (filename) return filename;
-
-  switch (classifySource(source.source)) {
-    case 'direct':
-      return enUS.sources.direct;
-    case 'torrent':
-      return enUS.sources.torrent;
-    case 'external':
-      return enUS.sources.external;
-    case 'unsupported':
-      return enUS.sources.unsupported;
-  }
-}
-
-export function sourceSize(source: CoreSource) {
-  const bytes = source.hints.videoSize;
-  if (!bytes || bytes <= 0) return null;
-  const gibibytes = bytes / 1024 ** 3;
-  return enUS.format.gigabytes(gibibytes < 1 ? gibibytes.toFixed(2) : gibibytes.toFixed(1));
 }

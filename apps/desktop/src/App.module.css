@@ -573,31 +573,30 @@
   cursor: pointer;
 }
 
-.sourceButton {
-  min-height: 64px;
+.sourceLine {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
 }
 
-.sourceRow {
-  min-width: 0;
-  border-bottom: 1px solid var(--kino-border-subtle);
-}
-
-.sourceDisclosure {
-  padding: 0 12px 10px;
-}
-
-.sourceDisclosure summary {
-  width: fit-content;
-  min-height: 32px;
-  padding-block: 7px;
-  color: var(--kino-text-muted);
+.sourceDetailsToggle {
+  padding: 0 12px;
+  border: 0;
+  color: var(--kino-text-faint);
+  background: transparent;
   font-size: 12px;
   cursor: pointer;
   transition: color var(--kino-duration-fast) ease;
 }
 
-.sourceDisclosure summary:hover {
+.sourceDetailsToggle:hover,
+.sourceDetailsToggle[aria-expanded='true'] {
   color: var(--kino-text);
+}
+
+.sourceRow {
+  min-width: 0;
+  border-bottom: 1px solid var(--kino-border-subtle);
 }
 
 .sourceDescription {
@@ -609,9 +608,16 @@
   overflow-wrap: anywhere;
 }
 
-.sourceDescription p,
-.sourceDescription dl {
-  margin: 8px 0 16px;
+.sourceDescription {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 6px 12px 16px;
+  border-top: 1px dashed var(--kino-border-subtle);
+}
+
+.sourceDescription p {
+  margin: 0;
 }
 
 .sourceDescription dt {
@@ -621,6 +627,10 @@
 
 .sourceDescription dd {
   margin: 4px 0 0;
+}
+
+.sourceDescription small {
+  color: var(--kino-text-faint);
 }
 
 .sourcePlay {
@@ -647,14 +657,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-.episodeButton strong,
-.sourcePrimary strong,
-.sourcePrimary small {
+.episodeButton strong {
   display: block;
-}
-
-.episodeButton strong,
-.sourcePrimary strong {
   font-size: 14px;
   font-weight: 600;
   overflow-wrap: anywhere;
@@ -669,8 +673,59 @@
 }
 
 .sourceButton {
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 24px;
+  grid-template-columns: minmax(104px, auto) minmax(0, 1fr) auto minmax(72px, auto) auto;
+  gap: 18px;
+  font-size: 13px;
+}
+
+.sourceLead {
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.sourceTraits {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: var(--kino-text-muted);
+  font-size: 12px;
+}
+
+/* Figures line up between rows so sizes and rates can be compared at a glance. */
+.sourceFigures {
+  display: grid;
+  grid-template-columns: minmax(7ch, auto) minmax(8ch, auto);
+  gap: 12px;
+  color: var(--kino-text);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.sourceAddon {
+  overflow: hidden;
+  color: var(--kino-text-faint);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sourceAction {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 64px;
+  color: var(--kino-text-faint);
+  font-size: 11px;
+}
+
+.sourceAction em {
+  color: var(--kino-danger);
+  font-style: normal;
 }
 
 .sourceButton:disabled {
@@ -678,35 +733,9 @@
   opacity: 0.55;
 }
 
-.sourcePrimary small {
-  max-width: 74ch;
-  margin-top: 5px;
-  overflow: hidden;
-  color: var(--kino-text-faint);
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 1.4;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sourcePrimary .sourceExplanation {
+.sourceExplanation {
   color: var(--kino-text-muted);
-  white-space: normal;
   overflow-wrap: anywhere;
-}
-
-.sourceMeta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--kino-text-faint);
-  font-size: 11px;
-}
-
-.sourceMeta em {
-  color: var(--kino-danger);
-  font-style: normal;
 }
 
 .player {
@@ -1825,8 +1854,12 @@
     gap: 8px;
   }
 
-  .sourceMeta {
-    flex-wrap: wrap;
+  .sourceFigures {
+    text-align: left;
+  }
+
+  .sourceAction {
+    justify-content: flex-start;
   }
 
   .playerControls {
