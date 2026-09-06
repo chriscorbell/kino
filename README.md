@@ -22,6 +22,15 @@ Every Core model is read through validating adapters, so screens receive navigat
 
 Configurable add-ons open their provider's settings page in the system browser. Paste the resulting HTTPS manifest URL or Stremio install link into Add-ons. Kino asks whether to replace existing configurations or keep both, and verifies the new installation before removing an old configuration.
 
+### Android TV
+
+The native Kotlin/Compose development app runs on the NVIDIA Shield. It includes remote navigation, Stremio device-link sign-in, browsing, details, source selection, and hardware SDR playback. See [Android TV development](docs/ANDROID-TV.md) for toolchain setup, device checks, and current limitations.
+
+```sh
+pnpm android:build
+pnpm android:run "$ANDROID_SERIAL"
+```
+
 ### macOS shell
 
 The native bootstrap currently targets Apple Silicon on macOS 26 and links against local Homebrew libraries. Install CMake, Qt, libmpv, pkg-config, and FFmpeg (used only to generate playback fixtures), then build the development app:

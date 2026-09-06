@@ -18,7 +18,39 @@ const appBinary =
 const videoSource = ['-f', 'lavfi', '-i', 'testsrc2=size=640x360:rate=24:duration=6'];
 const audioSource = ['-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000:duration=6'];
 const hdr10Params =
-  'hdr10=1:master-display=G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1):max-cll=1000,400';
+  'colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc:hdr10=1:master-display=G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1):max-cll=1000,400';
+const hdrTransfers = new Map([
+  ['hevc-hdr10-eac3.mkv', 'smpte2084'],
+  ['hevc-hlg-flac.mkv', 'arib-std-b67'],
+]);
+
+function hasHdrMetadata(path, transfer) {
+  try {
+    const result = JSON.parse(
+      execFileSync(
+        'ffprobe',
+        [
+          '-v',
+          'error',
+          '-select_streams',
+          'v:0',
+          '-show_entries',
+          'stream=color_transfer,color_primaries',
+          '-of',
+          'json',
+          path,
+        ],
+        { encoding: 'utf8' },
+      ),
+    );
+    return (
+      result.streams[0]?.color_transfer === transfer &&
+      result.streams[0]?.color_primaries === 'bt2020'
+    );
+  } catch {
+    return false;
+  }
+}
 
 const srtText = `1
 00:00:00,500 --> 00:00:04,000
@@ -57,10 +89,13 @@ title=Part 1
 
 function encode(name, args) {
   const target = join(fixturesDir, name);
-  if (existsSync(target)) return target;
+  const transfer = hdrTransfers.get(name);
+  if (existsSync(target) && (!transfer || hasHdrMetadata(target, transfer))) return target;
   execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', ...args, target], {
     stdio: ['ignore', 'inherit', 'inherit'],
   });
+  if (transfer && !hasHdrMetadata(target, transfer))
+    throw new Error(`${name} is missing its required HDR metadata`);
   return target;
 }
 
@@ -107,6 +142,8 @@ function generateFixtures() {
   encode('hevc-hdr10-eac3.mkv', [
     ...videoSource,
     ...audioSource,
+    '-vf',
+    'setparams=color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc',
     '-c:v',
     'libx265',
     '-preset',
@@ -129,6 +166,8 @@ function generateFixtures() {
   encode('hevc-hlg-flac.mkv', [
     ...videoSource,
     ...audioSource,
+    '-vf',
+    'setparams=color_primaries=bt2020:color_trc=arib-std-b67:colorspace=bt2020nc',
     '-c:v',
     'libx265',
     '-preset',
@@ -139,6 +178,8 @@ function generateFixtures() {
     'bt2020',
     '-color_trc',
     'arib-std-b67',
+    '-x265-params',
+    'colorprim=bt2020:transfer=arib-std-b67:colormatrix=bt2020nc',
     '-colorspace',
     'bt2020nc',
     '-c:a',
@@ -348,7 +389,7 @@ function assertExpectations(fixture, result) {
   return problems;
 }
 
-if (!existsSync(appBinary)) {
+if (!process.argv.includes('--generate-only') && !existsSync(appBinary)) {
   console.error(`Kino binary not found at ${appBinary}. Run "pnpm macos:build" first.`);
   process.exit(1);
 }
@@ -361,6 +402,7 @@ try {
 
 console.log('Generating playback fixtures…');
 generateFixtures();
+if (process.argv.includes('--generate-only')) process.exit(0);
 
 let failures = 0;
 for (const fixture of fixtures) {

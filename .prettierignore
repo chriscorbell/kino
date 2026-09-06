@@ -1,6 +1,9 @@
 node_modules
 dist
 coverage
+**/build/**
+**/.gradle/**
+**/.kotlin/**
 mockup/Kino.html
 pnpm-lock.yaml
 

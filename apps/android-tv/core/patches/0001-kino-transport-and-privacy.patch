@@ -1,0 +1,454 @@
+diff --git a/stremio-core-kotlin/Cargo.toml b/stremio-core-kotlin/Cargo.toml
+index c25a860..d8ae579 100644
+--- a/stremio-core-kotlin/Cargo.toml
++++ b/stremio-core-kotlin/Cargo.toml
+@@ -30,7 +30,7 @@ log-trace = []
+ [lib]
+ name = "stremio_core_kotlin"
+ path = "src/commonMain/rust/lib.rs"
+-crate-type = ["staticlib", "dylib"]
++crate-type = ["cdylib"]
+ 
+ [dependencies]
+ stremio-core.workspace = true
+@@ -72,7 +72,7 @@ futures.workspace = true
+ 
+ # Http Request handling
+ http = { workspace = true, optional = true }
+-reqwest = { workspace = true, features = ["json", "rustls-tls"], optional = true }
++reqwest = { workspace = true, features = ["json", "rustls-tls", "stream"], optional = true }
+ openssl = { workspace = true, features = ["vendored"], optional = true }
+ http-cache-reqwest = { workspace = true, optional = true }
+ reqwest-middleware = { workspace = true, optional = true }
+diff --git a/stremio-core-kotlin/src/commonMain/rust/env/env.rs b/stremio-core-kotlin/src/commonMain/rust/env/env.rs
+index c0f0b09..bac19d3 100644
+--- a/stremio-core-kotlin/src/commonMain/rust/env/env.rs
++++ b/stremio-core-kotlin/src/commonMain/rust/env/env.rs
+@@ -13,14 +13,11 @@ use jni::{
+ };
+ use once_cell::sync::Lazy;
+ use serde::{Deserialize, Serialize};
+-use serde_json::json;
+ use strum::IntoEnumIterator;
+ 
+ use stremio_core::{
+-    analytics::Analytics,
+     models::{ctx::Ctx, streaming_server::StreamingServer},
+-    runtime::{msg::Event, Env, EnvError, EnvFuture, EnvFutureExt, TryEnvFuture},
+-    types::api::AuthRequest,
++    runtime::{Env, EnvError, EnvFuture, EnvFutureExt, TryEnvFuture},
+ };
+ 
+ use crate::{
+@@ -28,7 +25,6 @@ use crate::{
+     model::AndroidModel,
+ };
+ 
+-const INSTALLATION_ID_STORAGE_KEY: &str = "installation_id";
+ #[cfg(debug_assertions)]
+ pub(crate) const ENV_LOG_TAG: &str = "AndroidEnv";
+ 
+@@ -39,7 +35,7 @@ static CONCURRENT_RUNTIME: Lazy<RwLock<tokio::runtime::Runtime>> = Lazy::new(||
+     RwLock::new(
+         tokio::runtime::Builder::new_multi_thread()
+             .thread_name("CONCURRENT_RUNTIME_THREAD")
+-            .worker_threads(30)
++            .worker_threads(4)
+             .enable_all()
+             .build()
+             .expect("CONCURRENT_RUNTIME create failed"),
+@@ -58,9 +54,6 @@ static SEQUENTIAL_RUNTIME: Lazy<RwLock<tokio::runtime::Runtime>> = Lazy::new(||
+ static KOTLIN_CLASSES: Lazy<RwLock<HashMap<KotlinClassName, GlobalRef>>> =
+     Lazy::new(Default::default);
+ static STORAGE: Lazy<RwLock<Option<Storage>>> = Lazy::new(Default::default);
+-static ANALYTICS: Lazy<Analytics<AndroidEnv>> = Lazy::new(Default::default);
+-static INSTALLATION_ID: Lazy<RwLock<Option<String>>> = Lazy::new(Default::default);
+-static VISIT_ID: Lazy<String> = Lazy::new(|| hex::encode(AndroidEnv::random_buffer(10)));
+ 
+ #[derive(Debug, Clone, Copy)]
+ #[repr(u8)]
+@@ -123,23 +116,6 @@ pub(crate) fn android_log_write(
+     }
+ }
+ 
+-#[derive(Serialize)]
+-#[serde(rename_all = "camelCase")]
+-struct AnalyticsContext {
+-    app_type: String,
+-    app_version: String,
+-    server_version: Option<String>,
+-    shell_version: Option<String>,
+-    system_language: Option<String>,
+-    app_language: String,
+-    #[serde(rename = "installationID")]
+-    installation_id: String,
+-    #[serde(rename = "visitID")]
+-    visit_id: String,
+-    #[serde(rename = "url")]
+-    path: String,
+-}
+-
+ pub enum AndroidEnv {}
+ 
+ impl AndroidEnv {
+@@ -152,10 +128,6 @@ impl AndroidEnv {
+         async {
+             Self::migrate_storage_schema().await?;
+ 
+-            let installation_id = get_installation_id().await?;
+-            *INSTALLATION_ID
+-                .write()
+-                .expect("INSTALLATION_ID write failed") = Some(installation_id);
+             Ok(())
+         }
+         .boxed_env()
+@@ -170,72 +142,9 @@ impl AndroidEnv {
+             .expect("SEQUENTIAL_RUNTIME read failed")
+             .block_on(future)
+     }
+-    pub fn emit_to_analytics(event: &AndroidEvent, model: &AndroidModel, path: &str) {
+-        let (name, data) = match event {
+-            AndroidEvent::CoreEvent(core_event) => match core_event {
+-                Event::UserAuthenticated { auth_request } => (
+-                    "login".to_owned(),
+-                    json!({
+-                        "type": match auth_request {
+-                            AuthRequest::Login { facebook, .. } if *facebook => "facebook",
+-                            AuthRequest::Login { .. } => "login",
+-                            AuthRequest::Facebook { .. } => "authWithFacebook",
+-                            AuthRequest::Apple { .. } => "authWithApple",
+-                            AuthRequest::LoginWithToken { .. } => "loginWithToken",
+-                            AuthRequest::Register { .. } => "register",
+-                        },
+-                    }),
+-                ),
+-                Event::AddonInstalled { transport_url, id } => (
+-                    "installAddon".to_owned(),
+-                    json!({
+-                        "addonTransportUrl": transport_url,
+-                        "addonID": id
+-                    }),
+-                ),
+-                Event::AddonUninstalled { transport_url, id } => (
+-                    "removeAddon".to_owned(),
+-                    json!({
+-                        "addonTransportUrl": transport_url,
+-                        "addonID": id
+-                    }),
+-                ),
+-                Event::PlayerPlaying { load_time, context } => (
+-                    "playerPlaying".to_owned(),
+-                    json!({
+-                        "loadTime": load_time,
+-                        "player": context
+-                    }),
+-                ),
+-                Event::PlayerStopped { context } => {
+-                    ("playerStopped".to_owned(), json!({ "player": context }))
+-                }
+-                Event::PlayerEnded {
+-                    context,
+-                    is_binge_enabled,
+-                    is_playing_next_video,
+-                } => (
+-                    "playerEnded".to_owned(),
+-                    json!({
+-                       "player": context,
+-                       "isBingeEnabled": is_binge_enabled,
+-                       "isPlayingNextVideo": is_playing_next_video
+-                    }),
+-                ),
+-                Event::TraktPlaying { context } => {
+-                    ("traktPlaying".to_owned(), json!({ "player": context }))
+-                }
+-                Event::TraktPaused { context } => {
+-                    ("traktPaused".to_owned(), json!({ "player": context }))
+-                }
+-                _ => return,
+-            },
+-        };
+-        ANALYTICS.emit(name, data, &model.ctx, &model.streaming_server, path);
+-    }
+-    pub fn send_next_analytics_batch() -> impl Future<Output = ()> {
+-        ANALYTICS.send_next_batch()
+-    }
++    // Kino does not collect or send analytics.
++    pub fn emit_to_analytics(_: &AndroidEvent, _: &AndroidModel, _: &str) {}
++    pub async fn send_next_analytics_batch() {}
+     pub fn random_buffer(len: usize) -> Vec<u8> {
+         let mut buffer = vec![0u8; len];
+         getrandom::fill(buffer.as_mut_slice()).expect("getrandom failed");
+@@ -277,35 +186,16 @@ impl Env for AndroidEnv {
+         Utc::now()
+     }
+     fn flush_analytics() -> EnvFuture<'static, ()> {
+-        ANALYTICS.flush().boxed_env()
++        async {}.boxed_env()
+     }
+     fn analytics_context(
+-        ctx: &Ctx,
+-        streaming_server: &StreamingServer,
+-        path: &str,
++        _ctx: &Ctx,
++        _streaming_server: &StreamingServer,
++        _path: &str,
+     ) -> serde_json::Value {
+-        serde_json::to_value(AnalyticsContext {
+-            app_type: "android-tv".to_owned(),
+-            app_version: "TODO".to_owned(),
+-            server_version: streaming_server
+-                .settings
+-                .as_ref()
+-                .ready()
+-                .map(|settings| settings.server_version.to_owned()),
+-            shell_version: None,
+-            system_language: Some("TODO".to_owned()),
+-            app_language: ctx.profile.settings.interface_language.to_owned(),
+-            installation_id: INSTALLATION_ID
+-                .read()
+-                .expect("installation id read failed")
+-                .as_ref()
+-                .expect("installation id not available")
+-                .to_owned(),
+-            visit_id: VISIT_ID.to_owned(),
+-            path: path.to_owned(),
+-        })
+-        .unwrap()
++        serde_json::Value::Null
+     }
++
+     #[cfg(debug_assertions)]
+     fn log(message: String) {
+         let _ret = android_log_write(AndroidLogPriority::Debug, ENV_LOG_TAG, &message).inspect_err(|err| {
+@@ -324,10 +214,3 @@ fn load_kotlin_classes(env: &JNIEnv) -> jni::errors::Result<HashMap<KotlinClassN
+         .collect::<Result<HashMap<_, _>, _>>()
+ }
+ 
+-async fn get_installation_id() -> Result<String, EnvError> {
+-    let installation_id = AndroidEnv::get_storage::<String>(INSTALLATION_ID_STORAGE_KEY).await?;
+-    let installation_id =
+-        installation_id.unwrap_or_else(|| hex::encode(AndroidEnv::random_buffer(10)));
+-    AndroidEnv::set_storage(INSTALLATION_ID_STORAGE_KEY, Some(&installation_id)).await?;
+-    Ok(installation_id)
+-}
+diff --git a/stremio-core-kotlin/src/commonMain/rust/env/fetch.rs b/stremio-core-kotlin/src/commonMain/rust/env/fetch.rs
+index fd391bc..8bf2f86 100644
+--- a/stremio-core-kotlin/src/commonMain/rust/env/fetch.rs
++++ b/stremio-core-kotlin/src/commonMain/rust/env/fetch.rs
+@@ -1,101 +1,47 @@
+-use std::{
+-    convert::TryFrom,
+-    env::{self, VarError},
+-    path::PathBuf,
+-    time::Duration,
+-};
+-
+-use futures::{future, TryFutureExt};
++use std::time::Duration;
++use futures::{future, StreamExt};
+ use http::{Method, Request};
+-use http_cache_reqwest::{CACacheManager, Cache, CacheMode, HttpCache, HttpCacheOptions};
+-use once_cell::sync::OnceCell;
+-use reqwest::{Body, Client};
+-use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
++use once_cell::sync::Lazy;
++use reqwest::{redirect::Policy, Client, Url};
+ use serde::{Deserialize, Serialize};
+-use serde_json::Deserializer;
+ use stremio_core::runtime::{EnvError, EnvFutureExt, TryEnvFuture};
+ 
+-static CLIENT_WITH_CACHE: OnceCell<ClientWithMiddleware> = OnceCell::new();
+-static CLIENT_WITHOUT_CACHE: OnceCell<ClientWithMiddleware> = OnceCell::new();
+-
+-pub fn fetch<IN: Serialize + Send + 'static, OUT: for<'de> Deserialize<'de> + Send + 'static>(
+-    request: Request<IN>,
+-) -> TryEnvFuture<OUT> {
++const LIMIT: usize = 16 * 1024 * 1024;
++fn allowed(url: &Url) -> bool {
++    url.scheme() == "https" && url.host_str().is_some() && url.username().is_empty()
++        && url.password().is_none() && url.host_str() != Some("analytics.strem.io")
++}
++static CLIENT: Lazy<Client> = Lazy::new(|| Client::builder()
++    .user_agent("Kino/0.1.0").use_rustls_tls().timeout(Duration::from_secs(20))
++    .redirect(Policy::custom(|attempt| {
++        if attempt.previous().len() >= 10 || !allowed(attempt.url()) {
++            attempt.error("Transport blocked")
++        } else { attempt.follow() }
++    })).build().expect("HTTPS client initialization failed"));
++
++static NO_REDIRECT_CLIENT: Lazy<Client> = Lazy::new(|| Client::builder()
++    .user_agent("Kino/0.1.0").use_rustls_tls().timeout(Duration::from_secs(20)).redirect(Policy::none())
++    .build().expect("HTTPS client initialization failed"));
++
++pub fn fetch<IN: Serialize + Send + 'static, OUT: for<'de> Deserialize<'de> + Send + 'static>(request: Request<IN>) -> TryEnvFuture<OUT> {
+     let (parts, body) = request.into_parts();
+-    let body = match serde_json::to_string(&body) {
+-        Ok(body) if body != "null" && parts.method != Method::GET => Body::from(body),
+-        Ok(_) => Body::from(vec![]),
+-        Err(error) => return future::err(EnvError::Serde(error.to_string())).boxed_env(),
+-    };
+-    let request = Request::from_parts(parts, body);
+-    let request = match reqwest::Request::try_from(request) {
+-        Ok(request) => request,
+-        Err(error) => return future::err(EnvError::Fetch(error.to_string())).boxed_env(),
++    let url = match Url::parse(&parts.uri.to_string()) {
++        Ok(url) if allowed(&url) => url,
++        _ => return future::err(EnvError::Fetch("Transport blocked".into())).boxed_env(),
+     };
+-
+-    let client = match env::var("TMPDIR") {
+-        Ok(tmpdir) => {
+-            CLIENT_WITH_CACHE.get_or_init(|| {
+-                let tmpdir_path = PathBuf::from(tmpdir);
+-                let cacache_path = tmpdir_path.join("http-cacache");
+-                let connection_timeout = Duration::from_secs(30);
+-
+-                tracing::info!(tmpdir_path = %tmpdir_path.display(), cacache_path = %cacache_path.display(), ?connection_timeout, "Client Cacache middleware will be initialized...");
+-                ClientBuilder::new(
+-                    Client::builder()
+-                        .connect_timeout(connection_timeout)
+-                        .use_rustls_tls()
+-                        .build()
+-                        .unwrap_or_default(),
+-                )
+-                .with(Cache(HttpCache::<CACacheManager> {
+-                    mode: CacheMode::Default,
+-                    manager: CACacheManager {
+-                        path: cacache_path,
+-                    },
+-                    options: HttpCacheOptions::default(),
+-                }))
+-                .build()
+-            })
++    async move {
++        let client = if parts.method == Method::GET { &*CLIENT } else { &*NO_REDIRECT_CLIENT };
++        let mut request = client.request(parts.method.clone(), url).headers(parts.headers);
++        if parts.method != Method::GET { request = request.json(&body); }
++        let response = request.send().await.map_err(|_| EnvError::Fetch("Network request failed".into()))?;
++        if !response.status().is_success() { return Err(EnvError::Fetch(format!("HTTP {}", response.status().as_u16()))); }
++        let mut bytes = Vec::new();
++        let mut chunks = response.bytes_stream();
++        while let Some(chunk) = chunks.next().await {
++            let chunk = chunk.map_err(|_| EnvError::Fetch("Response read failed".into()))?;
++            if bytes.len() + chunk.len() > LIMIT { return Err(EnvError::Fetch("Response too large".into())); }
++            bytes.extend_from_slice(&chunk);
+         }
+-        Err(err) => CLIENT_WITHOUT_CACHE.get_or_init(|| {
+-            // we log the error only once when initializing the Client.
+-            if let VarError::NotUnicode(_) = &err {
+-                tracing::error!(?err, "TMPDIR env. variable is not a valid Unicode, no Client Cacache middleware will be used");
+-            }
+-            ClientBuilder::new(
+-                Client::builder()
+-                    .connect_timeout(Duration::from_secs(30))
+-                    .use_rustls_tls()
+-                    .build()
+-                    .unwrap_or_default(),
+-            )
+-            .build()
+-        })
+-    };
+-
+-    let fut = async {
+-        let resp = client
+-            .execute(request)
+-            .map_err(|error| EnvError::Fetch(error.to_string()))
+-            .await?;
+-
+-        let body = if !resp.status().is_success() {
+-            return Err(EnvError::Fetch(format!(
+-                "Unexpected HTTP status code {}",
+-                resp.status().as_u16(),
+-            )));
+-        } else {
+-            resp.bytes()
+-                .await
+-                .map_err(|error| EnvError::Fetch(error.to_string()))?
+-        };
+-
+-        let mut deserializer = Deserializer::from_slice(body.as_ref());
+-        let result = serde_path_to_error::deserialize::<_, OUT>(&mut deserializer);
+-
+-        result.map_err(|error| EnvError::Serde(error.to_string()))
+-    };
+-
+-    fut.boxed_env()
++        serde_json::from_slice(&bytes).map_err(|_| EnvError::Serde("Invalid response".into()))
++    }.boxed_env()
+ }
+diff --git a/stremio-core-kotlin/src/commonMain/rust/stremio_core_kotlin.rs b/stremio-core-kotlin/src/commonMain/rust/stremio_core_kotlin.rs
+index fcdae34..c0e1335 100644
+--- a/stremio-core-kotlin/src/commonMain/rust/stremio_core_kotlin.rs
++++ b/stremio-core-kotlin/src/commonMain/rust/stremio_core_kotlin.rs
+@@ -50,41 +50,11 @@ static RUNTIME: Lazy<RwLock<Option<Loadable<Runtime<AndroidEnv, AndroidModel>, E
+ /// Initialize panic hook to send data to Kotlin
+ #[no_mangle]
+ pub unsafe extern "C" fn JNI_OnLoad(_: JavaVM, _: *mut c_void) -> jint {
+-    std::panic::set_hook(Box::new(|info| {
+-        let info_str = info.to_string();
+-        eprintln!("FATAL: {}", &info_str);
+-        // Attempt to set the flag from false to true.
+-        let _ret = android_log_write(
+-            crate::env::AndroidLogPriority::Fatal,
+-            PANIC_LOG_TAG,
+-            &info_str,
+-        )
+-        .inspect_err(|err| {
+-            eprintln!("Failed to log PANIC log with AndroidLogPriority::Fatal: {err}")
+-        });
++    // Do not forward upstream tracing fields or panic payloads: they may contain credentials.
++    std::panic::set_hook(Box::new(|_| {
++        let _ = android_log_write(crate::env::AndroidLogPriority::Fatal, "KinoCore", "Core panic");
+     }));
+ 
+-    let env_filter = EnvFilter::builder().from_env_lossy();
+-    let max_level_hint = env_filter.max_level_hint();
+-
+-    #[cfg(any(debug_assertions, feature = "log-trace"))]
+-    let max_level = tracing::Level::TRACE;
+-    #[cfg(all(not(debug_assertions), not(feature = "log-trace")))]
+-    let max_level = tracing::Level::INFO;
+-
+-    let max_level = max_level_hint
+-        .and_then(|level_filter| level_filter.into_level())
+-        .unwrap_or(max_level);
+-
+-    let config = KotlinLayerConfigBuilder::default()
+-        .set_max_level(max_level)
+-        .build();
+-
+-    // setup Swift tracing Subscriber
+-    subscriber::set_as_global_default_with_config(config);
+-
+-    info!(?max_level, "Logging level");
+-
+     // TODO: consider using ensure_local_capacity
+     JNI_VERSION_1_6
+ }
+diff --git a/stremio-core-protobuf/build.rs b/stremio-core-protobuf/build.rs
+index 4b27a17..50e85e8 100644
+--- a/stremio-core-protobuf/build.rs
++++ b/stremio-core-protobuf/build.rs
+@@ -25,9 +25,7 @@ fn main() {
+     let file_descriptors =
+         protox::compile(proto_paths, [proto_dir]).expect("Expected file descriptors");
+ 
+-    let protobuf_gen_dir = PathBuf::from(CARGO_MANIFEST_DIR)
+-        .join("src")
+-        .join("protobuf");
++    let protobuf_gen_dir = PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR is required"));
+     // create protobuf folder if it doesn't exist
+     DirBuilder::new()
+         .recursive(true)
+diff --git a/stremio-core-protobuf/src/lib.rs b/stremio-core-protobuf/src/lib.rs
+index b70b79a..8e25eed 100644
+--- a/stremio-core-protobuf/src/lib.rs
++++ b/stremio-core-protobuf/src/lib.rs
+@@ -27,4 +27,6 @@ pub mod model {
+ #[allow(clippy::all)]
+ /// The generated module before any export's take place in the API's top level
+ /// Made public because of the compatibility with stremio-core-android
+-pub mod protobuf;
++pub mod protobuf {
++    include!(concat!(env!("OUT_DIR"), "/mod.rs"));
++}

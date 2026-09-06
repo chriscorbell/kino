@@ -1,0 +1,49 @@
+name: Android TV
+
+on:
+  pull_request:
+    paths:
+      [
+        'apps/android-tv/**',
+        'packages/design-tokens/**',
+        'scripts/*android*',
+        '.github/workflows/android.yml',
+      ]
+  push:
+    branches: [main]
+    paths:
+      [
+        'apps/android-tv/**',
+        'packages/design-tokens/**',
+        'scripts/*android*',
+        '.github/workflows/android.yml',
+      ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and lint the TV APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install the pinned Android toolchain
+        run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0' 'ndk;29.0.14206865'
+      - name: Build Core, compile instrumentation, and lint
+        run: python3 scripts/build-android.py :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Kino-TV
+          path: |
+            build/android/Kino-TV.apk
+            build/android/Kino-TV.apk.sha256
