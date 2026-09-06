@@ -195,11 +195,19 @@ def main():
                         sanitized.writestr(name, classes.read(name))
 
     compiler = str(llvm / "aarch64-linux-android26-clang")
-    env.update({"RUSTUP_TOOLCHAIN": TOOLCHAIN, "CARGO_TARGET_DIR": str(BUILD / "android-core-target"),
+    # Cargo resolves `rustc` through PATH, and `rustup run` does not put the
+    # toolchain ahead of it. With Homebrew's Rust at /opt/homebrew/bin before
+    # ~/.cargo/bin, Cargo compiled with a rustc that has no Android standard
+    # library and failed with "can't find crate for `core`". Name the pinned
+    # toolchain's own binaries so PATH order cannot swap compilers.
+    toolchain_bin = Path(subprocess.run([rustup, "which", "--toolchain", TOOLCHAIN, "rustc"],
+        capture_output=True, check=True, text=True).stdout.strip()).parent
+    env.update({"RUSTUP_TOOLCHAIN": TOOLCHAIN, "RUSTC": str(toolchain_bin / "rustc"),
+        "CARGO_TARGET_DIR": str(BUILD / "android-core-target"),
         "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER": compiler, "CC_aarch64_linux_android": compiler,
         "AR_aarch64_linux_android": str(llvm / "llvm-ar"), "RANLIB_aarch64_linux_android": str(llvm / "llvm-ranlib"),
         "ANDROID_NDK_ROOT": str(ndk)})
-    run(rustup, "run", TOOLCHAIN, "cargo", "build", "--locked", "--release", "--target", "aarch64-linux-android",
+    run(toolchain_bin / "cargo", "build", "--locked", "--release", "--target", "aarch64-linux-android",
         "--manifest-path", VENDOR / "Cargo.toml", "-p", "stremio-core-kotlin", env=env)
     build_ffmpeg_decoders(env, ndk, llvm, host)
     library = output / "jniLibs/arm64-v8a/libstremio_core_kotlin.so"

@@ -30,7 +30,7 @@ The build also requires `rustup`, Python 3, and Git. It installs Rust 1.93.1 wit
 
 The development-signed APK and its checksum are written to `build/android/Kino-TV.apk` and `build/android/Kino-TV.apk.sha256`. The app appears as **Kino** in the TV launcher. Select **Settings → Sign in** to link Stremio using a phone. This does not copy the Mac's credentials or profile to the TV.
 
-After the first native build, Kotlin-only iteration can use:
+After the first native build, Kotlin-only iteration can use the commands below. Gradle refuses to build until `pnpm android:build` has produced the FFmpeg audio renderer under `build/android-ffmpeg`, since an APK without it fails every surround source on the Shield.
 
 ```sh
 cd apps/android-tv

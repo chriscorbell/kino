@@ -73,7 +73,21 @@ android {
     }
 }
 
-tasks.named("preBuild") { dependsOn(generateDesignTokens) }
+// A gradle-only build with that directory missing would still succeed and
+// ship an APK without the surround decoders, and every AC-3, E-AC-3, DTS, and
+// TrueHD source would then fail on the Shield as an unplayable audio format.
+val requireFfmpegRenderer by
+    tasks.registering {
+        val library = file("../../../build/android-ffmpeg/jniLibs/arm64-v8a/libffmpegJNI.so")
+        doLast {
+            check(library.exists()) {
+                "Missing $library. Run `pnpm android:build`, which builds Media3's FFmpeg audio " +
+                    "renderer before Gradle; a Gradle-only build would omit the surround decoders."
+            }
+        }
+    }
+
+tasks.named("preBuild") { dependsOn(generateDesignTokens, requireFfmpegRenderer) }
 
 dependencies {
     implementation(files("../../../build/android-core/classes.jar"))
