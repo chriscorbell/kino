@@ -1,1 +1,9 @@
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android"><item><shape><solid android:color="#131316"/><size android:width="320dp" android:height="180dp"/></shape></item><item android:drawable="@drawable/kino_icon" android:width="90dp" android:height="90dp" android:gravity="center"/></layer-list>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape>
+            <solid android:color="#131316" />
+            <size android:width="320dp" android:height="180dp" />
+        </shape>
+    </item>
+    <item android:drawable="@drawable/kino_mark" android:width="101dp" android:height="90dp" android:gravity="center" />
+</layer-list>

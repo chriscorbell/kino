@@ -78,9 +78,9 @@ internal fun TvNavigation(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Image(
-                    painterResource(R.drawable.kino_icon),
+                    painterResource(R.drawable.kino_mark),
                     stringResource(R.string.app_name),
-                    Modifier.size(24.dp),
+                    Modifier.width(27.dp),
                 )
                 if (expanded)
                     Text(

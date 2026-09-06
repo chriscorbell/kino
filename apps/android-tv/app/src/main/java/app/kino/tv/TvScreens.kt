@@ -305,7 +305,7 @@ fun KinoApp(
 private fun WelcomeScreen(onSignIn: () -> Unit, onGuest: () -> Unit) {
     val focus = remember { FocusRequester() }
     Column(Modifier.fillMaxSize().padding(72.dp), verticalArrangement = Arrangement.Center) {
-        Image(painterResource(R.drawable.kino_icon), null, Modifier.size(64.dp))
+        Image(painterResource(R.drawable.kino_mark), null, Modifier.width(72.dp))
         Spacer(Modifier.height(30.dp))
         Text(stringResource(R.string.welcome), fontSize = 42.sp, fontWeight = FontWeight.Bold)
         Text(
