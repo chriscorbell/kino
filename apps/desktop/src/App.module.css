@@ -74,8 +74,8 @@
 
 .logoButton img {
   display: block;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: auto;
 }
 
 .navButton:hover {
@@ -1241,8 +1241,8 @@
 }
 
 .accountDialog > img {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: auto;
   margin-bottom: 24px;
 }
 

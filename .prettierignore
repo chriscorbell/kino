@@ -9,3 +9,7 @@ pnpm-lock.yaml
 
 # Preserve upstream license text byte-for-byte.
 third_party/notices/texts
+
+# Icon Composer owns this document; reformatting it churns the diff every time
+# the icon is edited.
+assets/brand/Kino.icon

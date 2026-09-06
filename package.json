@@ -11,7 +11,7 @@
   },
   "scripts": {
     "build": "pnpm --filter @kino/desktop build",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm core:check-contract && pnpm core:check-seasons && pnpm core:check-streams && pnpm core:check-pagination && pnpm core:check-subtitles && pnpm core:check-shutdown && pnpm intro:check && pnpm core:check-addon-transports && pnpm engine:check-vendor && pnpm notices:check && pnpm build",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm core:check-contract && pnpm core:check-seasons && pnpm core:check-streams && pnpm core:check-pagination && pnpm core:check-subtitles && pnpm core:check-shutdown && pnpm intro:check && pnpm core:check-addon-transports && pnpm engine:check-vendor && pnpm notices:check && pnpm macos:check-icon && pnpm android:check-banner && pnpm build",
     "core:capture-fixtures": "node scripts/capture-core-fixtures.mjs",
     "core:check-seasons": "node scripts/check-core-seasons.mjs",
     "core:check-contract": "node scripts/check-core-contract.mjs",
@@ -46,6 +46,8 @@
     "macos:check-request-headers": "node scripts/check-macos-request-headers.mjs",
     "macos:check-shutdown": "node scripts/check-macos-shutdown.mjs",
     "macos:check-addon-transports": "node scripts/check-macos-addon-transports.mjs",
+    "macos:icon": "swift scripts/build-macos-icon.swift",
+    "macos:check-icon": "node scripts/check-macos-icon.mjs",
     "macos:package": "node scripts/package-macos.mjs",
     "test": "pnpm --filter @kino/desktop test",
     "typecheck": "pnpm --filter @kino/desktop typecheck",
@@ -53,7 +55,9 @@
     "notices:check": "node scripts/check-license-notices.mjs",
     "android:build": "python3 scripts/build-android.py",
     "android:run": "python3 scripts/run-android.py",
+    "android:banner": "swift scripts/build-tv-banner.swift",
     "android:check": "python3 scripts/check-android.py",
+    "android:check-banner": "node scripts/check-tv-banner.mjs",
     "intro:check": "node scripts/check-intro-community.mjs",
     "macos:check-intro": "node scripts/check-intro-community.mjs --macos"
   },

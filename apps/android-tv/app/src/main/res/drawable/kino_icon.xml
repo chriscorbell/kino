@@ -1,1 +1,25 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="80dp" android:height="80dp" android:viewportWidth="2500" android:viewportHeight="2500"><group android:scaleX="1.031779" android:scaleY="1.26968" android:translateX="1983.078828" android:translateY="-165.058405"><path android:fillColor="#FFFFFF" android:fillType="evenOdd" android:pathData="M501,676.407L501,1552.593C501,1854.163 199.71,2099 -171.394,2099L-1249.606,2099C-1620.71,2099 -1922,1854.163 -1922,1552.593L-1922,676.407C-1922,374.837 -1620.71,130 -1249.606,130L-171.394,130C199.71,130 501,374.837 501,676.407ZM-1114.874,1728.513C-1061.697,1728.513 -1021.707,1716.782 -994.903,1693.32C-968.099,1669.859 -954.698,1637.081 -954.698,1594.989L-954.698,1172.599L-950.562,1172.599L-391.786,1650.357C-362.559,1675.858 -335.901,1695.259 -311.811,1708.56C-287.721,1721.862 -255.689,1728.513 -215.715,1728.513C-169.344,1728.513 -134.006,1718.812 -109.7,1699.411C-85.395,1680.01 -73.716,1655.621 -74.664,1626.243C-75.612,1596.866 -92.066,1568.516 -124.028,1541.195L-637.783,1095.693L-151.683,691.69C-124.804,669.13 -109.964,644.281 -107.164,617.144C-104.365,590.007 -113.631,566.282 -134.964,545.971C-156.297,525.66 -191.043,515.504 -239.202,515.504C-271.961,515.504 -301.204,520.86 -326.931,531.571C-352.657,542.282 -377.41,557.833 -401.187,578.223L-950.562,1045.795L-954.698,1045.795L-954.698,647.348C-954.698,604.135 -968.444,571.27 -995.937,548.754C-1023.43,526.237 -1063.076,514.979 -1114.874,514.979C-1166.672,514.979 -1206.426,526.237 -1234.134,548.754C-1261.842,571.27 -1275.697,604.135 -1275.697,647.348L-1275.697,1594.989C-1275.697,1637.081 -1261.842,1669.859 -1234.134,1693.32C-1206.426,1716.782 -1166.672,1728.513 -1114.874,1728.513Z" /></group></vector>
+<!-- The app icon, redrawn from assets/brand/Kino.icon so it stays readable on
+     any launcher or settings background. Both numbers here were measured off
+     the Icon Composer export rather than guessed: the outline is a superellipse
+     of degree 2.5 with a 322 corner, not the circular arc a rounded rect gives,
+     and the glyph sits optically centred, which for a K means offset right. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt" android:width="80dp" android:height="80dp" android:viewportWidth="1024" android:viewportHeight="1024">
+    <path android:pathData="M322,0 L702,0 C923.4,0 1024,100.6 1024,322 L1024,702 C1024,923.4 923.4,1024 702,1024 L322,1024 C100.6,1024 0,923.4 0,702 L0,322 C0,100.6 100.6,0 322,0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="512" android:startY="0" android:endX="512" android:endY="1024">
+                <item android:offset="0" android:color="#2A2A2A" />
+                <item android:offset="1" android:color="#000000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <group android:scaleX="0.7737" android:scaleY="0.7737" android:translateX="213" android:translateY="222">
+        <path android:pathData="M0,750 L0,0 L256,0 L256,549 L191,494 L564,0 L834,0 L234,750 Z M360,405 L550,256 L844,750 L552,750 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="0" android:endY="750">
+                    <item android:offset="0" android:color="#FFFFFF" />
+                    <item android:offset="1" android:color="#D1D1D1" />
+                </gradient>
+            </aapt:attr>
+        </path>
+    </group>
+</vector>

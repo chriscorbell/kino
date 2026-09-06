@@ -83,6 +83,16 @@ Direct media uses the add-on's original HTTPS URL and required request headers i
 
 Community intro markers require an exact known runtime. `pnpm intro:check` exercises the bundled client against HTTP fixtures, `pnpm macos:check-intro` repeats the match and cancellation checks in Qt WebEngine, and `pnpm android:check` drives the real Media3 player and remote on the Shield.
 
+### Brand assets
+
+The Kino mark lives in [`assets/brand/`](assets/brand/). `Kino.icon` is the Icon Composer document the app icon is drawn in; `kino-app-icon.png` is its 1024 point export, and `kino-mark.svg` is the K on its own for surfaces that already supply a dark background. Both clients redraw the mark from that SVG rather than embedding a copy of the icon.
+
+Icon Composer exports art that fills its canvas edge to edge, which is what iOS wants and what makes a macOS icon sit larger than its neighbours in the Dock. `pnpm macos:icon` places that art on the macOS grid, 824 of a 1024 point canvas with the drop shadow the system does not draw for legacy icon resources, and writes `apps/macos-shell/resources/Kino.icns`. `pnpm macos:check-icon`, included in `pnpm check`, reads the committed icns back and fails if any variant is missing or has gone full bleed.
+
+Android TV draws `kino_mark` for the navigation rail and welcome screen, and `kino_icon` for `android:icon`, which carries the icon's background so it stays readable on any launcher. Both are vector drawables.
+
+The launcher banner is not, because Google asks for one raster per density bucket and the artwork carries shading a vector cannot reproduce. `pnpm android:banner` renders `kino-banner.svg` into `res/mipmap-*/kino_banner.png` at all five sizes, 160x90 through 640x360. The banner is opaque and full bleed with square corners: launchers apply their own rounding, and a baked-in corner shows through as a transparent notch. That renderer fails quietly, so `pnpm android:check-banner`, included in `pnpm check`, reads the pixels back and fails when a density is missing, is not fully opaque, or is blank where the mark or the wordmark belongs.
+
 ### Streaming engine
 
 Torrent sources play through a pinned build of the open [stream-server](https://github.com/stremio-native/stream-server) engine, which the shell starts on demand and binds to loopback. It is optional: without it Kino runs normally and reports torrent sources as unavailable. Build and bundle it with:
