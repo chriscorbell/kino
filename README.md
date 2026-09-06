@@ -89,7 +89,9 @@ The Kino mark lives in [`assets/brand/`](assets/brand/). `Kino.icon` is the Icon
 
 Icon Composer exports art that fills its canvas edge to edge, which is what iOS wants and what makes a macOS icon sit larger than its neighbours in the Dock. `pnpm macos:icon` places that art on the macOS grid, 824 of a 1024 point canvas with the drop shadow the system does not draw for legacy icon resources, and writes `apps/macos-shell/resources/Kino.icns`. `pnpm macos:check-icon`, included in `pnpm check`, reads the committed icns back and fails if any variant is missing or has gone full bleed.
 
-Android TV draws its own vectors: `kino_mark` for the navigation rail, welcome screen, and launcher banner, and `kino_icon` for `android:icon`, which carries the icon's background so it stays readable on any launcher. Google requires the banner to be a full-bleed 16:9 image with the app name in it; launchers apply their own corner rounding, so the asset keeps square corners.
+Android TV draws `kino_mark` for the navigation rail and welcome screen, and `kino_icon` for `android:icon`, which carries the icon's background so it stays readable on any launcher. Both are vector drawables.
+
+The launcher banner is not, because Google asks for one raster per density bucket and the artwork carries shading a vector cannot reproduce. `pnpm android:banner` renders `kino-banner.svg` into `res/mipmap-*/kino_banner.png` at all five sizes, 160x90 through 640x360. The banner is opaque and full bleed with square corners: launchers apply their own rounding, and a baked-in corner shows through as a transparent notch. That renderer fails quietly, so `pnpm android:check-banner`, included in `pnpm check`, reads the pixels back and fails when a density is missing, is not fully opaque, or is blank where the mark or the wordmark belongs.
 
 ### Streaming engine
 

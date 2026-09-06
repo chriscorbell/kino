@@ -7,7 +7,8 @@
 // regenerated or hand-replaced icon cannot quietly go full bleed again.
 
 import { readFileSync } from 'node:fs';
-import { inflateSync } from 'node:zlib';
+
+import { decodePng, opaqueBounds } from './test-support/png.mjs';
 
 const ICNS = new URL('../apps/macos-shell/resources/Kino.icns', import.meta.url);
 
@@ -45,76 +46,6 @@ function chunks(buffer) {
   return found;
 }
 
-// Enough of a PNG decoder to read the alpha channel of what CoreGraphics wrote:
-// 8 bit RGBA, no interlacing, which is all CGImageDestination produces here.
-// iconutil stores the two smallest variants as run length encoded ARGB instead,
-// which this returns null for; their presence is all this gate asserts.
-function alpha(png) {
-  if (png.toString('binary', 1, 4) !== 'PNG') return null;
-  let idat = [];
-  let width, height;
-  let offset = 8;
-  while (offset < png.length) {
-    const length = png.readUInt32BE(offset);
-    const type = png.toString('ascii', offset + 4, offset + 8);
-    const body = png.subarray(offset + 8, offset + 8 + length);
-    if (type === 'IHDR') {
-      width = body.readUInt32BE(0);
-      height = body.readUInt32BE(4);
-      if (body[8] !== 8 || body[9] !== 6 || body[12] !== 0)
-        throw new Error('expected a non-interlaced 8 bit RGBA PNG');
-    } else if (type === 'IDAT') idat.push(body);
-    offset += 12 + length;
-  }
-  const raw = inflateSync(Buffer.concat(idat));
-  const stride = width * 4;
-  const out = Buffer.alloc(width * height);
-  let previous = Buffer.alloc(stride);
-  let read = 0;
-  for (let y = 0; y < height; y += 1) {
-    const filter = raw[read];
-    read += 1;
-    const line = Buffer.from(raw.subarray(read, read + stride));
-    read += stride;
-    for (let i = 0; i < stride; i += 1) {
-      const a = i >= 4 ? line[i - 4] : 0;
-      const b = previous[i];
-      const c = i >= 4 ? previous[i - 4] : 0;
-      if (filter === 1) line[i] = (line[i] + a) & 0xff;
-      else if (filter === 2) line[i] = (line[i] + b) & 0xff;
-      else if (filter === 3) line[i] = (line[i] + ((a + b) >> 1)) & 0xff;
-      else if (filter === 4) {
-        const p = a + b - c;
-        const pa = Math.abs(p - a);
-        const pb = Math.abs(p - b);
-        const pc = Math.abs(p - c);
-        line[i] = (line[i] + (pa <= pb && pa <= pc ? a : pb <= pc ? b : c)) & 0xff;
-      }
-    }
-    for (let x = 0; x < width; x += 1) out[y * width + x] = line[x * 4 + 3];
-    previous = line;
-  }
-  return { width, height, out };
-}
-
-// The opaque shape, ignoring the drop shadow that fades out around it.
-function shape({ width, height, out }) {
-  let left = width;
-  let top = height;
-  let right = -1;
-  let bottom = -1;
-  for (let y = 0; y < height; y += 1)
-    for (let x = 0; x < width; x += 1)
-      if (out[y * width + x] >= 250) {
-        if (x < left) left = x;
-        if (x > right) right = x;
-        if (y < top) top = y;
-        if (y > bottom) bottom = y;
-      }
-  if (right < 0) throw new Error('variant is fully transparent');
-  return { left, top, right, bottom, width: right - left + 1, height: bottom - top + 1 };
-}
-
 const failures = [];
 const icns = chunks(readFileSync(ICNS));
 
@@ -124,13 +55,15 @@ for (const [type, size] of Object.entries(VARIANTS)) {
     failures.push(`${type} (${size}px) is missing from the icns`);
     continue;
   }
-  const image = alpha(png);
-  if (!image) continue;
+  // iconutil stores the two smallest variants as run length encoded ARGB rather
+  // than PNG; their presence is all this gate asserts.
+  if (png.toString('binary', 1, 4) !== 'PNG') continue;
+  const image = decodePng(png);
   if (image.width !== size || image.height !== size) {
     failures.push(`${type} is ${image.width}x${image.height}, expected ${size}x${size}`);
     continue;
   }
-  const box = shape(image);
+  const box = opaqueBounds(image);
   const covered = box.width / size;
   if (Math.abs(covered - GRID) > TOLERANCE)
     failures.push(
