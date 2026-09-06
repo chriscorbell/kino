@@ -5,6 +5,7 @@ import { defaultSettings } from '../settings';
 import { SettingsScreen } from './SettingsScreen';
 
 const fixture = vi.hoisted(() => ({
+  connectPlayer: vi.fn().mockResolvedValue(null),
   diagnostics: {
     cacheBytes: vi.fn().mockResolvedValue(0),
     clearCache: vi.fn(),
@@ -16,11 +17,21 @@ const fixture = vi.hoisted(() => ({
 vi.mock('../native/player', () => ({
   nativeShellPresent: () => true,
   connectNativeDiagnostics: async () => fixture.diagnostics,
+  connectNativePlayer: fixture.connectPlayer,
 }));
-vi.mock('../components/EngineSettings', () => ({ EngineSettings: () => null }));
 vi.mock('../core/context', () => ({ useCore: () => ({ transport: null }) }));
 vi.mock('../core/useCoreModel', () => ({ useCoreModel: () => ({ state: null }) }));
 beforeEach(() => vi.clearAllMocks());
+
+it('offers storage controls without torrent configuration or starting the engine', async () => {
+  render(<SettingsScreen settings={defaultSettings} onChange={vi.fn()} />);
+  expect(screen.getByRole('button', { name: /Clear cache/ })).toBeEnabled();
+  expect(screen.queryByRole('heading', { name: 'Torrent streaming' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('switch', { name: 'Seeding' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('combobox', { name: 'Download limit' })).not.toBeInTheDocument();
+  await waitFor(() => expect(fixture.diagnostics.cacheBytes).toHaveBeenCalled());
+  expect(fixture.connectPlayer).not.toHaveBeenCalled();
+});
 
 it('copies diagnostics only on request and announces completion', async () => {
   let finish!: (value: boolean) => void;

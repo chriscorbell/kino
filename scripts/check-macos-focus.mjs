@@ -123,6 +123,13 @@ try {
   await key('Enter', 'Enter', 13);
   await until(() => evaluate(`document.activeElement?.tagName === 'H1'`), 'Settings heading focus');
   assert.equal((await evaluate(focus)).outline, 'none', 'Navigation must not outline the heading');
+  assert.equal(
+    await evaluate(
+      `Array.from(document.querySelectorAll('main h2, main label, main button')).some(el => /^(Torrent streaming|Seeding|Download limit)$/.test(el.textContent.trim()))`,
+    ),
+    false,
+    'Settings must not offer torrent configuration',
+  );
   await key('Tab', 'Tab', 9);
   assert.equal((await evaluate(focus)).outline, 'solid', 'Tab must visibly focus a control');
   await evaluate(`document.querySelector('a[href="#main-content"]').focus()`);
