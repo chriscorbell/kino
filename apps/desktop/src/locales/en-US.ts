@@ -360,7 +360,7 @@ export const enUS = {
     enterFullscreen: 'Enter fullscreen',
     exitFullscreen: 'Exit fullscreen',
     fullscreenFailed: 'Fullscreen could not be changed. Try again.',
-    saveFailed: 'Progress could not be saved. Try closing playback again.',
+    saveFailed: 'Progress could not be saved. Try again.',
     savingProgress: 'Saving progress…',
     upNext: 'Up Next',
     chooseSource: 'Choose source',

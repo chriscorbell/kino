@@ -296,7 +296,11 @@ fun createTvPlayer(
  * `requestFocus()` call made while the view is still detached does nothing, so focus is claimed
  * once the view reaches a window instead.
  */
-fun tvPlayerView(context: Context, player: Player): PlayerView =
+fun tvPlayerView(
+    context: Context,
+    player: Player,
+    retainExternalFocus: () -> Boolean = { false },
+): PlayerView =
     PlayerView(context).apply {
         this.player = player
         subtitleView?.apply {
@@ -327,7 +331,7 @@ fun tvPlayerView(context: Context, player: Player): PlayerView =
         // on every hide is what keeps the next remote press revealing them.
         setControllerVisibilityListener(
             PlayerView.ControllerVisibilityListener { visibility ->
-                if (visibility != View.VISIBLE) post { requestFocus() }
+                if (visibility != View.VISIBLE) post { if (!retainExternalFocus()) requestFocus() }
             }
         )
     }
@@ -339,11 +343,12 @@ fun FullscreenPlayer(
     core: TvCore,
     onExit: () -> Unit,
     onFailure: (Int) -> Unit,
+    onUpNext: (com.stremio.core.types.resource.Video) -> Unit,
 ) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val activity = context as ComponentActivity
-    val stereo = remember { stereoOutputPreferred(context) }
+    val stereo = remember(source) { stereoOutputPreferred(context) }
     val renderers = remember(source) { HardwareRenderers(context, stereo) }
     val player =
         remember(source) {
@@ -360,6 +365,16 @@ fun FullscreenPlayer(
             )
         }
     val session = remember(player) { MediaSession.Builder(context, player).build() }
+    val upNext = remember(player) { kinoSettings(context).getBoolean("up_next", true) }
+    val coreState by core.state.collectAsState()
+    var position by remember(player) { mutableLongStateOf(0L) }
+    var duration by remember(player) { mutableLongStateOf(C.TIME_UNSET) }
+    var ended by remember(player) { mutableStateOf(false) }
+    fun updateEnding() {
+        position = player.currentPosition
+        duration = player.duration
+        ended = player.playbackState == Player.STATE_ENDED
+    }
     val trackSelection =
         remember(player, media.type, media.id) {
             val settings = kinoSettings(context)
@@ -382,9 +397,10 @@ fun FullscreenPlayer(
         }
     val presented =
         remember(player, trackSelection) { TvPresentationPlayer(player, trackSelection::select) }
-    var view by remember { mutableStateOf<PlayerView?>(null) }
+    var view by remember(player) { mutableStateOf<PlayerView?>(null) }
     val currentExit by rememberUpdatedState(onExit)
     val currentFailure by rememberUpdatedState(onFailure)
+    val currentUpNext by rememberUpdatedState(onUpNext)
     val shutdown = remember(player) { TvPlaybackShutdown(player, core) }
     val scope = remember(player) { CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) }
     var closed by remember(player) { mutableStateOf(false) }
@@ -394,10 +410,11 @@ fun FullscreenPlayer(
     var closeTask by remember(player) { mutableStateOf<Job?>(null) }
     var departure by remember(player) { mutableStateOf<(() -> Unit)?>(null) }
     var resumeApplied by remember(player) { mutableStateOf(false) }
-    fun close(error: Int? = null) {
+    fun close(error: Int? = null, destination: (() -> Unit)? = null) {
         if (closed || closing) return
         if (departure == null)
-            departure = { if (error == null) currentExit() else currentFailure(error) }
+            departure =
+                destination ?: { if (error == null) currentExit() else currentFailure(error) }
         closing = true
         view?.useController = false
         closeTask =
@@ -431,6 +448,12 @@ fun FullscreenPlayer(
                 core.progress(player.currentPosition, player.duration, !player.isPlaying)
         }
     }
+    LaunchedEffect(player, closing, closed, saveFailed) {
+        while (!closing && !closed && !saveFailed) {
+            updateEnding()
+            delay(100)
+        }
+    }
     DisposableEffect(player) {
         val listener =
             object : Player.Listener {
@@ -439,6 +462,7 @@ fun FullscreenPlayer(
                     newPosition: Player.PositionInfo,
                     reason: Int,
                 ) {
+                    updateEnding()
                     if (
                         !closing &&
                             !closed &&
@@ -449,6 +473,7 @@ fun FullscreenPlayer(
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
+                    updateEnding()
                     if (playbackState == Player.STATE_READY && !resumeApplied) {
                         if (!player.currentTracks.isTypeSelected(C.TRACK_TYPE_VIDEO)) {
                             close(renderers.unsupportedReason)
@@ -459,9 +484,14 @@ fun FullscreenPlayer(
                         if (resume > 0 && resume < player.duration) player.seekTo(resume)
                         Log.i("KinoPlayer", "Playback ready")
                     }
-                    if (playbackState == Player.STATE_ENDED)
-                        close(if (resumeApplied) null else renderers.unsupportedReason)
+                    if (playbackState == Player.STATE_ENDED) {
+                        if (!resumeApplied) close(renderers.unsupportedReason)
+                        else if (!upNext || media.type != "series" || coreState.nextVideo == null)
+                            close()
+                    }
                 }
+
+                override fun onTimelineChanged(timeline: Timeline, reason: Int) = updateEnding()
 
                 override fun onTracksChanged(tracks: Tracks) {
                     logAudioTracks(tracks)
@@ -568,10 +598,41 @@ fun FullscreenPlayer(
         }
     }
     Box(Modifier.fillMaxSize()) {
-        AndroidView(
-            factory = { tvPlayerView(it, presented).also { created -> view = created } },
-            modifier = Modifier.fillMaxSize(),
-        )
+        val next =
+            coreState.nextVideo.takeIf {
+                upNext &&
+                    media.type == "series" &&
+                    !closing &&
+                    !closed &&
+                    !saveFailed &&
+                    (ended ||
+                        (duration > 0 && position >= duration - minOf(120_000L, duration / 10)))
+            }
+        key(player) {
+            AndroidView(
+                factory = {
+                    TvPlayerLayout(it, presented).also { created -> view = created.playerView }
+                },
+                update = { layout ->
+                    layout.showUpNext(
+                        next?.let {
+                            it.title?.takeIf(String::isNotBlank)
+                                ?: it.seriesInfo?.let { series ->
+                                    context.getString(
+                                        R.string.season_episode,
+                                        series.season,
+                                        series.episode,
+                                    )
+                                }
+                                ?: context.getString(R.string.episode)
+                        }
+                    ) {
+                        if (next != null) close(destination = { currentUpNext(next) })
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
         if (closing) {
             Box(
                 Modifier.fillMaxSize().background(Background.copy(alpha = .8f)),

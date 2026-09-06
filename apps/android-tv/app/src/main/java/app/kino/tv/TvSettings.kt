@@ -128,9 +128,11 @@ internal fun SettingsScreen(
     val scope = rememberCoroutineScope()
     var stereo by remember { mutableStateOf(stereoOutputPreferred(context)) }
     var subtitles by remember { mutableStateOf(settings.getBoolean("subtitles", false)) }
+    var upNext by remember { mutableStateOf(settings.getBoolean("up_next", true)) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         stereo = stereoOutputPreferred(context)
         subtitles = settings.getBoolean("subtitles", false)
+        upNext = settings.getBoolean("up_next", true)
     }
     var languageDialog by remember { mutableStateOf<Boolean?>(null) }
     val audioFocus = remember { FocusRequester() }
@@ -193,6 +195,23 @@ internal fun SettingsScreen(
         }
         item { SettingRow(R.string.view_addons, onClick = onAddons) }
         item { SettingsHeading(R.string.playback) }
+        item {
+            SettingRow(
+                R.string.up_next,
+                stringResource(if (upNext) R.string.settings_on else R.string.settings_off),
+                description = stringResource(R.string.up_next_description),
+            ) {
+                val next = !upNext
+                save {
+                    val stored =
+                        withContext(Dispatchers.IO) {
+                            settings.edit().putBoolean("up_next", next).commit()
+                        }
+                    if (stored) upNext = next
+                    stored
+                }
+            }
+        }
         item {
             SettingRow(
                 R.string.audio_output,

@@ -206,6 +206,13 @@ fun KinoApp(
                             playing = null
                             playbackError = error
                         },
+                        onUpNext = { next ->
+                            playing = null
+                            resumePending = false
+                            playbackError = null
+                            videoId = next.id
+                            core.open(selected!!, next.id)
+                        },
                     )
                 !state.ready ->
                     CenterMessage(
