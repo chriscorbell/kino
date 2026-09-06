@@ -53,6 +53,8 @@ Audio preferences start with the Stremio profile language and may be overridden 
 
 Kino supports embedded and external SRT, WebVTT, ASS, SSA, and PGS subtitles. The player exposes track selection, delay, size, and vertical position. Subtitle language begins with the Stremio preference, while enabled state and device overrides are remembered locally.
 
+Explicit audio and subtitle choices, including subtitle Off, are remembered on the current device per movie or show. Later episodes inherit the show's choice. A replacement source reuses it when the language, codec, and track variant match; an absent track falls back to the Settings preferences. Automatic choices do not overwrite a remembered choice. Track choices do not sync through the Stremio profile.
+
 Text subtitles render as white glyphs with a black outline over the video. Nothing is filled behind them: no caption background, no window, and no drop shadow, whether the fill comes from Kino, a player default, or the device's own caption settings. ASS and SSA keep their positions, fonts, sizes, text colours, and italics, but an authored opaque box does not survive. On desktop, libmpv pins the caption colours and replaces `BorderStyle: 3` and the box and shadow colours through style overrides. On TV, Media3 renders with an explicit outline style, and Kino strips window colours and background spans from each cue before the player view draws it.
 
 PGS and other bitmap subtitles are images. Any background they contain is part of those pixels, so no text style setting removes it, and Kino does not claim otherwise.

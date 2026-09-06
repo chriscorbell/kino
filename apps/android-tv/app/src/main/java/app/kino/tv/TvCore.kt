@@ -74,6 +74,8 @@ data class TvState(
     val continueWatching: List<Media> = emptyList(),
     val details: Details = Details(),
     val signedIn: Boolean = false,
+    val audioLanguage: String? = null,
+    val subtitleLanguage: String? = null,
     val addons: List<String> = emptyList(),
     val link: String? = null,
     val qrCode: String? = null,
@@ -367,6 +369,8 @@ class TvCore(context: Context, profile: String = "guest") {
                     library = library(Field.LIBRARY),
                     continueWatching = library(Field.CONTINUE_WATCHING),
                     signedIn = signedIn,
+                    audioLanguage = profile.settings.audioLanguage,
+                    subtitleLanguage = profile.settings.subtitlesLanguage,
                     addons =
                         Core.getState<AddonsWithFilters>(Field.ADDONS)
                             .catalog
