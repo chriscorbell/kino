@@ -145,5 +145,6 @@ The collector reads installed npm, Cargo, and Homebrew packages without network 
 - [Validation gates](docs/RISKS.md)
 - [Domain glossary](CONTEXT.md)
 - [Architecture decisions](docs/adr)
+- [Agent guide](AGENTS.md)
 
 The original UI mockup and logo are preserved in [`mockup/`](mockup/).
