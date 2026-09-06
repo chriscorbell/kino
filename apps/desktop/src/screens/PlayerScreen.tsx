@@ -195,7 +195,9 @@ export function PlayerScreen({
   const nativeLoadReadyRef = useRef(false);
   const [nativeReadyVersion, setNativeReadyVersion] = useState(0);
   const trackChoicesRef = useRef<TitleTrackChoices>({});
-  const addedAddonSubtitlesRef = useRef<AddonSubtitle[]>([]);
+  const addedAddonSubtitlesRef = useRef(new Map<number, AddonSubtitle>());
+  const pendingAddonSubtitlesRef = useRef<AddonSubtitle[]>([]);
+  const knownSubtitleIdsRef = useRef(new Set<number>());
   const subtitleDefaults = useEffectEvent(() => ({
     enabled: settings.subtitles,
     language: preferredSubtitleLanguage,
@@ -461,11 +463,7 @@ export function PlayerScreen({
     if (!nativePlayer) return;
     subtitleAutoDoneRef.current = true;
     const track = subtitleTracks.find((candidate) => candidate.id === id);
-    const addon = track?.external
-      ? addedAddonSubtitlesRef.current.find(
-          (subtitle) => addonSubtitleLabel(subtitle) === track.title,
-        )
-      : undefined;
+    const addon = track?.external ? addedAddonSubtitlesRef.current.get(track.id) : undefined;
     if (id === null || track) {
       saveTitleTrackChoice(selection.meta, {
         subtitle:
@@ -488,7 +486,7 @@ export function PlayerScreen({
     saveTitleTrackChoice(selection.meta, {
       subtitle: describeAddonSubtitle(subtitle, addonSubtitles),
     });
-    addedAddonSubtitlesRef.current.push(subtitle);
+    pendingAddonSubtitlesRef.current.push(subtitle);
     setAddedSubtitleUrls((previous) => new Set(previous).add(subtitle.url));
     nativePlayer.addSubtitles(subtitle.url, addonSubtitleLabel(subtitle), subtitle.lang);
     setSubtitleMenuOpen(false);
@@ -618,10 +616,44 @@ export function PlayerScreen({
       id: selection.meta.id,
       type: selection.meta.type,
     });
-    addedAddonSubtitlesRef.current = [];
+    addedAddonSubtitlesRef.current = new Map();
+    pendingAddonSubtitlesRef.current = [];
+    knownSubtitleIdsRef.current = new Set();
     let starting = true;
     closingRef.current = false;
     videoParamsReportedRef.current = false;
+    let availableAudio: AudioTrack[] = [];
+    let availableSubtitles: SubtitleTrack[] = [];
+    const restoreTracks = () => {
+      // Switching tracks while mpv initializes its decoders can prevent the
+      // first frame from arriving. Apply overrides after playback is ready.
+      if (!nativeLoadReadyRef.current) return;
+      if (!audioAutoDoneRef.current && availableAudio.length > 0) {
+        audioAutoDoneRef.current = true;
+        const track = rememberedTrack(availableAudio, trackChoicesRef.current.audio);
+        if (track) nativePlayer.setAudioTrack(track.id);
+      }
+      if (subtitleAutoDoneRef.current) return;
+      const choice = trackChoicesRef.current.subtitle;
+      if (choice?.kind === 'off') {
+        subtitleAutoDoneRef.current = true;
+        nativePlayer.setSubtitleTrack(0);
+      } else if (availableSubtitles.length > 0 && !subtitleFallbackDoneRef.current) {
+        subtitleFallbackDoneRef.current = true;
+        // Add-on snapshots may arrive later. Keep their restoration pending
+        // while using the ordinary embedded subtitle defaults.
+        subtitleAutoDoneRef.current = choice?.kind !== 'addon';
+        const remembered = rememberedTrack(
+          availableSubtitles,
+          choice?.kind === 'track' ? choice : undefined,
+        );
+        const defaults = subtitleDefaults();
+        const track =
+          remembered ??
+          (defaults.enabled ? preferredSubtitleTrack(availableSubtitles, defaults.language) : null);
+        if (track) nativePlayer.setSubtitleTrack(track.id);
+      }
+    };
     const onEvent = (name: string, payload: Record<string, unknown>) => {
       if (closingRef.current) return;
       if (name === 'time' && typeof payload.milliseconds === 'number') {
@@ -653,43 +685,32 @@ export function PlayerScreen({
         setBuffering(payload.active);
       } else if (name === 'ready') {
         nativeLoadReadyRef.current = true;
+        restoreTracks();
         setNativeReadyVersion((version) => version + 1);
         setBuffering(false);
         reportMediaReady();
       } else if (name === 'chapters') {
         setChapterCues(nativeChapterCues(payload.items));
       } else if (name === 'audioTracks') {
-        const tracks = parseAudioTracks(payload.items);
-        setAudioTracks(tracks);
-        if (!audioAutoDoneRef.current && tracks.length > 0) {
-          audioAutoDoneRef.current = true;
-          const track = rememberedTrack(tracks, trackChoicesRef.current.audio);
-          if (track) nativePlayer.setAudioTrack(track.id);
-        }
+        availableAudio = parseAudioTracks(payload.items);
+        setAudioTracks(availableAudio);
+        restoreTracks();
       } else if (name === 'subtitleTracks') {
         const tracks = parseSubtitleTracks(payload.items);
-        setSubtitleTracks(tracks);
-        if (!subtitleAutoDoneRef.current) {
-          const choice = trackChoicesRef.current.subtitle;
-          if (choice?.kind === 'off') {
-            subtitleAutoDoneRef.current = true;
-            nativePlayer.setSubtitleTrack(0);
-          } else if (tracks.length > 0 && !subtitleFallbackDoneRef.current) {
-            subtitleFallbackDoneRef.current = true;
-            // Add-on subtitle snapshots can arrive after embedded tracks. Keep
-            // that restoration pending while using the ordinary defaults.
-            subtitleAutoDoneRef.current = choice?.kind !== 'addon';
-            const remembered = rememberedTrack(
-              tracks,
-              choice?.kind === 'track' ? choice : undefined,
-            );
-            const defaults = subtitleDefaults();
-            const track =
-              remembered ??
-              (defaults.enabled ? preferredSubtitleTrack(tracks, defaults.language) : null);
-            if (track) nativePlayer.setSubtitleTrack(track.id);
+        for (const track of tracks) {
+          if (!track.external || knownSubtitleIdsRef.current.has(track.id)) continue;
+          const index = pendingAddonSubtitlesRef.current.findIndex(
+            (subtitle) => addonSubtitleLabel(subtitle) === track.title,
+          );
+          if (index >= 0) {
+            const [subtitle] = pendingAddonSubtitlesRef.current.splice(index, 1);
+            addedAddonSubtitlesRef.current.set(track.id, subtitle!);
           }
         }
+        knownSubtitleIdsRef.current = new Set(tracks.map((track) => track.id));
+        availableSubtitles = tracks;
+        setSubtitleTracks(tracks);
+        restoreTracks();
       } else if (name === 'error') {
         setBuffering(false);
         setPaused(true);
@@ -757,7 +778,7 @@ export function PlayerScreen({
     const subtitle = rememberedAddonSubtitle(addonSubtitles, choice);
     if (!subtitle) return;
     subtitleAutoDoneRef.current = true;
-    addedAddonSubtitlesRef.current.push(subtitle);
+    pendingAddonSubtitlesRef.current.push(subtitle);
     setAddedSubtitleUrls((previous) => new Set(previous).add(subtitle.url));
     nativePlayer.addSubtitles(subtitle.url, addonSubtitleLabel(subtitle), subtitle.lang);
   }, [nativePlayer, addonSubtitles, streamUrl, nativeReadyVersion]);

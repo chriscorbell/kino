@@ -63,6 +63,17 @@ class TitleTrackSelectionTest {
                 "Automatic language selection must not create a remembered choice",
                 preferences.getString("tracks-v1:[\"movie\",\"other-title\"]", null),
             )
+            withPlayer("movie", "variants", "variant-tracks.mkv") { player ->
+                pick(player, C.TRACK_TYPE_AUDIO, "es")
+                pick(player, C.TRACK_TYPE_TEXT, "es")
+                selected(player, "es", "es", "Main")
+            }
+            withPlayer("movie", "variants", "reordered-variants.mkv") { player ->
+                selected(player, "es", "es", "Main")
+            }
+            withPlayer("movie", "variants", "missing-variant.mkv") { player ->
+                selected(player, "en", "en")
+            }
         } finally {
             preferences.edit().clear().commit()
         }
@@ -111,11 +122,12 @@ class TitleTrackSelectionTest {
 
     private fun normalized(format: Format) = Util.normalizeLanguageCode(format.language.orEmpty())
 
-    private fun selected(player: Player, audio: String, subtitle: String?) {
+    private fun selected(player: Player, audio: String, subtitle: String?, label: String? = null) {
         waitUntil("Expected audio=$audio and subtitle=$subtitle from the live player") {
             fun selectedLanguage(type: Int): String? {
                 for (group in player.currentTracks.groups.filter { it.type == type }) {
                     for (index in 0 until group.length) if (group.isTrackSelected(index)) {
+                        if (label != null && group.getTrackFormat(index).label != label) return null
                         return normalized(group.getTrackFormat(index))
                     }
                 }

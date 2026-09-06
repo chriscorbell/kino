@@ -20,10 +20,10 @@ generateTrackFixtures(ui);
 await withWebEngine(
   ui,
   '/src/test/browser/tracks.html',
-  async ({ evaluate, until }) => {
+  async ({ evaluate, until, requests }) => {
     await until(() => evaluate('window.kinoTrackProbe?.connected'), 'native track probe');
     await evaluate(
-      `for (const [type,id] of [['movie','track-movie'],['series','track-show'],['movie','different-title'],['series','addon-show']]) localStorage.removeItem('kino.tracks.v1:' + JSON.stringify([type,id]));`,
+      `for (const [type,id] of [['movie','track-movie'],['series','track-show'],['movie','different-title'],['series','addon-show'],['movie','variants']]) localStorage.removeItem('kino.tracks.v1:' + JSON.stringify([type,id]));`,
     );
     async function open(
       id,
@@ -43,19 +43,25 @@ await withWebEngine(
         await until(
           () =>
             evaluate(
-              'window.kinoTrackProbe.ready && window.kinoTrackProbe.audio.length === 2 && window.kinoTrackProbe.subtitles.length >= 2',
+              'window.kinoTrackProbe.ready && window.kinoTrackProbe.audio.length >= 2 && window.kinoTrackProbe.subtitles.length >= 2',
             ),
           'real media tracks',
         );
       } catch (error) {
-        console.log({
-          id,
-          episode,
-          file,
-          state: await evaluate(
-            '({ready:window.kinoTrackProbe.ready,audio:window.kinoTrackProbe.audio,subtitles:window.kinoTrackProbe.subtitles,body:document.body.innerText})',
+        console.log(
+          JSON.stringify(
+            {
+              id,
+              episode,
+              file,
+              state: await evaluate(
+                '({ready:window.kinoTrackProbe.ready,audio:window.kinoTrackProbe.audio,subtitles:window.kinoTrackProbe.subtitles,events:window.kinoTrackProbe.events,body:document.body.innerText})',
+              ),
+            },
+            null,
+            2,
           ),
-        });
+        );
         throw error;
       }
     }
@@ -97,12 +103,49 @@ await withWebEngine(
     }
     await open('different-title');
     await selected('eng', 'eng');
+    await open('variants', 0, 'variant-tracks.mkv');
+    await click('Audio tracks');
+    await click('Spanish · Main · AAC');
+    await click('Subtitles');
+    await click('Spanish · Main · SRT');
+    await selected('spa', 'spa');
+    await open('variants', 0, 'reordered-variants.mkv');
+    await selected('spa', 'spa');
+    await until(
+      () =>
+        evaluate(
+          "window.kinoTrackProbe.audio.some(t => t.selected && t.title === 'Main') && window.kinoTrackProbe.subtitles.some(t => t.selected && t.title === 'Main')",
+        ),
+      'the same named variants after reordering',
+    );
+    await open('variants', 0, 'missing-variant.mkv');
+    await selected('eng', 'eng');
     await open('addon-show', 1);
     await click('Subtitles');
     await click('Spanish');
     await selected('eng', 'spa', true);
+    await click('Subtitles');
+    await click('Spanish');
+    await until(
+      () => evaluate('window.kinoTrackProbe.subtitles.filter(t => t.external).length === 2'),
+      'two same-language external subtitles',
+    );
+    const secondId = await evaluate(
+      'window.kinoTrackProbe.subtitles.filter(t => t.external).at(-1).id',
+    );
+    await click('Subtitles');
+    await click('Off');
+    await click(`Spanish · SRT · Track ${secondId}`);
+    await selected('eng', 'spa', true);
+    assert.equal(
+      await evaluate(
+        "JSON.parse(localStorage.getItem('kino.tracks.v1:' + JSON.stringify(['series','addon-show']))).subtitle.id",
+      ),
+      'addon-1-second',
+    );
     await open('addon-show', 2, 'replacement-tracks.mkv', 'eng', false);
     await selected('eng', 'spa', true);
+    assert(requests.includes('/track-spa.srt?episode=2&variant=second'));
     assert.equal(await evaluate('window.kinoTrackProbe.audio.filter(t => t.selected).length'), 1);
     console.log(
       'Real mpv track choices survive movie/show reopening and source changes; missing tracks fall back, Off persists, and other titles keep defaults',

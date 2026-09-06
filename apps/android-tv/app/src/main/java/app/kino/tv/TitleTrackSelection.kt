@@ -75,6 +75,7 @@ internal class TitleTrackSelection(
         val label = choice.optString("label")
         val named = matching.filter { label.isNotEmpty() && it.format.label == label }
         if (named.size == 1) return named.single()
+        if (label.isNotEmpty() && matching.any { !it.format.label.isNullOrEmpty() }) return null
         return if (matching.size == count) matching.getOrNull(ordinal) else null
     }
 

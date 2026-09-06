@@ -15,6 +15,7 @@ const probe = {
   connected: false,
   closed: true,
   ready: false,
+  events: [] as unknown[],
   audio: [] as { id: number; lang?: string; selected: boolean }[],
   subtitles: [] as { id: number; lang?: string; selected: boolean; external?: boolean }[],
   open(id: string, episode = 0, file = 'two-tracks.mkv', language = 'eng', enabled = true) {
@@ -44,9 +45,14 @@ const probe = {
       stream: { type: 'Ready', content: stream },
       subtitles: [
         {
-          id: `addon-${episode}`,
+          id: `addon-${episode}-first`,
           lang: 'spa',
           url: `${location.origin}/track-spa.srt?episode=${episode}`,
+        },
+        {
+          id: `addon-${episode}-second`,
+          lang: 'spa',
+          url: `${location.origin}/track-spa.srt?episode=${episode}&variant=second`,
         },
       ],
     };
@@ -103,6 +109,10 @@ declare global {
 window.kinoTrackProbe = probe;
 const native = await connectNativePlayer();
 native!.playerEvent.connect((name, payload) => {
+  if (name !== 'time') {
+    probe.events.push({ name, payload });
+    probe.events = probe.events.slice(-50);
+  }
   if (name === 'ready') probe.ready = true;
   if (name === 'audioTracks') probe.audio = payload.items as typeof probe.audio;
   if (name === 'subtitleTracks') probe.subtitles = payload.items as typeof probe.subtitles;

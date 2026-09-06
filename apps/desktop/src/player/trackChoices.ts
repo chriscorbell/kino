@@ -72,6 +72,7 @@ export function rememberedTrack<T extends Track>(tracks: T[], choice: TrackChoic
     ? matching.filter((track) => normalized(track.title) === choice.title)
     : [];
   if (named.length === 1) return named[0];
+  if (choice.title && matching.some((track) => normalized(track.title))) return null;
   // A missing same-language variant must not silently select a commentary or
   // forced track just because its native ID happens to occupy the old slot.
   return matching.length === choice.count ? (matching[choice.ordinal] ?? null) : null;

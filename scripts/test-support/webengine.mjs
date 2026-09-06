@@ -7,7 +7,9 @@ import { extname, resolve, sep } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
 export async function withWebEngine(ui, entry, check, { native = false } = {}) {
+  const requests = [];
   const server = createServer(async (request, response) => {
+    requests.push(request.url);
     const path = resolve(ui, '.' + new URL(request.url, 'http://localhost').pathname);
     if (path !== ui && !path.startsWith(ui + sep)) return response.writeHead(403).end();
     try {
@@ -114,7 +116,7 @@ export async function withWebEngine(ui, entry, check, { native = false } = {}) {
       pending.get(message.id)?.(message);
       pending.delete(message.id);
     });
-    await check({ evaluate, key, command, until, origin });
+    await check({ evaluate, key, command, until, origin, requests });
   } finally {
     socket?.close();
     if (child && child.exitCode === null && child.signalCode === null) {
