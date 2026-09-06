@@ -12,6 +12,9 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.tv.material3.Text
+import com.stremio.core.Core
+import com.stremio.core.Field
+import com.stremio.core.models.MetaDetails
 import com.stremio.core.types.addon.ResourcePath
 import com.stremio.core.types.addon.ResourceRequest
 import com.stremio.core.types.resource.*
@@ -44,6 +47,38 @@ class SeasonNavigationTest {
                     externalPlayer = VideoDeepLinks.ExternalPlayerLink(),
                 ),
         )
+
+    @Test
+    fun librarySeriesBrowsesSeasonsWhileContinueWatchingLoadsItsSavedEpisode() {
+        val core = (context.applicationContext as KinoApplication).core
+        val series =
+            Media(
+                "season-entry-fixture",
+                "series",
+                "Entry fixture",
+                null,
+                videoId = "season-entry-fixture:2:1",
+                progress = 0.25,
+            )
+        instrumentation.runOnMainSync {
+            core.initialize()
+            assertNull(series.entryVideoId())
+            core.open(series)
+            assertNull(Core.getState<MetaDetails>(Field.META_DETAILS).selected?.streamPath)
+            val resume = series.copy(resume = true)
+            assertEquals(series.videoId, resume.entryVideoId())
+            core.open(resume)
+            assertEquals(
+                series.videoId,
+                Core.getState<MetaDetails>(Field.META_DETAILS).selected?.streamPath?.id,
+            )
+            core.open(series, "season-entry-fixture:2:2")
+            assertEquals(
+                "season-entry-fixture:2:2",
+                Core.getState<MetaDetails>(Field.META_DETAILS).selected?.streamPath?.id,
+            )
+        }
+    }
 
     @Test
     fun coreVideoProgressSelectsTheSeasonWithoutMixingSpecialsOrUpcomingEpisodes() {

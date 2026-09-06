@@ -183,7 +183,7 @@ fun KinoApp(
         savedDetails.removeState(detailEntry)
         detailEntry++
         selected = media
-        videoId = media.videoId ?: media.id.takeIf { media.type == "movie" }
+        videoId = media.entryVideoId()
         returnFocusKey = posterFocus.lastFocusedKey
         resumePending = media.resume
         playbackError = null

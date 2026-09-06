@@ -34,6 +34,9 @@ data class Media(
     val resume: Boolean = false,
 )
 
+internal fun Media.entryVideoId() =
+    if (resume) videoId ?: id.takeIf { type == "movie" } else id.takeIf { type == "movie" }
+
 data class Shelf(
     val id: String,
     val title: String,
@@ -160,7 +163,7 @@ class TvCore(context: Context, profile: String = "guest") {
         load(ActionLoad.Args.LibraryWithFilters(selected), Field.CONTINUE_WATCHING)
     }
 
-    fun open(media: Media, videoId: String? = media.videoId) {
+    fun open(media: Media, videoId: String? = media.entryVideoId()) {
         val selection =
             MetaDetails.Selected(
                 metaPath = ResourcePath("meta", media.type, media.id),
