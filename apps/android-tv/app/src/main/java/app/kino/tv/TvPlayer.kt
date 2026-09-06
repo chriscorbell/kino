@@ -9,6 +9,7 @@ import android.text.SpannableString
 import android.text.Spanned
 import android.text.style.BackgroundColorSpan
 import android.util.Log
+import android.view.View
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -236,6 +237,51 @@ fun createTvPlayer(
         .build()
 }
 
+/**
+ * The playback surface and its controls.
+ *
+ * The remote reveals hidden controls through [PlayerView.dispatchKeyEvent],
+ * which the view only receives while it holds Android focus. Compose owns focus
+ * inside an `AndroidView`, and a `requestFocus()` call made while the view is
+ * still detached does nothing, so focus is claimed once the view reaches a
+ * window instead.
+ */
+fun tvPlayerView(context: Context, player: Player): PlayerView =
+    PlayerView(context).apply {
+        this.player = player
+        subtitleView?.apply {
+            // Keep italics and the other authored text styling; only the fills
+            // are dropped, by the style and by the presentation.
+            setApplyEmbeddedStyles(true)
+            setStyle(outlinedCaptionStyle)
+        }
+        setShowSubtitleButton(true)
+        setShowNextButton(false)
+        setShowPreviousButton(false)
+        controllerShowTimeoutMs = 3500
+        keepScreenOn = false
+        isFocusable = true
+        addOnAttachStateChangeListener(
+            object : View.OnAttachStateChangeListener {
+                override fun onViewAttachedToWindow(attached: View) {
+                    // Focus is only grantable once the view has a window, and
+                    // the first layout pass has to land before it can take it.
+                    attached.post { attached.requestFocus() }
+                }
+
+                override fun onViewDetachedFromWindow(detached: View) = Unit
+            }
+        )
+        // Hiding the controls takes their focused button away with them, and
+        // Compose reclaims focus from the surrounding hierarchy. Taking it back
+        // on every hide is what keeps the next remote press revealing them.
+        setControllerVisibilityListener(
+            PlayerView.ControllerVisibilityListener { visibility ->
+                if (visibility != View.VISIBLE) post { requestFocus() }
+            }
+        )
+    }
+
 @Composable
 fun FullscreenPlayer(
     source: Source,
@@ -380,24 +426,7 @@ fun FullscreenPlayer(
         }
     }
     AndroidView(
-        factory = {
-            PlayerView(it).apply {
-                this.player = presented
-                subtitleView?.apply {
-                    // Keep italics and the other authored text styling; only the
-                    // fills are dropped, by the style and by the presentation.
-                    setApplyEmbeddedStyles(true)
-                    setStyle(outlinedCaptionStyle)
-                }
-                setShowSubtitleButton(true)
-                setShowNextButton(false)
-                setShowPreviousButton(false)
-                controllerShowTimeoutMs = 3500
-                keepScreenOn = false
-                requestFocus()
-                view = this
-            }
-        },
+        factory = { tvPlayerView(it, presented).also { created -> view = created } },
         modifier = Modifier.fillMaxSize(),
     )
 }
