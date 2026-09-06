@@ -240,6 +240,22 @@ QQuickFramebufferObject::Renderer *MpvItem::createRenderer() const {
     return new MpvRenderer(context_);
 }
 
+QVariantMap MpvItem::subtitleStyle() const {
+    static const char *const names[] = {
+        "sub-ass-override", "sub-ass-style-overrides", "sub-back-color",
+        "sub-blur",         "sub-border-style",        "sub-color",
+        "sub-outline-color", "sub-outline-size",       "sub-shadow-offset",
+    };
+    QVariantMap style;
+    for (const char *name : names) {
+        char *value = mpv_get_property_string(handle_, name);
+        if (!value) continue;
+        style.insert(QString::fromUtf8(name), QString::fromUtf8(value).trimmed());
+        mpv_free(value);
+    }
+    return style;
+}
+
 QString MpvItem::version() const {
     char *value = mpv_get_property_string(handle_, "mpv-version");
     if (!value) return QStringLiteral("Unavailable");
@@ -275,6 +291,26 @@ void MpvItem::initialize() {
         {"title", "Kino"},
         {"sid", "no"},
         {"sub-auto", "no"},
+        // Text subtitles render as outlined glyphs over the video. Pin every
+        // field the box could come back from: Kino's own style, a libmpv
+        // default, and the authored ASS/SSA styles libass would otherwise
+        // honour. "sub-shadow-color" is an alias for "sub-back-color", so a
+        // transparent back colour also removes the drop shadow.
+        {"sub-border-style", "outline-and-shadow"},
+        {"sub-color", "#FFFFFFFF"},
+        {"sub-outline-color", "#FF000000"},
+        {"sub-outline-size", "3"},
+        {"sub-back-color", "#00000000"},
+        {"sub-shadow-offset", "0"},
+        {"sub-blur", "0"},
+        // "scale" keeps authored positions, fonts, italics, and text colours.
+        // The style overrides replace only the fields that draw a box:
+        // BorderStyle 3 becomes an outline, and the box/shadow colour and the
+        // outline colour become transparent black and opaque black. ASS colours
+        // are &HAABBGGRR with 00 opaque, so &HFF000000& is fully transparent.
+        {"sub-ass-override", "scale"},
+        {"sub-ass-style-overrides",
+         "BorderStyle=1,Outline=3,Shadow=0,OutlineColour=&H00000000&,BackColour=&HFF000000&"},
     };
 
     for (const Option &option : options) {

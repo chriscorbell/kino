@@ -45,6 +45,49 @@ private slots:
         QCOMPARE(events.first().at(1).toMap().value("percent").toDouble(), 37.5);
     }
 
+    // The caption style must come from Kino, not from a libmpv default that
+    // could change, and it must survive a load, a track switch, and an
+    // external subtitle. Every value is read back from the live player.
+    static void verifyOutlinedSubtitles(const MpvItem &player, const char *stage) {
+        const QVariantMap style = player.subtitleStyle();
+        auto value = [&](const char *name) { return style.value(QLatin1String(name)).toString(); };
+        QVERIFY2(!style.isEmpty(), stage);
+        // Fully transparent alpha. libmpv also draws the shadow in this colour.
+        QCOMPARE(value("sub-back-color"), QStringLiteral("#00000000"));
+        QCOMPARE(value("sub-shadow-offset"), QStringLiteral("0.000000"));
+        QCOMPARE(value("sub-border-style"), QStringLiteral("outline-and-shadow"));
+        QCOMPARE(value("sub-color"), QStringLiteral("#FFFFFFFF"));
+        QCOMPARE(value("sub-outline-color"), QStringLiteral("#FF000000"));
+        QCOMPARE(value("sub-blur"), QStringLiteral("0.000000"));
+        QVERIFY2(value("sub-outline-size").toDouble() > 0, stage);
+        // Authored ASS/SSA styling keeps its positions, fonts, and italics.
+        QCOMPARE(value("sub-ass-override"), QStringLiteral("scale"));
+        const QString overrides = value("sub-ass-style-overrides");
+        // BorderStyle 3 draws an opaque box; 1 draws the requested outline.
+        QVERIFY2(overrides.contains(QStringLiteral("BorderStyle=1")), stage);
+        // ASS colours are &HAABBGGRR, so 00 is opaque and FF is transparent.
+        QVERIFY2(overrides.contains(QStringLiteral("BackColour=&HFF000000&")), stage);
+        QVERIFY2(overrides.contains(QStringLiteral("OutlineColour=&H00000000&")), stage);
+        QVERIFY2(overrides.contains(QStringLiteral("Shadow=0")), stage);
+    }
+
+    void subtitlesRenderOutlinedWithoutABox() {
+        MpvItem player;
+        verifyOutlinedSubtitles(player, "after initialization");
+
+        player.load(QStringLiteral("https://media.invalid/fixture.mkv"), false);
+        verifyOutlinedSubtitles(player, "after loading a source");
+
+        player.setSubtitleTrack(2);
+        player.setSubtitleScale(1.5);
+        player.setSubtitlePosition(90);
+        verifyOutlinedSubtitles(player, "after switching tracks");
+
+        player.addSubtitles(QStringLiteral("https://media.invalid/fixture.srt"),
+                            QStringLiteral("English"), QStringLiteral("en"));
+        verifyOutlinedSubtitles(player, "after adding external subtitles");
+    }
+
     void subtitleVariantMetadata_data() {
         QTest::addColumn<bool>("flag");
         QTest::newRow("variant") << true;

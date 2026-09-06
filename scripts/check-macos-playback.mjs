@@ -69,6 +69,21 @@ Style: Default,Arial,28,&H00FFFFFF,2
 Format: Layer, Start, End, Style, Text
 Dialogue: 0,0:00:00.50,0:00:04.00,Default,Kino styled subtitles
 `;
+// BorderStyle 3 is the authored opaque box the caption style has to replace
+// with an outline. BackColour paints that box, so it must not survive either.
+const boxedAssText = `[Script Info]
+ScriptType: v4.00+
+PlayResX: 640
+PlayResY: 360
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, BackColour, Italic, BorderStyle, Outline, Shadow, Alignment
+Style: Boxed,Arial,28,&H00FFFFFF,&H00000000,&H00000000,1,3,3,2,2
+
+[Events]
+Format: Layer, Start, End, Style, Text
+Dialogue: 0,0:00:00.50,0:00:04.00,Boxed,Kino boxed caption
+`;
 const vttText = `WEBVTT
 
 00:00.500 --> 00:04.000
@@ -109,6 +124,7 @@ function generateFixtures() {
   mkdirSync(fixturesDir, { recursive: true });
   const subsSrt = writeFixture('embedded.srt', srtText);
   const subsAss = writeFixture('embedded.ass', assText);
+  const subsBoxedAss = writeFixture('authored-box.ass', boxedAssText);
   const chaptersMeta = writeFixture('chapters.ffmeta', chapterMetadata);
 
   const h264 = encode('h264-sdr-aac.mp4', [
@@ -283,6 +299,30 @@ function generateFixtures() {
     '-c:s',
     'copy',
   ]);
+  encode('subs-authored-box.mkv', [
+    ...videoSource,
+    ...audioSource,
+    '-i',
+    subsBoxedAss,
+    '-map',
+    '0:v',
+    '-map',
+    '1:a',
+    '-map',
+    '2:s',
+    '-c:v',
+    'libx264',
+    '-preset',
+    'veryfast',
+    '-pix_fmt',
+    'yuv420p',
+    '-c:a',
+    'aac',
+    '-ac',
+    '2',
+    '-c:s',
+    'copy',
+  ]);
   encode('chapters-intro.mkv', [
     ...videoSource,
     ...audioSource,
@@ -329,19 +369,24 @@ const fixtures = [
   { file: 'h264-pcm.mkv', expect: { outcome: 'played' } },
   {
     file: 'subs-embedded.mkv',
-    expect: { outcome: 'played', subtitleCodecs: ['subrip', 'ass'] },
+    expect: { outcome: 'played', subtitleCodecs: ['subrip', 'ass'], outlinedSubtitles: true },
+  },
+  {
+    file: 'subs-authored-box.mkv',
+    note: 'authored ASS opaque box must render as an outline',
+    expect: { outcome: 'played', subtitleCodecs: ['ass'], outlinedSubtitles: true },
   },
   {
     file: 'h264-sdr-aac.mp4',
     label: 'external-srt',
     subtitles: 'external.srt',
-    expect: { outcome: 'played', externalSubtitle: true },
+    expect: { outcome: 'played', externalSubtitle: true, outlinedSubtitles: true },
   },
   {
     file: 'h264-sdr-aac.mp4',
     label: 'external-vtt',
     subtitles: 'external.vtt',
-    expect: { outcome: 'played', externalSubtitle: true },
+    expect: { outcome: 'played', externalSubtitle: true, outlinedSubtitles: true },
   },
   { file: 'chapters-intro.mkv', expect: { outcome: 'played', minChapters: 2 } },
   { file: 'corrupt.mp4', expect: { outcome: 'failed' } },
@@ -361,6 +406,49 @@ function runProbe(fixture) {
     return { failure: `no probe verdict (${detail})`, stderr: run.stderr };
   }
   return { result: JSON.parse(line.slice('KINO_PROBE_RESULT '.length)) };
+}
+
+// Text subtitles carry a black glyph outline and no filled background. The
+// style is read back from the live player, so a libmpv default change or an
+// authored ASS box would both fail here. Bitmap tracks such as PGS keep any
+// background baked into their images; no text style can remove those pixels.
+function outlinedSubtitleProblems(style) {
+  if (!style) return ['no caption style reported'];
+  const problems = [];
+  const transparent = (name) => {
+    const value = style[name] ?? '';
+    if (!/^#00[0-9a-f]{6}$/i.test(value))
+      problems.push(`${name} is ${value || 'unset'}, expected a fully transparent colour`);
+  };
+  const equals = (name, expected) => {
+    if (style[name] !== expected)
+      problems.push(`${name} is ${style[name] ?? 'unset'}, expected ${expected}`);
+  };
+  transparent('sub-back-color');
+  equals('sub-border-style', 'outline-and-shadow');
+  equals('sub-color', '#FFFFFFFF');
+  equals('sub-outline-color', '#FF000000');
+  if (!(Number(style['sub-outline-size']) > 0)) {
+    problems.push(
+      `sub-outline-size is ${style['sub-outline-size'] ?? 'unset'}, expected a visible outline`,
+    );
+  }
+  if (Number(style['sub-shadow-offset']) !== 0) {
+    problems.push(`sub-shadow-offset is ${style['sub-shadow-offset'] ?? 'unset'}, expected 0`);
+  }
+  // Authored ASS/SSA styling keeps its positions, fonts, and italics; only the
+  // fields that draw a box are replaced.
+  equals('sub-ass-override', 'scale');
+  const overrides = style['sub-ass-style-overrides'] ?? '';
+  for (const field of [
+    'BorderStyle=1',
+    'Shadow=0',
+    'OutlineColour=&H00000000&',
+    'BackColour=&HFF000000&',
+  ]) {
+    if (!overrides.includes(field)) problems.push(`sub-ass-style-overrides is missing ${field}`);
+  }
+  return problems;
 }
 
 function assertExpectations(fixture, result) {
@@ -386,6 +474,7 @@ function assertExpectations(fixture, result) {
   if (expect.externalSubtitle && !(result.subtitleTracks ?? []).some((track) => track.external)) {
     problems.push('no external subtitle track appeared');
   }
+  if (expect.outlinedSubtitles) problems.push(...outlinedSubtitleProblems(result.subtitleStyle));
   return problems;
 }
 

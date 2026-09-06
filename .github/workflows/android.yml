@@ -38,7 +38,17 @@ jobs:
           distribution: temurin
           java-version: '21'
       - name: Install the pinned Android toolchain
-        run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0' 'ndk;29.0.14206865'
+        # The runner image ships the SDK under ANDROID_HOME but leaves the
+        # command-line tools off PATH, so resolve sdkmanager before using it.
+        run: |
+          tools="$ANDROID_HOME/cmdline-tools/latest/bin"
+          if [ ! -x "$tools/sdkmanager" ]; then
+            tools="$(dirname "$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | sort -V | tail -1)")"
+          fi
+          test -x "$tools/sdkmanager"
+          yes | "$tools/sdkmanager" --licenses > /dev/null
+          "$tools/sdkmanager" 'platforms;android-36' 'build-tools;35.0.0' 'ndk;29.0.14206865'
+          echo "$tools" >> "$GITHUB_PATH"
       - name: Build Core, compile instrumentation, and lint
         run: python3 scripts/build-android.py :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

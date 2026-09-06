@@ -23,6 +23,7 @@ public:
     ~MpvItem() override;
 
     bool active() const;
+    QVariantMap subtitleStyle() const;
     QString version() const;
     Renderer *createRenderer() const override;
 

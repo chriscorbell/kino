@@ -68,8 +68,15 @@ void PlaybackProbe::onPlayerEvent(const QString &name, const QVariantMap &payloa
             subtitleTracks_.append(QJsonObject{
                 {QStringLiteral("codec"), track.value(QStringLiteral("codec")).toString()},
                 {QStringLiteral("external"), track.value(QStringLiteral("external")).toBool()},
+                {QStringLiteral("id"), track.value(QStringLiteral("id")).toLongLong()},
                 {QStringLiteral("lang"), track.value(QStringLiteral("lang")).toString()},
             });
+        }
+        // Selecting a track makes libass build the renderer, so the reported
+        // caption style reflects a session that actually drew subtitles.
+        if (!items.isEmpty() && !subtitleSelected_) {
+            subtitleSelected_ = true;
+            player_->setSubtitleTrack(items.first().toMap().value(QStringLiteral("id")).toInt());
         }
     } else if (name == QLatin1String("ready")) {
         if (!subtitlesPath_.isEmpty() && !subtitlesAdded_) {
@@ -96,11 +103,19 @@ void PlaybackProbe::finish(const QString &outcome, const QString &errorCode) {
     }
     finished_ = true;
     timeout_.stop();
+    // Read the caption style from the live player before it stops, so the
+    // fixture gate sees what libmpv actually held during playback.
+    QJsonObject subtitleStyle;
+    const QVariantMap style = player_->subtitleStyle();
+    for (auto field = style.cbegin(); field != style.cend(); ++field) {
+        subtitleStyle.insert(field.key(), field.value().toString());
+    }
     player_->stop();
 
     QJsonObject result{
         {QStringLiteral("chapters"), chapterCount_},
         {QStringLiteral("outcome"), outcome},
+        {QStringLiteral("subtitleStyle"), subtitleStyle},
         {QStringLiteral("subtitleTracks"), subtitleTracks_},
         {QStringLiteral("timeMs"), timeMs_},
     };
