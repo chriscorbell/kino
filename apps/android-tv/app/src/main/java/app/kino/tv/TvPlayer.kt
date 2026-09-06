@@ -362,7 +362,7 @@ fun FullscreenPlayer(
     val session = remember(player) { MediaSession.Builder(context, player).build() }
     val trackSelection =
         remember(player, media.type, media.id) {
-            val settings = context.getSharedPreferences("kino", Context.MODE_PRIVATE)
+            val settings = kinoSettings(context)
             val languages = core.state.value
             TitleTrackSelection(
                 player,
@@ -627,8 +627,7 @@ private fun logAudioTracks(tracks: Tracks) {
 
 /** The device-local Kino audio output setting: "stereo" or the default "auto". */
 fun stereoOutputPreferred(context: Context): Boolean =
-    context.getSharedPreferences("kino", Context.MODE_PRIVATE).getString("audio_output", "auto") ==
-        "stereo"
+    kinoSettings(context).getString("audio_output", "auto") == "stereo"
 
 @Composable
 internal fun PendingPlaybackSaveDialog(core: TvCore) {

@@ -179,6 +179,28 @@ export const enUS = {
     upNextDescription: 'Offer the next episode near the ending',
     languages: 'Languages',
     languagesNote: 'Language preferences come from your Stremio profile and sync across devices.',
+    tvLanguagesNote:
+      'Defaults for new playback in this profile on this TV. Remembered track choices take precedence.',
+    tvCacheDescription: 'Cached artwork for this profile. Artwork loads again when needed.',
+    on: 'On',
+    off: 'Off',
+    default: 'Default',
+    unavailable: 'Unavailable',
+    savingPreference: 'Saving preference…',
+    preferenceFailed: 'The preference could not be saved. Try again.',
+    tvDiagnosticSummary: (
+      version: string,
+      build: number,
+      android: string,
+      api: number,
+      abi: string,
+      core: string,
+      media3: string,
+      ffmpeg: string,
+      audio: string,
+    ) =>
+      `Kino: ${version} (build ${build})\nAndroid: ${android} (API ${api})\nABI: ${abi}\nStremio Core revision: ${core}\nMedia3: ${media3}\nFFmpeg audio: ${ffmpeg}\nVideo decoding: hardware only\nVideo output: SDR\nAudio output: ${audio}`,
+
     subtitleLanguage: 'Subtitle language',
     subtitleLanguageDescription: 'Preferred language when subtitles load automatically',
     audioLanguage: 'Audio language',

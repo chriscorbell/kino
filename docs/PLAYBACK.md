@@ -47,11 +47,11 @@ Audio output is a device-local setting:
 - **Auto**, the default, negotiates with the operating system and connected audio equipment. On TV it passes through lossless and object-based formats when the sink supports them; otherwise it decodes to compatible multichannel PCM or stereo. The Shield offers apps no decoder for AC-3, E-AC-3, DTS, or TrueHD, so when its surround setting or the sink rules out passthrough, Kino decodes those tracks with its bundled FFmpeg audio renderer, as recorded in [ADR 0019](adr/0019-decode-surround-audio-in-software-on-tv.md). A source with audio no renderer can play fails with a reason rather than playing silently.
 - **Stereo** always decodes and downmixes to two-channel PCM inside Kino.
 
-Audio preferences start with the Stremio profile language and may be overridden per device.
+Audio preferences start with the Stremio profile language and may be overridden per device. TV Settings updates the current local Core profile's language preference without replacing its other settings or sending a remote account-settings update. The next playback uses it unless a remembered movie or show track choice takes precedence. `SettingsTest` verifies durable language writes and actual fullscreen track selection on the Shield.
 
 ## Subtitles
 
-Kino supports embedded and external SRT, WebVTT, ASS, SSA, and PGS subtitles. The player exposes track selection, delay, size, and vertical position. Subtitle language begins with the Stremio preference, while enabled state and device overrides are remembered locally.
+Kino supports embedded and external SRT, WebVTT, ASS, SSA, and PGS subtitles. The player exposes track selection, delay, size, and vertical position. Subtitle language begins with the Stremio preference, while enabled state and device overrides are remembered locally. TV Settings offers subtitles on/off, off by default, and the preferred subtitle language; both apply to new playback. The Shield Settings and track checks cover these defaults and remembered subtitle Off.
 
 Explicit audio and subtitle choices, including subtitle Off, are remembered on the current device per movie or show. Later episodes inherit the show's choice. A replacement source reuses it when the language, codec, and track variant match; an absent track falls back to the Settings preferences. Automatic choices do not overwrite a remembered choice. Track choices do not sync through the Stremio profile.
 

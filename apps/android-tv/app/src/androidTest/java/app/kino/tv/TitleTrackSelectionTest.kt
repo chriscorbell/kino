@@ -21,7 +21,9 @@ class TitleTrackSelectionTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context = instrumentation.targetContext
     private val preferences =
-        context.getSharedPreferences("track-choice-instrumentation", Context.MODE_PRIVATE)
+        LocalKinoSettings(
+            context.getSharedPreferences("track-choice-instrumentation", Context.MODE_PRIVATE)
+        )
 
     @Test
     fun movieAndShowChoicesSurviveNewPlayersAndReplacementSources() {

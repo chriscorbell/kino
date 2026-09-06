@@ -2,7 +2,6 @@
 
 package app.kino.tv
 
-import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
@@ -92,7 +91,7 @@ fun KinoApp(
 ) {
     val state by core.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val preferences = remember { context.getSharedPreferences("kino", Context.MODE_PRIVATE) }
+    val preferences = remember { kinoSettings(context) }
     var entered by rememberSaveable { mutableStateOf(preferences.getBoolean("entered", false)) }
     val startup = startupScreen(state, accountProcess, entered)
     val linking = startup == StartupScreen.SignIn
@@ -268,7 +267,7 @@ fun KinoApp(
                                         "library" -> LibraryScreen(state.library, open)
                                         "addons" -> AddonsScreen(state.addons)
                                         else ->
-                                            SettingsScreen(state, onSignIn, onSignOut) {
+                                            SettingsScreen(core, state, onSignIn, onSignOut) {
                                                 navigate("addons")
                                             }
                                     }
@@ -1006,7 +1005,7 @@ internal fun SearchScreen(
 }
 
 @Composable
-private fun PageTitle(title: Int) {
+internal fun PageTitle(title: Int) {
     Text(
         stringResource(title),
         Modifier.padding(horizontal = PageGutter),
@@ -1146,133 +1145,6 @@ private fun AddonsScreen(addons: List<String>) {
                 }
                 Box(Modifier.fillMaxWidth().height(1.dp).background(KinoColors.BorderSubtle))
             }
-        }
-    }
-}
-
-@Composable
-private fun SettingsScreen(
-    state: TvState,
-    onSignIn: () -> Unit,
-    onSignOut: () -> Unit,
-    onAddons: () -> Unit,
-) {
-    LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 28.dp, bottom = 40.dp),
-        verticalArrangement = Arrangement.spacedBy(30.dp),
-    ) {
-        item { PageTitle(R.string.settings) }
-        item {
-            Column(
-                Modifier.padding(horizontal = PageGutter),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    stringResource(R.string.account),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    stringResource(
-                        if (state.signedIn) R.string.account_profile else R.string.guest_profile
-                    ),
-                    color = Muted,
-                    fontSize = 16.sp,
-                )
-                OutlinedButton(
-                    if (state.signedIn) onSignOut else onSignIn,
-                    shape = ButtonDefaults.shape(RoundedCornerShape(8.dp)),
-                    border = kinoOutlinedBorder(),
-                ) {
-                    Text(
-                        stringResource(if (state.signedIn) R.string.sign_out else R.string.sign_in),
-                        fontSize = 15.sp,
-                    )
-                }
-            }
-        }
-        item {
-            Column(
-                Modifier.padding(horizontal = PageGutter),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    stringResource(R.string.addons),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                OutlinedButton(
-                    onAddons,
-                    shape = ButtonDefaults.shape(RoundedCornerShape(8.dp)),
-                    border = kinoOutlinedBorder(),
-                ) {
-                    Text(stringResource(R.string.view_addons), fontSize = 15.sp)
-                }
-            }
-        }
-        item {
-            Column(
-                Modifier.padding(horizontal = PageGutter),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    stringResource(R.string.video_output),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(stringResource(R.string.sdr), color = Muted, fontSize = 16.sp)
-            }
-        }
-        item {
-            val context = LocalContext.current
-            var stereo by remember { mutableStateOf(stereoOutputPreferred(context)) }
-            Column(
-                Modifier.padding(horizontal = PageGutter),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    stringResource(R.string.audio_output),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    stringResource(
-                        if (stereo) R.string.audio_output_stereo_body
-                        else R.string.audio_output_auto_body
-                    ),
-                    color = Muted,
-                    fontSize = 16.sp,
-                )
-                // A Kino setting: device-local, applied to the next playback.
-                OutlinedButton(
-                    {
-                        stereo = !stereo
-                        context
-                            .getSharedPreferences("kino", Context.MODE_PRIVATE)
-                            .edit()
-                            .putString("audio_output", if (stereo) "stereo" else "auto")
-                            .apply()
-                    },
-                    shape = ButtonDefaults.shape(RoundedCornerShape(8.dp)),
-                    border = kinoOutlinedBorder(),
-                ) {
-                    Text(
-                        stringResource(
-                            if (stereo) R.string.audio_output_stereo else R.string.audio_output_auto
-                        ),
-                        fontSize = 15.sp,
-                    )
-                }
-            }
-        }
-        item {
-            Text(
-                stringResource(R.string.version, BuildConfig.VERSION_NAME),
-                Modifier.padding(horizontal = PageGutter),
-                color = KinoColors.TextFaint,
-                fontSize = 13.sp,
-            )
         }
     }
 }

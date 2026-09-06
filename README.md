@@ -26,7 +26,7 @@ Configurable add-ons open their provider's settings page in the system browser. 
 
 ### Android TV
 
-The native Kotlin/Compose development app runs on the NVIDIA Shield. The distributed development APK is non-debuggable and optimized with R8; `pnpm android:check` includes remote navigation and frame-time gates on the device. It includes remote navigation, Stremio device-link sign-in, browsing, details, source selection, and hardware SDR playback. See [Android TV development](docs/ANDROID-TV.md) for toolchain setup, device checks, and current limitations.
+The native Kotlin/Compose development app runs on the NVIDIA Shield. The distributed development APK is non-debuggable and optimized with R8; `pnpm android:check` includes remote navigation and frame-time gates on the device. It includes remote navigation, Stremio device-link sign-in, browsing, details, source selection, and hardware SDR playback. TV Settings controls subtitle and language defaults, clears cached artwork, and copies a diagnostic summary. The Shield suite checks the real cache, clipboard, playback tracks and preferences after process restart. See [Android TV development](docs/ANDROID-TV.md) for toolchain setup, device checks, and current limitations.
 
 ```sh
 pnpm android:build
