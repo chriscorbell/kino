@@ -51,7 +51,7 @@ Kino requests community markers only after the service lists the exact positive 
 
 Kino sends no product analytics, crash reports, or diagnostic telemetry. Verbose local logging is enabled by default, sanitized, and rotated across five files of at most 10 MB each. Logs must never contain credentials, authentication tokens, complete stream URLs, or other embedded secrets.
 
-Desktop Settings provides Open Log Folder and Copy Diagnostic Summary. Android diagnostics use Logcat and must be observable over network ADB on the test Shield.
+Desktop Settings provides Open Log Folder and Copy Diagnostic Summary. TV Settings can copy app, system and playback versions and capabilities to the Android clipboard. The TV summary excludes account information, media identifiers, source URLs, device identifiers, paths and log contents; the Shield Settings check verifies the copied fields. Android local logs use Logcat and remain observable over network ADB on the test Shield.
 
 ## Distribution and updates
 

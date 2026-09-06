@@ -48,6 +48,11 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0-dev"
+        val coreRevision =
+            Regex("(?m)^REVISION = \"([a-f0-9]{40})\"")
+                .find(rootProject.file("../../scripts/build-android.py").readText())!!
+                .groupValues[1]
+        buildConfigField("String", "CORE_REVISION", "\"$coreRevision\"")
         ndk { abiFilters += "arm64-v8a" }
         testInstrumentationRunner = "app.kino.tv.ShieldTestRunner"
     }

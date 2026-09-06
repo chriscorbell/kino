@@ -149,6 +149,20 @@ class TvCore(
     private fun ctx(args: ActionCtx.Args<*>) =
         Core.dispatch(Action(Action.Type.Ctx(ActionCtx(args))), Field.CTX)
 
+    internal suspend fun setLanguage(language: TvLanguage, subtitles: Boolean): Boolean {
+        // UpdateSettings replaces every field. Read immediately before dispatch
+        // so changing one language retains the rest of the local Core profile.
+        val latest = Core.getState<Ctx>(Field.CTX).profile.settings
+        ctx(
+            ActionCtx.Args.UpdateSettings(
+                if (subtitles) latest.copy(subtitlesLanguage = language.code)
+                else latest.copy(audioLanguage = language.code)
+            )
+        )
+        refresh()
+        return Core.drainWrites(retry = true)
+    }
+
     fun home() = load(ActionLoad.Args.CatalogsWithExtra(CatalogsWithExtra.Selected()), Field.BOARD)
 
     fun search(query: String) =
