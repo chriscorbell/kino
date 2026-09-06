@@ -63,6 +63,8 @@ Desktop provides Space or K for play/pause, arrow-key seeking, M for mute, and F
 
 TV playback is always fullscreen. Back first closes the active menu or hides controls; when neither is open, it stops playback, saves progress, and returns to the media details screen.
 
+Playback always runs at the normal rate. Neither presentation offers a playback-rate control, key, or remote action, and the TV player withholds the Media3 command its control view would list a Speed row for. Audio and subtitle selection stay reachable on both.
+
 Playback resumes at saved progress, including when choosing a replacement source. Users can seek to the beginning to start over. Playback updates progress through Stremio Core when signed in and locally for guests.
 
 Back, source failure, Up Next, window close, and application Quit share the same shutdown sequence. Kino pauses playback, captures the current position, sends the final progress and pause actions to Core, and waits for storage writes and pending library sync requests before unloading the player. The macOS shell keeps WebEngine alive until this sequence acknowledges completion. Failed local saves keep playback open for retry; failed account requests leave the locally saved progress available.

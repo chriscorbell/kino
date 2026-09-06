@@ -455,6 +455,11 @@ function assertExpectations(fixture, result) {
   const problems = [];
   const { expect } = fixture;
   const outcomes = Array.isArray(expect.outcome) ? expect.outcome : [expect.outcome];
+  // Kino has no playback-rate feature. Every source that plays, whether it
+  // started fresh or resumed, runs at the normal rate.
+  if (result.outcome === 'played' && result.speed !== 1) {
+    problems.push(`played at ${result.speed ?? 'an unreported rate'}x, expected 1x`);
+  }
   if (!outcomes.includes(result.outcome)) {
     problems.push(
       `outcome ${result.outcome} (${result.errorCode ?? 'no code'}), expected ${outcomes.join(' or ')}`,
