@@ -41,7 +41,7 @@ jobs:
           // Inputs to the native build, its tests, and its startup probes. A
           // change anywhere else, including the Android workflow and its
           // scripts, leaves the macOS job skipped.
-          const nativePaths = /^(\.github\/workflows\/ci\.yml$|apps\/(macos-shell|stream-engine)\/|apps\/desktop\/src\/native\/|scripts\/(build-engine\.sh|build-macos\.sh|check-engine-|check-macos-|package-macos\.mjs$)|third_party\/|package\.json$|pnpm-lock\.yaml$|\.node-version$)/;
+          const nativePaths = /^(\.github\/workflows\/ci\.yml$|apps\/(macos-shell|stream-engine)\/|apps\/desktop\/src\/(native\/|test\/(browser\/|resumeState\.ts$|coreState\.ts$))|scripts\/(build-engine\.sh|build-macos\.sh|check-engine-|check-macos-|test-support\/webengine\.mjs$|package-macos\.mjs$)|third_party\/|package\.json$|pnpm-lock\.yaml$|\.node-version$)/;
           // Inputs to the packaged bundle and the notices it carries. On a pull
           // request the packaging step runs only for these; every push to main
           // packages regardless, so a release artifact is never first built at
@@ -174,6 +174,7 @@ jobs:
           pnpm macos:check-cache-clear
           pnpm macos:check-scale
           pnpm macos:check-focus
+          pnpm macos:check-resume
           pnpm macos:check-fullscreen
           pnpm macos:check-volume
           pnpm macos:check-audio

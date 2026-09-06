@@ -53,6 +53,8 @@ The player saves volume locally between launches. Its slider and Up/Down shortcu
 
 Desktop navigation moves focus to the page or heading without drawing an outline. Keyboard controls and Skip to content retain their visible focus indicators. `pnpm macos:check-focus` exercises the production bundle in Qt WebEngine through launch, navigation, Tab, and Skip to content.
 
+Continue Watching covers the desktop with a spinner while the remembered add-on answers, then starts the previous source if it still matches. Escape reveals manual selection and cancels the pending resume. `pnpm macos:check-resume` compiles the production presentation with delayed Core snapshots and checks movie and series coverage from the first frame, keyboard focus, cancellation, profile changes, and playback preparation before unrelated add-ons finish.
+
 The fullscreen button and F toggle the current window state. Escape exits fullscreen after closing any open subtitle menu. The native bridge follows Qt window visibility, including changes through macOS window controls. Run `pnpm macos:check-fullscreen` to verify the actual WebChannel property and change notifications through repeated entry and exit.
 
 Validate the playback contract against generated legal fixtures — codecs, HDR ranges, audio formats, subtitles, chapters, and failure paths — with:

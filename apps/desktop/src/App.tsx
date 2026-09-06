@@ -181,7 +181,7 @@ export function App() {
   const view = playback
     ? 'player'
     : screen === 'detail'
-      ? `detail:${detail?.type}:${detail?.id}`
+      ? `detail:${detail?.type}:${detail?.id}${resumeRequest ? ':resume' : ''}`
       : screen;
   useLayoutEffect(() => {
     const previous = previousView.current;

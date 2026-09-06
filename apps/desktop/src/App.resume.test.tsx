@@ -6,27 +6,10 @@ import type { PlaybackSelection } from './core/actions';
 import { CoreContext } from './core/context';
 import { checkResumeSource } from './core/resume';
 import type { CoreTransport } from './core/transport';
-import type { ContinueWatchingItem, CoreRuntimeEvent, MetaDetailsState } from './core/types';
-import { hints, metaItem, profile, torrentSource, urlSource, video } from './test/coreState';
+import type { CoreRuntimeEvent } from './core/types';
+import { hints, profile, torrentSource, urlSource } from './test/coreState';
+import { addon, details, episode, item, remembered } from './test/resumeState';
 
-const episode = video({ id: 'show:2:5', title: 'Saved episode', season: 2, episode: 5 });
-const meta = metaItem({
-  id: 'show',
-  type: 'series',
-  name: 'Saved series',
-  videos: [video({ id: 'show:1:1', title: 'First episode', season: 1, episode: 1 }), episode],
-});
-const addon = {
-  manifest: { id: 'test', logo: null, name: 'Test add-on' },
-  transportUrl: 'https://addon.invalid/manifest.json',
-};
-const remembered = urlSource('https://media.invalid/saved.mp4', { name: 'Previous source' });
-const item: ContinueWatchingItem = {
-  ...meta,
-  progress: 25,
-  videoId: episode.id,
-  rememberedSource: { stream: remembered, transportUrl: addon.transportUrl },
-};
 const played = vi.hoisted(() => vi.fn());
 vi.mock('./screens/PlayerScreen', () => ({
   PlayerScreen: ({
@@ -48,20 +31,6 @@ beforeEach(() => {
   window.localStorage.clear();
   Element.prototype.scrollIntoView = vi.fn();
 });
-
-function details(): MetaDetailsState {
-  return {
-    libraryItem: { id: meta.id, videoId: episode.id, timeOffset: 30000 },
-    title: null,
-    selected: {
-      metaPath: { resource: 'meta', type: 'series', id: meta.id, extra: [] },
-      streamPath: { resource: 'stream', type: 'series', id: episode.id, extra: [] },
-      guessStream: false,
-    },
-    metaItem: { addon, content: { type: 'Ready', content: meta } },
-    streams: [{ addon, content: { type: 'Ready', content: [remembered] } }],
-  };
-}
 
 function mount() {
   let state = details();
@@ -115,9 +84,14 @@ function mount() {
 it('waits for the remembered add-on and resumes once, returning to selection after failure', async () => {
   const fixture = mount();
   fireEvent.click(await screen.findByRole('button', { name: 'Resume Saved series' }));
-  expect(await screen.findByText('Checking the previous source…')).toBeInTheDocument();
+  expect(screen.getByRole('dialog', { name: 'Loading playback' }).textContent).toBe('');
   expect(played).not.toHaveBeenCalled();
-  await fixture.ready();
+  const ready = details();
+  ready.streams.push({
+    addon: { ...addon, transportUrl: 'https://slow.invalid/manifest.json' },
+    content: { type: 'Loading' },
+  });
+  await fixture.ready(ready);
   await screen.findByRole('button', { name: 'Fail playback' });
   expect(played).toHaveBeenLastCalledWith(
     expect.objectContaining({
@@ -161,16 +135,16 @@ it.each(['close', 'profile'])(
   async (cancel) => {
     const fixture = mount();
     fireEvent.click(await screen.findByRole('button', { name: 'Resume Saved series' }));
-    await screen.findByText('Checking the previous source…');
+    await screen.findByRole('dialog', { name: 'Loading playback' });
     if (cancel === 'close')
       fireEvent(
-        screen.getByRole('dialog', { name: 'Saved episode' }),
+        screen.getByRole('dialog', { name: 'Loading playback' }),
         new Event('cancel', { bubbles: true, cancelable: true }),
       );
     else fixture.changeProfile();
     await fixture.ready();
     await waitFor(() =>
-      expect(screen.queryByText('Checking the previous source…')).not.toBeInTheDocument(),
+      expect(screen.queryByRole('dialog', { name: 'Loading playback' })).not.toBeInTheDocument(),
     );
     expect(played).not.toHaveBeenCalled();
   },
