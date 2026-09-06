@@ -27,6 +27,12 @@
     <string name="remove_library">Remove from Library</string>
     <string name="empty_sources">No sources found. Install add-ons in Stremio, then sign in to sync them here.</string>
     <string name="source_unsupported">This source is not supported on this TV yet.</string>
+    <string name="audio_output">Audio output</string>
+    <string name="audio_output_auto">Auto</string>
+    <string name="audio_output_stereo">Stereo</string>
+    <string name="audio_output_auto_body">Passes surround formats through when the connected equipment accepts them, otherwise decodes them.</string>
+    <string name="audio_output_stereo_body">Decodes every track and folds surround sound to two channels inside Kino, keeping dialogue at full level.</string>
+    <string name="audio_unsupported">This source\'s audio format cannot be played on this TV.</string>
     <string name="source_details">Details</string>
     <string name="source_details_for">Details for %1$s</string>
     <string name="source_hide_details">Hide details</string>

@@ -203,6 +203,20 @@ function generateFixtures() {
     '-ac',
     '2',
   ]);
+  encode('h264-sdr-eac3.mkv', [
+    ...videoSource,
+    ...audioSource,
+    '-c:v',
+    'libx264',
+    '-preset',
+    'veryfast',
+    '-pix_fmt',
+    'yuv420p',
+    '-c:a',
+    'eac3',
+    '-ac',
+    '6',
+  ]);
   encode('av1-aac.mkv', [
     ...videoSource,
     ...audioSource,
@@ -355,6 +369,7 @@ const fixtures = [
   { file: 'hevc-sdr-ac3.mkv', expect: { outcome: 'played' } },
   { file: 'hevc-hdr10-eac3.mkv', expect: { outcome: 'played' } },
   { file: 'hevc-hlg-flac.mkv', expect: { outcome: 'played' } },
+  { file: 'h264-sdr-eac3.mkv', expect: { outcome: 'played' } },
   {
     file: 'av1-aac.mkv',
     note: 'plays only with AV1 hardware decoding; must otherwise reject',

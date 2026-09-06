@@ -29,6 +29,9 @@ import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.Renderer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.media3.exoplayer.audio.AudioCapabilities
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.mediacodec.MediaCodecAdapter
 import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
@@ -40,10 +43,30 @@ import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.delay
 
-/** Reject unvalidated HDR before configuring a decoder or exposing a video surface. */
-class HardwareRenderers(context: Context) : DefaultRenderersFactory(context) {
+/**
+ * Reject unvalidated HDR before configuring a decoder or exposing a video
+ * surface. With [stereo] set, the sink accepts PCM only, so every track is
+ * decoded and folded to two channels by [StereoDownmixProcessor] inside Kino
+ * rather than passed through or left to the platform mixer.
+ */
+class HardwareRenderers(context: Context, private val stereo: Boolean = false) :
+    DefaultRenderersFactory(context) {
     var unsupportedReason: Int = R.string.hardware_required
         private set
+
+    override fun buildAudioSink(
+        context: Context,
+        enableFloatOutput: Boolean,
+        enableAudioTrackPlaybackParams: Boolean,
+    ): AudioSink {
+        val builder = DefaultAudioSink.Builder(context).setEnableFloatOutput(enableFloatOutput)
+        if (stereo) {
+            builder
+                .setAudioCapabilities(AudioCapabilities.DEFAULT_AUDIO_CAPABILITIES)
+                .setAudioProcessors(arrayOf(StereoDownmixProcessor()))
+        }
+        return builder.build()
+    }
 
     override fun buildVideoRenderers(
         context: Context,
@@ -224,6 +247,11 @@ fun createTvPlayer(
             .setDefaultRequestProperties(headers)
             .setConnectTimeoutMs(15000)
             .setReadTimeoutMs(20000)
+    // Platform renderers come first, so passthrough and MediaCodec decoders win
+    // when the sink or device offers them. The FFmpeg audio renderer follows as
+    // the fallback for AC-3, E-AC-3, DTS, and TrueHD tracks the Shield cannot
+    // decode itself once passthrough is unavailable. Video stays hardware-only.
+    renderers.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
     return ExoPlayer.Builder(context, renderers)
         .setMediaSourceFactory(DefaultMediaSourceFactory(context).setDataSourceFactory(http))
         .setAudioAttributes(
@@ -293,7 +321,8 @@ fun FullscreenPlayer(
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val activity = context as ComponentActivity
-    val renderers = remember(source) { HardwareRenderers(context) }
+    val stereo = remember { stereoOutputPreferred(context) }
+    val renderers = remember(source) { HardwareRenderers(context, stereo) }
     val player =
         remember(source) {
             createTvPlayer(
@@ -370,11 +399,19 @@ fun FullscreenPlayer(
                 }
 
                 override fun onTracksChanged(tracks: Tracks) {
+                    logAudioTracks(tracks)
                     if (
                         tracks.groups.any { it.type == C.TRACK_TYPE_VIDEO } &&
                             !tracks.isTypeSelected(C.TRACK_TYPE_VIDEO)
                     )
                         close(renderers.unsupportedReason)
+                    // A source with audio that nothing can play is a failure to
+                    // report, not a silent video-only session.
+                    else if (
+                        tracks.groups.any { it.type == C.TRACK_TYPE_AUDIO } &&
+                            !tracks.isTypeSelected(C.TRACK_TYPE_AUDIO)
+                    )
+                        close(R.string.audio_unsupported)
                 }
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -400,6 +437,38 @@ fun FullscreenPlayer(
                     initializationDurationMs: Long,
                 ) {
                     Log.i("KinoPlayer", "Hardware decoder=$decoderName")
+                }
+
+                override fun onAudioDecoderInitialized(
+                    eventTime: AnalyticsListener.EventTime,
+                    decoderName: String,
+                    initializedTimestampMs: Long,
+                    initializationDurationMs: Long,
+                ) {
+                    Log.i("KinoPlayer", "Audio decoder=$decoderName")
+                }
+
+                override fun onAudioSinkError(
+                    eventTime: AnalyticsListener.EventTime,
+                    audioSinkError: Exception,
+                ) {
+                    Log.w("KinoPlayer", "Audio sink error=${audioSinkError.javaClass.simpleName}")
+                }
+
+                override fun onAudioCodecError(
+                    eventTime: AnalyticsListener.EventTime,
+                    audioCodecError: Exception,
+                ) {
+                    Log.w("KinoPlayer", "Audio codec error=${audioCodecError.javaClass.simpleName}")
+                }
+
+                override fun onAudioUnderrun(
+                    eventTime: AnalyticsListener.EventTime,
+                    bufferSize: Int,
+                    bufferSizeMs: Long,
+                    elapsedSinceLastFeedMs: Long,
+                ) {
+                    Log.w("KinoPlayer", "Audio underrun buffer=${bufferSizeMs}ms")
                 }
             }
         val observer = LifecycleEventObserver { _, event ->
@@ -430,3 +499,35 @@ fun FullscreenPlayer(
         modifier = Modifier.fillMaxSize(),
     )
 }
+
+/**
+ * Sanitized audio diagnostics: format, layout, and the renderer's support
+ * verdict for each audio track. No titles, URLs, or identifiers. A source
+ * that advances video with no supported audio must be visible in the log
+ * rather than passing as a silent success.
+ */
+private fun logAudioTracks(tracks: Tracks) {
+    val groups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
+    if (groups.isEmpty()) {
+        Log.w("KinoPlayer", "Audio tracks=0")
+        return
+    }
+    for (group in groups) {
+        for (index in 0 until group.length) {
+            val format = group.getTrackFormat(index)
+            Log.i(
+                "KinoPlayer",
+                "Audio track mime=${format.sampleMimeType} channels=${format.channelCount} " +
+                    "rate=${format.sampleRate} codecs=${format.codecs} " +
+                    "support=${group.getTrackSupport(index)} selected=${group.isTrackSelected(index)}",
+            )
+        }
+    }
+    if (!tracks.isTypeSelected(C.TRACK_TYPE_AUDIO)) Log.w("KinoPlayer", "Audio selected=none")
+}
+
+/** The device-local Kino audio output setting: "stereo" or the default "auto". */
+fun stereoOutputPreferred(context: Context): Boolean =
+    context.getSharedPreferences("kino", Context.MODE_PRIVATE).getString("audio_output", "auto") ==
+        "stereo"
+
