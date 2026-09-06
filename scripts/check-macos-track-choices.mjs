@@ -23,7 +23,7 @@ await withWebEngine(
   async ({ evaluate, until, requests }) => {
     await until(() => evaluate('window.kinoTrackProbe?.connected'), 'native track probe');
     await evaluate(
-      `for (const [type,id] of [['movie','track-movie'],['series','track-show'],['movie','different-title'],['series','addon-show'],['movie','variants']]) localStorage.removeItem('kino.tracks.v1:' + JSON.stringify([type,id]));`,
+      `for (const [type,id] of [['movie','track-movie'],['series','track-show'],['movie','different-title'],['series','addon-show'],['series','failed-addon-show'],['movie','variants']]) localStorage.removeItem('kino.tracks.v1:' + JSON.stringify([type,id]));`,
     );
     async function open(
       id,
@@ -146,6 +146,24 @@ await withWebEngine(
     await open('addon-show', 2, 'replacement-tracks.mkv', 'eng', false);
     await selected('eng', 'spa', true);
     assert(requests.includes('/track-spa.srt?episode=2&variant=second'));
+    await open('failed-addon-show', 1);
+    await click('Subtitles');
+    await click('Spanish');
+    await until(
+      () => requests.includes('/missing-subtitle.srt?episode=1'),
+      'failed subtitle request',
+    );
+    await click('Subtitles');
+    await click('Spanish');
+    await selected('eng', 'spa', true);
+    const loadedId = await evaluate('window.kinoTrackProbe.subtitles.find(t => t.external).id');
+    await click('Subtitles');
+    await click('Off');
+    await click(`Spanish · SRT · Track ${loadedId}`);
+    await open('failed-addon-show', 2, 'replacement-tracks.mkv', 'eng', false);
+    await selected('eng', 'spa', true);
+    assert(requests.includes('/track-spa.srt?episode=2'));
+    assert(!requests.includes('/missing-subtitle.srt?episode=2'));
     assert.equal(await evaluate('window.kinoTrackProbe.audio.filter(t => t.selected).length'), 1);
     console.log(
       'Real mpv track choices survive movie/show reopening and source changes; missing tracks fall back, Off persists, and other titles keep defaults',

@@ -196,8 +196,7 @@ export function PlayerScreen({
   const [nativeReadyVersion, setNativeReadyVersion] = useState(0);
   const trackChoicesRef = useRef<TitleTrackChoices>({});
   const addedAddonSubtitlesRef = useRef(new Map<number, AddonSubtitle>());
-  const pendingAddonSubtitlesRef = useRef<AddonSubtitle[]>([]);
-  const knownSubtitleIdsRef = useRef(new Set<number>());
+  const addonSubtitlesByTokenRef = useRef(new Map<string, AddonSubtitle>());
   const subtitleDefaults = useEffectEvent(() => ({
     enabled: settings.subtitles,
     language: preferredSubtitleLanguage,
@@ -480,15 +479,27 @@ export function PlayerScreen({
     }
   };
 
+  const attachAddonSubtitle = useCallback(
+    (subtitle: AddonSubtitle) => {
+      if (!nativePlayer) return;
+      // mpv reports the supplied title but no add-request ID. An opaque title
+      // correlates each result even when another same-language download fails.
+      // Track snapshots replace it with the normal display label below.
+      const token = crypto.randomUUID();
+      addonSubtitlesByTokenRef.current.set(token, subtitle);
+      nativePlayer.addSubtitles(subtitle.url, token, subtitle.lang);
+    },
+    [nativePlayer],
+  );
+
   const addAddonSubtitle = (subtitle: AddonSubtitle) => {
     if (!nativePlayer || addedSubtitleUrls.has(subtitle.url)) return;
     subtitleAutoDoneRef.current = true;
     saveTitleTrackChoice(selection.meta, {
       subtitle: describeAddonSubtitle(subtitle, addonSubtitles),
     });
-    pendingAddonSubtitlesRef.current.push(subtitle);
     setAddedSubtitleUrls((previous) => new Set(previous).add(subtitle.url));
-    nativePlayer.addSubtitles(subtitle.url, addonSubtitleLabel(subtitle), subtitle.lang);
+    attachAddonSubtitle(subtitle);
     setSubtitleMenuOpen(false);
     if (!settings.subtitles) onSettingsChange({ ...settings, subtitles: true });
   };
@@ -617,8 +628,7 @@ export function PlayerScreen({
       type: selection.meta.type,
     });
     addedAddonSubtitlesRef.current = new Map();
-    pendingAddonSubtitlesRef.current = [];
-    knownSubtitleIdsRef.current = new Set();
+    addonSubtitlesByTokenRef.current = new Map();
     let starting = true;
     closingRef.current = false;
     videoParamsReportedRef.current = false;
@@ -696,18 +706,14 @@ export function PlayerScreen({
         setAudioTracks(availableAudio);
         restoreTracks();
       } else if (name === 'subtitleTracks') {
-        const tracks = parseSubtitleTracks(payload.items);
-        for (const track of tracks) {
-          if (!track.external || knownSubtitleIdsRef.current.has(track.id)) continue;
-          const index = pendingAddonSubtitlesRef.current.findIndex(
-            (subtitle) => addonSubtitleLabel(subtitle) === track.title,
-          );
-          if (index >= 0) {
-            const [subtitle] = pendingAddonSubtitlesRef.current.splice(index, 1);
-            addedAddonSubtitlesRef.current.set(track.id, subtitle!);
-          }
-        }
-        knownSubtitleIdsRef.current = new Set(tracks.map((track) => track.id));
+        const tracks = parseSubtitleTracks(payload.items).map((track) => {
+          const subtitle = track.external
+            ? addonSubtitlesByTokenRef.current.get(track.title ?? '')
+            : undefined;
+          if (!subtitle) return track;
+          addedAddonSubtitlesRef.current.set(track.id, subtitle);
+          return { ...track, title: addonSubtitleLabel(subtitle) };
+        });
         availableSubtitles = tracks;
         setSubtitleTracks(tracks);
         restoreTracks();
@@ -778,10 +784,9 @@ export function PlayerScreen({
     const subtitle = rememberedAddonSubtitle(addonSubtitles, choice);
     if (!subtitle) return;
     subtitleAutoDoneRef.current = true;
-    pendingAddonSubtitlesRef.current.push(subtitle);
     setAddedSubtitleUrls((previous) => new Set(previous).add(subtitle.url));
-    nativePlayer.addSubtitles(subtitle.url, addonSubtitleLabel(subtitle), subtitle.lang);
-  }, [nativePlayer, addonSubtitles, streamUrl, nativeReadyVersion]);
+    attachAddonSubtitle(subtitle);
+  }, [nativePlayer, addonSubtitles, streamUrl, nativeReadyVersion, attachAddonSubtitle]);
 
   useEffect(() => {
     if (resumeAppliedRef.current || duration <= 0 || resumeTime <= 0 || resumeTime >= duration)

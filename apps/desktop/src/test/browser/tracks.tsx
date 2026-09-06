@@ -44,6 +44,15 @@ const probe = {
       title: 'Track fixture',
       stream: { type: 'Ready', content: stream },
       subtitles: [
+        ...(id === 'failed-addon-show'
+          ? [
+              {
+                id: `failed-${episode}`,
+                lang: 'spa',
+                url: `${location.origin}/missing-subtitle.srt?episode=${episode}`,
+              },
+            ]
+          : []),
         {
           id: `addon-${episode}-first`,
           lang: 'spa',
