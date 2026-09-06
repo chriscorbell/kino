@@ -18,7 +18,19 @@ class ShieldTestApplication : KinoApplication() {
 
     val storage by lazy { ControlledCoreStorage(CoreStorage(this, fixtureProfile)) }
     override val core by lazy { TvCore(this, fixtureProfile, storage) }
-    override val settings by lazy { getSharedPreferences("kino-$fixtureProfile", MODE_PRIVATE) }
+    var sharedSettingsFixture = false
+    private val localSettings by lazy {
+        LocalKinoSettings(getSharedPreferences("kino-$fixtureProfile", MODE_PRIVATE))
+    }
+    private val sharedSettings by lazy {
+        SharedKinoSettings(
+            this,
+            android.net.Uri.parse("content://${BuildConfig.APPLICATION_ID}.settings-fixture"),
+        )
+    }
+    override val settings: KinoSettingsStore
+        get() = if (sharedSettingsFixture) sharedSettings else localSettings
+
     override val artworkProfile
         get() = fixtureProfile
 }

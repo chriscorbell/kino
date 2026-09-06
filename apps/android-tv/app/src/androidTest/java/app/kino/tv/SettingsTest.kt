@@ -122,9 +122,7 @@ class SettingsTest {
                     Action(
                         Action.Type.Ctx(
                             ActionCtx(
-                                ActionCtx.Args.UpdateSettings(
-                                    original.settings.copy(audioLanguage = "en")
-                                )
+                                ActionCtx.Args.UpdateSettings(original.copy(audioLanguage = "en"))
                             )
                         )
                     ),
@@ -378,6 +376,93 @@ class SettingsTest {
             onMain { activity.finish() }
             file.delete()
             app.settings.edit().clear().commit()
+        }
+    }
+
+    @Test
+    fun guestAndAccountShareSettingsWhileBothProcessesStayAlive() = runBlocking {
+        val remoteReady = CompletableDeferred<android.os.Messenger>()
+        val responses =
+            kotlinx.coroutines.channels.Channel<android.os.Bundle>(
+                kotlinx.coroutines.channels.Channel.UNLIMITED
+            )
+        val replies =
+            android.os.Messenger(
+                object : android.os.Handler(android.os.Looper.getMainLooper()) {
+                    override fun handleMessage(message: android.os.Message) {
+                        responses.trySend(message.data)
+                    }
+                }
+            )
+        val connection =
+            object : android.content.ServiceConnection {
+                override fun onServiceConnected(
+                    name: android.content.ComponentName,
+                    binder: android.os.IBinder,
+                ) {
+                    remoteReady.complete(android.os.Messenger(binder))
+                }
+
+                override fun onServiceDisconnected(name: android.content.ComponentName) {}
+            }
+        app.sharedSettingsFixture = true
+        val shared = app.settings
+        shared.edit().clear().commit()
+        onMain { app.core.initialize() }
+        val activity = activity()
+        var cover: SettingsCoverActivity? = null
+        var bound = false
+        try {
+            showSettings(activity)
+            focusRow(R.string.audio_output)
+            assertTrue(focusedText().contains("Auto"))
+            cover =
+                instrumentation.startActivitySync(
+                    Intent(context, SettingsCoverActivity::class.java)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                ) as SettingsCoverActivity
+            bound =
+                context.bindService(
+                    Intent(context, SettingsProbeService::class.java),
+                    connection,
+                    android.content.Context.BIND_AUTO_CREATE,
+                )
+            assertTrue(bound)
+            val remote = withTimeout(5000) { remoteReady.await() }
+            suspend fun request(command: Int): android.os.Bundle {
+                remote.send(android.os.Message.obtain(null, command).apply { replyTo = replies })
+                return withTimeout(5000) { responses.receive() }
+            }
+            val initial = request(1)
+            assertNotEquals(android.os.Process.myPid(), initial.getInt("pid"))
+            assertEquals("auto", initial.getString("audio"))
+            assertFalse(initial.getBoolean("subtitles"))
+            request(2)
+            assertEquals("stereo", shared.getString("audio_output", null))
+            assertTrue(shared.getBoolean("subtitles", false))
+            // A later edit from the still-live guest must preserve the account's fields.
+            shared.edit().putString("tracks-v1:main", "main choice fixture").apply()
+            val after = request(1)
+            assertEquals("stereo", after.getString("audio"))
+            assertTrue(after.getBoolean("subtitles"))
+            assertEquals("main choice fixture", after.getString("main"))
+            assertEquals("remote choice fixture", shared.getString("tracks-v1:remote", null))
+            onMain { cover!!.finish() }
+            cover = null
+            waitFor("Resuming guest Settings must show the account process change") {
+                focusedText().contains("Audio output") && focusedText().contains("Stereo")
+            }
+            focusRow(R.string.subtitles)
+            assertTrue(focusedText().contains("On"))
+        } finally {
+            if (bound) context.unbindService(connection)
+            shared.edit().clear().commit()
+            app.sharedSettingsFixture = false
+            onMain {
+                cover?.finish()
+                activity.finish()
+            }
+            responses.close()
         }
     }
 

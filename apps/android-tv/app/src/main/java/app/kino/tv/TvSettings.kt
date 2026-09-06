@@ -31,6 +31,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.media3.common.MediaLibraryInfo
 import androidx.media3.common.util.Util
 import androidx.media3.decoder.ffmpeg.FfmpegLibrary
@@ -126,6 +128,10 @@ internal fun SettingsScreen(
     val scope = rememberCoroutineScope()
     var stereo by remember { mutableStateOf(stereoOutputPreferred(context)) }
     var subtitles by remember { mutableStateOf(settings.getBoolean("subtitles", false)) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        stereo = stereoOutputPreferred(context)
+        subtitles = settings.getBoolean("subtitles", false)
+    }
     var languageDialog by remember { mutableStateOf<Boolean?>(null) }
     val audioFocus = remember { FocusRequester() }
     val subtitleFocus = remember { FocusRequester() }

@@ -2,7 +2,6 @@
 
 package app.kino.tv
 
-import android.content.SharedPreferences
 import androidx.media3.common.*
 import androidx.media3.common.util.Util
 import org.json.JSONObject
@@ -10,7 +9,7 @@ import org.json.JSONObject
 /** Remembers picker changes, never the player's automatic language selection. */
 internal class TitleTrackSelection(
     private val player: Player,
-    private val preferences: SharedPreferences,
+    private val preferences: KinoSettingsStore,
     type: String,
     id: String,
     defaults: TrackSelectionParameters,

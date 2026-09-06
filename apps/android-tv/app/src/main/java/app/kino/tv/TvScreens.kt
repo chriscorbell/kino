@@ -2,7 +2,6 @@
 
 package app.kino.tv
 
-import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
@@ -92,7 +91,7 @@ fun KinoApp(
 ) {
     val state by core.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val preferences = remember { context.getSharedPreferences("kino", Context.MODE_PRIVATE) }
+    val preferences = remember { kinoSettings(context) }
     var entered by rememberSaveable { mutableStateOf(preferences.getBoolean("entered", false)) }
     val startup = startupScreen(state, accountProcess, entered)
     val linking = startup == StartupScreen.SignIn
