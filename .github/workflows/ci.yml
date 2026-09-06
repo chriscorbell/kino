@@ -20,6 +20,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       native: ${{ steps.paths.outputs.native }}
+      packaging: ${{ steps.paths.outputs.packaging }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -37,8 +38,21 @@ jobs:
           const files = !base || /^0+$/.test(base)
             ? ['.github/workflows/ci.yml']
             : execFileSync('git', ['diff', '--name-only', '-z', base, head], { encoding: 'utf8' }).split('\0');
-          const native = files.some((file) => /^(\.github\/|apps\/(macos-shell|stream-engine)\/|apps\/desktop\/src\/native\/|scripts\/|third_party\/|package\.json$|pnpm-lock\.yaml$|\.node-version$)/.test(file));
-          appendFileSync(process.env.GITHUB_OUTPUT, `native=${native}\n`);
+          // Inputs to the native build, its tests, and its startup probes. A
+          // change anywhere else, including the Android workflow and its
+          // scripts, leaves the macOS job skipped.
+          const nativePaths = /^(\.github\/workflows\/ci\.yml$|apps\/(macos-shell|stream-engine)\/|apps\/desktop\/src\/native\/|scripts\/(build-engine\.sh|build-macos\.sh|check-engine-|check-macos-|package-macos\.mjs$)|third_party\/|package\.json$|pnpm-lock\.yaml$|\.node-version$)/;
+          // Inputs to the packaged bundle and the notices it carries. On a pull
+          // request the packaging step runs only for these; every push to main
+          // packages regardless, so a release artifact is never first built at
+          // tag time. The notice index itself is checked on every pull request
+          // by "pnpm notices:check" in the web job.
+          const packagingPaths = /^(\.github\/workflows\/ci\.yml$|apps\/macos-shell\/CMakeLists\.txt$|scripts\/(package-macos\.mjs|check-license-notices\.mjs)$|third_party\/|pnpm-lock\.yaml$)/;
+          const packaging = files.some((file) => packagingPaths.test(file));
+          // Packaging runs inside the native job, so anything that packaging
+          // depends on has to bring that job along with it.
+          const native = packaging || files.some((file) => nativePaths.test(file));
+          appendFileSync(process.env.GITHUB_OUTPUT, `native=${native}\npackaging=${packaging}\n`);
           JS
 
   web:
@@ -72,12 +86,19 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 45
     env:
-      CARGO_BUILD_JOBS: '2'
       CARGO_TARGET_DIR: ${{ github.workspace }}/build/engine-target
-      CMAKE_BUILD_PARALLEL_LEVEL: '2'
       HOMEBREW_NO_AUTO_UPDATE: '1'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Match build parallelism to the runner
+        # Both builds were pinned to two jobs. Track the runner instead, capped
+        # so a wider machine cannot run the linker out of memory.
+        run: |
+          cores="$(sysctl -n hw.ncpu)"
+          jobs=$(( cores > 4 ? 4 : cores ))
+          echo "Runner reports $cores cores; building with $jobs jobs"
+          echo "CARGO_BUILD_JOBS=$jobs" >> "$GITHUB_ENV"
+          echo "CMAKE_BUILD_PARALLEL_LEVEL=$jobs" >> "$GITHUB_ENV"
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -118,8 +139,10 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             build/engine-target
-          key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ hashFiles('apps/stream-engine/Cargo.lock', 'apps/stream-engine/engine.lock', 'apps/stream-engine/patches/**') }}
-          restore-keys: cargo-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-
+            build/vendor/stream-server
+            build/vendor/stream-server.stamp
+          key: cargo-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ hashFiles('apps/stream-engine/Cargo.lock', 'apps/stream-engine/engine.lock', 'apps/stream-engine/patches/**') }}
+          restore-keys: cargo-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-
       - name: Reconstruct vendor patches and build the locked engine
         run: pnpm engine:build
       - name: Test the locked engine and embedded profile
@@ -136,6 +159,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             build/engine-target
+            build/vendor/stream-server
+            build/vendor/stream-server.stamp
           key: ${{ steps.engine-cache.outputs.cache-primary-key }}
 
       - name: Compile and bundle the native shell
@@ -153,7 +178,11 @@ jobs:
           pnpm macos:check-audio
           pnpm macos:check-web-console
 
+      # Packaging is a release-artifact check, not a correctness check, and it
+      # is the slowest step in this job. Pull requests run it only when the
+      # bundle or its notices change; every push to main runs it.
       - name: Package and verify bundled dependency notices
+        if: github.event_name == 'push' || needs.changes.outputs.packaging == 'true'
         timeout-minutes: 15
         run: pnpm macos:package --no-dmg
 

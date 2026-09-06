@@ -49,8 +49,55 @@ jobs:
           yes | "$tools/sdkmanager" --licenses > /dev/null
           "$tools/sdkmanager" 'platforms;android-36' 'build-tools;35.0.0' 'ndk;29.0.14206865'
           echo "$tools" >> "$GITHUB_PATH"
+      # The pinned Core, its Cargo dependencies, and the Gradle caches are all
+      # keyed by their own inputs, so an unchanged Core is restored instead of
+      # rebuilt from source on every run.
+      - name: Restore the vendored Core and its Cargo dependencies
+        id: core-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            build/android-core-target
+            build/vendor/stremio-core-kotlin
+            build/vendor/stremio-core-kotlin.stamp
+            build/stremio-core-kotlin-1.15.0.tar.gz
+          key: android-core-${{ runner.os }}-${{ hashFiles('scripts/build-android.py', 'apps/android-tv/core/Cargo.lock', 'apps/android-tv/core/patches/**') }}
+          restore-keys: android-core-${{ runner.os }}-
+      - name: Restore Gradle caches
+        id: gradle-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: android-gradle-${{ runner.os }}-${{ hashFiles('apps/android-tv/**/*.gradle.kts', 'apps/android-tv/gradle.properties', 'apps/android-tv/gradle/wrapper/gradle-wrapper.properties', 'apps/android-tv/app/gradle.lockfile') }}
+          restore-keys: android-gradle-${{ runner.os }}-
+
       - name: Build Core, compile instrumentation, and lint
         run: python3 scripts/build-android.py :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug
+
+      - name: Save the vendored Core and its Cargo dependencies
+        if: steps.core-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            build/android-core-target
+            build/vendor/stremio-core-kotlin
+            build/vendor/stremio-core-kotlin.stamp
+            build/stremio-core-kotlin-1.15.0.tar.gz
+          key: ${{ steps.core-cache.outputs.cache-primary-key }}
+      - name: Save Gradle caches
+        if: steps.gradle-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ steps.gradle-cache.outputs.cache-primary-key }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: Kino-TV

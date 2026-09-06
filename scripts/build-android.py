@@ -44,16 +44,37 @@ def main():
     rustup = shutil.which("rustup") or str(Path.home() / ".cargo/bin/rustup")
     run(rustup, "toolchain", "install", TOOLCHAIN, "--profile", "minimal", "--target", "aarch64-linux-android")
     BUILD.mkdir(exist_ok=True)
-    if not (VENDOR / ".git").exists():
-        run("git", "clone", "--no-checkout", "https://github.com/Stremio/stremio-core-kotlin.git", VENDOR)
-    run("git", "-C", VENDOR, "fetch", "--depth", "1", "origin", REVISION)
-    # This exact generated checkout is disposable; all Kino patches live in apps/android-tv/core.
-    run("git", "-C", VENDOR, "checkout", "--force", REVISION)
-    run("git", "-C", VENDOR, "clean", "-ffdqx")
     patches = sorted((APP / "core/patches").glob("*.patch"))
-    for patch in patches:
-        run("git", "-C", VENDOR, "apply", patch)
-    shutil.copyfile(APP / "core/Cargo.lock", VENDOR / "Cargo.lock")
+    lock = APP / "core/Cargo.lock"
+    stamp = VENDOR.with_suffix(".stamp")
+    # Reconstructing the checkout rewrites every vendored file, and Cargo
+    # fingerprints on mtime, so an unchanged tree rebuilt the whole core every
+    # run. The state covers the revision, the patches, the lock file, the
+    # checked-out commit, and the working tree, so a patch edit, a hand edit, a
+    # stray file, and a failed attempt all reconstruct.
+    def vendor_state():
+        parts = [REVISION.encode(), *(patch.read_bytes() for patch in patches), lock.read_bytes()]
+        for command in (["rev-parse", "HEAD"], ["status", "--porcelain"], ["diff"]):
+            try:
+                parts.append(subprocess.run(["git", "-C", str(VENDOR), *command], capture_output=True, check=True).stdout)
+            except (subprocess.CalledProcessError, FileNotFoundError, NotADirectoryError):
+                return None
+        return hashlib.sha256(b"\0".join(parts)).hexdigest()
+
+    if stamp.exists() and stamp.read_text() == (vendor_state() or ""):
+        print(f"Reusing the vendored Stremio Core at {REVISION}")
+    else:
+        stamp.unlink(missing_ok=True)
+        if not (VENDOR / ".git").exists():
+            run("git", "clone", "--no-checkout", "https://github.com/Stremio/stremio-core-kotlin.git", VENDOR)
+        run("git", "-C", VENDOR, "fetch", "--depth", "1", "origin", REVISION)
+        # This exact generated checkout is disposable; all Kino patches live in apps/android-tv/core.
+        run("git", "-C", VENDOR, "checkout", "--force", REVISION)
+        run("git", "-C", VENDOR, "clean", "-ffdqx")
+        for patch in patches:
+            run("git", "-C", VENDOR, "apply", patch)
+        shutil.copyfile(lock, VENDOR / "Cargo.lock")
+        stamp.write_text(vendor_state())
 
     archive = BUILD / "stremio-core-kotlin-1.15.0.tar.gz"
     if not archive.exists():
