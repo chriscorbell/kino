@@ -4,6 +4,15 @@ package app.kino.tv
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,8 +43,12 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -116,21 +129,28 @@ fun KinoApp(
             core.search(query.trim())
         }
     }
+    // The remembered stream lives in one add-on's response, so playback starts
+    // as soon as that add-on answers rather than after the slowest one. The
+    // overlay only lifts onto the source list once every add-on has replied
+    // without it, or the title itself failed to load.
     LaunchedEffect(resumePending, state.details) {
-        if (resumePending && !state.details.loading && !state.details.sourcesLoading) {
-            resumePending = false
-            val previous = state.details.lastUsedStream
-            val source =
-                state.details.sources.firstOrNull {
-                    it.playable &&
-                        previous != null &&
-                        it.stream.source == previous.source &&
-                        it.stream.behaviorHints.proxyHeaders == previous.behaviorHints.proxyHeaders
-                }
-            if (source != null) {
+        if (!resumePending) return@LaunchedEffect
+        val details = state.details
+        val previous = details.lastUsedStream
+        val source =
+            details.sources.firstOrNull {
+                it.playable &&
+                    previous != null &&
+                    it.stream.source == previous.source &&
+                    it.stream.behaviorHints.proxyHeaders == previous.behaviorHints.proxyHeaders
+            }
+        when {
+            source != null -> {
+                resumePending = false
                 core.startPlayer(source)
                 playing = source
             }
+            details.failed || (!details.loading && !details.sourcesLoading) -> resumePending = false
         }
     }
     val closeDetails = {
@@ -206,6 +226,7 @@ fun KinoApp(
                                     videoId,
                                     state.details,
                                     playbackError,
+                                    resuming = resumePending,
                                     onBack = closeDetails,
                                     onEpisode = {
                                         resumePending = false
@@ -248,6 +269,7 @@ fun KinoApp(
                         }
                     }
             }
+            if (playing == null) ResumeOverlay(resumePending) { resumePending = false }
         }
     }
 }
@@ -483,6 +505,7 @@ private fun DetailScreen(
     videoId: String?,
     details: Details,
     error: Int?,
+    resuming: Boolean,
     onBack: () -> Unit,
     onEpisode: (String) -> Unit,
     onRetry: () -> Unit,
@@ -564,7 +587,7 @@ private fun DetailScreen(
                     )
                 }
             }
-            LaunchedEffect(Unit) { focus.requestFocus() }
+            LaunchedEffect(resuming) { if (!resuming) focus.requestFocus() }
         }
         if (media.preview != null || meta != null)
             item {
@@ -662,6 +685,55 @@ private fun DetailScreen(
                 SourceRow(source, details.meta?.runtime, onSelect = { onSource(source) })
             }
         }
+    }
+}
+
+/**
+ * A plain loading screen between Home and the player while Core confirms the
+ * remembered source. The poster the user just chose says what is loading, so
+ * it carries no text. It covers the rail as well as the details page, holds
+ * focus, and swallows every key but Back, so nothing beneath can be activated
+ * a moment before playback takes over; Back reveals the details page for a
+ * manual choice. The caller drops it from composition when the player mounts,
+ * so its focus never competes with the surface.
+ */
+@Composable
+private fun ResumeOverlay(visible: Boolean, onCancel: () -> Unit) {
+    val focus = remember { FocusRequester() }
+    BackHandler(visible, onCancel)
+    // No entrance fade: the page must never show through before the spinner.
+    AnimatedVisibility(visible, enter = EnterTransition.None, exit = fadeOut(tween(250))) {
+        Box(
+            Modifier.fillMaxSize()
+                .background(Background)
+                .focusRequester(focus)
+                .focusable()
+                .onPreviewKeyEvent { it.key != Key.Back },
+            contentAlignment = Alignment.Center,
+        ) {
+            Spinner()
+        }
+        LaunchedEffect(Unit) { focus.requestFocus() }
+    }
+}
+
+@Composable
+private fun Spinner() {
+    val angle by
+        rememberInfiniteTransition(label = "spinner")
+            .animateFloat(
+                0f,
+                360f,
+                infiniteRepeatable(tween(1000, easing = LinearEasing)),
+                label = "angle",
+            )
+    val track = KinoColors.TextStrong.copy(alpha = .16f)
+    Canvas(Modifier.size(30.dp)) {
+        val stroke = Stroke(3.dp.toPx(), cap = StrokeCap.Round)
+        val inset = stroke.width / 2
+        val bounds = Size(size.width - stroke.width, size.height - stroke.width)
+        drawArc(track, 0f, 360f, false, Offset(inset, inset), bounds, style = stroke)
+        drawArc(KinoColors.TextStrong, angle, 80f, false, Offset(inset, inset), bounds, style = stroke)
     }
 }
 

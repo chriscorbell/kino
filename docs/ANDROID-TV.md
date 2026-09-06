@@ -2,7 +2,7 @@
 
 Kino has a native Kotlin and Compose TV app in `apps/android-tv`. The first build targets ARM64 devices running Android 9 or newer and is tested on an NVIDIA Shield.
 
-This is the first runnable TV version. It includes Stremio device-link sign-in, guest browsing, Home, Search, Library, movie and episode details, explicit source selection, and fullscreen Media3 playback. Continue Watching uses poster cards with titles below, a centered play icon, and saved progress. A remembered source resumes only if it is still returned by its add-on; otherwise its source list opens without an unavailable-source notice.
+This is the first runnable TV version. It includes Stremio device-link sign-in, guest browsing, Home, Search, Library, movie and episode details, explicit source selection, and fullscreen Media3 playback. Continue Watching uses poster cards with titles below, a centered play icon, and saved progress. Opening a Continue Watching item shows a loading screen until the remembered source comes back from its add-on, then plays it; Back during that wait reveals the details page for a manual choice. If every add-on answers without that source, the loading screen gives way to the source list without an unavailable-source notice.
 
 ## Interface
 
@@ -30,7 +30,7 @@ The build also requires `rustup`, Python 3, and Git. It installs Rust 1.93.1 wit
 
 The development-signed APK and its checksum are written to `build/android/Kino-TV.apk` and `build/android/Kino-TV.apk.sha256`. The app appears as **Kino** in the TV launcher. Select **Settings → Sign in** to link Stremio using a phone. This does not copy the Mac's credentials or profile to the TV.
 
-After the first native build, Kotlin-only iteration can use:
+After the first native build, Kotlin-only iteration can use the commands below. Gradle refuses to build until `pnpm android:build` has produced the FFmpeg audio renderer under `build/android-ffmpeg`, since an APK without it fails every surround source on the Shield.
 
 ```sh
 cd apps/android-tv
