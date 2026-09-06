@@ -79,7 +79,7 @@ When Up Next is enabled and a next episode exists, Kino offers its source select
 
 The offer never starts playback automatically. Choosing it saves progress and opens the next episode's source selector, where the user must select a source.
 
-On TV, `UpNextTest` runs the actual Core, Media3 player and remote controls with short and 30-minute fixtures. An MPEG-TS fixture without PCR checks unknown-duration EOF. Delayed and failed storage writes check that choosing the next episode waits for both save phases and that Retry retains the destination.
+On TV, `UpNextTest` runs the actual Core, Media3 player and remote controls with short and 30-minute fixtures. An MPEG-TS fixture without PCR is streamed through a controlled pipe to check unknown-duration playback and EOF. Delayed and failed storage writes check that choosing the next episode waits for both save phases and that Retry retains the destination.
 
 ## Intro behavior
 

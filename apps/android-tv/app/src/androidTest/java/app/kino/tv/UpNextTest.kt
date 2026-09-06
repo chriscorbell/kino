@@ -9,8 +9,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Button
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
@@ -36,6 +38,90 @@ class UpNextTest {
     private val context = instrumentation.targetContext
     private val app
         get() = context.applicationContext as ShieldTestApplication
+
+    @Test
+    fun upNextUpdatesTheRetainedSeasonScrollAndEpisodeFocus() = runBlocking {
+        for ((nextSeason, firstEpisode) in listOf(2 to 1, 1 to 50)) {
+            withFixture("h264-sdr-aac.mp4", nextSeason = nextSeason, firstEpisode = firstEpisode) {
+                activity,
+                fixture,
+                source ->
+                var playing by mutableStateOf(false)
+                var videoId by mutableStateOf<String?>(fixture.firstVideoId)
+                val departures = AtomicInteger()
+                onMain {
+                    activity.setContent {
+                        val saved = rememberSaveableStateHolder()
+                        val state by app.core.state.collectAsState()
+                        val back = {
+                            videoId = null
+                            app.core.open(fixture.media, null)
+                        }
+                        BackHandler(!playing && videoId != null, onBack = back)
+                        KinoTheme {
+                            if (playing)
+                                FullscreenPlayer(
+                                    source,
+                                    fixture.media,
+                                    app.core,
+                                    onExit = { playing = false },
+                                    onFailure = { departures.addAndGet(1000) },
+                                    onUpNext = {
+                                        videoId = it.id
+                                        app.core.open(fixture.media, it.id)
+                                        playing = false
+                                        departures.incrementAndGet()
+                                    },
+                                )
+                            else
+                                saved.SaveableStateProvider("series") {
+                                    DetailScreen(
+                                        fixture.media,
+                                        videoId,
+                                        state.details,
+                                        null,
+                                        false,
+                                        onBack = back,
+                                        onEpisode = {},
+                                        onRetry = {},
+                                        onLibrary = {},
+                                        onSource = {},
+                                    )
+                                }
+                        }
+                    }
+                }
+                withTimeout(15_000) { while (!visibleText().contains("First episode")) delay(80) }
+                onMain { playing = true }
+                val view = ready(activity)
+                onMain {
+                    view.player!!.seekTo(view.player!!.duration * 95 / 100)
+                    view.showController()
+                }
+                waitFor("The offer and controls must be ready for remote input") {
+                    action(activity) != null && view.isControllerFullyVisible && view.hasFocus()
+                }
+                key(KeyEvent.KEYCODE_DPAD_UP)
+                waitFor("Choose source must be focused") { action(activity)?.hasFocus() == true }
+                key(KeyEvent.KEYCODE_DPAD_CENTER)
+                waitFor("Up Next must return to the same saved details entry") {
+                    departures.get() == 1 &&
+                        !playing &&
+                        app.core.state.value.details.sources.any {
+                            it.request.path.id == fixture.secondVideoId
+                        }
+                }
+                key(KeyEvent.KEYCODE_BACK)
+                withTimeout(15_000) { while (!focusedText().contains("Second episode")) delay(80) }
+                assertNull(onMain { videoId })
+                assertNull(onMain { Core.getState<CorePlayer>(Field.PLAYER).selected })
+                if (nextSeason == 2) {
+                    key(KeyEvent.KEYCODE_DPAD_UP)
+                    withTimeout(15_000) { while (!focusedText().contains("Season 2")) delay(80) }
+                }
+            }
+        }
+    }
 
     @Test
     fun choosingTheNextEpisodeWaitsForFinalAndUnloadWritesBeforeShowingItsSources() = runBlocking {
@@ -426,6 +512,8 @@ class UpNextTest {
     private suspend fun withFixture(
         asset: String,
         last: Boolean = false,
+        nextSeason: Int = 1,
+        firstEpisode: Int = 1,
         block: suspend (PlaybackProbeActivity, CoreEpisodeFixture, Source) -> Unit,
     ) {
         onMain { app.core.initialize() }
@@ -440,7 +528,7 @@ class UpNextTest {
         instrumentation.context.assets.open(asset).use { input ->
             file.outputStream().use { input.copyTo(it) }
         }
-        val fixture = CoreEpisodeFixture(activity)
+        val fixture = CoreEpisodeFixture(activity, nextSeason, firstEpisode)
         if (asset == "up-next-unknown.ts")
             context.contentResolver.call(endingUri, "reset", null, null)
         try {
@@ -480,9 +568,6 @@ class UpNextTest {
                         )
                 ),
             )
-        } catch (failure: Throwable) {
-            println("Up Next fixture failed: ${failure.message}")
-            throw failure
         } finally {
             app.storage.beforeWrite = null
             if (asset == "up-next-unknown.ts")
@@ -522,14 +607,18 @@ class UpNextTest {
     private val endingUri =
         Uri.parse("content://${BuildConfig.APPLICATION_ID}.ending-fixture/unknown.ts")
 
+    private fun nodeText(node: AccessibilityNodeInfo): String = buildString {
+        append(node.text ?: "")
+        for (index in 0 until node.childCount) node.getChild(index)?.let { append(nodeText(it)) }
+    }
+
+    private fun visibleText() =
+        instrumentation.uiAutomation.rootInActiveWindow?.let(::nodeText).orEmpty()
+
     private fun focusedText(): String {
-        fun text(node: AccessibilityNodeInfo): String = buildString {
-            append(node.text ?: "")
-            for (index in 0 until node.childCount) node.getChild(index)?.let { append(text(it)) }
-        }
         return instrumentation.uiAutomation.rootInActiveWindow
             ?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
-            ?.let(::text)
+            ?.let(::nodeText)
             .orEmpty()
     }
 

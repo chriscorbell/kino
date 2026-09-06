@@ -33,11 +33,15 @@ class EndingFixtureProvider : ContentProvider() {
         val pipe = ParcelFileDescriptor.createPipe()
         val complete = finished
         Thread {
-                ParcelFileDescriptor.AutoCloseOutputStream(pipe[1]).use { output ->
-                    File(requireNotNull(context).cacheDir, "up-next-unknown.ts").inputStream().use {
-                        it.copyTo(output)
+                try {
+                    ParcelFileDescriptor.AutoCloseOutputStream(pipe[1]).use { output ->
+                        File(requireNotNull(context).cacheDir, "up-next-unknown.ts")
+                            .inputStream()
+                            .use { it.copyTo(output) }
+                        complete.await(10, TimeUnit.SECONDS)
                     }
-                    complete.await(10, TimeUnit.SECONDS)
+                } catch (_: java.io.IOException) {
+                    // Closing playback can close the read end before the fixture finishes writing.
                 }
             }
             .start()

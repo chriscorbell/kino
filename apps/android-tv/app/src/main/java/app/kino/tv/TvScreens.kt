@@ -548,8 +548,27 @@ internal fun DetailScreen(
     var seasonMenu by remember { mutableStateOf(false) }
     var pendingFocus by remember(videoId) { mutableStateOf(lastEpisode) }
     val videos = meta?.videos.orEmpty()
-    LaunchedEffect(meta) {
-        if (meta != null && season == null) {
+    LaunchedEffect(meta, videoId) {
+        // Up Next returns to this saved entry with a new episode. Back must
+        // restore that episode's season and focus, not the one playback left.
+        if (videoId != null && videoId != lastEpisode) {
+            videos
+                .find { it.id == videoId }
+                ?.let {
+                    season = it.seasonNumber()
+                    lastEpisode = videoId
+                    pendingFocus = videoId
+                    // The overview, library action, and season selector precede the episodes.
+                    val headers =
+                        3 + (if (details.loading) 1 else 0) + (if (details.failed) 1 else 0)
+                    episodeList.requestScrollToItem(
+                        headers +
+                            seasonEpisodes(videos, it.seasonNumber()).indexOfFirst { episode ->
+                                episode.id == videoId
+                            }
+                    )
+                }
+        } else if (meta != null && season == null) {
             season = videos.find { it.id == videoId }?.seasonNumber() ?: initialSeason(videos)
         }
     }
