@@ -240,6 +240,12 @@ QQuickFramebufferObject::Renderer *MpvItem::createRenderer() const {
     return new MpvRenderer(context_);
 }
 
+double MpvItem::playbackSpeed() const {
+    double speed = 0;
+    if (mpv_get_property(handle_, "speed", MPV_FORMAT_DOUBLE, &speed) < 0) return 0;
+    return speed;
+}
+
 QVariantMap MpvItem::subtitleStyle() const {
     static const char *const names[] = {
         "sub-ass-override", "sub-ass-style-overrides", "sub-back-color",
@@ -291,6 +297,9 @@ void MpvItem::initialize() {
         {"title", "Kino"},
         {"sid", "no"},
         {"sub-auto", "no"},
+        // Kino has no playback-rate feature, so nothing changes this and the
+        // shell never offers a control for it.
+        {"speed", "1.0"},
         // Text subtitles render as outlined glyphs over the video. Pin every
         // field the box could come back from: Kino's own style, a libmpv
         // default, and the authored ASS/SSA styles libass would otherwise

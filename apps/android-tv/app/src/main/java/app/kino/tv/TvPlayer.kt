@@ -164,14 +164,34 @@ fun withoutCaptionFills(cue: Cue): Cue {
     return builder.build()
 }
 
-/** Applies [withoutCaptionFills] to the cues the player view renders. */
-class OutlinedCaptions(player: Player) : ForwardingSimpleBasePlayer(player) {
+/**
+ * The player as the TV presentation exposes it: captions stripped of their
+ * fills by [withoutCaptionFills], and no playback-rate control. Media3's
+ * control view lists its Speed row whenever the player advertises
+ * COMMAND_SET_SPEED_AND_PITCH, and dropping it also refuses the rate changes
+ * that row would have made. The settings button stays, because its audio-track
+ * row is gated on COMMAND_GET_TRACKS and COMMAND_SET_TRACK_SELECTION_PARAMETERS
+ * instead.
+ */
+class TvPresentationPlayer(player: Player) : ForwardingSimpleBasePlayer(player) {
     override fun getState(): SimpleBasePlayer.State {
         val state = super.getState()
+        val builder =
+            state
+                .buildUpon()
+                .setAvailableCommands(
+                    Player.Commands.Builder()
+                        .addAll(state.availableCommands)
+                        .remove(Player.COMMAND_SET_SPEED_AND_PITCH)
+                        .build()
+                )
         val group = state.currentCues
-        if (group.cues.isEmpty()) return state
-        val cues = CueGroup(group.cues.map(::withoutCaptionFills), group.presentationTimeUs)
-        return state.buildUpon().setCurrentCues(cues).build()
+        if (group.cues.isNotEmpty()) {
+            builder.setCurrentCues(
+                CueGroup(group.cues.map(::withoutCaptionFills), group.presentationTimeUs)
+            )
+        }
+        return builder.build()
     }
 }
 
@@ -243,7 +263,7 @@ fun FullscreenPlayer(
             )
         }
     val session = remember(player) { MediaSession.Builder(context, player).build() }
-    val captioned = remember(player) { OutlinedCaptions(player) }
+    val presented = remember(player) { TvPresentationPlayer(player) }
     var view by remember { mutableStateOf<PlayerView?>(null) }
     val currentExit by rememberUpdatedState(onExit)
     val currentFailure by rememberUpdatedState(onFailure)
@@ -349,8 +369,9 @@ fun FullscreenPlayer(
                 core.stopPlayer()
             }
             lifecycle.removeObserver(observer)
-            // Drop the cue wrapper's listeners before the player it forwards to
-            // goes away; releasing it here would release that player twice.
+            // Drop the presentation wrapper's listeners before the player it
+            // forwards to goes away; releasing it here would release that
+            // player twice.
             view?.player = null
             session.release()
             player.removeListener(listener)
@@ -361,10 +382,10 @@ fun FullscreenPlayer(
     AndroidView(
         factory = {
             PlayerView(it).apply {
-                this.player = captioned
+                this.player = presented
                 subtitleView?.apply {
                     // Keep italics and the other authored text styling; only the
-                    // fills are dropped, by the style and by OutlinedCaptions.
+                    // fills are dropped, by the style and by the presentation.
                     setApplyEmbeddedStyles(true)
                     setStyle(outlinedCaptionStyle)
                 }

@@ -105,6 +105,7 @@ void PlaybackProbe::finish(const QString &outcome, const QString &errorCode) {
     timeout_.stop();
     // Read the caption style from the live player before it stops, so the
     // fixture gate sees what libmpv actually held during playback.
+    const double playbackSpeed = player_->playbackSpeed();
     QJsonObject subtitleStyle;
     const QVariantMap style = player_->subtitleStyle();
     for (auto field = style.cbegin(); field != style.cend(); ++field) {
@@ -115,6 +116,7 @@ void PlaybackProbe::finish(const QString &outcome, const QString &errorCode) {
     QJsonObject result{
         {QStringLiteral("chapters"), chapterCount_},
         {QStringLiteral("outcome"), outcome},
+        {QStringLiteral("speed"), playbackSpeed},
         {QStringLiteral("subtitleStyle"), subtitleStyle},
         {QStringLiteral("subtitleTracks"), subtitleTracks_},
         {QStringLiteral("timeMs"), timeMs_},
