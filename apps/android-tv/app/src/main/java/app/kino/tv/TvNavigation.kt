@@ -1,8 +1,13 @@
 package app.kino.tv
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
@@ -12,7 +17,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -44,73 +49,11 @@ internal fun TvNavigation(
     onAccount: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
-    BackHandler(drawerState.currentValue == DrawerValue.Open) {
-        if (!contentFocus.requestFocus()) drawerState.setValue(DrawerValue.Closed)
-    }
-    ModalNavigationDrawer(
-        modifier = Modifier.fillMaxSize(),
-        drawerState = drawerState,
-        scrimBrush = SolidColor(Background.copy(alpha = .45f)),
-        drawerContent = { drawer ->
-            val expanded = drawer == DrawerValue.Open
-            Column(
-                Modifier.width(if (expanded) 208.dp else RailWidth)
-                    .fillMaxHeight()
-                    .background(Background)
-                    .clipToBounds()
-                    .padding(horizontal = 14.dp, vertical = 28.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Row(
-                    Modifier.height(36.dp).padding(start = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Image(
-                        painterResource(R.drawable.kino_icon),
-                        stringResource(R.string.app_name),
-                        Modifier.size(24.dp),
-                    )
-                    if (expanded)
-                        Text(
-                            stringResource(R.string.app_name),
-                            Modifier.padding(start = 18.dp),
-                            fontSize = 22.sp,
-                        )
-                }
-                Spacer(Modifier.height(10.dp))
-                TvDestinations.forEachIndexed { index, item ->
-                    if (index == 3) {
-                        Box(
-                            Modifier.padding(start = 8.dp, top = 12.dp, bottom = 12.dp)
-                                .width(28.dp)
-                                .height(1.dp)
-                                .background(KinoColors.Border)
-                        )
-                    }
-                    RailButton(
-                        stringResource(item.label),
-                        item.icon,
-                        expanded,
-                        active = destination == item.route,
-                        modifier =
-                            Modifier.focusRequester(navigationFocus.getValue(item.route))
-                                .focusProperties { right = contentFocus },
-                        onClick = { onNavigate(item.route) },
-                    )
-                }
-                Spacer(Modifier.weight(1f))
-                RailButton(
-                    stringResource(if (signedIn) R.string.account else R.string.sign_in),
-                    R.drawable.ic_user_round,
-                    expanded,
-                    false,
-                    Modifier.focusProperties { right = contentFocus },
-                    onAccount,
-                )
-            }
-        },
-    ) {
+    var expanded by remember { mutableStateOf(false) }
+    val width by animateDpAsState(if (expanded) 208.dp else RailWidth, tween(160), label = "drawer")
+    val scrim = animateFloatAsState(if (expanded) .45f else 0f, tween(160), label = "drawer-scrim")
+    BackHandler(expanded) { contentFocus.requestFocus() }
+    Box(Modifier.fillMaxSize()) {
         CompositionLocalProvider(
             LocalNavigationFocus provides navigationFocus.getValue(destination)
         ) {
@@ -118,6 +61,64 @@ internal fun TvNavigation(
                 Box(Modifier.fillMaxHeight().width(1.dp).background(KinoColors.BorderSubtle))
                 content()
             }
+        }
+        Canvas(Modifier.fillMaxSize()) { drawRect(Background.copy(alpha = scrim.value)) }
+        Column(
+            Modifier.width(width)
+                .fillMaxHeight()
+                .background(Background)
+                .clipToBounds()
+                .onFocusChanged { expanded = it.hasFocus }
+                .focusGroup()
+                .padding(horizontal = 14.dp, vertical = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(
+                Modifier.height(36.dp).padding(start = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Image(
+                    painterResource(R.drawable.kino_icon),
+                    stringResource(R.string.app_name),
+                    Modifier.size(24.dp),
+                )
+                if (expanded)
+                    Text(
+                        stringResource(R.string.app_name),
+                        Modifier.padding(start = 18.dp),
+                        fontSize = 22.sp,
+                    )
+            }
+            Spacer(Modifier.height(10.dp))
+            TvDestinations.forEachIndexed { index, item ->
+                if (index == 3) {
+                    Box(
+                        Modifier.padding(start = 8.dp, top = 12.dp, bottom = 12.dp)
+                            .width(28.dp)
+                            .height(1.dp)
+                            .background(KinoColors.Border)
+                    )
+                }
+                RailButton(
+                    stringResource(item.label),
+                    item.icon,
+                    expanded,
+                    active = destination == item.route,
+                    modifier =
+                        Modifier.focusRequester(navigationFocus.getValue(item.route))
+                            .focusProperties { right = contentFocus },
+                    onClick = { onNavigate(item.route) },
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            RailButton(
+                stringResource(if (signedIn) R.string.account else R.string.sign_in),
+                R.drawable.ic_user_round,
+                expanded,
+                false,
+                Modifier.focusProperties { right = contentFocus },
+                onAccount,
+            )
         }
     }
 }

@@ -214,15 +214,17 @@ def main():
     library.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(BUILD / "android-core-target/aarch64-linux-android/release/libstremio_core_kotlin.so", library)
     run(llvm / "llvm-strip", "--strip-unneeded", library)
-    tasks = sys.argv[1:] or [":app:assembleDebug"]
+    # Always build the distributed artifact, even when callers add lint or test tasks.
+    # Copying an existing debug APK after an unrelated Gradle task could publish stale code.
+    tasks = list(dict.fromkeys([":app:assembleRelease", *sys.argv[1:]]))
     run(APP / "gradlew", "-p", APP, *tasks, env=env)
-    apk = APP / "app/build/outputs/apk/debug/app-debug.apk"
-    if apk.exists():
-        destination = BUILD / "android/Kino-TV.apk"
-        destination.parent.mkdir(exist_ok=True)
-        shutil.copyfile(apk, destination)
-        destination.with_suffix(".apk.sha256").write_text(f"{digest(destination)}  {destination.name}\n")
-        print(f"APK: {destination}")
+    apk = APP / "app/build/outputs/apk/release/app-release.apk"
+    destination = BUILD / "android/Kino-TV.apk"
+    destination.parent.mkdir(exist_ok=True)
+    shutil.copyfile(apk, destination)
+    destination.with_suffix(".apk.sha256").write_text(f"{digest(destination)}  {destination.name}\n")
+    print(f"APK: {destination}")
+
 
 
 if __name__ == "__main__":

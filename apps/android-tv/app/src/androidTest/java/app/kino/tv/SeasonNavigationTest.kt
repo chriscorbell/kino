@@ -269,7 +269,13 @@ class SeasonNavigationTest {
                 node("Episode 10:")?.let(::focused) == true
             }
             val after = Rect().also { node("Episode 10:")!!.getBoundsInScreen(it) }
-            assertEquals("Back restores the same list offset", before, after)
+            assertEquals(before.left, after.left)
+            assertEquals(before.right, after.right)
+            assertTrue(
+                "Back restores the same list offset within pixel rounding",
+                kotlin.math.abs(before.top - after.top) <= 1 &&
+                    kotlin.math.abs(before.bottom - after.bottom) <= 1,
+            )
             key(KeyEvent.KEYCODE_DPAD_CENTER)
             waitUntil("The restored row still belongs to Season 2") {
                 requests == listOf("show:2:10", "show:2:10")
