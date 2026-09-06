@@ -3,7 +3,7 @@
 import Bridge from '@stremio/stremio-core-web/bridge.js';
 import wasmUrl from '@stremio/stremio-core-web/stremio_core_web_bg.wasm?url';
 import { adaptContinueWatchingState, adaptCoreState, adaptDiscoverState } from './adapters';
-import { createAddonNetwork } from './addonNetwork';
+import { createAddonNetwork, type FollowAddonRedirect } from './addonNetwork';
 import { CatalogPaging } from './catalogPaging';
 import { PendingCoreWork, trackCoreSync } from './pendingWork';
 import { isCoreModelName, type CoreAction, type CoreRuntimeEvent } from './types';
@@ -76,9 +76,14 @@ scope.init = async ({ appVersion, shellVersion }) => {
   await core.default({ module_or_path: wasmUrl });
   // The packaged WASM file loads first. Every subsequent Core request, including
   // requests from stored and synced descriptors, goes through this policy.
-  const network = createAddonNetwork(scope.fetch.bind(scope), import.meta.env.DEV, () => {
-    void bridge.call(['onCoreEvent'], [{ name: 'NewState', args: ['ctx'] }]);
-  });
+  const network = createAddonNetwork(
+    scope.fetch.bind(scope),
+    import.meta.env.DEV,
+    () => {
+      void bridge.call(['onCoreEvent'], [{ name: 'NewState', args: ['ctx'] }]);
+    },
+    (url) => bridge.call<Awaited<ReturnType<FollowAddonRedirect>>>(['fetchAddonRedirect'], [url]),
+  );
   scope.fetch = paging.observeFetch(network.coreFetch);
   scope.getState = (field) => {
     if (!isCoreModelName(field)) throw new Error('Kino does not read that Stremio model.');

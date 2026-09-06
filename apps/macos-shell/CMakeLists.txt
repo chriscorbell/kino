@@ -47,6 +47,7 @@ qt_add_executable(
   Kino
   MACOSX_BUNDLE
   ${KINO_ICON}
+  src/addonnetwork.cpp
   src/closecoordinator.cpp
   src/diagnostics.cpp
   src/externalnavigation.cpp
@@ -81,6 +82,7 @@ qt_add_qml_module(
   VERSION 1.0
   QML_FILES qml/Main.qml qml/Probe.qml
   SOURCES
+    src/addonnetwork.h
     src/closecoordinator.h
     src/diagnostics.h
     src/externalnavigation.h
@@ -160,6 +162,12 @@ add_dependencies(kino_package_engine Kino)
 include(CTest)
 if(BUILD_TESTING)
   find_package(Qt6 6.8 REQUIRED COMPONENTS Test)
+  qt_add_executable(kino_addonnetwork_probe tests/addonnetwork_probe.cpp src/addonnetwork.cpp)
+  target_include_directories(kino_addonnetwork_probe PRIVATE src)
+  target_link_libraries(kino_addonnetwork_probe PRIVATE Qt6::Network Qt6::Qml)
+  add_test(NAME addon_redirects COMMAND ${NODE_EXECUTABLE}
+    "${KINO_REPOSITORY_ROOT}/scripts/check-native-addon-redirects.mjs" $<TARGET_FILE:kino_addonnetwork_probe>)
+  set_tests_properties(addon_redirects PROPERTIES TIMEOUT 30)
   qt_add_executable(kino_externalnavigation_test tests/externalnavigation_test.cpp src/externalnavigation.cpp)
   target_include_directories(kino_externalnavigation_test PRIVATE src)
   target_link_libraries(kino_externalnavigation_test PRIVATE Qt6::Gui Qt6::Qml Qt6::Test)

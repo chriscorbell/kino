@@ -165,9 +165,6 @@ export function App() {
 
   const closePlayer = useCallback(() => setPlayback(null), []);
   const cancelResume = useCallback(() => setResumeRequest(null), []);
-  const resumeUnavailable = useCallback(() => {
-    setResumeRequest((request) => (request ? { ...request, checking: false } : null));
-  }, []);
   // Stable across settings re-renders: an unstable identity would restart the
   // player's load effect while a stream is playing.
   const reportSourceFailure = useCallback(
@@ -224,7 +221,7 @@ export function App() {
             onOpen={openDetail}
             onResume={(item) => {
               openDetail(savedTitlePreview(item), item.videoId);
-              setResumeRequest({ checking: true, item, transport });
+              setResumeRequest({ item, transport });
             }}
           />
         );
@@ -337,7 +334,6 @@ export function App() {
               item={detail}
               resumeRequest={resumeRequest}
               onCancelResume={cancelResume}
-              onResumeUnavailable={resumeUnavailable}
               onBack={() => setScreen(entry.screen)}
               onPlay={(selection) => {
                 // Details unmounts during playback so Up Next can select a new episode on return.

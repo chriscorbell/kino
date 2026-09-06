@@ -180,10 +180,15 @@
   scroll-snap-type: x proximity;
 }
 
-.mediaCard {
-  display: flex;
+.mediaCard,
+.continueCard,
+.mediaSkeleton {
   width: 152px;
   flex: 0 0 auto;
+}
+
+.mediaCard {
+  display: flex;
   flex-direction: column;
   padding: 0;
   border: 0;
@@ -290,8 +295,6 @@
 }
 
 .mediaSkeleton {
-  width: 152px;
-  flex: 0 0 auto;
   aspect-ratio: 2 / 3;
   border-radius: var(--kino-media-radius);
   background: var(--kino-surface);
@@ -312,37 +315,29 @@
 
 .continueCard {
   position: relative;
-  width: 264px;
-  flex: 0 0 auto;
+  scroll-snap-align: start;
 }
 
-.continueOpen {
-  display: block;
-  width: 100%;
-  padding: 0;
-  border: 0;
-  color: inherit;
-  background: transparent;
-  cursor: pointer;
-}
-
-.continueResume {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  margin-top: 8px;
-  padding: 8px 10px;
-  border: 1px solid var(--kino-border);
-  border-radius: var(--kino-control-radius);
-  color: var(--kino-text);
-  background: transparent;
-  cursor: pointer;
+.playOverlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 28%);
+  border-radius: 50%;
+  color: white;
+  background: rgb(10 10 11 / 68%);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
   transition: background-color var(--kino-duration-fast) ease;
 }
 
-.continueResume:hover {
-  background: var(--kino-surface-hover);
+.mediaCard:hover .playOverlay,
+.mediaCard:focus-visible .playOverlay {
+  background: rgb(10 10 11 / 88%);
 }
 
 .continueDismiss {
@@ -373,39 +368,6 @@
 
 .continueDismiss:hover {
   background: var(--kino-danger);
-}
-
-.continueArtwork {
-  position: relative;
-  display: flex;
-  aspect-ratio: 16 / 9;
-  overflow: hidden;
-  align-items: flex-end;
-  border-radius: var(--kino-media-radius);
-  background: var(--kino-surface);
-}
-
-.continueArtwork::after {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, rgb(0 0 0 / 70%), transparent 70%);
-  content: '';
-}
-
-.continueArtwork img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.continueLabel {
-  position: relative;
-  z-index: 1;
-  padding: 14px;
-  font-size: 14px;
-  font-weight: 600;
 }
 
 .progressTrack {
@@ -585,20 +547,6 @@
   border-color: var(--kino-accent);
   color: var(--kino-on-accent);
   background: var(--kino-accent);
-}
-
-.resumeChoice {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 12px 0 16px;
-}
-
-.resumeChoice button {
-  transition:
-    color 150ms ease,
-    border-color 150ms ease,
-    background-color 150ms ease;
 }
 
 .episodeList,
@@ -1848,6 +1796,7 @@
   }
 
   .mediaCard,
+  .continueCard,
   .mediaSkeleton {
     width: 132px;
   }
@@ -1913,6 +1862,7 @@
   .catalogTab,
   .catalogTabActive,
   .continueDismiss,
+  .playOverlay,
   .genreSelect,
   .libraryButton,
   .logoButton,
@@ -1921,7 +1871,6 @@
   .secondaryButton,
   .playerTopbar,
   .playerControls,
-  .resumeChoice button,
   .skipLink,
   .switch,
   .switch span {

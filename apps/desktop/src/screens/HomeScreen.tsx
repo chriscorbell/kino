@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 
-import { Play, X } from '@phosphor-icons/react';
+import { X } from '@phosphor-icons/react';
 
 import styles from '../App.module.css';
 import { ActionFeedback } from '../components/ActionFeedback';
@@ -110,30 +110,13 @@ export function HomeScreen({
           <div className={styles.continueRow}>
             {continueItems.map((item) => (
               <div className={styles.continueCard} key={item.id}>
-                <button
-                  className={styles.continueOpen}
-                  onClick={() => onOpen(savedTitlePreview(item), item.videoId)}
-                  type="button"
-                >
-                  <span className={styles.continueArtwork}>
-                    {item.poster ? <img alt="" src={item.poster} /> : null}
-                    <span className={styles.continueLabel}>{item.name}</span>
-                    <span className={styles.progressTrack}>
-                      <span style={{ width: `${Math.max(0, Math.min(100, item.progress))}%` }} />
-                    </span>
-                  </span>
-                </button>
-                <button
-                  aria-label={enUS.home.resumeTitle(item.name)}
-                  className={styles.continueResume}
-                  onClick={() =>
+                <MediaCard
+                  item={savedTitlePreview(item)}
+                  resumeProgress={item.progress}
+                  onOpen={() =>
                     onResume ? onResume(item) : onOpen(savedTitlePreview(item), item.videoId)
                   }
-                  type="button"
-                >
-                  <Play aria-hidden size={14} weight="fill" />
-                  {enUS.home.resume}
-                </button>
+                />
                 <button
                   aria-label={enUS.home.dismissTitle(item.name)}
                   className={styles.continueDismiss}

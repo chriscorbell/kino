@@ -1,3 +1,4 @@
+import { isSupportedAddon } from './addonNetwork.ts';
 import type {
   AddonSubtitle,
   BoardState,
@@ -804,7 +805,7 @@ export function adaptMetaDetailsState(raw: unknown): MetaDetailsState {
       adaptResource(entry, entrySite, (content, contentSite) =>
         items(content, contentSite, adaptSource),
       ),
-    ),
+    ).filter((resource) => isSupportedAddon(resource.addon)),
     title: displayText(source.title, at(site, 'title')),
   };
 }
@@ -885,7 +886,7 @@ export function adaptProfileState(raw: unknown): ProfileState {
   const user = auth ? record(auth.user, at(profileSite, 'auth.user')) : null;
   return {
     profile: {
-      addons: items(profile.addons, at(profileSite, 'addons'), adaptAddon),
+      addons: items(profile.addons, at(profileSite, 'addons'), adaptAddon).filter(isSupportedAddon),
       auth: user
         ? {
             user: {

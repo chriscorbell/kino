@@ -4,7 +4,7 @@
 
 Kino shows every source returned by an installed add-on and asks the user to choose. The source list exposes the add-on name and any available resolution, codec, range, audio, size, and peer information. It preflights clear incompatibilities when the metadata is sufficient but may attempt unknown sources.
 
-Core requests, manual manifest installation, and guest catalog setup require HTTPS. Development builds also allow HTTP to loopback addresses. Stored and synced add-ons follow the same policy. Requests that redirect are blocked because browser fetch conceals the destination before following it; install the final HTTPS manifest URL instead. The Add-ons screen explains blocked transports and leaves them available for removal.
+Core requests, manual manifest installation, and guest catalog setup require HTTPS. Development builds also allow HTTP to loopback addresses. Stored and synced add-ons follow the same policy. The macOS native transport follows HTTPS redirects for GET requests without request bodies or caller-supplied headers other than Accept. It checks each destination, rejects URL credentials and insecure destinations, and limits redirects to ten hops. Browser-only previews block redirects because browser fetch conceals the destination before following it. The Add-ons screen explains blocked transports and leaves them available for removal. Kino excludes Stremio's Local Files add-on without uninstalling it from the user's account.
 
 `pnpm core:check-addon-transports` verifies the policy with the pinned Core WASM. `pnpm macos:check-addon-transports` checks actual Qt WebEngine requests against local HTTP and HTTPS fixtures, including a redirect to HTTP whose destination must receive no request.
 
@@ -59,7 +59,7 @@ Desktop provides Space or K for play/pause, arrow-key seeking, M for mute, and F
 
 TV playback is always fullscreen. Back first closes the active menu or hides controls; when neither is open, it stops playback, saves progress, and returns to the media details screen.
 
-Continue Watching resumes at saved progress. Media details also offers Start Over. Playback updates progress through Stremio Core when signed in and locally for guests.
+Playback resumes at saved progress, including when choosing a replacement source. Users can seek to the beginning to start over. Playback updates progress through Stremio Core when signed in and locally for guests.
 
 Back, source failure, Up Next, window close, and application Quit share the same shutdown sequence. Kino pauses playback, captures the current position, sends the final progress and pause actions to Core, and waits for storage writes and pending library sync requests before unloading the player. The macOS shell keeps WebEngine alive until this sequence acknowledges completion. Failed local saves keep playback open for retry; failed account requests leave the locally saved progress available.
 

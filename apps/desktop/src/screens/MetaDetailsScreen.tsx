@@ -55,7 +55,6 @@ export function MetaDetailsScreen({
   onPlay,
   resumeRequest = null,
   onCancelResume,
-  onResumeUnavailable,
 }: {
   failedSources: ReadonlyMap<string, string>;
   initialVideoId?: string | null;
@@ -64,7 +63,6 @@ export function MetaDetailsScreen({
   onPlay: (selection: PlaybackSelection) => void;
   resumeRequest?: ResumeRequest | null;
   onCancelResume?: () => void;
-  onResumeUnavailable?: () => void;
 }) {
   const { transport } = useCore();
   const libraryAction = useActionFeedback(transport);
@@ -72,7 +70,6 @@ export function MetaDetailsScreen({
     () => initialVideoId ?? item.defaultVideoId,
   );
   const [profileTransport, setProfileTransport] = useState(transport);
-  const [startOver, setStartOver] = useState(false);
   const [libraryOverride, setLibraryOverride] = useState<{ value: boolean } | null>(null);
   const result = useCoreModel(
     'meta_details',
@@ -80,20 +77,20 @@ export function MetaDetailsScreen({
     `${item.type}:${item.id}:${videoId ?? 'guess'}`,
   );
   const checkedResume = useRef<ResumeRequest | null>(null);
-  const checkingResume = Boolean(resumeRequest?.checking);
+  const checkingResume = Boolean(resumeRequest);
   useEffect(() => {
-    if (!resumeRequest?.checking || checkedResume.current === resumeRequest) return;
+    if (!resumeRequest || checkedResume.current === resumeRequest) return;
     const decision =
       resumeRequest.transport === transport
         ? checkResumeSource(resumeRequest.item, result.state, result.loading, result.error)
         : 'unavailable';
     if (decision === 'pending') return;
     checkedResume.current = resumeRequest;
-    if (decision === 'unavailable') onResumeUnavailable?.();
+    if (decision === 'unavailable') onCancelResume?.();
     else onPlay(decision);
   }, [
     onPlay,
-    onResumeUnavailable,
+    onCancelResume,
     result.error,
     result.loading,
     result.state,
@@ -117,7 +114,6 @@ export function MetaDetailsScreen({
   if (profileTransport !== transport) {
     setProfileTransport(transport);
     setLibraryOverride(null);
-    setStartOver(false);
     setLastMeta(loadedMeta);
   } else if (loadedMeta && loadedMeta !== lastMeta) setLastMeta(loadedMeta);
   const meta = loadedMeta ?? (profileTransport === transport ? lastMeta : null);
@@ -231,17 +227,8 @@ export function MetaDetailsScreen({
   const nextEpisode = activeIndex >= 0 ? (videos[activeIndex + 1] ?? null) : null;
   const inLibrary = libraryOverride?.value ?? display.inLibrary;
   const libraryReady = Boolean(transport && meta);
-  const savedProgress = result.state?.libraryItem;
-  const canResume =
-    sourcesCurrent &&
-    savedProgress?.id === item.id &&
-    savedProgress.timeOffset > 0 &&
-    (savedProgress.videoId === (activeVideo?.id ?? item.id) ||
-      (item.type !== 'series' && !savedProgress.videoId));
-
   const chooseVideo = (id: string) => {
     onCancelResume?.();
-    setStartOver(false);
     setVideoId(id);
   };
 
@@ -273,9 +260,9 @@ export function MetaDetailsScreen({
 
   const sourceSection = (
     <section aria-labelledby="sources-heading" className={styles.detailSection}>
-      {resumeRequest ? (
+      {checkingResume ? (
         <p className={styles.inlineEmpty} role="status">
-          {checkingResume ? enUS.details.checkingResume : enUS.details.resumeUnavailable}
+          {enUS.details.checkingResume}
         </p>
       ) : null}
       <ResourceFailures
@@ -288,28 +275,6 @@ export function MetaDetailsScreen({
         <h2 id="sources-heading">{enUS.details.sources}</h2>
         {sourcesPending ? <span role="status">{enUS.details.refreshing}</span> : null}
       </div>
-      {canResume ? (
-        <div className={styles.resumeChoice} role="group" aria-label={enUS.details.playbackStart}>
-          <button
-            aria-pressed={!startOver}
-            disabled={checkingResume}
-            className={!startOver ? styles.seasonActive : styles.seasonButton}
-            onClick={() => setStartOver(false)}
-            type="button"
-          >
-            {enUS.details.resume}
-          </button>
-          <button
-            aria-pressed={startOver}
-            disabled={checkingResume}
-            className={startOver ? styles.seasonActive : styles.seasonButton}
-            onClick={() => setStartOver(true)}
-            type="button"
-          >
-            {enUS.details.startOver}
-          </button>
-        </div>
-      ) : null}
       {currentFailure ? (
         <p className={styles.loadError} role="status">
           {currentFailure}
@@ -354,7 +319,6 @@ export function MetaDetailsScreen({
                   }
                   if (!playable || !resource?.addon.transportUrl) return;
                   onPlay({
-                    resumeMode: canResume && startOver ? 'start-over' : 'resume',
                     meta: display,
                     metaTransportUrl: resource.addon.transportUrl,
                     nextVideo: nextEpisode,

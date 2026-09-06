@@ -2,7 +2,11 @@ import Bridge from '@stremio/stremio-core-web/bridge.js';
 import CoreWorker from './core.worker?worker';
 import { t } from '../locales';
 
-import { connectNativeSecureStore, nativeShellPresent } from '../native/player';
+import {
+  connectNativeSecureStore,
+  fetchNativeAddonRedirect,
+  nativeShellPresent,
+} from '../native/player';
 import {
   NamespacedStorage,
   SecureProfileStorage,
@@ -88,6 +92,7 @@ export function createCoreTransport(
       ? new SecureProfileStorage(localStorage, nativeAuthStorage())
       : localStorage;
   const scope = {
+    fetchAddonRedirect: fetchNativeAddonRedirect,
     localStorage: storage,
     location: {
       get hash() {

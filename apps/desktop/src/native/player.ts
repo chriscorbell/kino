@@ -52,6 +52,10 @@ export interface NativeExternalNavigation {
   openUrl(url: string): Promise<boolean>;
 }
 
+export interface NativeAddonNetwork {
+  get(url: string): Promise<{ status: number; body: string }>;
+}
+
 export interface NativeDiagnostics {
   openNotices(): Promise<boolean>;
   copyDiagnosticSummary(): Promise<boolean>;
@@ -76,6 +80,7 @@ export interface NativeSecureStore {
 }
 
 interface NativeShellConnection {
+  addonNetwork: NativeAddonNetwork | null;
   interface: NativeInterface | null;
   externalNavigation: NativeExternalNavigation | null;
   lifecycle: NativeLifecycle | null;
@@ -86,6 +91,7 @@ interface NativeShellConnection {
 
 interface WebChannelResult {
   objects: {
+    kinoAddonNetwork?: NativeAddonNetwork;
     kinoDiagnostics?: NativeDiagnostics;
     kinoInterface?: NativeInterface;
     kinoExternalNavigation?: NativeExternalNavigation;
@@ -158,6 +164,7 @@ function connectNativeShell(): Promise<NativeShellConnection | null> {
             return;
           }
           resolve({
+            addonNetwork: channel.objects.kinoAddonNetwork ?? null,
             interface: channel.objects.kinoInterface ?? null,
             diagnostics,
             externalNavigation: channel.objects.kinoExternalNavigation ?? null,
@@ -177,6 +184,10 @@ function connectNativeShell(): Promise<NativeShellConnection | null> {
 
 export async function connectNativePlayer() {
   return (await connectNativeShell())?.player ?? null;
+}
+
+export async function fetchNativeAddonRedirect(url: string) {
+  return (await connectNativeShell())?.addonNetwork?.get(url) ?? null;
 }
 
 export async function openAccountCreation() {

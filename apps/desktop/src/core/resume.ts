@@ -4,7 +4,6 @@ import type { CoreTransport } from './transport';
 import type { ContinueWatchingItem, MetaDetailsState } from './types';
 
 export interface ResumeRequest {
-  checking: boolean;
   item: ContinueWatchingItem;
   transport: CoreTransport | null;
 }
@@ -56,7 +55,6 @@ export function checkResumeSource(
         ...selection,
         metaTransportUrl: resource.addon.transportUrl,
         nextVideo: index >= 0 ? (meta.videos[index + 1] ?? null) : null,
-        resumeMode: 'resume',
         stream,
         streamTransportUrl: remembered.transportUrl,
       };

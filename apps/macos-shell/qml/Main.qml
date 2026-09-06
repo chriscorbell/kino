@@ -62,6 +62,10 @@ ApplicationWindow {
         id: externalNavigation
     }
 
+    AddonNetwork {
+        id: addonNetwork
+    }
+
     QtObject {
         id: interfaceBridge
 
@@ -204,6 +208,7 @@ ApplicationWindow {
             registerObject("kinoDiagnostics", diagnostics)
             registerObject("kinoLifecycle", lifecycle)
             registerObject("kinoExternalNavigation", externalNavigation)
+            registerObject("kinoAddonNetwork", addonNetwork)
         }
     }
 

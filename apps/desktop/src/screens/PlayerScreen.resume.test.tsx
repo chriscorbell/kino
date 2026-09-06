@@ -60,14 +60,9 @@ beforeEach(() => {
   fixture.progress = 0;
 });
 
-it.each([
-  [true, 'resume'],
-  [true, 'start-over'],
-  [false, 'resume'],
-  [false, 'start-over'],
-] as const)(
-  'handles delayed saved progress with native=%s, mode=%s',
-  async (nativeShell, resumeMode) => {
+it.each([true, false])(
+  'resumes delayed saved progress once with native=%s',
+  async (nativeShell) => {
     fixture.nativeShell = nativeShell;
     const props = {
       selection: {
@@ -77,7 +72,6 @@ it.each([
         streamTransportUrl: 'https://addon.invalid/manifest.json',
         video: null,
         nextVideo: null,
-        resumeMode,
       },
       settings: defaultSettings,
       preferredSubtitleLanguage: null,
@@ -104,16 +98,21 @@ it.each([
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 20));
     });
-    expect(screen.getByRole('slider', { name: 'Playback position' })).toHaveValue(
-      resumeMode === 'resume' ? '30000' : '0',
-    );
+    expect(screen.getByRole('slider', { name: 'Playback position' })).toHaveValue('30000');
     fixture.progress = 45000;
     view.rerender(<PlayerScreen {...props} />);
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 20));
     });
-    if (nativeShell)
-      expect(fixture.native.seek.mock.calls).toEqual(resumeMode === 'resume' ? [[30]] : []);
-    else expect(video!.currentTime).toBe(resumeMode === 'resume' ? 30 : 0);
+    if (nativeShell) expect(fixture.native.seek.mock.calls).toEqual([[30]]);
+    else expect(video!.currentTime).toBe(30);
+    fireEvent.change(screen.getByRole('slider', { name: 'Playback position' }), {
+      target: { value: '0' },
+    });
+    fixture.progress = 60000;
+    view.rerender(<PlayerScreen {...props} />);
+    expect(screen.getByRole('slider', { name: 'Playback position' })).toHaveValue('0');
+    if (nativeShell) expect(fixture.native.seek).toHaveBeenLastCalledWith(0);
+    else expect(video!.currentTime).toBe(0);
   },
 );

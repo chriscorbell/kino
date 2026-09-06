@@ -13,6 +13,7 @@ import {
 import { openExternalUrl } from '../native/externalNavigation';
 import { nativeShellPresent } from '../native/player';
 import { AddonTransportError, addonTransportIssue, createAddonNetwork } from '../core/addonNetwork';
+import { fetchNativeAddonRedirect } from '../native/player';
 import { useCore } from '../core/context';
 import type { CoreAddon } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
@@ -90,7 +91,12 @@ export function AddonsScreen() {
     setRequiredConfiguration(null);
     setPendingInstall(null);
     try {
-      const response = await createAddonNetwork(fetch, import.meta.env.DEV).fetch(url, {
+      const response = await createAddonNetwork(
+        fetch,
+        import.meta.env.DEV,
+        undefined,
+        fetchNativeAddonRedirect,
+      ).fetch(url, {
         headers: { Accept: 'application/json' },
       });
       if (!response.ok) throw new Error('Manifest request failed.');

@@ -1,5 +1,6 @@
 import type { CoreTransport } from './transport';
 import { createAddonNetwork } from './addonNetwork';
+import { fetchNativeAddonRedirect } from '../native/player';
 
 const CINEMETA_MANIFEST_URL = 'https://v3-cinemeta.strem.io/manifest.json';
 
@@ -20,13 +21,15 @@ export async function ensureGuestCatalog(transport: CoreTransport, signal?: Abor
 
   let manifest: unknown;
   try {
-    const response = await createAddonNetwork(fetch, import.meta.env.DEV).fetch(
-      CINEMETA_MANIFEST_URL,
-      {
-        headers: { Accept: 'application/json' },
-        signal: AbortSignal.any([AbortSignal.timeout(10_000), ...(signal ? [signal] : [])]),
-      },
-    );
+    const response = await createAddonNetwork(
+      fetch,
+      import.meta.env.DEV,
+      undefined,
+      fetchNativeAddonRedirect,
+    ).fetch(CINEMETA_MANIFEST_URL, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.any([AbortSignal.timeout(10_000), ...(signal ? [signal] : [])]),
+    });
     if (!response.ok) throw new Error(`Cinemeta manifest returned ${response.status}.`);
     manifest = await response.json();
     if (!isManifest(manifest)) throw new Error('Cinemeta returned an invalid manifest.');

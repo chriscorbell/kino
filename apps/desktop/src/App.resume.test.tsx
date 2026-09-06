@@ -123,7 +123,6 @@ it('waits for the remembered add-on and resumes once, returning to selection aft
     expect.objectContaining({
       video: episode,
       stream: remembered,
-      resumeMode: 'resume',
       streamTransportUrl: addon.transportUrl,
     }),
   );
@@ -135,7 +134,7 @@ it('waits for the remembered add-on and resumes once, returning to selection aft
   expect(screen.getByText('Synthetic playback failure')).toBeInTheDocument();
 });
 
-it('keeps the saved episode and resume mode when the remembered URL has changed', async () => {
+it('silently offers sources for the saved episode when the remembered URL has changed', async () => {
   const fixture = mount();
   fireEvent.click(await screen.findByRole('button', { name: 'Resume Saved series' }));
   const next = details();
@@ -144,13 +143,16 @@ it('keeps the saved episode and resume mode when the remembered URL has changed'
   });
   next.streams = [{ addon, content: { type: 'Ready', content: [replacement] } }];
   await fixture.ready(next);
-  expect(await screen.findByText(/previous source is unavailable or changed/)).toBeInTheDocument();
+  const changedSource = await screen.findByRole('button', { name: /Changed source/ });
+  await waitFor(() => expect(changedSource).toBeEnabled());
+  expect(screen.queryByText(/previous source is unavailable or changed/)).not.toBeInTheDocument();
   expect(screen.getByRole('dialog', { name: 'Saved episode' })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Resume' })).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.queryByRole('button', { name: 'Resume' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Start over' })).not.toBeInTheDocument();
   expect(played).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: /Changed source/ }));
   expect(played).toHaveBeenLastCalledWith(
-    expect.objectContaining({ video: episode, stream: replacement, resumeMode: 'resume' }),
+    expect.objectContaining({ video: episode, stream: replacement }),
   );
 });
 

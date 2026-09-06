@@ -3,6 +3,58 @@ import { describe, expect, it, vi } from 'vitest';
 import { addonTransportIssue, createAddonNetwork } from './addonNetwork';
 
 describe('add-on transport policy', () => {
+  it('loads catalogs behind HTTPS redirects through the native redirect transport', async () => {
+    const url = 'https://addon.invalid/catalog/movie/top.json';
+    const fetchRequest = vi.fn<typeof fetch>().mockResolvedValue({
+      type: 'opaqueredirect',
+      status: 0,
+    } as Response);
+    const followRedirect = vi.fn().mockResolvedValue({
+      status: 200,
+      body: JSON.stringify({ metas: [{ id: 'tt1', name: 'A movie' }] }),
+    });
+    const network = createAddonNetwork(fetchRequest, false, () => {}, followRedirect);
+    const response = await network.coreFetch(new Request(url));
+    expect(response.status).toBe(200);
+    expect((await response.json()).metas).toHaveLength(1);
+    expect(followRedirect).toHaveBeenCalledWith(url);
+    expect(
+      network.describeAddon({ transportUrl: 'https://addon.invalid/manifest.json' }).transportIssue,
+    ).toBeNull();
+  });
+
+  it.each([
+    { method: 'POST', body: 'synthetic-account-data' },
+    { headers: { Authorization: 'synthetic-secret' } },
+  ])(
+    'does not replay bodies or authorization headers through the redirect transport',
+    async (init) => {
+      const fetchRequest = vi
+        .fn<typeof fetch>()
+        .mockResolvedValue({ type: 'opaqueredirect' } as Response);
+      const followRedirect = vi.fn();
+      const network = createAddonNetwork(fetchRequest, false, undefined, followRedirect);
+      expect((await network.coreFetch('https://addon.invalid/resource', init)).status).toBe(403);
+      expect(followRedirect).not.toHaveBeenCalled();
+    },
+  );
+
+  it('keeps a native redirect refusal blocked and clears it after recovery', async () => {
+    const fetchRequest = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue({ type: 'opaqueredirect' } as Response);
+    const followRedirect = vi
+      .fn()
+      .mockResolvedValueOnce({ status: 403, body: '' })
+      .mockResolvedValueOnce({ status: 200, body: '{}' });
+    const network = createAddonNetwork(fetchRequest, false, undefined, followRedirect);
+    const addon = { transportUrl: 'https://addon.invalid/manifest.json' };
+    expect((await network.coreFetch(addon.transportUrl)).status).toBe(403);
+    expect(network.describeAddon(addon).transportIssue).toBe('redirect');
+    expect((await network.coreFetch(addon.transportUrl)).status).toBe(200);
+    expect(network.describeAddon(addon).transportIssue).toBeNull();
+  });
+
   it('gives Core a network failure without triggering its credential-bearing rejection logs', async () => {
     const fetchRequest = vi.fn<typeof fetch>().mockRejectedValue(new TypeError('offline'));
     const network = createAddonNetwork(fetchRequest, false);
