@@ -96,6 +96,8 @@ The community client first checks the available versions for one exact positive 
 
 The timeline highlights a trusted intro range. Seeking into that range restores the manual button; seeking outside it removes the button immediately.
 
+On TV, `SkipIntroTest` drives the actual Core, Media3 player, timeline, and remote on the Shield. Legal Matroska fixtures cover explicit skip types, labels, indexed and unindexed tail chapters, conflicts, unsupported types, missing chapters, malformed text, and oversized metadata. An HLS fixture checks adaptive community resolution. The same gate checks automatic skipping, Undo suppression, seeking, interrupted bodies and ranges, the shared deadline, and strict community runtime and identity matching.
+
 ## Platform gates
 
 Desktop uses libmpv through the initial shell fork. Android TV prototypes Media3 hardware decoding and OpenGL HDR-to-SDR conversion on the NVIDIA Shield. Media3 remains the TV backend only if it satisfies this entire contract; otherwise the TV playback layer changes to libmpv without changing the rest of the native Kotlin application.

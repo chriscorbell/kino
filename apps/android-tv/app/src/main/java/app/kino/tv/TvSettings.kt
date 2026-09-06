@@ -129,10 +129,14 @@ internal fun SettingsScreen(
     var stereo by remember { mutableStateOf(stereoOutputPreferred(context)) }
     var subtitles by remember { mutableStateOf(settings.getBoolean("subtitles", false)) }
     var upNext by remember { mutableStateOf(settings.getBoolean("up_next", true)) }
+    var skipIntro by remember { mutableStateOf(settings.getBoolean("skip_intro", true)) }
+    var automaticIntro by remember { mutableStateOf(settings.getBoolean("automatic_intro", false)) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         stereo = stereoOutputPreferred(context)
         subtitles = settings.getBoolean("subtitles", false)
         upNext = settings.getBoolean("up_next", true)
+        skipIntro = settings.getBoolean("skip_intro", true)
+        automaticIntro = settings.getBoolean("automatic_intro", false)
     }
     var languageDialog by remember { mutableStateOf<Boolean?>(null) }
     val audioFocus = remember { FocusRequester() }
@@ -195,6 +199,40 @@ internal fun SettingsScreen(
         }
         item { SettingRow(R.string.view_addons, onClick = onAddons) }
         item { SettingsHeading(R.string.playback) }
+        item {
+            SettingRow(
+                R.string.skip_intro,
+                stringResource(if (skipIntro) R.string.settings_on else R.string.settings_off),
+                description = stringResource(R.string.skip_intro_description),
+            ) {
+                val next = !skipIntro
+                save {
+                    val stored =
+                        withContext(Dispatchers.IO) {
+                            settings.edit().putBoolean("skip_intro", next).commit()
+                        }
+                    if (stored) skipIntro = next
+                    stored
+                }
+            }
+        }
+        item {
+            SettingRow(
+                R.string.automatic_intro,
+                stringResource(if (automaticIntro) R.string.settings_on else R.string.settings_off),
+                description = stringResource(R.string.automatic_intro_description),
+            ) {
+                val next = !automaticIntro
+                save {
+                    val stored =
+                        withContext(Dispatchers.IO) {
+                            settings.edit().putBoolean("automatic_intro", next).commit()
+                        }
+                    if (stored) automaticIntro = next
+                    stored
+                }
+            }
+        }
         item {
             SettingRow(
                 R.string.up_next,

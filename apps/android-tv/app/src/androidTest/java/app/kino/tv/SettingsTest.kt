@@ -63,6 +63,32 @@ class SettingsTest {
     }
 
     @Test
+    fun skipIntroDefaultsOnWhileAutomaticSkippingDefaultsOff() = runBlocking {
+        onMain { app.core.initialize() }
+        assertTrue(Core.drainWrites())
+        app.settings.edit().remove("skip_intro").remove("automatic_intro").commit()
+        val activity = activity()
+        try {
+            showSettings(activity)
+            focusRow(R.string.skip_intro)
+            assertTrue(focusedText().contains("On"))
+            key(KeyEvent.KEYCODE_DPAD_CENTER)
+            waitFor("The Skip Intro switch must save Off") {
+                !app.settings.getBoolean("skip_intro", true) && focusedText().contains("Off")
+            }
+            focusRow(R.string.automatic_intro)
+            assertTrue(focusedText().contains("Off"))
+            key(KeyEvent.KEYCODE_DPAD_CENTER)
+            waitFor("The automatic intro switch must save On") {
+                app.settings.getBoolean("automatic_intro", false) && focusedText().contains("On")
+            }
+        } finally {
+            onMain { activity.finish() }
+            app.settings.edit().remove("skip_intro").remove("automatic_intro").commit()
+        }
+    }
+
+    @Test
     fun remoteLanguagePickerRestoresFocusAndSavesEveryLanguageWithoutReplacingOtherSettings() =
         runBlocking {
             onMain { app.core.initialize() }
@@ -519,6 +545,8 @@ class SettingsTest {
                 .edit()
                 .putBoolean("subtitles", !account)
                 .putBoolean("up_next", account)
+                .putBoolean("skip_intro", !account)
+                .putBoolean("automatic_intro", account)
                 .putString("audio_output", if (account) "stereo" else "auto")
                 .putString("tracks-v1:restart", "remembered track fixture")
                 .commit()
@@ -533,6 +561,8 @@ class SettingsTest {
             assertEquals(language.code, app.core.state.value.subtitleLanguage)
             assertEquals(!account, app.settings.getBoolean("subtitles", account))
             assertEquals(account, app.settings.getBoolean("up_next", !account))
+            assertEquals(!account, app.settings.getBoolean("skip_intro", account))
+            assertEquals(account, app.settings.getBoolean("automatic_intro", !account))
             assertEquals(account, stereoOutputPreferred(context))
             assertTrue(clearArtworkCache(context))
             assertEquals(
@@ -542,6 +572,10 @@ class SettingsTest {
             val activity = activity()
             try {
                 showSettings(activity)
+                focusRow(R.string.skip_intro)
+                assertTrue(focusedText().contains(if (account) "Off" else "On"))
+                focusRow(R.string.automatic_intro)
+                assertTrue(focusedText().contains(if (account) "On" else "Off"))
                 focusRow(R.string.up_next)
                 assertTrue(focusedText().contains(if (account) "On" else "Off"))
                 focusRow(R.string.audio_language)
