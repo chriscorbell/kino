@@ -1,4 +1,4 @@
-import { ArrowLeft, CaretRight, Check, Play, Plus } from '@phosphor-icons/react';
+import { ArrowLeft, CaretRight, Check, Plus } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import styles from '../App.module.css';
@@ -17,15 +17,14 @@ import {
 } from '../core/actions';
 import { useCore } from '../core/context';
 import { checkResumeSource, type ResumeRequest } from '../core/resume';
+import { sourceFields, withEstimatedBitrate } from '../core/sourceFields';
 import {
   classifySource,
   externalWebUrl,
-  sourceDetails,
   sourceKey,
-  sourceSize,
-  sourceTitle,
   unsupportedSourceReason,
 } from '../core/sources';
+import { SourceRow } from '../components/SourceRow';
 import type { CoreMetaItem, CoreMetaPreview, CoreSource, CoreVideo } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
@@ -305,72 +304,35 @@ export function MetaDetailsScreen({
             support === 'direct' || support === 'torrent'
               ? enUS.details.sourceUnsupported.addon
               : enUS.details.sourceUnsupported[unsupportedSourceReason(choice.source.source)];
-          const size = sourceSize(choice.source);
+          const fields = withEstimatedBitrate(sourceFields(choice.source), display.runtime);
           return (
-            <div className={styles.sourceRow} key={`${choice.transportUrl}:${index}`}>
-              <button
-                className={styles.sourceButton}
-                disabled={checkingResume || !selectable || !sourcesCurrent || !choice.current}
-                onClick={() => {
-                  if (!sourcesCurrent || !choice.current) return;
-                  if (external) {
-                    setExternalChoice({ key, url: external, transport });
-                    return;
-                  }
-                  if (!playable || !resource?.addon.transportUrl) return;
-                  onPlay({
-                    meta: display,
-                    metaTransportUrl: resource.addon.transportUrl,
-                    nextVideo: nextEpisode,
-                    stream: choice.source,
-                    streamTransportUrl: choice.transportUrl,
-                    video: activeVideo,
-                  });
-                }}
-                type="button"
-              >
-                <span className={styles.sourcePrimary}>
-                  <strong>{sourceTitle(choice.source)}</strong>
-                  <small>{sourceDetails(choice.source)}</small>
-                  {external ? (
-                    <small className={styles.sourceExplanation}>
-                      {enUS.details.openExternal} · {external.host}
-                    </small>
-                  ) : null}
-                  {!selectable ? (
-                    <small className={styles.sourceExplanation}>{unavailable}</small>
-                  ) : null}
-                </span>
-                <span className={styles.sourceMeta}>
-                  {playable ? (
-                    <span className={styles.sourcePlay}>
-                      <Play aria-hidden size={14} weight="fill" />
-                      {enUS.details.playSource}
-                    </span>
-                  ) : null}
-                  {size ? <span>{size}</span> : null}
-                  <span>{choice.addonName}</span>
-                  {!selectable ? <em>{enUS.details.unavailable}</em> : null}
-                  {playable && failed ? <em>{enUS.details.failed}</em> : null}
-                </span>
-              </button>
-              <details className={styles.sourceDisclosure} key={key}>
-                <summary>
-                  {enUS.details.inspectSource}
-                  <span className={styles.visuallyHidden}> {sourceTitle(choice.source)}</span>
-                </summary>
-                <div className={styles.sourceDescription}>
-                  <p>{choice.source.description?.trim() || sourceDetails(choice.source)}</p>
-                  {choice.source.hints.filename ? (
-                    <dl>
-                      <dt>{enUS.details.filename}</dt>
-                      <dd>{choice.source.hints.filename}</dd>
-                    </dl>
-                  ) : null}
-                  {!selectable ? <p>{unavailable}</p> : null}
-                </div>
-              </details>
-            </div>
+            <SourceRow
+              addonName={choice.addonName}
+              disabled={checkingResume || !selectable || !sourcesCurrent || !choice.current}
+              external={external}
+              failed={playable && failed}
+              fields={fields}
+              key={`${choice.transportUrl}:${index}`}
+              playable={playable}
+              selectable={selectable}
+              unavailable={unavailable}
+              onSelect={() => {
+                if (!sourcesCurrent || !choice.current) return;
+                if (external) {
+                  setExternalChoice({ key, url: external, transport });
+                  return;
+                }
+                if (!playable || !resource?.addon.transportUrl) return;
+                onPlay({
+                  meta: display,
+                  metaTransportUrl: resource.addon.transportUrl,
+                  nextVideo: nextEpisode,
+                  stream: choice.source,
+                  streamTransportUrl: choice.transportUrl,
+                  video: activeVideo,
+                });
+              }}
+            />
           );
         })}
       </div>

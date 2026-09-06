@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { hints, preview, torrentSource, urlSource, video } from '../test/coreState';
-import { classifySource, sourceKey, sourceSize } from './sources';
+import { classifySource, sourceKey } from './sources';
 import type { CoreSource } from './types';
 
 const selection = {
@@ -21,15 +21,6 @@ describe('source compatibility', () => {
     expect(classifySource({ kind: 'url', url: 'http://example.com/video.mp4' })).toBe(
       'unsupported',
     );
-  });
-
-  it('formats binary source size without inventing missing metadata', () => {
-    expect(
-      sourceSize(
-        urlSource('https://a.invalid/v.mp4', { hints: hints({ videoSize: 5 * 1024 ** 3 }) }),
-      ),
-    ).toBe('5.0 GB');
-    expect(sourceSize(urlSource('https://a.invalid/v.mp4'))).toBeNull();
   });
 
   it('keys sources by transport and stream identity', () => {
