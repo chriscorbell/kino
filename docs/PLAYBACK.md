@@ -88,6 +88,10 @@ Marker resolution uses this order:
 
 The button exists only while the playhead is inside a trusted marker. Manual activation seeks to the marker end and shows no notice. Automatic skipping is off by default, triggers no more than once per segment in a playback session, and shows an “Intro skipped” notice with Undo. Undo seeks to the marker start and suppresses another automatic skip for that segment during the session.
 
+The community client first checks the available versions for one exact positive runtime, then requests that runtime with unknown-runtime submissions excluded. It checks media identity in both responses. Missing or ambiguous matches, invalid responses, redirects, canceled requests, and responses above 64 KiB produce no marker. A five-second deadline covers both requests. The service does not return a stable version ID or echo the selected runtime, so this selection check cannot detect a release change between the two responses.
+
+`pnpm intro:check`, included in `pnpm check`, bundles the production client and exercises it against HTTP fixtures. `pnpm macos:check-intro` also runs the bundle in Qt WebEngine, including a canceled response body.
+
 The timeline highlights a trusted intro range. Seeking into that range restores the manual button; seeking outside it removes the button immediately.
 
 ## Platform gates

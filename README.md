@@ -81,6 +81,8 @@ KINO_LIFETIME_MEDIA="$PWD/build/fixtures/h264-sdr-aac.mp4" \
 
 Direct media uses the add-on's original HTTPS URL and required request headers in libmpv, independent of any Stremio Service URL saved in the account. TLS certificate verification is required. The native header check drives the production WebChannel and player through a protected media request, external subtitles, and a second source. It verifies literal header values, prevents headers from carrying into subtitles or later sources, rejects header injection and untrusted certificates, and checks diagnostic output for synthetic credentials. It uses `openssl` for the untrusted certificate and generates a short H.264 fixture with `ffmpeg`, or uses `KINO_PLAYBACK_FIXTURE` when provided.
 
+Community intro markers require an exact known runtime. `pnpm intro:check` exercises the bundled client against HTTP fixtures, and `pnpm macos:check-intro` repeats the match and cancellation checks in Qt WebEngine.
+
 ### Streaming engine
 
 Torrent sources play through a pinned build of the open [stream-server](https://github.com/stremio-native/stream-server) engine, which the shell starts on demand and binds to loopback. It is optional: without it Kino runs normally and reports torrent sources as unavailable. Build and bundle it with:
