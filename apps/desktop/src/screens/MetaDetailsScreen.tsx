@@ -1,8 +1,9 @@
 import { ArrowLeft, CaretRight, Check, Plus } from '@phosphor-icons/react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import styles from '../App.module.css';
-import { SourcePickerDialog } from '../components/SourcePickerDialog';
+import { EpisodeSourcesScreen } from './EpisodeSourcesScreen';
+import { availableSeasons, initialSeason, seasonEpisodes } from '../core/seasons';
 import { ResumeCover } from '../components/ResumeCover';
 import { ActionFeedback } from '../components/ActionFeedback';
 import { useActionFeedback } from '../components/useActionFeedback';
@@ -55,6 +56,7 @@ export function MetaDetailsScreen({
   onPlay,
   resumeRequest = null,
   onCancelResume,
+  navigation,
 }: {
   failedSources: ReadonlyMap<string, string>;
   initialVideoId?: string | null;
@@ -63,12 +65,25 @@ export function MetaDetailsScreen({
   onPlay: (selection: PlaybackSelection) => void;
   resumeRequest?: ResumeRequest | null;
   onCancelResume?: () => void;
+  navigation?:
+    | {
+        videoId: string | null;
+        season: number | null | undefined;
+        selectVideo: (id: string | null) => void;
+        selectSeason: (season: number | null) => void;
+      }
+    | undefined;
 }) {
   const { transport } = useCore();
   const libraryAction = useActionFeedback(transport);
-  const [videoId, setVideoId] = useState<string | null>(
-    () => initialVideoId ?? item.defaultVideoId,
+  const [localVideoId, setLocalVideoId] = useState<string | null>(
+    () => initialVideoId ?? (item.type === 'series' ? null : item.defaultVideoId),
   );
+  const videoId = navigation ? navigation.videoId : localVideoId;
+  const setVideoId = navigation?.selectVideo ?? setLocalVideoId;
+  const [localSeason, setLocalSeason] = useState<number | null | undefined>(undefined);
+  const chosenSeason = navigation ? navigation.season : localSeason;
+  const setSeason = navigation?.selectSeason ?? setLocalSeason;
   const [profileTransport, setProfileTransport] = useState(transport);
   const [libraryOverride, setLibraryOverride] = useState<{ value: boolean } | null>(null);
   const result = useCoreModel(
@@ -115,35 +130,23 @@ export function MetaDetailsScreen({
     setProfileTransport(transport);
     setLibraryOverride(null);
     setLastMeta(loadedMeta);
+    setLocalSeason(undefined);
+    setLocalVideoId(null);
   } else if (loadedMeta && loadedMeta !== lastMeta) setLastMeta(loadedMeta);
   const meta = loadedMeta ?? (profileTransport === transport ? lastMeta : null);
   const videos = useMemo(() => meta?.videos ?? [], [meta]);
-  const selectedEpisodeRef = useRef<HTMLButtonElement>(null);
-  const [sourcePickerOpen, setSourcePickerOpen] = useState(
-    () => item.type === 'series' && Boolean(initialVideoId),
-  );
-
-  useEffect(() => {
-    if (item.type !== 'series' || videoId !== null || videos.length === 0) return;
-    const firstEpisode = videos.find((video) => (video.season ?? 0) > 0) ?? videos[0];
-    if (!firstEpisode) return;
-    const timeout = window.setTimeout(() => setVideoId(firstEpisode.id), 0);
-    return () => window.clearTimeout(timeout);
-  }, [item.type, videoId, videos]);
-
-  // A video Core did not place in a season gets no tab. Its season stays null so
-  // the episode list below still shows it under the same null selection.
-  const seasons = useMemo(
-    () => [...new Set(videos.flatMap((video) => (video.season === null ? [] : [video.season])))],
-    [videos],
-  );
-  const activeVideo =
-    videos.find((video) => video.id === videoId) ??
-    videos.find((video) => (video.season ?? 0) > 0) ??
-    videos[0] ??
-    null;
-  const activeSeason = activeVideo?.season ?? seasons[0] ?? null;
-  const visibleVideos = videos.filter((video) => video.season === activeSeason);
+  const seasons = useMemo(() => availableSeasons(videos), [videos]);
+  const progress = result.state?.libraryItem?.id === item.id ? result.state.libraryItem : null;
+  const activeSeason = chosenSeason !== undefined ? chosenSeason : initialSeason(videos, progress);
+  useLayoutEffect(() => {
+    if (item.type === 'series' && loadedMeta && chosenSeason === undefined) {
+      const selectedVideo = loadedMeta.videos.find((video) => video.id === videoId);
+      setSeason(selectedVideo ? selectedVideo.season : initialSeason(loadedMeta.videos, progress));
+    }
+  }, [chosenSeason, item.type, loadedMeta, progress, setSeason, videoId]);
+  const activeVideo = videos.find((video) => video.id === videoId) ?? null;
+  const sourcePage = item.type === 'series' && videoId !== null;
+  const visibleVideos = seasonEpisodes(videos, activeSeason);
   const selected = result.state?.selected;
   // The hook retains old state during Load, and NewState reads can arrive late.
   // Core's selected paths identify the streams in this snapshot. They must also
@@ -337,137 +340,150 @@ export function MetaDetailsScreen({
 
   return (
     <div className={styles.detailPage}>
-      <header className={styles.detailHero}>
-        {display.background ? (
-          <img alt="" className={styles.detailBackdrop} src={display.background} />
-        ) : null}
-        <div className={styles.detailShade} />
-        <button className={styles.backButton} onClick={onBack} type="button">
-          <ArrowLeft aria-hidden size={16} />
-          {enUS.actions.back}
-        </button>
-        <div className={styles.detailCopy}>
-          <h1>{display.name}</h1>
-          <p className={styles.detailMetadata}>{metadata(display)}</p>
-          {display.description ? (
-            <ExpandableText
-              className={styles.detailDescription}
-              key={display.description}
-              label={display.name}
-              lines={3}
-              text={display.description}
+      <div hidden={sourcePage}>
+        <header className={styles.detailHero}>
+          {display.background ? (
+            <img alt="" className={styles.detailBackdrop} src={display.background} />
+          ) : null}
+          <div className={styles.detailShade} />
+          <button className={styles.backButton} onClick={onBack} type="button">
+            <ArrowLeft aria-hidden size={16} />
+            {enUS.actions.back}
+          </button>
+          <div className={styles.detailCopy}>
+            <h1>{display.name}</h1>
+            <p className={styles.detailMetadata}>{metadata(display)}</p>
+            {display.description ? (
+              <ExpandableText
+                className={styles.detailDescription}
+                key={display.description}
+                label={display.name}
+                lines={3}
+                text={display.description}
+              />
+            ) : null}
+            <button
+              className={styles.libraryButton}
+              disabled={!libraryReady || libraryAction.pending}
+              aria-busy={libraryAction.pending}
+              onClick={toggleLibrary}
+              type="button"
+            >
+              {libraryReady ? (
+                inLibrary ? (
+                  <Check aria-hidden size={16} />
+                ) : (
+                  <Plus aria-hidden size={16} />
+                )
+              ) : null}
+              {!libraryReady
+                ? enUS.details.loadingLibrary
+                : inLibrary
+                  ? enUS.details.inLibrary
+                  : enUS.details.addToLibrary}
+            </button>
+            <ActionFeedback action={libraryAction} />
+          </div>
+        </header>
+
+        <div className={styles.detailBody}>
+          {!result.error && !metaFailed && !meta ? (
+            <p role="status" className={styles.inlineEmpty}>
+              {enUS.details.loading}
+            </p>
+          ) : null}
+          {item.type === 'series' ? (
+            <ResourceFailures
+              names={metaFailed ? [resource.addon.manifest.name] : []}
+              error={result.error ? enUS.details.error : null}
+              pending={!meta}
+              onRetry={result.retry}
             />
           ) : null}
-          <button
-            className={styles.libraryButton}
-            disabled={!libraryReady || libraryAction.pending}
-            aria-busy={libraryAction.pending}
-            onClick={toggleLibrary}
-            type="button"
-          >
-            {libraryReady ? (
-              inLibrary ? (
-                <Check aria-hidden size={16} />
-              ) : (
-                <Plus aria-hidden size={16} />
-              )
-            ) : null}
-            {!libraryReady
-              ? enUS.details.loadingLibrary
-              : inLibrary
-                ? enUS.details.inLibrary
-                : enUS.details.addToLibrary}
-          </button>
-          <ActionFeedback action={libraryAction} />
-        </div>
-      </header>
-
-      <div className={styles.detailBody}>
-        {!result.error && !metaFailed && !meta ? (
-          <p role="status" className={styles.inlineEmpty}>
-            {enUS.details.loading}
-          </p>
-        ) : null}
-        {item.type === 'series' && !sourcePickerOpen ? (
-          <ResourceFailures
-            names={failures}
-            error={result.error ? enUS.details.error : null}
-            pending={sourcesPending}
-            onRetry={result.retry}
-          />
-        ) : null}
-        {item.type === 'series' && videos.length > 0 ? (
-          <section className={styles.detailSection} aria-labelledby="episodes-heading">
-            <div className={styles.detailSectionHeading}>
-              <h2 id="episodes-heading">{enUS.details.episodes}</h2>
-              <div className={styles.seasonTabs}>
-                {seasons.map((season) => (
-                  <button
-                    aria-pressed={season === activeSeason}
-                    className={season === activeSeason ? styles.seasonActive : styles.seasonButton}
-                    key={season}
-                    onClick={() => {
-                      const first = videos.find((video) => video.season === season);
-                      if (first) chooseVideo(first.id);
-                    }}
-                    type="button"
+          {item.type === 'series' && videos.length > 0 ? (
+            <section className={styles.detailSection} aria-labelledby="episodes-heading">
+              <div className={styles.detailSectionHeading}>
+                <h2 id="episodes-heading">{enUS.details.episodes}</h2>
+                <label className={styles.seasonSelector}>
+                  <span className={styles.visuallyHidden}>{enUS.details.selectSeason}</span>
+                  <select
+                    value={activeSeason === null ? 'none' : String(activeSeason)}
+                    onChange={(event) =>
+                      setSeason(event.target.value === 'none' ? null : Number(event.target.value))
+                    }
                   >
-                    {enUS.details.season(season)}
-                  </button>
+                    {seasons.map((season) => (
+                      <option
+                        key={String(season)}
+                        value={season === null ? 'none' : String(season)}
+                      >
+                        {season === null
+                          ? enUS.details.otherEpisodes
+                          : season === 0
+                            ? enUS.details.specials
+                            : enUS.details.season(season)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className={styles.episodeList}>
+                {visibleVideos.map((video: CoreVideo) => (
+                  <div
+                    className={`${styles.episodeRow} ${video.id === videoId ? styles.episodeActive : ''}`}
+                    key={video.id}
+                  >
+                    <button
+                      aria-current={video.id === videoId ? 'true' : undefined}
+                      data-episode-id={video.id}
+                      className={styles.episodeButton}
+                      onClick={() => {
+                        chooseVideo(video.id);
+                      }}
+                      type="button"
+                    >
+                      <span className={styles.episodeNumber}>
+                        {String(video.episode ?? 0).padStart(2, '0')}
+                      </span>
+                      <span className={styles.episodeText}>
+                        <strong>{video.title || enUS.details.episode(video.episode)}</strong>
+                        {video.watched ? (
+                          <span>{enUS.details.watched}</span>
+                        ) : progress?.videoId === video.id && progress.timeOffset > 0 ? (
+                          <span>{enUS.details.inProgress}</span>
+                        ) : null}
+                      </span>
+                      <CaretRight aria-hidden size={16} />
+                    </button>
+                    {video.overview ? (
+                      <ExpandableText
+                        className={styles.episodeOverview}
+                        key={video.overview}
+                        label={video.title || enUS.details.episode(video.episode)}
+                        lines={1}
+                        text={video.overview}
+                      />
+                    ) : null}
+                  </div>
                 ))}
               </div>
-            </div>
-            <div className={styles.episodeList}>
-              {visibleVideos.map((video: CoreVideo) => (
-                <div
-                  className={`${styles.episodeRow} ${video.id === videoId ? styles.episodeActive : ''}`}
-                  key={video.id}
-                >
-                  <button
-                    aria-current={video.id === videoId ? 'true' : undefined}
-                    ref={video.id === videoId ? selectedEpisodeRef : undefined}
-                    aria-haspopup="dialog"
-                    className={styles.episodeButton}
-                    onClick={() => {
-                      chooseVideo(video.id);
-                      setSourcePickerOpen(true);
-                    }}
-                    type="button"
-                  >
-                    <span className={styles.episodeNumber}>
-                      {String(video.episode ?? 0).padStart(2, '0')}
-                    </span>
-                    <strong>{video.title || enUS.details.episode(video.episode)}</strong>
-                    <CaretRight aria-hidden size={16} />
-                  </button>
-                  {video.overview ? (
-                    <ExpandableText
-                      className={styles.episodeOverview}
-                      key={video.overview}
-                      label={video.title || enUS.details.episode(video.episode)}
-                      lines={1}
-                      text={video.overview}
-                    />
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          </section>
-        ) : null}
+            </section>
+          ) : null}
 
-        {item.type !== 'series' ? sourceSection : null}
+          {item.type !== 'series' ? sourceSection : null}
+        </div>
       </div>
-      {item.type === 'series' && sourcePickerOpen && !checkingResume ? (
-        <SourcePickerDialog
-          returnFocus={selectedEpisodeRef}
-          title={activeVideo?.title || display.name}
-          onClose={() => {
+      {sourcePage ? (
+        <EpisodeSourcesScreen
+          meta={display}
+          video={activeVideo}
+          onBack={() => {
             onCancelResume?.();
-            setSourcePickerOpen(false);
+            setVideoId(null);
           }}
         >
           {sourceSection}
-        </SourcePickerDialog>
+        </EpisodeSourcesScreen>
       ) : null}
       {currentExternal ? (
         <ExternalSourceDialog url={currentExternal.url} onClose={() => setExternalChoice(null)} />

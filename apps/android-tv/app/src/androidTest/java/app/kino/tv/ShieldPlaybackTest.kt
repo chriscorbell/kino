@@ -33,10 +33,10 @@ class ShieldPlaybackTest {
         instrumentation.runOnMainSync { core.initialize() }
         val deadline = System.currentTimeMillis() + 30000
         while (
-            core.state.value.shelves.none { it.items.isNotEmpty() } &&
+            core.state.value.shelves.none { shelf -> shelf.items.any { it.type == "movie" } } &&
                 System.currentTimeMillis() < deadline
         ) Thread.sleep(100)
-        val media = core.state.value.shelves.flatMap { it.items }.firstOrNull()
+        val media = core.state.value.shelves.flatMap { it.items }.firstOrNull { it.type == "movie" }
         assertNotNull("Core must request catalog ranges and return actual media", media)
         instrumentation.runOnMainSync { core.open(media!!) }
         val detailDeadline = System.currentTimeMillis() + 20000
@@ -71,7 +71,17 @@ class ShieldPlaybackTest {
                     com.stremio.core.types.addon.ResourcePath("stream", media.type, media.id),
                 ),
             )
-        instrumentation.runOnMainSync { core.startPlayer(source) }
+        instrumentation.runOnMainSync {
+            assertFalse(
+                "A different episode cannot start from the current source page",
+                core.startPlayer(
+                    source.copy(
+                        request = source.request.copy(path = source.request.path.copy(id = "other-episode"))
+                    )
+                ),
+            )
+            assertTrue(core.startPlayer(source))
+        }
         Thread.sleep(300)
         instrumentation.runOnMainSync { core.progress(12000, 30000, false) }
         Thread.sleep(300)

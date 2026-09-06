@@ -104,31 +104,24 @@ describe('episode source identity', () => {
     Element.prototype.scrollIntoView = vi.fn();
   });
 
-  it('opens sources as an episode dialog without scrolling the series page, then restores focus', async () => {
+  it('opens a dedicated episode source page and returns to the episode list', async () => {
     const { publish } = mountDetails(details('ep1'), meta, null);
     const episode = await screen.findByRole('button', { name: /Episode two/ });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /ep1 source/ })).not.toBeInTheDocument();
-    episode.focus();
     fireEvent.click(episode);
-    const dialog = screen.getByRole('dialog', { name: 'Episode two' });
-    expect(dialog).toHaveAttribute('open');
-    expect(screen.getByRole('button', { name: 'Close source picker' })).toHaveFocus();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Episode two');
+    expect(screen.queryByRole('button', { name: /Episode three/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     await publish(details('ep2'));
     expect(screen.getByRole('button', { name: /ep2 source/ })).toBeEnabled();
-    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Close source picker' }));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(episode).toHaveFocus();
-    fireEvent.click(episode);
-    fireEvent(screen.getByRole('dialog'), new Event('cancel', { bubbles: true, cancelable: true }));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(episode).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByRole('button', { name: /Episode two/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /ep2 source/ })).not.toBeInTheDocument();
   });
 
-  it('gives a seasonless episode no season tab and still lists it', async () => {
-    // Core reports an absent season as null. A tab per distinct season must skip
-    // that, and the episode itself still belongs in the list.
+  it('groups seasonless episodes without inventing a season number', async () => {
+    // Missing season metadata must still leave the episodes reachable.
     const seasonless = metaItem({
       id: 'show',
       name: 'Test series',
@@ -138,17 +131,16 @@ describe('episode source identity', () => {
         video({ id: 'other', title: 'Second episode', episode: 2 }),
       ],
     });
-    mountDetails(details('only', seasonless), seasonless, 'only');
+    mountDetails(details('only', seasonless), seasonless, null);
 
     expect(await screen.findByRole('button', { name: /Sole episode/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Second episode/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Season/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Season' })).toHaveValue('none');
   });
 
   it('lists only the selected season when Core numbered the episodes', async () => {
-    mountDetails();
-    await screen.findByRole('button', { name: /ep1 source/ });
-    expect(screen.getByRole('button', { name: 'Season 1' })).toBeInTheDocument();
+    mountDetails(details('ep1'), meta, null);
+    expect(await screen.findByRole('combobox', { name: 'Season' })).toHaveValue('1');
     expect(screen.getAllByRole('button', { name: /Episode/ })).toHaveLength(3);
   });
 
@@ -156,6 +148,7 @@ describe('episode source identity', () => {
     const { dispatch, onPlay, publish } = mountDetails();
     const firstSource = await screen.findByRole('button', { name: /ep1 source/ });
     expect(firstSource).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     let finishLoad!: () => void;
     const pending = new Promise<void>((resolve) => {
       finishLoad = resolve;
@@ -165,17 +158,18 @@ describe('episode source identity', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /Episode two/ }));
-    fireEvent.click(firstSource);
+    const retained = screen.getByRole('button', { name: /ep1 source/ });
+    fireEvent.click(retained);
     expect(onPlay).not.toHaveBeenCalled();
-    expect(firstSource).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Episode three/ })).toBeInTheDocument();
+    expect(retained).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /Episode three/ })).not.toBeInTheDocument();
 
     await act(async () => {
       finishLoad();
     });
     fireEvent.click(firstSource);
     expect(onPlay).not.toHaveBeenCalled();
-    expect(firstSource).toBeDisabled();
+    expect(retained).toBeDisabled();
 
     await publish(details('ep2'));
     fireEvent.click(screen.getByRole('button', { name: /ep2 source/ }));
@@ -192,7 +186,9 @@ describe('episode source identity', () => {
   it('rejects out-of-order snapshots after rapid episode changes', async () => {
     const { onPlay, publish } = mountDetails();
     await screen.findByRole('button', { name: /ep1 source/ });
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     fireEvent.click(screen.getByRole('button', { name: /Episode two/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     fireEvent.click(screen.getByRole('button', { name: /Episode three/ }));
 
     await publish(details('ep2'));

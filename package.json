@@ -11,8 +11,9 @@
   },
   "scripts": {
     "build": "pnpm --filter @kino/desktop build",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm core:check-contract && pnpm core:check-streams && pnpm core:check-pagination && pnpm core:check-subtitles && pnpm core:check-shutdown && pnpm core:check-addon-transports && pnpm engine:check-vendor && pnpm notices:check && pnpm build",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm core:check-contract && pnpm core:check-seasons && pnpm core:check-streams && pnpm core:check-pagination && pnpm core:check-subtitles && pnpm core:check-shutdown && pnpm core:check-addon-transports && pnpm engine:check-vendor && pnpm notices:check && pnpm build",
     "core:capture-fixtures": "node scripts/capture-core-fixtures.mjs",
+    "core:check-seasons": "node scripts/check-core-seasons.mjs",
     "core:check-contract": "node scripts/check-core-contract.mjs",
     "core:check-streams": "node scripts/check-core-streams.mjs",
     "core:check-subtitles": "node scripts/check-core-subtitles.mjs",
@@ -33,6 +34,7 @@
     "macos:check-engine-retry": "node scripts/check-macos-engine-retry.mjs",
     "macos:check-scale": "node scripts/check-macos-scale.mjs",
     "macos:check-focus": "node scripts/check-macos-focus.mjs",
+    "macos:check-seasons": "node scripts/check-macos-seasons.mjs",
     "macos:check-resume": "node scripts/check-macos-resume.mjs",
     "macos:check-fullscreen": "node scripts/check-macos-fullscreen.mjs",
     "macos:check-track-choices": "node scripts/check-macos-track-choices.mjs",

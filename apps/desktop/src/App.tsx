@@ -97,7 +97,7 @@ function accountInitial(profile: ProfileState | null) {
 }
 
 export function App() {
-  const { transport } = useCore();
+  const { transport, session } = useCore();
   const updates = useUpdates();
   const [screen, setScreen] = useState<Screen>('home');
   const [entry, setEntry] = useState<NavigationEntry>(() => ({
@@ -112,6 +112,11 @@ export function App() {
   const previousView = useRef<string | null>(null);
   const [detail, setDetail] = useState<CoreMetaPreview | null>(null);
   const [detailVideoId, setDetailVideoId] = useState<string | null>(null);
+  const [detailSeason, setDetailSeason] = useState<number | null | undefined>(undefined);
+  const [detailReturn, setDetailReturn] = useState<{ scrollTop: number; videoId: string } | null>(
+    null,
+  );
+  const [detailTransport, setDetailTransport] = useState(transport);
   const [resumeRequest, setResumeRequest] = useState<ResumeRequest | null>(null);
   const [playback, setPlayback] = useState<PlaybackSelection | null>(null);
   const [failedSources, setFailedSources] = useState<ReadonlyMap<string, string>>(new Map());
@@ -120,6 +125,14 @@ export function App() {
   const [settings, setSettings] = useState<KinoSettings>(() =>
     typeof window === 'undefined' ? defaultSettings : loadSettings(window.localStorage),
   );
+  if (detailTransport !== transport) {
+    setDetailTransport(transport);
+    setDetailVideoId(null);
+    setDetailSeason(undefined);
+    setDetailReturn(null);
+    setResumeRequest(null);
+    setFailedSources(new Map());
+  }
 
   const interfaceScale = useInterfaceScale(settings.interfaceScale);
 
@@ -159,11 +172,19 @@ export function App() {
     setDetail(item);
     setResumeRequest(null);
     setDetailVideoId(videoId ?? null);
+    setDetailSeason(undefined);
+    setDetailReturn(null);
     setFailedSources(new Map());
     setScreen('detail');
   };
 
   const closePlayer = useCallback(() => setPlayback(null), []);
+  const selectDetailVideo = (videoId: string | null) => {
+    if (videoId !== null && detailVideoId === null)
+      setDetailReturn({ scrollTop: detailMain.current?.scrollTop ?? 0, videoId });
+    setDetailVideoId(videoId);
+    setResumeRequest(null);
+  };
   const cancelResume = useCallback(() => setResumeRequest(null), []);
   // Stable across settings re-renders: an unstable identity would restart the
   // player's load effect while a stream is playing.
@@ -181,7 +202,7 @@ export function App() {
   const view = playback
     ? 'player'
     : screen === 'detail'
-      ? `detail:${detail?.type}:${detail?.id}${resumeRequest ? ':resume' : ''}`
+      ? `detail:${detail?.type}:${detail?.id}:${detailVideoId ?? 'series'}:${session}${resumeRequest ? ':resume' : ''}`
       : screen;
   useLayoutEffect(() => {
     const previous = previousView.current;
@@ -194,6 +215,34 @@ export function App() {
           ? detailMain.current
           : browseMain.current;
     if (!main) return;
+    if (
+      screen === 'detail' &&
+      !playback &&
+      detail?.type === 'series' &&
+      detailVideoId === null &&
+      detailReturn
+    ) {
+      const restore = () => {
+        const episode = [...main.querySelectorAll<HTMLElement>('[data-episode-id]')].find(
+          (element) => element.dataset.episodeId === detailReturn.videoId,
+        );
+        if (!episode || episode.closest('[hidden]')) return false;
+        main.scrollTop = detailReturn.scrollTop;
+        episode.focus({ preventScroll: true });
+        return true;
+      };
+      if (restore()) return;
+      const observer = new MutationObserver(() => {
+        if (restore()) observer.disconnect();
+      });
+      observer.observe(main, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['hidden'],
+      });
+      return () => observer.disconnect();
+    }
     if (screen !== 'detail' && !playback && previous?.startsWith('detail:')) {
       main.scrollTop = entry.scrollTop;
       if (entry.focus?.isConnected && main.contains(entry.focus)) {
@@ -206,7 +255,10 @@ export function App() {
         return;
       }
     }
-    const heading = main.querySelector<HTMLElement>('h1');
+    if (screen === 'detail' && !playback) main.scrollTop = 0;
+    const heading = [...main.querySelectorAll<HTMLElement>('h1')].find(
+      (element) => !element.closest('[hidden]'),
+    );
     const target =
       heading && !heading.classList.contains(styles.visuallyHidden ?? '') ? heading : main;
     target.tabIndex = -1;
@@ -217,7 +269,7 @@ export function App() {
       once: true,
     });
     target.focus({ preventScroll: true });
-  }, [entry, playback, screen, view]);
+  }, [detail?.type, detailReturn, detailVideoId, entry, playback, screen, view]);
 
   const content = (() => {
     switch (entry.screen) {
@@ -339,6 +391,16 @@ export function App() {
               failedSources={failedSources}
               key={`${detail.type}:${detail.id}`}
               initialVideoId={detailVideoId}
+              navigation={
+                detail.type === 'series'
+                  ? {
+                      videoId: detailVideoId,
+                      season: detailSeason,
+                      selectVideo: selectDetailVideo,
+                      selectSeason: setDetailSeason,
+                    }
+                  : undefined
+              }
               item={detail}
               resumeRequest={resumeRequest}
               onCancelResume={cancelResume}
@@ -367,6 +429,11 @@ export function App() {
             onSourceFailure={reportSourceFailure}
             onUpNext={(video) => {
               setDetailVideoId(video.id);
+              setDetailSeason(video.season);
+              setDetailReturn((previous) => ({
+                scrollTop: previous?.scrollTop ?? 0,
+                videoId: video.id,
+              }));
               setFailedSources(new Map());
               setPlayback(null);
             }}

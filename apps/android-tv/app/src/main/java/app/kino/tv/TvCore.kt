@@ -34,6 +34,9 @@ data class Media(
     val resume: Boolean = false,
 )
 
+internal fun Media.entryVideoId() =
+    if (resume) videoId ?: id.takeIf { type == "movie" } else id.takeIf { type == "movie" }
+
 data class Shelf(
     val id: String,
     val title: String,
@@ -99,6 +102,7 @@ class TvCore(context: Context, profile: String = "guest") {
     private var initialized = false
     private var linking = false
     private var authenticating = false
+    private var detailSelection: MetaDetails.Selected? = null
     private val update = Runnable { refresh() }
     private val listener =
         Core.EventListener {
@@ -159,21 +163,30 @@ class TvCore(context: Context, profile: String = "guest") {
         load(ActionLoad.Args.LibraryWithFilters(selected), Field.CONTINUE_WATCHING)
     }
 
-    fun open(media: Media, videoId: String? = media.videoId) {
-        mutable.value = mutable.value.copy(details = Details())
-        load(
-            ActionLoad.Args.MetaDetails(
-                MetaDetails.Selected(
-                    metaPath = ResourcePath("meta", media.type, media.id),
-                    streamPath =
-                        (videoId ?: media.id.takeIf { media.type == "movie" })?.let {
-                            ResourcePath("stream", media.type, it)
-                        },
-                    guessStreamPath = false,
-                )
-            ),
-            Field.META_DETAILS,
-        )
+    fun open(media: Media, videoId: String? = media.entryVideoId()) {
+        val selection =
+            MetaDetails.Selected(
+                metaPath = ResourcePath("meta", media.type, media.id),
+                streamPath =
+                    (videoId ?: media.id.takeIf { media.type == "movie" })?.let {
+                        ResourcePath("stream", media.type, it)
+                    },
+                guessStreamPath = false,
+            )
+        val previous = mutable.value.details
+        val sameTitle = detailSelection?.metaPath == selection.metaPath
+        detailSelection = selection
+        mutable.value =
+            mutable.value.copy(
+                details =
+                    Details(
+                        meta = previous.meta.takeIf { sameTitle },
+                        metaRequest = previous.metaRequest.takeIf { sameTitle },
+                        loading = !sameTitle || previous.meta == null,
+                        sourcesLoading = selection.streamPath != null,
+                    )
+            )
+        load(ActionLoad.Args.MetaDetails(selection), Field.META_DETAILS)
     }
 
     fun toggleLibrary(media: Media) {
@@ -221,7 +234,8 @@ class TvCore(context: Context, profile: String = "guest") {
         Core.dispatch(Action(Action.Type.Unload(Action.ActionUnload())), Field.AUTH_LINK)
     }
 
-    fun startPlayer(source: Source) {
+    fun startPlayer(source: Source): Boolean {
+        if (!source.playable || source.request.path != detailSelection?.streamPath) return false
         load(
             ActionLoad.Args.Player(
                 Player.Selected(
@@ -233,6 +247,7 @@ class TvCore(context: Context, profile: String = "guest") {
             ),
             Field.PLAYER,
         )
+        return true
     }
 
     fun resumePosition(videoId: String): Long {
@@ -341,7 +356,16 @@ class TvCore(context: Context, profile: String = "guest") {
         try {
             val profile = Core.getState<Ctx>(Field.CTX).profile
             val detail = Core.getState<MetaDetails>(Field.META_DETAILS)
-            val resources = detail.streams.filter { secureUrl(it.request.base) }
+            val selection = detailSelection
+            val current = selection != null && detail.selected == selection
+            val metaResource = detail.metaItem?.takeIf { it.request.path == selection?.metaPath }
+            val resources =
+                detail.streams.filter {
+                    current &&
+                        selection?.streamPath != null &&
+                        it.request.path == selection.streamPath &&
+                        secureUrl(it.request.base)
+                }
             val auth = Core.getState<AuthLink>(Field.AUTH_LINK)
             val signedIn = profile.auth != null
             if (linking && !authenticating && auth.data?.ready != null) {
@@ -381,18 +405,22 @@ class TvCore(context: Context, profile: String = "guest") {
                             .map { it.manifest.name },
                     details =
                         Details(
-                            meta = detail.metaItem?.ready,
-                            metaRequest = detail.metaItem?.request,
-                            lastUsedStream = detail.lastUsedStream?.ready?.stream,
+                            meta = metaResource?.ready ?: mutable.value.details.meta,
+                            metaRequest =
+                                metaResource?.request ?: mutable.value.details.metaRequest,
+                            lastUsedStream =
+                                detail.lastUsedStream?.ready?.stream.takeIf { current },
                             sources =
                                 resources.flatMap { resource ->
                                     resource.ready?.streams.orEmpty().map {
                                         Source(resource.title, it, resource.request)
                                     }
                                 },
-                            loading = detail.metaItem == null || detail.metaItem?.loading != null,
-                            sourcesLoading = resources.any { it.loading != null },
-                            failed = detail.metaItem?.error != null,
+                            loading = metaResource == null || metaResource.loading != null,
+                            sourcesLoading =
+                                selection?.streamPath != null &&
+                                    (!current || resources.any { it.loading != null }),
+                            failed = metaResource?.error != null,
                             sourceErrors = resources.filter { it.error != null }.map { it.title },
                         ),
                     link = auth.code?.ready?.link,

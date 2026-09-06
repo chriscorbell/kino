@@ -61,7 +61,7 @@ export function loadMetaDetailsAction(meta: CoreMetaPreview, videoId: string | n
         streamPath: videoId
           ? { resource: 'stream', type: meta.type, id: videoId, extra: [] }
           : null,
-        guessStream: true,
+        guessStream: meta.type !== 'series',
       },
     },
   };

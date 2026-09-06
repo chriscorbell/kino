@@ -26,8 +26,8 @@ const addon = {
 };
 
 vi.mock('./screens/HomeScreen', () => ({
-  HomeScreen: ({ onOpen }: { onOpen: (item: CoreMetaItem, videoId: string) => void }) => (
-    <button onClick={() => onOpen(meta, 'ep1')}>Open test series</button>
+  HomeScreen: ({ onOpen }: { onOpen: (item: CoreMetaItem, videoId?: string) => void }) => (
+    <button onClick={() => onOpen(meta)}>Open test series</button>
   ),
 }));
 vi.mock('./screens/PlayerScreen', () => ({
@@ -57,7 +57,7 @@ beforeEach(() => {
 });
 
 function mountApp() {
-  let videoId = 'ep1';
+  let videoId: string | null = null;
   const listeners = new Set<(event: CoreRuntimeEvent) => void>();
   const transport: CoreTransport = {
     destroy: vi.fn(),
@@ -67,7 +67,9 @@ function mountApp() {
     init: vi.fn().mockResolvedValue(undefined),
     dispatch: async (action, model) => {
       if (model === 'meta_details' && action.action === 'Load') {
-        videoId = (action.args as { args: { streamPath: { id: string } } }).args.streamPath.id;
+        videoId =
+          (action.args as { args: { streamPath: { id: string } | null } }).args.streamPath?.id ??
+          null;
         listeners.forEach((listener) => listener({ name: 'NewState', args: ['meta_details'] }));
       }
     },
@@ -79,7 +81,9 @@ function mountApp() {
             title: null,
             selected: {
               metaPath: { resource: 'meta', type: 'series', id: meta.id, extra: [] },
-              streamPath: { resource: 'stream', type: 'series', id: videoId, extra: [] },
+              streamPath: videoId
+                ? { resource: 'stream', type: 'series', id: videoId, extra: [] }
+                : null,
               guessStream: true,
             },
             metaItem: { addon, content: { type: 'Ready', content: meta } },
@@ -112,6 +116,7 @@ function mountApp() {
 it('marks only the failed torrent file and keeps another episode independent', async () => {
   mountApp();
   fireEvent.click(screen.getByRole('button', { name: 'Open test series' }));
+  fireEvent.click(await screen.findByRole('button', { name: /Episode one/ }));
   const first = await screen.findByRole('button', { name: /Pack file 0/ });
   await waitFor(() => expect(first).toBeEnabled());
   fireEvent.click(first);
@@ -125,6 +130,7 @@ it('marks only the failed torrent file and keeps another episode independent', a
     within(screen.getByRole('button', { name: /Pack file 1/ })).queryByText('Failed'),
   ).not.toBeInTheDocument();
 
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }));
   fireEvent.click(screen.getByRole('button', { name: /Episode two/ }));
   await waitFor(() => expect(screen.getByRole('button', { name: /Pack file 0/ })).toBeEnabled());
   expect(screen.queryByText('Failed')).not.toBeInTheDocument();
@@ -136,40 +142,34 @@ it.each(['Back from playback', 'Fail playback', 'Up Next'])(
   async (exit) => {
     mountApp();
     fireEvent.click(screen.getByRole('button', { name: 'Open test series' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Season 2' }));
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /Season two episode five/ })).toHaveAttribute(
-        'aria-current',
-        'true',
-      ),
-    );
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Season' }), {
+      target: { value: '2' },
+    });
+    expect(screen.queryByRole('button', { name: /Pack file 0/ })).not.toBeInTheDocument();
+    const episode = screen.getByRole('button', { name: /Season two episode five/ });
+    episode.focus();
+    screen.getByRole('main', { name: 'Test series' }).scrollTop = 325;
+    fireEvent.click(episode);
     await waitFor(() => expect(screen.getByRole('button', { name: /Pack file 0/ })).toBeEnabled());
     fireEvent.click(screen.getByRole('button', { name: /Pack file 0/ }));
     expect(screen.getByText('Playing Season two episode five')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: exit }));
     const title = exit === 'Up Next' ? 'Season two episode six' : 'Season two episode five';
-    expect(await screen.findByRole('dialog', { name: title })).toBeInTheDocument();
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: new RegExp(title) })).toHaveAttribute(
-        'aria-current',
-        'true',
-      ),
-    );
-    expect(screen.getByRole('button', { name: 'Season 2' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    expect(await screen.findByRole('heading', { name: title, level: 1 })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     const source = screen.getByRole('button', { name: /Pack file 0/ });
     await waitFor(() => expect(source).toBeEnabled());
     if (exit === 'Fail playback') expect(within(source).getByText('Failed')).toBeInTheDocument();
     fireEvent.click(source);
     expect(screen.getByText(`Playing ${title}`)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Back from playback' }));
+    expect(await screen.findByRole('heading', { name: title, level: 1 })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: /Pack file 0/ })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByRole('combobox', { name: 'Season' })).toHaveValue('2');
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: new RegExp(title) })).toHaveAttribute(
-        'aria-current',
-        'true',
-      ),
+      expect(screen.getByRole('button', { name: new RegExp(title) })).toHaveFocus(),
     );
+    expect(screen.getByRole('main', { name: 'Test series' }).scrollTop).toBe(325);
   },
 );

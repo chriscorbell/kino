@@ -20,6 +20,7 @@ import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -68,6 +69,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.*
 import coil3.compose.AsyncImage
@@ -96,9 +98,9 @@ fun KinoApp(
     val startup = startupScreen(state, accountProcess, entered)
     val linking = startup == StartupScreen.SignIn
     var destination by rememberSaveable { mutableStateOf("home") }
-    var selected by remember { mutableStateOf<Media?>(null) }
-    var videoId by remember { mutableStateOf<String?>(null) }
-    var playing by remember { mutableStateOf<Source?>(null) }
+    var selected by remember(core) { mutableStateOf<Media?>(null) }
+    var videoId by remember(core) { mutableStateOf<String?>(null) }
+    var playing by remember(core) { mutableStateOf<Source?>(null) }
     var playbackError by remember { mutableStateOf<Int?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
     val navigationFocus = remember { TvDestinations.associate { it.route to FocusRequester() } }
@@ -108,6 +110,8 @@ fun KinoApp(
     var returnFocusKey by remember { mutableStateOf<String?>(null) }
     var navigationRequest by remember { mutableIntStateOf(0) }
     var resumePending by remember { mutableStateOf(false) }
+    val savedDetails = rememberSaveableStateHolder()
+    var detailEntry by rememberSaveable { mutableIntStateOf(0) }
 
     LaunchedEffect(core) { core.initialize() }
     LaunchedEffect(state.signedIn) {
@@ -147,8 +151,7 @@ fun KinoApp(
         when {
             source != null -> {
                 resumePending = false
-                core.startPlayer(source)
-                playing = source
+                if (core.startPlayer(source)) playing = source
             }
             details.failed || (!details.loading && !details.sourcesLoading) -> resumePending = false
         }
@@ -158,19 +161,29 @@ fun KinoApp(
         playbackError = null
         resumePending = false
     }
+    val backFromDetails = {
+        if (selected?.type == "series" && videoId != null) {
+            videoId = null
+            resumePending = false
+            playbackError = null
+            core.open(selected!!, null)
+        } else closeDetails()
+    }
     BackHandler(playing == null && (selected != null || linking || destination != "home")) {
         when {
             linking -> {
                 core.cancelLink()
                 onCancelAccount()
             }
-            selected != null -> closeDetails()
+            selected != null -> backFromDetails()
             else -> destination = "home"
         }
     }
     val open: (Media) -> Unit = { media ->
+        savedDetails.removeState(detailEntry)
+        detailEntry++
         selected = media
-        videoId = media.videoId ?: media.id.takeIf { media.type == "movie" }
+        videoId = media.entryVideoId()
         returnFocusKey = posterFocus.lastFocusedKey
         resumePending = media.resume
         playbackError = null
@@ -221,25 +234,27 @@ fun KinoApp(
                     ) {
                         Box(Modifier.fillMaxSize().focusRequester(contentFocus).focusGroup()) {
                             if (selected != null) {
-                                DetailScreen(
-                                    selected!!,
-                                    videoId,
-                                    state.details,
-                                    playbackError,
-                                    resuming = resumePending,
-                                    onBack = closeDetails,
-                                    onEpisode = {
-                                        resumePending = false
-                                        videoId = it
-                                        core.open(selected!!, it)
-                                    },
-                                    onRetry = { core.open(selected!!, videoId) },
-                                    onLibrary = { core.toggleLibrary(selected!!) },
-                                    onSource = { source ->
-                                        core.startPlayer(source)
-                                        playing = source
-                                    },
-                                )
+                                savedDetails.SaveableStateProvider(detailEntry) {
+                                    DetailScreen(
+                                        selected!!,
+                                        videoId,
+                                        state.details,
+                                        playbackError,
+                                        resuming = resumePending,
+                                        onBack = backFromDetails,
+                                        onEpisode = {
+                                            resumePending = false
+                                            videoId = it
+                                            playbackError = null
+                                            core.open(selected!!, it)
+                                        },
+                                        onRetry = { core.open(selected!!, videoId) },
+                                        onLibrary = { core.toggleLibrary(selected!!) },
+                                        onSource = { source ->
+                                            if (core.startPlayer(source)) playing = source
+                                        },
+                                    )
+                                }
                             } else {
                                 savedScreens.SaveableStateProvider(destination) {
                                     when (destination) {
@@ -500,7 +515,7 @@ private fun PosterCard(
 }
 
 @Composable
-private fun DetailScreen(
+internal fun DetailScreen(
     media: Media,
     videoId: String?,
     details: Details,
@@ -512,10 +527,92 @@ private fun DetailScreen(
     onLibrary: () -> Unit,
     onSource: (Source) -> Unit,
 ) {
-    val meta = details.meta
+    val meta = details.meta?.takeIf { it.id == media.id && it.type == media.type }
     val focus = remember { FocusRequester() }
+    val episodeList = rememberLazyListState()
+    var season by rememberSaveable { mutableStateOf<Int?>(null) }
+    var lastEpisode by rememberSaveable { mutableStateOf(videoId) }
+    var seasonMenu by remember { mutableStateOf(false) }
+    var pendingFocus by remember(videoId) { mutableStateOf(lastEpisode) }
+    val videos = meta?.videos.orEmpty()
+    LaunchedEffect(meta) {
+        if (meta != null && season == null) {
+            season = videos.find { it.id == videoId }?.seasonNumber() ?: initialSeason(videos)
+        }
+    }
+    if (media.type == "series" && videoId != null) {
+        val episode = videos.find { it.id == videoId }
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(vertical = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
+            item {
+                Button(onBack, Modifier.padding(horizontal = PageGutter).focusRequester(focus)) {
+                    Icon(painterResource(R.drawable.ic_arrow_left), null, Modifier.size(18.dp))
+                    Text(stringResource(R.string.back), Modifier.padding(start = 8.dp))
+                }
+                LaunchedEffect(resuming) { if (!resuming) focus.requestFocus() }
+            }
+            item {
+                Column(
+                    Modifier.padding(horizontal = PageGutter, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text(meta?.name ?: media.title, color = Muted, fontSize = 16.sp)
+                    Text(
+                        episode?.title ?: stringResource(R.string.episode),
+                        fontSize = 30.sp,
+                        lineHeight = 36.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    episode?.seriesInfo?.let {
+                        Text(
+                            stringResource(
+                                R.string.season_episode,
+                                it.season.toInt(),
+                                it.episode.toInt(),
+                            ),
+                            color = Muted,
+                            fontSize = 16.sp,
+                        )
+                    }
+                }
+            }
+            sourceItems(media, videoId, details, error, onRetry, onSource)
+        }
+        return
+    }
+    if (seasonMenu) {
+        Dialog(onDismissRequest = { seasonMenu = false }) {
+            LazyColumn(
+                Modifier.width(360.dp)
+                    .heightIn(max = 420.dp)
+                    .background(SurfaceColor, RoundedCornerShape(12.dp))
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                items(availableSeasons(videos)) { option ->
+                    val optionFocus = remember { FocusRequester() }
+                    Button(
+                        {
+                            season = option
+                            lastEpisode = null
+                            pendingFocus = null
+                            seasonMenu = false
+                        },
+                        Modifier.fillMaxWidth().focusRequester(optionFocus),
+                    ) {
+                        Text(seasonLabel(option))
+                    }
+                    LaunchedEffect(Unit) { if (option == season) optionFocus.requestFocus() }
+                }
+            }
+        }
+    }
     LazyColumn(
         Modifier.fillMaxSize(),
+        state = episodeList,
         contentPadding = PaddingValues(bottom = 40.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
@@ -587,7 +684,7 @@ private fun DetailScreen(
                     )
                 }
             }
-            LaunchedEffect(resuming) { if (!resuming) focus.requestFocus() }
+            LaunchedEffect(resuming) { if (!resuming && lastEpisode == null) focus.requestFocus() }
         }
         if (media.preview != null || meta != null)
             item {
@@ -616,86 +713,136 @@ private fun DetailScreen(
             }
         if (details.loading) item { StatusText(R.string.loading) }
         if (details.failed) item { RetryRow(onRetry) }
-        if (media.type != "movie" && meta != null) {
+        if (media.type == "series" && meta != null) {
             item {
-                Text(
-                    stringResource(R.string.episodes),
-                    Modifier.padding(start = PageGutter),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-            item {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = PageGutter, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                OutlinedButton(
+                    { seasonMenu = true },
+                    Modifier.padding(horizontal = PageGutter),
+                    border = kinoOutlinedBorder(),
                 ) {
-                    items(meta.videos.filter { !it.upcoming }, key = { it.id }) { episode ->
-                        Button(
-                            { onEpisode(episode.id) },
-                            shape = ButtonDefaults.shape(RoundedCornerShape(8.dp)),
-                            colors =
-                                ButtonDefaults.colors(
-                                    containerColor =
-                                        if (videoId == episode.id) KinoColors.SurfaceActive
-                                        else SurfaceColor
-                                ),
-                        ) {
-                            Column(Modifier.widthIn(max = 180.dp)) {
-                                episode.seriesInfo?.let {
-                                    Text(
-                                        stringResource(
-                                            R.string.season_episode,
-                                            it.season.toInt(),
-                                            it.episode.toInt(),
-                                        ),
-                                        fontSize = 12.sp,
-                                    )
-                                }
-                                Text(episode.title, fontSize = 15.sp, lineHeight = 20.sp)
-                            }
+                    Text(seasonLabel(season ?: initialSeason(videos)))
+                    Icon(
+                        painterResource(R.drawable.ic_chevron_down),
+                        null,
+                        Modifier.padding(start = 12.dp).size(18.dp),
+                    )
+                }
+            }
+            items(seasonEpisodes(videos, season ?: initialSeason(videos)), key = { it.id }) {
+                episode ->
+                val episodeFocus = remember { FocusRequester() }
+                Surface(
+                    onClick = {
+                        lastEpisode = episode.id
+                        onEpisode(episode.id)
+                    },
+                    modifier =
+                        Modifier.padding(horizontal = PageGutter)
+                            .fillMaxWidth()
+                            .focusRequester(episodeFocus),
+                    shape = ClickableSurfaceDefaults.shape(RowShape),
+                    colors = rowColors(),
+                    border = rowBorder(),
+                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+                ) {
+                    Row(
+                        Modifier.padding(18.dp),
+                        horizontalArrangement = Arrangement.spacedBy(20.dp),
+                    ) {
+                        episode.seriesInfo?.let {
+                            Text(
+                                it.episode.toString(),
+                                Modifier.width(36.dp),
+                                color = Muted,
+                                fontSize = 18.sp,
+                            )
                         }
+                        Column(
+                            Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Text(episode.title, fontSize = 18.sp, lineHeight = 24.sp)
+                            if (episode.watched || (episode.progress ?: 0.0) > 0)
+                                Text(
+                                    stringResource(
+                                        if (episode.watched) R.string.watched
+                                        else R.string.in_progress
+                                    ),
+                                    color = Muted,
+                                    fontSize = 13.sp,
+                                )
+                        }
+                    }
+                }
+                LaunchedEffect(resuming, pendingFocus) {
+                    if (!resuming && pendingFocus == episode.id) {
+                        episodeFocus.requestFocus()
+                        pendingFocus = null
                     }
                 }
             }
         }
-        if (videoId != null) {
-            item {
-                Text(
-                    stringResource(R.string.sources),
-                    Modifier.padding(start = PageGutter),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-            error?.let {
-                item {
-                    Text(
-                        stringResource(it),
-                        Modifier.padding(horizontal = PageGutter),
-                        color = KinoColors.Danger,
-                    )
-                }
-            }
-            if (details.sourcesLoading) item { StatusText(R.string.loading) }
-            if (details.sourceErrors.isNotEmpty()) item { RetryRow(onRetry) }
-            if (!details.sourcesLoading && details.sources.isEmpty())
-                item { StatusText(R.string.empty_sources) }
-            items(details.sources) { source ->
-                SourceRow(source, details.meta?.runtime, onSelect = { onSource(source) })
-            }
+        if (media.type == "movie" && videoId != null)
+            sourceItems(media, videoId, details, error, onRetry, onSource)
+    }
+}
+
+@Composable
+private fun seasonLabel(season: Int) =
+    when (season) {
+        -1 -> stringResource(R.string.other_episodes)
+        0 -> stringResource(R.string.specials)
+        else -> stringResource(R.string.season, season)
+    }
+
+private fun LazyListScope.sourceItems(
+    media: Media,
+    videoId: String,
+    details: Details,
+    error: Int?,
+    onRetry: () -> Unit,
+    onSource: (Source) -> Unit,
+) {
+    val sources =
+        details.sources.filter {
+            it.request.path.type == media.type &&
+                it.request.path.id == videoId &&
+                details.meta?.id == media.id &&
+                details.meta.type == media.type
         }
+    item {
+        Text(
+            stringResource(R.string.sources),
+            Modifier.padding(start = PageGutter),
+            fontSize = 20.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+    error?.let {
+        item {
+            Text(
+                stringResource(it),
+                Modifier.padding(horizontal = PageGutter),
+                color = KinoColors.Danger,
+            )
+        }
+    }
+    if (details.loading || details.sourcesLoading) item { StatusText(R.string.loading) }
+    if (details.failed || details.sourceErrors.isNotEmpty()) item { RetryRow(onRetry) }
+    if (!details.loading && !details.sourcesLoading && sources.isEmpty())
+        item { StatusText(R.string.empty_sources) }
+    items(sources) { source ->
+        SourceRow(source, details.meta?.runtime, onSelect = { onSource(source) })
     }
 }
 
 /**
- * A plain loading screen between Home and the player while Core confirms the
- * remembered source. The poster the user just chose says what is loading, so
- * it carries no text. It covers the rail as well as the details page, holds
- * focus, and swallows every key but Back, so nothing beneath can be activated
- * a moment before playback takes over; Back reveals the details page for a
- * manual choice. The caller drops it from composition when the player mounts,
- * so its focus never competes with the surface.
+ * A plain loading screen between Home and the player while Core confirms the remembered source. The
+ * poster the user just chose says what is loading, so it carries no text. It covers the rail as
+ * well as the details page, holds focus, and swallows every key but Back, so nothing beneath can be
+ * activated a moment before playback takes over; Back reveals the details page for a manual choice.
+ * The caller drops it from composition when the player mounts, so its focus never competes with the
+ * surface.
  */
 @Composable
 private fun ResumeOverlay(visible: Boolean, onCancel: () -> Unit) {
@@ -733,7 +880,15 @@ private fun Spinner() {
         val inset = stroke.width / 2
         val bounds = Size(size.width - stroke.width, size.height - stroke.width)
         drawArc(track, 0f, 360f, false, Offset(inset, inset), bounds, style = stroke)
-        drawArc(KinoColors.TextStrong, angle, 80f, false, Offset(inset, inset), bounds, style = stroke)
+        drawArc(
+            KinoColors.TextStrong,
+            angle,
+            80f,
+            false,
+            Offset(inset, inset),
+            bounds,
+            style = stroke,
+        )
     }
 }
 
@@ -1151,7 +1306,10 @@ private val RowShape = RoundedCornerShape(8.dp)
 
 @Composable
 private fun rowColors() =
-    ClickableSurfaceDefaults.colors(containerColor = Background, focusedContainerColor = SurfaceColor)
+    ClickableSurfaceDefaults.colors(
+        containerColor = Background,
+        focusedContainerColor = SurfaceColor,
+    )
 
 @Composable
 private fun rowBorder() =
@@ -1164,10 +1322,9 @@ private fun rowBorder() =
     )
 
 /**
- * One source as a structured row: the same fields, in the same order, as the
- * desktop client, with the spacing a remote needs. Selecting the row plays.
- * The Details control beside it opens the complete add-on text and the rarer
- * fields in place, and never starts playback.
+ * One source as a structured row: the same fields, in the same order, as the desktop client, with
+ * the spacing a remote needs. Selecting the row plays. The Details control beside it opens the
+ * complete add-on text and the rarer fields in place, and never starts playback.
  */
 @Composable
 private fun SourceRow(source: Source, runtime: String?, onSelect: () -> Unit) {
@@ -1238,7 +1395,9 @@ private fun SourceRow(source: Source, runtime: String?, onSelect: () -> Unit) {
             ) {
                 // A fixed width keeps the figures column still when the label changes.
                 Text(
-                    stringResource(if (expanded) R.string.source_hide_details else R.string.source_details),
+                    stringResource(
+                        if (expanded) R.string.source_hide_details else R.string.source_details
+                    ),
                     Modifier.width(132.dp).padding(horizontal = 12.dp, vertical = 16.dp),
                     fontSize = 15.sp,
                     textAlign = TextAlign.Center,
@@ -1302,4 +1461,3 @@ private fun bitrateLabel(fields: SourceFields, runtime: String?): String? {
     val estimate = estimatedMegabits(fields.size, runtimeMinutes(runtime)) ?: return null
     return stringResource(R.string.format_estimated_megabits, digits(estimate))
 }
-

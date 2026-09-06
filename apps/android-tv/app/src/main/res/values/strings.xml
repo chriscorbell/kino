@@ -68,4 +68,10 @@
     <string name="version">Kino for Android TV · %1$s</string>
     <string name="torrent_pending">Torrent playback is not available in this TV build.</string>
     <string name="season_episode">Season %1$d · Episode %2$d</string>
+    <string name="episode">Episode</string>
+    <string name="season">Season %1$d</string>
+    <string name="specials">Specials</string>
+    <string name="other_episodes">Other episodes</string>
+    <string name="watched">Watched</string>
+    <string name="in_progress">In progress</string>
 </resources>
