@@ -19,6 +19,8 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { samplerOutput, toneMapPixel } from './tone-map-reference.mjs';
+
 const WIDTH = 640;
 const HEIGHT = 360;
 const FRAMES = 24;
@@ -28,16 +30,35 @@ export const BAND_A_LUMA = Array.from(
   { length: 16 },
   (_, i) => 64 + Math.round((i * (940 - 64)) / 15),
 );
+// Band B is deliberately two things at once. The first four pairs are extreme, so they
+// identify which matrix the driver applied before any tone curve can hide it. The last four
+// are moderate, so the gamut conversion is actually exercised: a neutral patch is neutral
+// under every matrix and would let a wrong one through unnoticed.
 export const BAND_B_CHROMA = [
   [512, 960],
   [512, 64],
   [960, 512],
   [64, 512],
-  [800, 300],
-  [300, 800],
-  [700, 700],
-  [200, 200],
+  [420, 490],
+  [420, 500],
+  [420, 510],
+  [420, 520],
 ];
+/**
+ * The in-gamut half, which the tone mapping gate checks against expected colour.
+ *
+ * These four are chosen for conditioning as much as for saturation. After the BT.2020 to BT.709
+ * matrix a channel is a difference of larger terms, so a saturated colour near the gamut edge
+ * amplifies the driver's own small deviation into tenths, which would make the gate flaky rather
+ * than strict. Each of these moves by about 0.018 under the driver's measured error but by about
+ * 0.15 if the gamut conversion is dropped, four times the gate's tolerance.
+ *
+ * They share a hue because that is where the well-conditioned, in-gamut region is. BT.2020 colour
+ * that both survives conversion to BT.709 without clipping and does not amplify input error sits in
+ * a narrow band; the four sweep saturation across it rather than hue around it.
+ */
+export const BAND_B_IN_GAMUT = [4, 5, 6, 7];
+const BAND_B_LUMA = 560;
 export const BAND_C_LUMA = Array.from({ length: 16 }, (_, i) => 500 + i);
 export const BAND_D_LUMA = Array.from({ length: 16 }, (_, i) => 500 + 4 * i);
 
@@ -50,7 +71,7 @@ function frame() {
   for (let y = 0; y < HEIGHT; y += 1) {
     const band = y < 90 ? BAND_A_LUMA : y < 180 ? null : y < 270 ? BAND_C_LUMA : BAND_D_LUMA;
     for (let x = 0; x < WIDTH; x += 1) {
-      luma[y * WIDTH + x] = band ? band[patch(x)] : 500;
+      luma[y * WIDTH + x] = band ? band[patch(x)] : BAND_B_LUMA;
     }
   }
   for (let y = 45; y < 90; y += 1) {
@@ -70,6 +91,47 @@ function frame() {
     }
   }
   return bytes;
+}
+
+/**
+ * The patches the device gate reads back, with what the pipeline should produce for each.
+ *
+ * The neutral bands plus band B's in-gamut half. Neutral patches say nothing about the gamut
+ * matrix, since neutral is neutral under all of them, so the coloured patches are what make a
+ * wrong matrix fail here.
+ */
+export function expectedToneMappedPatches() {
+  const patches = [];
+  const add = (band, x, y, luma) => {
+    const sampled = samplerOutput(luma, 512, 512);
+    patches.push({
+      band,
+      x,
+      y,
+      luma,
+      // What the driver should hand the shader, still PQ encoded.
+      sampled: sampled.map((v) => Number(v.toFixed(6))),
+      expected: toneMapPixel(sampled).map((v) => Number(v.toFixed(6))),
+    });
+  };
+  BAND_A_LUMA.forEach((luma, i) => add('A', i * 40 + 20, 45, luma));
+  for (const i of BAND_B_IN_GAMUT) {
+    const [cb, cr] = BAND_B_CHROMA[i];
+    const sampled = samplerOutput(BAND_B_LUMA, cb, cr);
+    patches.push({
+      band: 'B',
+      x: i * 80 + 40,
+      y: 135,
+      luma: BAND_B_LUMA,
+      cb,
+      cr,
+      sampled: sampled.map((v) => Number(v.toFixed(6))),
+      expected: toneMapPixel(sampled).map((v) => Number(v.toFixed(6))),
+    });
+  }
+  BAND_C_LUMA.forEach((luma, i) => add('C', i * 40 + 20, 225, luma));
+  BAND_D_LUMA.forEach((luma, i) => add('D', i * 40 + 20, 315, luma));
+  return patches;
 }
 
 export function generateHdrProbe(fixturesDir) {
@@ -140,6 +202,21 @@ export function generateHdrProbe(fixturesDir) {
     throw new Error(`hdr-probe.mkv lost its HDR tags: ${JSON.stringify(probe)}`);
   if (probe.pix_fmt !== 'yuv420p10le')
     throw new Error(`hdr-probe.mkv is not ten bit: ${probe.pix_fmt}`);
+
+  // The gate compares the GPU's output against these. They are computed here, on the host, in a
+  // different language from the shader, so an error in the pipeline has to be made twice to pass.
+  writeFileSync(
+    join(fixturesDir, 'hdr-probe-expected.json'),
+    JSON.stringify(
+      {
+        sourcePeakNits: 1000,
+        targetPeakNits: 203,
+        patches: expectedToneMappedPatches(),
+      },
+      null,
+      2,
+    ),
+  );
   return target;
 }
 
