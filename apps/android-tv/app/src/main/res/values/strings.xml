@@ -40,7 +40,7 @@
     <string name="audio_output_auto">Auto</string>
     <string name="audio_output_stereo">Stereo</string>
     <string name="audio_output_auto_body">Passes surround formats through when the connected equipment accepts them, otherwise decodes them.</string>
-    <string name="audio_output_stereo_body">Decodes every track and folds surround sound to two channels inside Kino, keeping dialogue at full level.</string>
+    <string name="audio_output_stereo_body">Decodes every track, folds surround sound to two channels inside Kino, and evens out the level so films and web video play at the same volume.</string>
     <string name="audio_unsupported">This source\'s audio format cannot be played on this TV.</string>
     <string name="source_details">Details</string>
     <string name="source_details_for">Details for %1$s</string>

@@ -59,11 +59,11 @@ class StereoDownmixProcessor : BaseAudioProcessor() {
                 r += sample * right[channel]
             }
             if (floatInput) {
-                output.putFloat(limit(l))
-                output.putFloat(limit(r))
+                output.putFloat(softClip(l))
+                output.putFloat(softClip(r))
             } else {
-                output.putShort((limit(l) * 32767f).toInt().toShort())
-                output.putShort((limit(r) * 32767f).toInt().toShort())
+                output.putShort((softClip(l) * 32767f).toInt().toShort())
+                output.putShort((softClip(r) * 32767f).toInt().toShort())
             }
         }
         output.flip()
@@ -71,16 +71,6 @@ class StereoDownmixProcessor : BaseAudioProcessor() {
 
     private companion object {
         const val SIDE = 0.7071f
-        /** Above this the curve bends, so a summed peak lands short of full scale. */
-        const val KNEE = 0.8f
-
-        /** Soft limiter: linear to the knee, then a tanh curve that approaches but never exceeds 1. */
-        fun limit(sample: Float): Float {
-            val magnitude = abs(sample)
-            if (magnitude <= KNEE) return sample
-            val limited = KNEE + (1f - KNEE) * tanh((magnitude - KNEE) / (1f - KNEE))
-            return if (sample < 0) -limited else limited
-        }
 
         /**
          * Per-channel weights into left and right for the channel orders the
@@ -118,4 +108,20 @@ class StereoDownmixProcessor : BaseAudioProcessor() {
                 else -> null
             }
     }
+}
+
+/** Above this the curve bends, so a summed peak lands short of full scale. */
+private const val Knee = 0.8f
+
+/**
+ * Soft limiter: linear to the knee, then a tanh curve that approaches but never exceeds 1.
+ *
+ * Both the downmix and [LoudnessNormalizer] finish on this, so a sum that overshoots bends rather
+ * than wraps no matter which stage produced it.
+ */
+internal fun softClip(sample: Float): Float {
+    val magnitude = abs(sample)
+    if (magnitude <= Knee) return sample
+    val limited = Knee + (1f - Knee) * tanh((magnitude - Knee) / (1f - Knee))
+    return if (sample < 0) -limited else limited
 }
