@@ -15,6 +15,7 @@ subprocess.run(["node", "scripts/test-support/track-fixtures.mjs", str(root / "b
 subprocess.run(["node", "scripts/test-support/tv-ending-fixtures.mjs", str(root / "build/android-fixtures")], cwd=root, check=True)
 subprocess.run(["node", "scripts/test-support/tv-intro-fixtures.mjs", str(root / "build/android-fixtures")], cwd=root, check=True)
 subprocess.run(["node", "scripts/test-support/hdr-probe-fixture.mjs", str(root / "build/android-fixtures")], cwd=root, check=True)
+subprocess.run(["node", "scripts/test-support/loudness-reference.mjs", str(root / "build/android-fixtures")], cwd=root, check=True)
 subprocess.run([sys.executable, "scripts/build-android.py", ":app:assembleBenchmark", ":app:assembleBenchmarkAndroidTest"], cwd=root, check=True)
 adb = ["adb", "-s", device]
 try:

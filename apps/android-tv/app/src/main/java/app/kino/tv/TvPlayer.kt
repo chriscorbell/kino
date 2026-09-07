@@ -63,7 +63,9 @@ import kotlinx.coroutines.*
 /**
  * Reject unvalidated HDR before configuring a decoder or exposing a video surface. With [stereo]
  * set, the sink accepts PCM only, so every track is decoded and folded to two channels by
- * [StereoDownmixProcessor] inside Kino rather than passed through or left to the platform mixer.
+ * [StereoDownmixProcessor] inside Kino rather than passed through or left to the platform mixer,
+ * and [LoudnessNormalizer] then evens the level out across sources so a film and a web video do not
+ * need different volume settings.
  */
 class HardwareRenderers(context: Context, private val stereo: Boolean = false) :
     DefaultRenderersFactory(context) {
@@ -79,7 +81,7 @@ class HardwareRenderers(context: Context, private val stereo: Boolean = false) :
         if (stereo) {
             builder
                 .setAudioCapabilities(AudioCapabilities.DEFAULT_AUDIO_CAPABILITIES)
-                .setAudioProcessors(arrayOf(StereoDownmixProcessor()))
+                .setAudioProcessors(arrayOf(StereoDownmixProcessor(), LoudnessNormalizer()))
         }
         return builder.build()
     }
