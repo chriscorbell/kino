@@ -162,5 +162,6 @@ The collector reads installed npm, Cargo, and Homebrew packages without network 
 - [Domain glossary](CONTEXT.md)
 - [Architecture decisions](docs/adr)
 - [Agent guide](AGENTS.md)
+- [Cardboard board](https://cardboard.xode.cc/b/kino)
 
 The original UI mockup and logo are preserved in [`mockup/`](mockup/).
