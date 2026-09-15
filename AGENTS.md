@@ -43,6 +43,20 @@ Editing a document includes removing what it no longer needs: a limitation now f
 
 ## Shipping
 
-Work on a branch inside this checkout, never in a separate worktree, so `main` here stays what `main` is. If the tree holds unrelated uncommitted work, stash it or ask; branching around it hides it. Ship each validated chunk as its own pull request rather than accumulating several. Squash-merge once CI is green, delete the branch, and fast-forward `main` to `origin/main` before starting the next.
+For interactive work outside Cardboard, work on a branch inside this checkout, never in a separate worktree, so `main` here stays what `main` is. If the tree holds unrelated uncommitted work, stash it or ask; branching around it hides it. Ship each validated chunk as its own pull request rather than accumulating several. Squash-merge once CI is green, delete the branch, and fast-forward `main` to `origin/main` before starting the next.
 
 `pnpm check` is the local equivalent of the CI web job. The macOS native job runs only when native inputs change, and packaging runs on pushes to `main`, so a green pull request does not always mean the bundle was rebuilt.
+
+## Cardboard Sessions
+
+Use Node 24, as pinned in `.node-version`. Before opening a pull request, run this acceptance command from the repository root:
+
+```sh
+pnpm install --frozen-lockfile && pnpm check
+```
+
+Passing means both commands exit zero, including every gate and the production client build. The checks use the committed Core WASM and generate their own fixtures; they need no credentials, environment file, browser, Docker, or native build. The icon and banner checks in this command read committed images and run on Linux. Native playback and Shield checks remain separate; report the applicable checks the Session could not run.
+
+Keep the supplied `cardboard/*` branch, push it, open a pull request, and move the card to Review with the pull request link and acceptance result. Leave merging and branch deletion to Cardboard after Approval. Session tokens cannot push changes to `.github/workflows/`; report a required workflow edit on the card for an interactive session.
+
+The [Kino board](https://cardboard.xode.cc/b/kino) uses external preview mode. Kino has no automatic pull request preview URL; native playback needs the macOS app or Shield.
