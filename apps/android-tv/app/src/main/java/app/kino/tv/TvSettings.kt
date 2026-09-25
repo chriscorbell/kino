@@ -7,6 +7,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -149,6 +150,23 @@ internal fun SettingsScreen(
     var clearing by remember { mutableStateOf(false) }
     var cacheStatus by remember { mutableStateOf<Int?>(null) }
     var diagnosticStatus by remember { mutableStateOf<Int?>(null) }
+    // The notices open in place of the list and Back returns to it, so the list keeps its scroll
+    // position and the row that opened them takes focus again.
+    val settingsList = rememberLazyListState()
+    val noticesFocus = remember { FocusRequester() }
+    var notices by remember { mutableStateOf(false) }
+    var noticesOpened by remember { mutableStateOf(false) }
+    BackHandler(notices) { notices = false }
+    if (notices) {
+        LicensesScreen()
+        return
+    }
+    LaunchedEffect(Unit) {
+        if (noticesOpened) {
+            withFrameNanos {}
+            noticesFocus.requestFocus()
+        }
+    }
 
     fun save(action: suspend () -> Boolean) {
         if (saving) return
@@ -183,6 +201,7 @@ internal fun SettingsScreen(
     }
     LazyColumn(
         Modifier.fillMaxSize(),
+        state = settingsList,
         contentPadding = PaddingValues(top = 28.dp, bottom = 40.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -379,6 +398,13 @@ internal fun SettingsScreen(
             }
         }
         diagnosticStatus?.let { item { SettingsMessage(it) } }
+        item { SettingsHeading(R.string.licenses, R.string.licenses_description) }
+        item {
+            SettingRow(R.string.read_notices, modifier = Modifier.focusRequester(noticesFocus)) {
+                noticesOpened = true
+                notices = true
+            }
+        }
         item {
             Text(
                 stringResource(R.string.video_output) + " · " + stringResource(R.string.sdr),

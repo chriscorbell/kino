@@ -28,7 +28,7 @@ Configurable add-ons open their provider's settings page in the system browser. 
 
 ### Android TV
 
-The native Kotlin/Compose development app runs on the NVIDIA Shield. The distributed development APK is non-debuggable and optimized with R8; `pnpm android:check` includes remote navigation and frame-time gates on the device. It includes remote navigation, Stremio device-link sign-in, browsing, details, source selection, and hardware playback, with HDR10 tone mapped to SDR by Kino's own shader. TV offers Up Next near an episode ending and opens the next episode's sources only after saving progress. TV also resolves trusted embedded or community intro markers, marks them on the timeline, and supports manual or optional automatic skipping with Undo. TV Settings controls Up Next, Skip Intro, subtitle and language defaults, clears cached artwork, and copies a diagnostic summary. The Shield suite checks the real cache, clipboard, playback tracks and preferences after process restart. See [Android TV development](docs/ANDROID-TV.md) for toolchain setup, device checks, and current limitations.
+The native Kotlin/Compose development app runs on the NVIDIA Shield. The distributed development APK is non-debuggable and optimized with R8; `pnpm android:check` includes remote navigation and frame-time gates on the device. It includes remote navigation, Stremio device-link sign-in, browsing, details, source selection, and hardware playback, with HDR10 tone mapped to SDR by Kino's own shader. TV offers Up Next near an episode ending and opens the next episode's sources only after saving progress. TV also resolves trusted embedded or community intro markers, marks them on the timeline, and supports manual or optional automatic skipping with Undo. TV Settings controls Up Next, Skip Intro, subtitle and language defaults, clears cached artwork, copies a diagnostic summary, and reads the license notices the APK carries. The Shield suite checks the real cache, clipboard, playback tracks and preferences after process restart. See [Android TV development](docs/ANDROID-TV.md) for toolchain setup, device checks, and current limitations.
 
 ```sh
 pnpm android:build
@@ -155,7 +155,7 @@ Packaging writes Kino's GPL text, retained shell provenance, and dependency noti
 
 The collector reads installed npm, Cargo, and Homebrew packages without network access. [Reviewed supplements](third_party/notices/README.md) supply omitted upstream texts, Qt and Chromium attributions, and complete Rust runtime notices. Packaging fails on missing texts, unknown binary origins, or changed dependency versions that need new supplements. `pnpm macos:package --no-dmg` runs the same collection, signing, and verification while skipping disk-image creation; native CI runs this path after its probes. Development builds need the packaging step before Read notices is available.
 
-The TV APK carries the same kind of index at `assets/licenses/`, collected by `pnpm android:build` from the Core it compiles and a [reviewed record](docs/research/android-notices.md); the build fails when the APK holds a native library no notice covers.
+The TV APK carries the same kind of index at `assets/licenses/`, collected by `pnpm android:build` from the Core it compiles and a [reviewed record](docs/research/android-notices.md); the build fails when the APK holds a native library no notice covers. TV Settings reads it under **Licenses and notices → Read notices**.
 
 ### Releases
 
