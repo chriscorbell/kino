@@ -214,6 +214,9 @@ def main():
     library.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(BUILD / "android-core-target/aarch64-linux-android/release/libstremio_core_kotlin.so", library)
     run(llvm / "llvm-strip", "--strip-unneeded", library)
+    # The APK's license index, collected from the Cargo graph just compiled and the reviewed
+    # record in third_party/notices; Gradle packages it as assets/licenses.
+    run("node", ROOT / "scripts/android-notices.mjs", "generate", "--cargo", toolchain_bin / "cargo", env=env)
     fixture_symbols = [b"Java_app_kino_tv_PlaybackProbeActivity_requestPersistenceFixture", b"Java_app_kino_tv_PlaybackProbeActivity_configureCoreFixture"]
     exported = subprocess.run([llvm / "llvm-nm", "--dynamic", "--defined-only", library], capture_output=True, check=True).stdout
     if any(symbol in exported for symbol in fixture_symbols):
@@ -237,6 +240,7 @@ def main():
     destination = BUILD / "android/Kino-TV.apk"
     destination.parent.mkdir(exist_ok=True)
     shutil.copyfile(apk, destination)
+    run("node", ROOT / "scripts/android-notices.mjs", "verify-apk", destination)
     destination.with_suffix(".apk.sha256").write_text(f"{digest(destination)}  {destination.name}\n")
     print(f"APK: {destination}")
 

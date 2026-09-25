@@ -1,0 +1,612 @@
+{
+  "schemaVersion": 1,
+  "pins": {
+    "gradleLockfileSha256": "e28851ffaa647fb0972a9b499bdd6d011d4fcc5f0339bbaac8251c55f35ca75f",
+    "coreLockSha256": "0d268728d918cc0580fdc5ffd3c719f3995394ef25ad131fd561f4c9da631033",
+    "coreRevision": "2a8083f1026603e7c49f104473340d110902a72c",
+    "ffmpegDecoders": ["ac3", "eac3", "dca", "truehd", "mlp"]
+  },
+  "maven": [
+    {
+      "license": "Apache-2.0",
+      "notes": "Each artifact POM, or its parent POM for Guava, declares the Apache License 2.0. None of these artifacts carries a NOTICE file. The license copies some AndroidX artifacts include inside META-INF are these terms without the appendix.",
+      "files": [
+        {
+          "name": "LICENSE-2.0.txt",
+          "path": "texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+          "source": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        }
+      ],
+      "binaries": {
+        "androidx.graphics:graphics-path:1.0.1": ["lib/arm64-v8a/libandroidx.graphics.path.so"]
+      },
+      "artifacts": [
+        "androidx.activity:activity-compose:1.11.0",
+        "androidx.activity:activity-ktx:1.11.0",
+        "androidx.activity:activity:1.11.0",
+        "androidx.annotation:annotation-experimental:1.4.1",
+        "androidx.annotation:annotation-jvm:1.9.1",
+        "androidx.annotation:annotation:1.9.1",
+        "androidx.appcompat:appcompat-resources:1.7.1",
+        "androidx.appcompat:appcompat:1.7.1",
+        "androidx.arch.core:core-common:2.2.0",
+        "androidx.arch.core:core-runtime:2.2.0",
+        "androidx.autofill:autofill:1.0.0",
+        "androidx.collection:collection-jvm:1.5.0",
+        "androidx.collection:collection-ktx:1.5.0",
+        "androidx.collection:collection:1.5.0",
+        "androidx.compose.animation:animation-android:1.10.6",
+        "androidx.compose.animation:animation-core-android:1.10.6",
+        "androidx.compose.animation:animation-core:1.10.6",
+        "androidx.compose.animation:animation:1.10.6",
+        "androidx.compose.foundation:foundation-android:1.10.6",
+        "androidx.compose.foundation:foundation-layout-android:1.10.6",
+        "androidx.compose.foundation:foundation-layout:1.10.6",
+        "androidx.compose.foundation:foundation:1.10.6",
+        "androidx.compose.material:material-icons-core-android:1.7.8",
+        "androidx.compose.material:material-icons-core:1.7.8",
+        "androidx.compose.runtime:runtime-android:1.10.6",
+        "androidx.compose.runtime:runtime-annotation-android:1.10.6",
+        "androidx.compose.runtime:runtime-annotation:1.10.6",
+        "androidx.compose.runtime:runtime-retain-android:1.10.6",
+        "androidx.compose.runtime:runtime-retain:1.10.6",
+        "androidx.compose.runtime:runtime-saveable-android:1.10.6",
+        "androidx.compose.runtime:runtime-saveable:1.10.6",
+        "androidx.compose.runtime:runtime:1.10.6",
+        "androidx.compose.ui:ui-android:1.10.6",
+        "androidx.compose.ui:ui-geometry-android:1.10.6",
+        "androidx.compose.ui:ui-geometry:1.10.6",
+        "androidx.compose.ui:ui-graphics-android:1.10.6",
+        "androidx.compose.ui:ui-graphics:1.10.6",
+        "androidx.compose.ui:ui-text-android:1.10.6",
+        "androidx.compose.ui:ui-text:1.10.6",
+        "androidx.compose.ui:ui-tooling-preview-android:1.10.6",
+        "androidx.compose.ui:ui-tooling-preview:1.10.6",
+        "androidx.compose.ui:ui-unit-android:1.10.6",
+        "androidx.compose.ui:ui-unit:1.10.6",
+        "androidx.compose.ui:ui-util-android:1.10.6",
+        "androidx.compose.ui:ui-util:1.10.6",
+        "androidx.compose.ui:ui:1.10.6",
+        "androidx.compose:compose-bom:2026.03.01",
+        "androidx.concurrent:concurrent-futures:1.2.0",
+        "androidx.core:core-ktx:1.16.0",
+        "androidx.core:core-viewtree:1.0.0",
+        "androidx.core:core:1.16.0",
+        "androidx.cursoradapter:cursoradapter:1.0.0",
+        "androidx.customview:customview-poolingcontainer:1.0.0",
+        "androidx.customview:customview:1.0.0",
+        "androidx.documentfile:documentfile:1.0.0",
+        "androidx.drawerlayout:drawerlayout:1.0.0",
+        "androidx.dynamicanimation:dynamicanimation:1.0.0",
+        "androidx.emoji2:emoji2-views-helper:1.4.0",
+        "androidx.emoji2:emoji2:1.4.0",
+        "androidx.exifinterface:exifinterface:1.4.1",
+        "androidx.fragment:fragment:1.5.4",
+        "androidx.graphics:graphics-path:1.0.1",
+        "androidx.interpolator:interpolator:1.0.0",
+        "androidx.legacy:legacy-support-core-utils:1.0.0",
+        "androidx.lifecycle:lifecycle-common-jvm:2.9.4",
+        "androidx.lifecycle:lifecycle-common:2.9.4",
+        "androidx.lifecycle:lifecycle-livedata-core-ktx:2.9.4",
+        "androidx.lifecycle:lifecycle-livedata-core:2.9.4",
+        "androidx.lifecycle:lifecycle-livedata:2.9.4",
+        "androidx.lifecycle:lifecycle-process:2.9.4",
+        "androidx.lifecycle:lifecycle-runtime-android:2.9.4",
+        "androidx.lifecycle:lifecycle-runtime-compose-android:2.9.4",
+        "androidx.lifecycle:lifecycle-runtime-compose:2.9.4",
+        "androidx.lifecycle:lifecycle-runtime-ktx-android:2.9.4",
+        "androidx.lifecycle:lifecycle-runtime-ktx:2.9.4",
+        "androidx.lifecycle:lifecycle-runtime:2.9.4",
+        "androidx.lifecycle:lifecycle-viewmodel-android:2.9.4",
+        "androidx.lifecycle:lifecycle-viewmodel-compose-android:2.9.4",
+        "androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4",
+        "androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.4",
+        "androidx.lifecycle:lifecycle-viewmodel-savedstate-android:2.9.4",
+        "androidx.lifecycle:lifecycle-viewmodel-savedstate:2.9.4",
+        "androidx.lifecycle:lifecycle-viewmodel:2.9.4",
+        "androidx.loader:loader:1.0.0",
+        "androidx.localbroadcastmanager:localbroadcastmanager:1.0.0",
+        "androidx.media3:media3-common:1.9.3",
+        "androidx.media3:media3-container:1.9.3",
+        "androidx.media3:media3-database:1.9.3",
+        "androidx.media3:media3-datasource:1.9.3",
+        "androidx.media3:media3-decoder:1.9.3",
+        "androidx.media3:media3-effect:1.9.3",
+        "androidx.media3:media3-exoplayer-dash:1.9.3",
+        "androidx.media3:media3-exoplayer-hls:1.9.3",
+        "androidx.media3:media3-exoplayer:1.9.3",
+        "androidx.media3:media3-extractor:1.9.3",
+        "androidx.media3:media3-session:1.9.3",
+        "androidx.media3:media3-ui:1.9.3",
+        "androidx.media:media:1.7.0",
+        "androidx.print:print:1.0.0",
+        "androidx.profileinstaller:profileinstaller:1.4.1",
+        "androidx.recyclerview:recyclerview:1.3.0",
+        "androidx.resourceinspection:resourceinspection-annotation:1.0.1",
+        "androidx.savedstate:savedstate-android:1.3.3",
+        "androidx.savedstate:savedstate-compose-android:1.3.3",
+        "androidx.savedstate:savedstate-compose:1.3.3",
+        "androidx.savedstate:savedstate-ktx:1.3.3",
+        "androidx.savedstate:savedstate:1.3.3",
+        "androidx.startup:startup-runtime:1.1.1",
+        "androidx.tracing:tracing:1.2.0",
+        "androidx.transition:transition:1.6.0",
+        "androidx.tv:tv-material:1.0.1",
+        "androidx.vectordrawable:vectordrawable-animated:1.1.0",
+        "androidx.vectordrawable:vectordrawable:1.1.0",
+        "androidx.versionedparcelable:versionedparcelable:1.1.1",
+        "androidx.viewpager:viewpager:1.0.0",
+        "androidx.window:window-core-android:1.5.0",
+        "androidx.window:window-core:1.5.0",
+        "androidx.window:window:1.5.0",
+        "com.airbnb.android:lottie:6.6.0",
+        "com.google.accompanist:accompanist-drawablepainter:0.37.3",
+        "com.google.code.findbugs:jsr305:3.0.2",
+        "com.google.errorprone:error_prone_annotations:2.28.0",
+        "com.google.guava:failureaccess:1.0.2",
+        "com.google.guava:guava:33.3.1-android",
+        "com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava",
+        "com.google.j2objc:j2objc-annotations:3.0.0",
+        "com.squareup.okio:okio-jvm:3.15.0",
+        "com.squareup.okio:okio:3.15.0",
+        "io.coil-kt.coil3:coil-android:3.3.0",
+        "io.coil-kt.coil3:coil-compose-android:3.3.0",
+        "io.coil-kt.coil3:coil-compose-core-android:3.3.0",
+        "io.coil-kt.coil3:coil-compose-core:3.3.0",
+        "io.coil-kt.coil3:coil-compose:3.3.0",
+        "io.coil-kt.coil3:coil-core-android:3.3.0",
+        "io.coil-kt.coil3:coil-core:3.3.0",
+        "io.coil-kt.coil3:coil-network-core-android:3.3.0",
+        "io.coil-kt.coil3:coil-network-core:3.3.0",
+        "io.coil-kt.coil3:coil-network-okhttp-jvm:3.3.0",
+        "io.coil-kt.coil3:coil-network-okhttp:3.3.0",
+        "io.coil-kt.coil3:coil:3.3.0",
+        "org.jetbrains.androidx.lifecycle:lifecycle-common:2.9.5",
+        "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose:2.9.5",
+        "org.jetbrains.androidx.lifecycle:lifecycle-runtime:2.9.5",
+        "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel:2.8.4",
+        "org.jetbrains.androidx.savedstate:savedstate-compose:1.3.5",
+        "org.jetbrains.androidx.savedstate:savedstate:1.3.5",
+        "org.jetbrains.compose.animation:animation-core:1.8.2",
+        "org.jetbrains.compose.animation:animation:1.8.2",
+        "org.jetbrains.compose.annotation-internal:annotation:1.8.2",
+        "org.jetbrains.compose.collection-internal:collection:1.8.2",
+        "org.jetbrains.compose.foundation:foundation-layout:1.8.2",
+        "org.jetbrains.compose.foundation:foundation:1.8.2",
+        "org.jetbrains.compose.runtime:runtime-saveable:1.9.2",
+        "org.jetbrains.compose.runtime:runtime:1.9.2",
+        "org.jetbrains.compose.ui:ui-geometry:1.8.2",
+        "org.jetbrains.compose.ui:ui-graphics:1.8.2",
+        "org.jetbrains.compose.ui:ui-text:1.8.2",
+        "org.jetbrains.compose.ui:ui-unit:1.8.2",
+        "org.jetbrains.compose.ui:ui-util:1.8.2",
+        "org.jetbrains.compose.ui:ui:1.8.2",
+        "org.jetbrains.kotlin:kotlin-bom:1.8.0",
+        "org.jetbrains.kotlin:kotlin-reflect:2.2.20",
+        "org.jetbrains.kotlin:kotlin-stdlib-common:2.2.20",
+        "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.21",
+        "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.21",
+        "org.jetbrains.kotlin:kotlin-stdlib:2.2.20",
+        "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2",
+        "org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.10.2",
+        "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.10.2",
+        "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2",
+        "org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.10.2",
+        "org.jetbrains.kotlinx:kotlinx-serialization-bom:1.7.3",
+        "org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.7.3",
+        "org.jetbrains.kotlinx:kotlinx-serialization-core:1.7.3",
+        "org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.7.3",
+        "org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3",
+        "org.jetbrains:annotations:23.0.0",
+        "org.jspecify:jspecify:1.0.0"
+      ]
+    },
+    {
+      "license": "Apache-2.0; publicsuffixes.gz MPL-2.0",
+      "notes": "OkHttp compiles the Public Suffix List into publicsuffixes.gz, which ships in the APK with the NOTICE beside it.",
+      "files": [
+        {
+          "name": "LICENSE-2.0.txt",
+          "path": "texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+          "source": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "name": "NOTICE",
+          "path": "texts/8a9c58fbded5ea3474315e4a9824ca8b1486098a1a03e897e0b19419d5e1876a.txt",
+          "source": "https://repo1.maven.org/maven2/com/squareup/okhttp3/okhttp/4.12.0/okhttp-4.12.0.jar#okhttp3/internal/publicsuffix/NOTICE",
+          "sha256": "8a9c58fbded5ea3474315e4a9824ca8b1486098a1a03e897e0b19419d5e1876a"
+        },
+        {
+          "name": "MPL-2.0.txt",
+          "path": "texts/3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04.txt",
+          "source": "https://www.mozilla.org/media/MPL/2.0/index.txt",
+          "sha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04"
+        }
+      ],
+      "artifacts": ["com.squareup.okhttp3:okhttp:4.12.0"]
+    },
+    {
+      "license": "MIT",
+      "files": [
+        {
+          "name": "LICENSE.txt",
+          "path": "texts/e90eaa08dea089df10f2bf7f9dba63a5f6237c01562c4741e2e86773e78582d5.txt",
+          "source": "https://repo1.maven.org/maven2/org/checkerframework/checker-qual/3.43.0/checker-qual-3.43.0.jar#META-INF/LICENSE.txt",
+          "sha256": "e90eaa08dea089df10f2bf7f9dba63a5f6237c01562c4741e2e86773e78582d5"
+        }
+      ],
+      "artifacts": ["org.checkerframework:checker-qual:3.43.0"]
+    },
+    {
+      "license": "MIT",
+      "files": [
+        {
+          "name": "LICENSE",
+          "path": "texts/9808ceffe450ef163ae04ba0d42149c3742a55ddd8da580c2471f23a7f79a405.txt",
+          "source": "https://raw.githubusercontent.com/streem/pbandk/38cbe88f56a1ae8738bb1e4556f3aba0a8997e82/LICENSE",
+          "sha256": "9808ceffe450ef163ae04ba0d42149c3742a55ddd8da580c2471f23a7f79a405"
+        }
+      ],
+      "artifacts": ["pro.streem.pbandk:pbandk-runtime-android:0.16.0"]
+    },
+    {
+      "license": "MIT; BSD-3-Clause for the Protocol Buffers definitions",
+      "notes": "The artifact repackages the Well-Known Type .proto files from protobuf-java 4.28.0. They ship in the APK with their license headers; their headers refer to the Protocol Buffers LICENSE file retained here.",
+      "files": [
+        {
+          "name": "LICENSE",
+          "path": "texts/9808ceffe450ef163ae04ba0d42149c3742a55ddd8da580c2471f23a7f79a405.txt",
+          "source": "https://raw.githubusercontent.com/streem/pbandk/38cbe88f56a1ae8738bb1e4556f3aba0a8997e82/LICENSE",
+          "sha256": "9808ceffe450ef163ae04ba0d42149c3742a55ddd8da580c2471f23a7f79a405"
+        },
+        {
+          "name": "LICENSE",
+          "path": "texts/6e5e117324afd944dcf67f36cf329843bc1a92229a8cd9bb573d7a83130fea7d.txt",
+          "source": "https://raw.githubusercontent.com/protocolbuffers/protobuf/v28.0/LICENSE",
+          "sha256": "6e5e117324afd944dcf67f36cf329843bc1a92229a8cd9bb573d7a83130fea7d"
+        }
+      ],
+      "artifacts": ["pro.streem.pbandk:pbandk-protos:0.16.0"]
+    }
+  ],
+  "crates": [
+    {
+      "name": "Inflector",
+      "version": "0.11.4",
+      "license": "BSD-2-Clause",
+      "repository": "https://github.com/whatisinternet/inflector",
+      "revision": "a4a95eac75043f4bffb127c7c8ec886b5b106053",
+      "notes": "The crate archive omits its license. Recovered from the repository at the commit the crate records in .cargo_vcs_info.json.",
+      "files": [
+        {
+          "name": "LICENSE.md",
+          "path": "texts/03d1bd5bfbee8d44651e7f57faf9e5b4eda4233f0d4eda36a716f2f0533d230b.txt",
+          "source": "https://raw.githubusercontent.com/whatisinternet/Inflector/a4a95eac75043f4bffb127c7c8ec886b5b106053/LICENSE.md",
+          "sha256": "03d1bd5bfbee8d44651e7f57faf9e5b4eda4233f0d4eda36a716f2f0533d230b"
+        }
+      ]
+    },
+    {
+      "name": "fxhash",
+      "version": "0.2.1",
+      "license": "Apache-2.0/MIT",
+      "repository": "https://github.com/cbreeden/fxhash",
+      "notes": "Archive and repository omit license files. The retained source header expressly permits Apache-2.0 or MIT and links to Apache's full text. Apache-2.0 text is supplied for that permitted alternative.",
+      "files": [
+        {
+          "source": "https://static.crates.io/crates/fxhash/fxhash-0.2.1.crate#fxhash-0.2.1/lib.rs",
+          "sha256": "5d392ff1ac69a18c9beb41720ecbfd56f7792a1ec4321428e73757d4283f5a61",
+          "extraction": "First 9 lines, including copyright and license choice, copied without editing.",
+          "name": "SOURCE-NOTICE.txt",
+          "path": "texts/5d392ff1ac69a18c9beb41720ecbfd56f7792a1ec4321428e73757d4283f5a61.txt"
+        },
+        {
+          "source": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "name": "LICENSE-APACHE",
+          "path": "texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt"
+        }
+      ]
+    },
+    {
+      "name": "http-cache",
+      "version": "0.20.0",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/06chaynes/http-cache",
+      "revision": "0e5e59f54c7c3c08f5a594535e942bc9d247ff17",
+      "notes": "The crate archive omits its license. Recovered from the workspace root at the commit the crate records in .cargo_vcs_info.json.",
+      "files": [
+        {
+          "name": "LICENSE-MIT",
+          "path": "texts/7fed2971bcf4942fc02d05781d06dd910e019d4e044b25b3d6e9ce47ab0c27d9.txt",
+          "source": "https://raw.githubusercontent.com/06chaynes/http-cache/0e5e59f54c7c3c08f5a594535e942bc9d247ff17/LICENSE-MIT",
+          "sha256": "7fed2971bcf4942fc02d05781d06dd910e019d4e044b25b3d6e9ce47ab0c27d9"
+        },
+        {
+          "name": "LICENSE-APACHE",
+          "path": "texts/ad5924b15f7f5f7e04d424a1673d0b874f280ac73007002f4b43cce483bc3364.txt",
+          "source": "https://raw.githubusercontent.com/06chaynes/http-cache/0e5e59f54c7c3c08f5a594535e942bc9d247ff17/LICENSE-APACHE",
+          "sha256": "ad5924b15f7f5f7e04d424a1673d0b874f280ac73007002f4b43cce483bc3364"
+        }
+      ]
+    },
+    {
+      "name": "http-cache-reqwest",
+      "version": "0.15.0",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/06chaynes/http-cache",
+      "revision": "0e5e59f54c7c3c08f5a594535e942bc9d247ff17",
+      "notes": "The crate archive omits its license. Recovered from the workspace root at the commit the crate records in .cargo_vcs_info.json.",
+      "files": [
+        {
+          "name": "LICENSE-MIT",
+          "path": "texts/7fed2971bcf4942fc02d05781d06dd910e019d4e044b25b3d6e9ce47ab0c27d9.txt",
+          "source": "https://raw.githubusercontent.com/06chaynes/http-cache/0e5e59f54c7c3c08f5a594535e942bc9d247ff17/LICENSE-MIT",
+          "sha256": "7fed2971bcf4942fc02d05781d06dd910e019d4e044b25b3d6e9ce47ab0c27d9"
+        },
+        {
+          "name": "LICENSE-APACHE",
+          "path": "texts/ad5924b15f7f5f7e04d424a1673d0b874f280ac73007002f4b43cce483bc3364.txt",
+          "source": "https://raw.githubusercontent.com/06chaynes/http-cache/0e5e59f54c7c3c08f5a594535e942bc9d247ff17/LICENSE-APACHE",
+          "sha256": "ad5924b15f7f5f7e04d424a1673d0b874f280ac73007002f4b43cce483bc3364"
+        }
+      ]
+    },
+    {
+      "name": "http-serde",
+      "version": "2.1.1",
+      "license": "Apache-2.0 OR MIT",
+      "repository": "https://gitlab.com/kornelski/http-serde",
+      "revision": "c2403fb3d64bc0db31a05ca5d340ff82686163b1",
+      "notes": "Neither the crate archive nor the repository at the recorded commit contains a license file or copyright notice. Cargo.toml permits Apache-2.0 or MIT; the Apache-2.0 text is supplied for that permitted alternative.",
+      "files": [
+        {
+          "name": "LICENSE-2.0.txt",
+          "path": "texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+          "source": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        }
+      ]
+    },
+    {
+      "name": "prost-reflect",
+      "version": "0.14.6",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/andrewhickman/prost-reflect",
+      "revision": "74042cc17a7f5a8b5ded3ca2e66d6f610751b917",
+      "notes": "The crate archive omits its license. Recovered from the workspace root at the commit the crate records in .cargo_vcs_info.json.",
+      "files": [
+        {
+          "name": "LICENSE-MIT",
+          "path": "texts/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3.txt",
+          "source": "https://raw.githubusercontent.com/andrewhickman/prost-reflect/74042cc17a7f5a8b5ded3ca2e66d6f610751b917/LICENSE-MIT",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        },
+        {
+          "name": "LICENSE-APACHE",
+          "path": "texts/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+          "source": "https://raw.githubusercontent.com/andrewhickman/prost-reflect/74042cc17a7f5a8b5ded3ca2e66d6f610751b917/LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        }
+      ]
+    },
+    {
+      "name": "stremio-derive",
+      "version": "0.1.0",
+      "license": "MIT",
+      "repository": "https://github.com/Stremio/stremio-core",
+      "revision": "9a827fdd6f319ba3c22a96436c5f61292cb24ff1",
+      "notes": "A workspace member of stremio-core with no license file of its own. The repository root notice at the locked revision covers it.",
+      "files": [
+        {
+          "name": "LICENSE.md",
+          "path": "texts/22584fcd1da294428887b53b9fe0d9a75a03e42f83254b22dfe8c8df2317d622.txt",
+          "source": "https://raw.githubusercontent.com/Stremio/stremio-core/9a827fdd6f319ba3c22a96436c5f61292cb24ff1/LICENSE.md",
+          "sha256": "22584fcd1da294428887b53b9fe0d9a75a03e42f83254b22dfe8c8df2317d622"
+        }
+      ]
+    },
+    {
+      "name": "stremio-watched-bitfield",
+      "version": "0.1.0",
+      "license": "MIT",
+      "repository": "https://github.com/Stremio/stremio-core",
+      "revision": "9a827fdd6f319ba3c22a96436c5f61292cb24ff1",
+      "notes": "A workspace member of stremio-core with no license file of its own. The repository root notice at the locked revision covers it.",
+      "files": [
+        {
+          "name": "LICENSE.md",
+          "path": "texts/22584fcd1da294428887b53b9fe0d9a75a03e42f83254b22dfe8c8df2317d622.txt",
+          "source": "https://raw.githubusercontent.com/Stremio/stremio-core/9a827fdd6f319ba3c22a96436c5f61292cb24ff1/LICENSE.md",
+          "sha256": "22584fcd1da294428887b53b9fe0d9a75a03e42f83254b22dfe8c8df2317d622"
+        }
+      ]
+    },
+    {
+      "name": "stremio-official-addons",
+      "version": "2.1.1",
+      "license": "MIT",
+      "repository": "https://github.com/Stremio/stremio-official-addons",
+      "revision": "0c3b810460807b4b0a69ade480b2567f35d9c1c0",
+      "notes": "The crate archive omits its license. Recovered the repository root notice from the v2.1.1 tag.",
+      "files": [
+        {
+          "name": "LICENSE.md",
+          "path": "texts/22584fcd1da294428887b53b9fe0d9a75a03e42f83254b22dfe8c8df2317d622.txt",
+          "source": "https://raw.githubusercontent.com/Stremio/stremio-official-addons/0c3b810460807b4b0a69ade480b2567f35d9c1c0/LICENSE.md",
+          "sha256": "22584fcd1da294428887b53b9fe0d9a75a03e42f83254b22dfe8c8df2317d622"
+        }
+      ]
+    }
+  ],
+  "components": [
+    {
+      "name": "rust-standard-library",
+      "version": "1.93.1",
+      "license": "MIT OR Apache-2.0; third-party terms in COPYRIGHT-library",
+      "repository": "https://github.com/rust-lang/rust",
+      "revision": "01f6ddf7588f42ae2d7eb0a2f21d44e8e96674cf",
+      "sourceArchive": "https://static.rust-lang.org/dist/rustc-1.93.1-aarch64-apple-darwin.tar.xz",
+      "sourceArchiveSha256": "d103a0ee04c121b30cf061c7ad1456daaebd7ff0a7ea5fdb64acf92d86cb25fd",
+      "sourceArchiveChecksumSource": "https://static.rust-lang.org/dist/rustc-1.93.1-aarch64-apple-darwin.tar.xz.sha256",
+      "notes": "The Core library embeds this compiler revision. The rustup toolchain installs the same COPYRIGHT-library.html byte for byte.",
+      "files": [
+        {
+          "name": "LICENSE-MIT",
+          "path": "texts/b71bd43a069ca0641a9ecfe585ca7b3c53b5cc1608f8b68321168698e28b5ea1.txt",
+          "source": "https://static.rust-lang.org/dist/rustc-1.93.1-aarch64-apple-darwin.tar.xz#rustc-1.93.1-aarch64-apple-darwin/LICENSE-MIT",
+          "sha256": "b71bd43a069ca0641a9ecfe585ca7b3c53b5cc1608f8b68321168698e28b5ea1"
+        },
+        {
+          "name": "LICENSE-APACHE",
+          "path": "texts/62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a.txt",
+          "source": "https://static.rust-lang.org/dist/rustc-1.93.1-aarch64-apple-darwin.tar.xz#rustc-1.93.1-aarch64-apple-darwin/LICENSE-APACHE",
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "name": "COPYRIGHT",
+          "path": "texts/172020dbfd5b53a226dfde77616190a48dcff519b0bc0e6deb91a8450782c4af.txt",
+          "source": "https://static.rust-lang.org/dist/rustc-1.93.1-aarch64-apple-darwin.tar.xz#rustc-1.93.1-aarch64-apple-darwin/COPYRIGHT",
+          "sha256": "172020dbfd5b53a226dfde77616190a48dcff519b0bc0e6deb91a8450782c4af"
+        },
+        {
+          "name": "COPYRIGHT-library.html",
+          "path": "texts/d93d65853736bde4e8649691233a98848ba709673873aeb39487bc1ca6ee292a.html",
+          "source": "https://static.rust-lang.org/dist/rustc-1.93.1-aarch64-apple-darwin.tar.xz#rustc-1.93.1-aarch64-apple-darwin/rustc/share/doc/rust/COPYRIGHT-library.html",
+          "sha256": "d93d65853736bde4e8649691233a98848ba709673873aeb39487bc1ca6ee292a"
+        },
+        {
+          "name": "COPYRIGHT-library.txt",
+          "path": "texts/767cadfa908b307de159b1b753e5bb85a7cdf66ee54338a6dfa17f3171e9b4b9.txt",
+          "source": "https://static.rust-lang.org/dist/rustc-1.93.1-aarch64-apple-darwin.tar.xz#rustc-1.93.1-aarch64-apple-darwin/rustc/share/doc/rust/COPYRIGHT-library.html",
+          "sha256": "767cadfa908b307de159b1b753e5bb85a7cdf66ee54338a6dfa17f3171e9b4b9",
+          "extraction": "HTML body text with character entities decoded and repeated blank lines collapsed. Original HTML is retained alongside it."
+        },
+        {
+          "name": "Unicode-3.0.txt",
+          "path": "texts/f5062c9a188d81dfe66b56db4182dcf9e4b17c0d9b0d311a8e20b3a1b075c443.txt",
+          "source": "https://static.rust-lang.org/dist/rustc-1.93.1-aarch64-apple-darwin.tar.xz#rustc-1.93.1-aarch64-apple-darwin/rustc/share/doc/rust/licenses/Unicode-3.0.txt",
+          "sha256": "f5062c9a188d81dfe66b56db4182dcf9e4b17c0d9b0d311a8e20b3a1b075c443"
+        },
+        {
+          "name": "BSD-2-Clause.txt",
+          "path": "texts/f32fb3b417a194167cfad068223fc975ba96c5960513a10f66a3c28720aec1df.txt",
+          "source": "https://static.rust-lang.org/dist/rustc-1.93.1-aarch64-apple-darwin.tar.xz#rustc-1.93.1-aarch64-apple-darwin/rustc/share/doc/rust/licenses/BSD-2-Clause.txt",
+          "sha256": "f32fb3b417a194167cfad068223fc975ba96c5960513a10f66a3c28720aec1df"
+        }
+      ]
+    },
+    {
+      "name": "FFmpeg",
+      "version": "n6.0.1",
+      "license": "LGPL-2.1-or-later",
+      "repository": "https://github.com/FFmpeg/FFmpeg",
+      "binaries": ["lib/arm64-v8a/libffmpegJNI.so"],
+      "notes": "Kino builds libavcodec, libavutil, and libswresample from the n6.0.1 tag with only the AC-3, E-AC-3, DTS, TrueHD, and MLP decoders, no GPL or non-free parts, and links them statically into Media3's FFmpeg extension. scripts/build-android.py in Kino's source reproduces that build, and Kino's complete source is available under the GPL. The retained headers are the files in those libraries under other terms. This software is based in part on the work of the Independent JPEG Group.",
+      "files": [
+        {
+          "name": "LICENSE.md",
+          "path": "texts/cb48bf09a11f5fb576cddb0431c8f5ed0a60157a9ec942adffc13907cbe083f2.txt",
+          "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/n6.0.1/LICENSE.md",
+          "sha256": "cb48bf09a11f5fb576cddb0431c8f5ed0a60157a9ec942adffc13907cbe083f2"
+        },
+        {
+          "name": "COPYING.LGPLv2.1",
+          "path": "texts/b634ab5640e258563c536e658cad87080553df6f34f62269a21d554844e58bfe.txt",
+          "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/n6.0.1/COPYING.LGPLv2.1",
+          "sha256": "b634ab5640e258563c536e658cad87080553df6f34f62269a21d554844e58bfe"
+        },
+        {
+          "name": "adler32.c (header)",
+          "path": "texts/28f7313496031bebb5603b0bcda2e307a794ac29f7fedba62e947b1e88a702e1.txt",
+          "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/n6.0.1/libavutil/adler32.c",
+          "sha256": "28f7313496031bebb5603b0bcda2e307a794ac29f7fedba62e947b1e88a702e1",
+          "extraction": "First 22 lines, the file's license comment, copied without editing."
+        },
+        {
+          "name": "avsscanf.c (header)",
+          "path": "texts/42a19ec5a465065a01311bfeffa2482e93a54e936deba11e43400f6a05c6b8ce.txt",
+          "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/n6.0.1/libavutil/avsscanf.c",
+          "sha256": "42a19ec5a465065a01311bfeffa2482e93a54e936deba11e43400f6a05c6b8ce",
+          "extraction": "First 22 lines, the file's license comment, copied without editing."
+        },
+        {
+          "name": "faandct.c (header)",
+          "path": "texts/83ba046b4ba6cb5a4f00276c3b7fc8d64d227bf3beff96ac4a78bee4ee5491bd.txt",
+          "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/n6.0.1/libavcodec/faandct.c",
+          "sha256": "83ba046b4ba6cb5a4f00276c3b7fc8d64d227bf3beff96ac4a78bee4ee5491bd",
+          "extraction": "First 19 lines, the file's license comment, copied without editing."
+        },
+        {
+          "name": "jfdctfst.c (header)",
+          "path": "texts/9608a1781393c906ac6254ee965f19a599608428eaf84efdd8c7ba198f14e877.txt",
+          "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/n6.0.1/libavcodec/jfdctfst.c",
+          "sha256": "9608a1781393c906ac6254ee965f19a599608428eaf84efdd8c7ba198f14e877",
+          "extraction": "First 62 lines, the file's license comment, copied without editing."
+        },
+        {
+          "name": "jfdctint_template.c (header)",
+          "path": "texts/7469382cb23a47a033113c2c00d8e02e5071d76cb420d804f078527a906da679.txt",
+          "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/n6.0.1/libavcodec/jfdctint_template.c",
+          "sha256": "7469382cb23a47a033113c2c00d8e02e5071d76cb420d804f078527a906da679",
+          "extraction": "First 55 lines, the file's license comment, copied without editing."
+        },
+        {
+          "name": "jrevdct.c (header)",
+          "path": "texts/c5d96aa8ff9e78b9214a1bec3d2dd5d65e3196eae08fa7c6ba7466a5a793ba0f.txt",
+          "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/n6.0.1/libavcodec/jrevdct.c",
+          "sha256": "c5d96aa8ff9e78b9214a1bec3d2dd5d65e3196eae08fa7c6ba7466a5a793ba0f",
+          "extraction": "First 58 lines, the file's license comment, copied without editing."
+        }
+      ]
+    },
+    {
+      "name": "Media3 FFmpeg decoder extension",
+      "version": "1.9.3",
+      "license": "Apache-2.0",
+      "repository": "https://github.com/androidx/media/tree/1.9.3/libraries/decoder_ffmpeg",
+      "binaries": ["lib/arm64-v8a/libffmpegJNI.so"],
+      "notes": "Media3 publishes this module only as source. Kino compiles its Java classes into the app and its JNI source into libffmpegJNI.so. The repository has no NOTICE file.",
+      "files": [
+        {
+          "name": "LICENSE",
+          "path": "texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+          "source": "https://raw.githubusercontent.com/androidx/media/1.9.3/LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        }
+      ]
+    },
+    {
+      "name": "Geist",
+      "version": "5.3.0",
+      "license": "OFL-1.1",
+      "repository": "https://github.com/vercel/geist-font",
+      "notes": "The four bundled font weights were converted from the locked @fontsource-variable/geist package.",
+      "files": [
+        {
+          "name": "LICENSE",
+          "path": "texts/71609cbb5c78b5870d712eab73a31d76622635c6ed034ab5cee3b9ecbda8685f.txt",
+          "source": "npm:@fontsource-variable/geist@5.3.0/LICENSE",
+          "sha256": "71609cbb5c78b5870d712eab73a31d76622635c6ed034ab5cee3b9ecbda8685f"
+        }
+      ]
+    },
+    {
+      "name": "Lucide",
+      "version": "94e4cb9",
+      "license": "ISC",
+      "repository": "https://github.com/lucide-icons/lucide",
+      "notes": "Icon vectors converted to Android drawables from this commit.",
+      "files": [
+        {
+          "name": "LICENSE",
+          "path": "texts/b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57.txt",
+          "source": "https://raw.githubusercontent.com/lucide-icons/lucide/94e4cb9d9db5907053ebf3636a97c45529cf776b/LICENSE",
+          "sha256": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57"
+        }
+      ]
+    }
+  ]
+}
