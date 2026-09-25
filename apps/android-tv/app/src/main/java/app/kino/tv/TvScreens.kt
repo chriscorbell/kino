@@ -765,13 +765,29 @@ internal fun DetailScreen(
                     Modifier.align(Alignment.BottomStart)
                         .padding(start = PageGutter, end = PageGutter, top = 90.dp, bottom = 12.dp)
                 ) {
-                    Text(
-                        meta?.name ?: media.title,
-                        fontSize = 36.sp,
-                        lineHeight = 42.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-.8).sp,
-                    )
+                    val name = meta?.name ?: media.title
+                    val logo = meta?.logo?.takeIf(::secureUrl)
+                    var logoFailed by remember(logo) { mutableStateOf(false) }
+                    // The title's logo art stands in for its name, which stays the
+                    // spoken label; a logo that fails to load falls back to text.
+                    if (logo != null && !logoFailed)
+                        AsyncImage(
+                            logo,
+                            name,
+                            Modifier.height(96.dp).widthIn(max = 460.dp),
+                            alignment = Alignment.BottomStart,
+                            contentScale = ContentScale.Fit,
+                            onError = { logoFailed = true },
+                        )
+                    else
+                        Text(
+                            name,
+                            fontSize = 36.sp,
+                            lineHeight = 42.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (-.8).sp,
+                        )
+                    val credits = meta?.credits()
                     Text(
                         listOfNotNull(
                                 meta?.releaseInfo ?: media.year,
@@ -779,21 +795,42 @@ internal fun DetailScreen(
                                 stringResource(
                                     if (media.type == "movie") R.string.movie else R.string.series
                                 ),
+                                credits?.imdbRating?.let { stringResource(R.string.imdb_rating, it) },
                             )
                             .joinToString(" · "),
-                        Modifier.padding(vertical = 10.dp),
+                        Modifier.padding(top = 10.dp),
                         fontSize = 15.sp,
                         color = Muted,
                     )
-                    Text(
-                        meta?.description ?: media.description.orEmpty(),
-                        Modifier.widthIn(max = 650.dp),
-                        fontSize = 16.sp,
-                        lineHeight = 22.sp,
-                        color = Muted,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    if (!credits?.genres.isNullOrEmpty())
+                        Text(
+                            credits!!.genres.joinToString(", "),
+                            Modifier.padding(top = 4.dp),
+                            fontSize = 14.sp,
+                            color = KinoColors.TextFaint,
+                        )
+                    Spacer(Modifier.height(10.dp))
+                    val description = meta?.description ?: media.description
+                    if (!description.isNullOrBlank())
+                        Text(
+                            description,
+                            Modifier.widthIn(max = 650.dp),
+                            fontSize = 16.sp,
+                            lineHeight = 22.sp,
+                            color = Muted,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    meta?.credits()?.let { credits ->
+                        CreditLine(stringResource(R.string.cast), credits.cast)
+                        CreditLine(
+                            stringResource(
+                                if (credits.directors.size == 1) R.string.director
+                                else R.string.directors
+                            ),
+                            credits.directors,
+                        )
+                    }
                 }
             }
             LaunchedEffect(resuming) {
@@ -858,6 +895,8 @@ internal fun DetailScreen(
         if (media.type == "series" && meta != null) {
             val shownSeason = season ?: initialSeason(videos)
             val episodes = seasonEpisodes(videos, shownSeason)
+            // A season without any artwork keeps the compact row.
+            val thumbnails = episodes.any { secureUrl(it.thumbnail) }
             val seasonWatched = episodes.isNotEmpty() && episodes.all { it.watched }
             item {
                 Row(
@@ -935,18 +974,38 @@ internal fun DetailScreen(
                                     fontSize = 18.sp,
                                 )
                             }
+                            if (thumbnails)
+                                Box(
+                                    Modifier.width(160.dp)
+                                        .aspectRatio(16f / 9f)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(SurfaceColor)
+                                ) {
+                                    AsyncImage(
+                                        episode.thumbnail?.takeIf(::secureUrl),
+                                        null,
+                                        Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop,
+                                    )
+                                }
                             Column(
                                 Modifier.weight(1f),
                                 verticalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
                                 Text(episode.title, fontSize = 18.sp, lineHeight = 24.sp)
-                                if (episode.watched || (episode.progress ?: 0.0) > 0)
+                                val status =
+                                    when {
+                                        episode.upcoming -> stringResource(R.string.upcoming)
+                                        episode.watched -> stringResource(R.string.watched)
+                                        (episode.progress ?: 0.0) > 0 ->
+                                            stringResource(R.string.in_progress)
+                                        else -> null
+                                    }
+                                val line = listOfNotNull(status, episode.airDate())
+                                if (line.isNotEmpty())
                                     Text(
-                                        stringResource(
-                                            if (episode.watched) R.string.watched
-                                            else R.string.in_progress
-                                        ),
-                                        color = Muted,
+                                        line.joinToString(" · "),
+                                        color = if (episode.upcoming) KinoColors.TextStrong else Muted,
                                         fontSize = 13.sp,
                                     )
                             }
@@ -986,6 +1045,22 @@ internal fun DetailScreen(
         }
         if (media.type == "movie" && videoId != null)
             sourceItems(media, videoId, details, error, onRetry, onSource)
+    }
+}
+
+@Composable
+private fun CreditLine(label: String, names: List<String>) {
+    if (names.isEmpty()) return
+    Row(Modifier.padding(top = 6.dp).widthIn(max = 650.dp)) {
+        Text(label, Modifier.width(96.dp), fontSize = 14.sp, color = KinoColors.TextFaint)
+        // Six names fill the line on a 1080p screen without wrapping.
+        Text(
+            names.take(6).joinToString(", "),
+            fontSize = 14.sp,
+            color = Muted,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
