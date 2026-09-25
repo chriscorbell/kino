@@ -160,6 +160,17 @@
     <string name="copy_diagnostic_summary">Copy diagnostic summary</string>
     <string name="diagnostic_summary_copied">Diagnostic summary copied.</string>
     <string name="diagnostic_summary_failed">The summary could not be copied. Try again.</string>
+    <string name="licenses">Licenses and notices</string>
+    <string name="licenses_description">Kino and the open-source components included in this build</string>
+    <string name="read_notices">Read notices</string>
+    <string name="licenses_intro">Kino is free software under the GNU General Public License 3.0. It includes the components below, each under its own license, with every text it requires.</string>
+    <string name="licenses_failed">The license notices could not be read.</string>
+    <string name="licenses_terms_in_text">Terms in the notice text</string>
+    <string name="licenses_scope_application">Kino</string>
+    <string name="licenses_scope_playback">Playback and Core</string>
+    <string name="licenses_scope_core">Stremio Core</string>
+    <string name="licenses_scope_android">Android libraries</string>
+    <string name="licenses_scope_fonts">Fonts and icons</string>
     <string name="diagnostic_summary_text">Kino: %1$s (build %2$d)\nAndroid: %3$s (API %4$d)\nABI: %5$s\nStremio Core revision: %6$s\nMedia3: %7$s\nFFmpeg audio: %8$s\nVideo decoding: hardware only\nVideo output: SDR, HDR10 tone mapped by Kino\nAudio output: %9$s</string>
     <string name="language_eng">English</string>
     <string name="language_spa">Spanish</string>

@@ -2,6 +2,8 @@
 
 The TV APK carries its own license index at `assets/licenses/`: `manifest.json` lists every component with its version, declared license, source URL, and file checksums, and `texts/` holds the full texts by SHA256. `scripts/android-notices.mjs` writes it during `pnpm android:build` and reads it back out of the finished APK. The reviewed parts live in [the Android record](../../third_party/notices/android.json), with their texts in `third_party/notices/texts/` beside the macOS ones.
 
+Settings opens it under **Licenses and notices → Read notices**, grouped as the manifest groups it, with buttons that jump past the long crate and library lists. `LicensesTest` on the Shield opens every packaged text from the installed app and walks the screen with the remote.
+
 The index covers four things: Kino itself, the release runtime classpath, the Stremio Core crate graph with its build dependencies, and the three native libraries in the APK. The first build produced 464 components.
 
 ## What the APK contains
