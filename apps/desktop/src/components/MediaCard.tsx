@@ -12,10 +12,16 @@ function year(item: CoreMetaPreview) {
 export function MediaCard({
   item,
   onOpen,
+  badge = null,
+  progress,
   resumeProgress,
 }: {
   item: CoreMetaPreview;
+  /** A short note on the poster, such as new episodes, shown in place of Watched. */
+  badge?: string | null;
   onOpen: () => void;
+  /** Partial progress without the resume affordance, for a card that opens details. */
+  progress?: number;
   resumeProgress?: number;
 }) {
   const titleRef = useRef<HTMLSpanElement>(null);
@@ -44,6 +50,14 @@ export function MediaCard({
         ) : (
           <span className={styles.posterFallback}>{item.name.slice(0, 1)}</span>
         )}
+        {resumeProgress === undefined &&
+        progress !== undefined &&
+        progress > 0 &&
+        progress < 100 ? (
+          <span aria-hidden className={styles.progressTrack}>
+            <span style={{ width: `${progress}%` }} />
+          </span>
+        ) : null}
         {resumeProgress !== undefined ? (
           <>
             <span aria-hidden className={styles.playOverlay}>
@@ -59,7 +73,11 @@ export function MediaCard({
             {item.name}
           </span>
         ) : null}
-        {item.watched ? <span className={styles.watchedBadge}>{enUS.media.watched}</span> : null}
+        {badge ? (
+          <span className={styles.watchedBadge}>{badge}</span>
+        ) : item.watched ? (
+          <span className={styles.watchedBadge}>{enUS.media.watched}</span>
+        ) : null}
       </span>
       <span className={styles.mediaTitle} ref={titleRef}>
         {item.name}

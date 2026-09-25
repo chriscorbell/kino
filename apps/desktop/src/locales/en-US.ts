@@ -125,6 +125,16 @@ export const enUS = {
     loading: 'Loading your library…',
     filterLabel: 'Library filter',
     all: 'All',
+    sortLabel: 'Sort',
+    sorts: {
+      lastwatched: 'Recently watched',
+      name: 'Title A–Z',
+      namereverse: 'Title Z–A',
+      timeswatched: 'Most watched',
+      watched: 'Watched first',
+      notwatched: 'Unwatched first',
+    } as Record<string, string>,
+    newEpisodes: (count: number) => `${count} new`,
   },
   addons: {
     title: 'Add-ons',

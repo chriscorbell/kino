@@ -176,6 +176,14 @@ describe('discover', () => {
 });
 
 describe('library', () => {
+  it('reads each saved title’s watched mark and new-episode count', () => {
+    const [item] = adaptLibraryState(raw('ready_library')).catalog;
+    expect(item).toMatchObject({ id: 'kino-fixture', notifications: 0, watched: false });
+    expect(Object.keys(adaptLibraryState(raw('ready_library')).selectable ?? {})).toContain(
+      'sorts',
+    );
+  });
+
   it('derives a request for each option without exposing the link format', () => {
     const state = adaptLibraryState(raw('ready_library'));
 

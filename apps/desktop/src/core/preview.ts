@@ -22,6 +22,6 @@ export function savedTitlePreview(item: ContinueWatchingItem | LibraryItem): Cor
     released: null,
     runtime: null,
     type: item.type,
-    watched: false,
+    watched: 'watched' in item ? item.watched : false,
   };
 }

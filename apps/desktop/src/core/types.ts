@@ -222,10 +222,13 @@ export interface ContinueWatchingState {
 export interface LibraryItem {
   id: string;
   name: string;
+  /** Episodes Core found released since the viewer last watched this series. */
+  notifications: number;
   poster: string | null;
   posterShape: PosterShape;
   progress: number;
   type: string;
+  watched: boolean;
 }
 
 export interface LibraryState {
