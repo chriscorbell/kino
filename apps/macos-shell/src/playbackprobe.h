@@ -29,6 +29,8 @@ private:
     // KINO_PLAYBACK_PROBE_SLEEP: after a second of playback, deliver a system
     // will-sleep notification and expect the player to pause.
     bool sleepCheck_ = false;
+    // The Stereo path plays long enough for the loudness gain to settle.
+    bool stereoCheck_ = false;
     bool sleepPosted_ = false;
     bool hardwareDecoding_ = false;
     bool subtitlesAdded_ = false;

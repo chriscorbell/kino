@@ -7,6 +7,7 @@
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 // BS.1770-4 stage 1, the high shelf standing in for the head, and stage 2, the RLB high-pass.
 // Written as the filter parameters rather than the standard's tabulated coefficients so any sample
@@ -123,24 +124,31 @@ export function synthesize({ sampleRate, frequency, segments }) {
   return { left, right };
 }
 
-// Matches LoudnessNormalizer's companion values.
-const TARGET_LUFS = -19;
-const MAX_BOOST_DB = 12;
-const MAX_CUT_DB = -6;
+// Matches LoudnessNormalizer's companion values, and the macOS player's.
+export const TARGET_LUFS = -19;
+export const MAX_BOOST_DB = 12;
+export const MAX_CUT_DB = -6;
 
-const { left, right } = synthesize(PROBE);
-const measured = integratedLufs(left, right, PROBE.sampleRate);
-const expected = {
-  probe: PROBE,
-  targetLufs: TARGET_LUFS,
-  integratedLufs: measured,
-  gainDb: Math.min(MAX_BOOST_DB, Math.max(MAX_CUT_DB, TARGET_LUFS - measured)),
-  kWeightingAt48k: kWeightingCoefficients(48000),
-};
+export function expectedGainDb(measured) {
+  return Math.min(MAX_BOOST_DB, Math.max(MAX_CUT_DB, TARGET_LUFS - measured));
+}
 
-const destination = join(process.argv[2] ?? 'build/android-fixtures', 'loudness-expected.json');
-mkdirSync(dirname(destination), { recursive: true });
-writeFileSync(destination, `${JSON.stringify(expected, null, 2)}\n`);
-console.log(
-  `Loudness probe: ${measured.toFixed(2)} LUFS, gain ${expected.gainDb.toFixed(2)} dB -> ${destination}`,
-);
+// Run directly, this writes the TV gate's expectations; imported, it only exports.
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  const { left, right } = synthesize(PROBE);
+  const measured = integratedLufs(left, right, PROBE.sampleRate);
+  const expected = {
+    probe: PROBE,
+    targetLufs: TARGET_LUFS,
+    integratedLufs: measured,
+    gainDb: expectedGainDb(measured),
+    kWeightingAt48k: kWeightingCoefficients(48000),
+  };
+
+  const destination = join(process.argv[2] ?? 'build/android-fixtures', 'loudness-expected.json');
+  mkdirSync(dirname(destination), { recursive: true });
+  writeFileSync(destination, `${JSON.stringify(expected, null, 2)}\n`);
+  console.log(
+    `Loudness probe: ${measured.toFixed(2)} LUFS, gain ${expected.gainDb.toFixed(2)} dB -> ${destination}`,
+  );
+}
