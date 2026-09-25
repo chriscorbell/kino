@@ -41,14 +41,25 @@ interface SourceChoice {
   transportUrl: string;
 }
 
-function metadata(item: CoreMetaPreview) {
+function metadata(item: CoreMetaPreview, rating: string | null) {
   return [
     item.releaseInfo,
     item.runtime,
     item.type === 'series' ? enUS.media.series : enUS.media.movie,
+    rating ? enUS.details.imdbRating(rating) : null,
   ]
     .filter(Boolean)
     .join(' · ');
+}
+
+function releaseDate(value: string | null) {
+  return value && !Number.isNaN(Date.parse(value)) ? enUS.details.releaseDate(value) : null;
+}
+
+// A person's name list reads as one sentence. Six names fill the hero's line
+// on a laptop without wrapping into the description.
+function people(names: string[]) {
+  return names.slice(0, 6).join(', ');
 }
 
 export function MetaDetailsScreen({
@@ -215,6 +226,8 @@ export function MetaDetailsScreen({
   ];
 
   const display = meta ?? item;
+  const [failedLogo, setFailedLogo] = useState<string | null>(null);
+  const logo = display.logo && display.logo !== failedLogo ? display.logo : null;
   const sourceSelection = { meta: display, video: activeVideo };
   const visibleSourceKeys = new Set(
     sources
@@ -250,6 +263,21 @@ export function MetaDetailsScreen({
     setWatchedOverrides(remaining);
   }
   const isWatched = (id: string) => watchedOverrides.get(id) ?? coreWatched(id) ?? false;
+  // Seasons without any artwork keep the compact row instead of empty frames.
+  const thumbnails = visibleVideos.some((video) => video.thumbnail);
+  const episodeStatus = (video: CoreVideo) =>
+    [
+      video.upcoming
+        ? enUS.details.upcoming
+        : isWatched(video.id)
+          ? enUS.details.watched
+          : progress?.videoId === video.id && progress.timeOffset > 0
+            ? enUS.details.inProgress
+            : null,
+      releaseDate(video.released),
+    ]
+      .filter(Boolean)
+      .join(' · ');
   const seasonWatched =
     visibleVideos.length > 0 && visibleVideos.every((video) => isWatched(video.id));
   const chooseVideo = (id: string) => {
@@ -403,8 +431,17 @@ export function MetaDetailsScreen({
             {enUS.actions.back}
           </button>
           <div className={styles.detailCopy}>
-            <h1>{display.name}</h1>
-            <p className={styles.detailMetadata}>{metadata(display)}</p>
+            <h1 className={logo ? styles.detailLogoTitle : undefined}>
+              {logo ? (
+                <img alt={display.name} onError={() => setFailedLogo(logo)} src={logo} />
+              ) : (
+                display.name
+              )}
+            </h1>
+            <p className={styles.detailMetadata}>{metadata(display, meta?.imdbRating ?? null)}</p>
+            {meta && meta.genres.length > 0 ? (
+              <p className={styles.detailGenres}>{meta.genres.join(', ')}</p>
+            ) : null}
             {display.description ? (
               <ExpandableText
                 className={styles.detailDescription}
@@ -413,6 +450,22 @@ export function MetaDetailsScreen({
                 lines={3}
                 text={display.description}
               />
+            ) : null}
+            {meta && (meta.cast.length > 0 || meta.directors.length > 0) ? (
+              <dl className={styles.detailCredits}>
+                {meta.cast.length > 0 ? (
+                  <div>
+                    <dt>{enUS.details.cast}</dt>
+                    <dd>{people(meta.cast)}</dd>
+                  </div>
+                ) : null}
+                {meta.directors.length > 0 ? (
+                  <div>
+                    <dt>{enUS.details.directors(meta.directors.length)}</dt>
+                    <dd>{people(meta.directors)}</dd>
+                  </div>
+                ) : null}
+              </dl>
             ) : null}
             <div className={styles.detailActions}>
               <button
@@ -539,7 +592,7 @@ export function MetaDetailsScreen({
                       <button
                         aria-current={video.id === videoId ? 'true' : undefined}
                         data-episode-id={video.id}
-                        className={styles.episodeButton}
+                        className={`${styles.episodeButton} ${thumbnails ? styles.episodeButtonArt : ''}`}
                         onClick={() => {
                           chooseVideo(video.id);
                         }}
@@ -548,12 +601,19 @@ export function MetaDetailsScreen({
                         <span className={styles.episodeNumber}>
                           {String(video.episode ?? 0).padStart(2, '0')}
                         </span>
+                        {thumbnails ? (
+                          <span className={styles.episodeThumbnail}>
+                            {video.thumbnail ? (
+                              <img alt="" loading="lazy" src={video.thumbnail} />
+                            ) : null}
+                          </span>
+                        ) : null}
                         <span className={styles.episodeText}>
                           <strong>{video.title || enUS.details.episode(video.episode)}</strong>
-                          {isWatched(video.id) ? (
-                            <span>{enUS.details.watched}</span>
-                          ) : progress?.videoId === video.id && progress.timeOffset > 0 ? (
-                            <span>{enUS.details.inProgress}</span>
+                          {episodeStatus(video) ? (
+                            <span className={video.upcoming ? styles.episodeUpcoming : undefined}>
+                              {episodeStatus(video)}
+                            </span>
                           ) : null}
                         </span>
                         <CaretRight aria-hidden size={16} />
@@ -582,7 +642,7 @@ export function MetaDetailsScreen({
                     </div>
                     {video.overview ? (
                       <ExpandableText
-                        className={styles.episodeOverview}
+                        className={`${styles.episodeOverview} ${thumbnails ? styles.episodeOverviewArt : ''}`}
                         key={video.overview}
                         label={video.title || enUS.details.episode(video.episode)}
                         lines={1}

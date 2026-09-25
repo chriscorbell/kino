@@ -130,10 +130,18 @@ export interface CoreVideo {
   season: number | null;
   thumbnail: string | null;
   title: string;
+  /** Core's judgement from the release date: announced but not out yet. */
+  upcoming: boolean;
   watched: boolean;
 }
 
 export interface CoreMetaItem extends CoreMetaPreview {
+  /** Names from the add-on's links, in its order and without repeats. */
+  cast: string[];
+  directors: string[];
+  genres: string[];
+  /** The add-on's IMDb rating as it wrote it, such as "8.2". */
+  imdbRating: string | null;
   videos: CoreVideo[];
 }
 

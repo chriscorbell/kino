@@ -32,7 +32,35 @@ const meta = {
   poster: 'https://fixture.invalid/poster.jpg',
   posterShape: 'landscape',
   releaseInfo: '2024-',
-  videos: [{ id: 'kino-fixture:1:1', season: 1, episode: 1, title: 'Pilot' }],
+  // Core marks a future episode upcoming only for a series with a schedule.
+  behaviorHints: { hasScheduledVideos: true },
+  // Cinemeta's shape: people, genres and the rating arrive as categorized links.
+  links: [
+    { name: '8.2', category: 'imdb', url: 'https://imdb.com/title/tt0000000' },
+    { name: 'Synthetic series', category: 'share', url: 'https://fixture.invalid/share' },
+    { name: 'Drama', category: 'Genres', url: 'stremio:///discover/genre-drama' },
+    { name: 'Comedy', category: 'Genres', url: 'stremio:///discover/genre-comedy' },
+    { name: 'Ada Example', category: 'Cast', url: 'stremio:///search?search=Ada%20Example' },
+    { name: 'Ada Example', category: 'Cast', url: 'stremio:///search?search=Ada%20Example' },
+    { name: 'Ben Example', category: 'Directors', url: 'stremio:///search?search=Ben%20Example' },
+  ],
+  videos: [
+    {
+      id: 'kino-fixture:1:1',
+      season: 1,
+      episode: 1,
+      title: 'Pilot',
+      released: '2024-01-01T00:00:00.000Z',
+      thumbnail: 'https://fixture.invalid/1-1.jpg',
+    },
+    {
+      id: 'kino-fixture:1:2',
+      season: 1,
+      episode: 2,
+      title: 'Announced',
+      released: '2099-01-01T00:00:00.000Z',
+    },
+  ],
 };
 const addon = addonFromManifest(transportUrl, {
   id: 'kino.fixture',
