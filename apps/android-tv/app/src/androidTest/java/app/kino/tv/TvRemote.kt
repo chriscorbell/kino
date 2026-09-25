@@ -62,6 +62,19 @@ internal class TvRemote(private val instrumentation: Instrumentation) {
         return false
     }
 
+    /**
+     * Whether focus is on the control labelled [text], whichever node carries the label: the
+     * focused node itself, one of its descendants, or an ancestor.
+     */
+    fun focusedOn(text: String): Boolean {
+        fun labelled(node: AccessibilityNodeInfo): Boolean =
+            node.text?.contains(text) == true || node.contentDescription?.contains(text) == true
+        fun inside(node: AccessibilityNodeInfo): Boolean =
+            labelled(node) || (0 until node.childCount).any { node.getChild(it)?.let(::inside) == true }
+        val focusedNode = visible().firstOrNull { it.isFocused } ?: return false
+        return inside(focusedNode) || node(text)?.let(::focused) == true
+    }
+
     fun focusedLabel(): String =
         visible()
             .firstOrNull { it.isFocused }

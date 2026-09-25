@@ -73,6 +73,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.*
+import com.stremio.core.types.addon.ResourceRequest
 import com.stremio.core.types.resource.Video
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.delay
@@ -281,13 +282,15 @@ fun KinoApp(
                                                 open,
                                                 core::home,
                                                 core::removeFromContinueWatching,
+                                                onSeeAll = { request ->
+                                                    core.discover(request)
+                                                    navigate("discover")
+                                                },
                                             )
                                         "search" ->
                                             SearchScreen(query, { query = it }, state.search, open)
                                         "discover" -> {
-                                            LaunchedEffect(Unit) {
-                                                if (state.discover.types.isEmpty()) core.discover()
-                                            }
+                                            LaunchedEffect(Unit) { core.openDiscover() }
                                             DiscoverScreen(
                                                 state.discover,
                                                 open,
@@ -359,6 +362,32 @@ private fun WelcomeScreen(onSignIn: () -> Unit, onGuest: () -> Unit) {
     LaunchedEffect(Unit) { focus.requestFocus() }
 }
 
+internal data class HomeRow(val shelf: Shelf, val detail: String)
+
+/**
+ * Each movie and series catalog is its own Home row, named as its add-on names it, with the type
+ * unless the name already says it. Two rows that would read the same also name their add-on.
+ * Other types, such as YouTube channels, have nothing Kino can open from Home.
+ */
+@Composable
+private fun homeRows(shelves: List<Shelf>): List<HomeRow> {
+    val types = mapOf("movie" to stringResource(R.string.movies), "series" to stringResource(R.string.series))
+    val shown = shelves.filter { it.type in types && (it.items.isNotEmpty() || (it.loading && !it.failed)) }
+    val titles = shown.map { "${it.name}\u0000${it.type}" }
+    return shown.mapIndexed { index, shelf ->
+        val named = shelf.name.lowercase().contains(shelf.type)
+        val collides = titles.count { it == titles[index] } > 1
+        HomeRow(
+            shelf,
+            listOfNotNull(
+                    types.getValue(shelf.type).takeUnless { named },
+                    shelf.addon.takeIf { collides && it.isNotBlank() },
+                )
+                .joinToString(" · "),
+        )
+    }
+}
+
 private fun groupedMedia(shelves: List<Shelf>): List<Pair<Int, List<Media>>> {
     val items = shelves.flatMap { it.items }.distinctBy { "${it.type}:${it.id}" }
     return listOf(R.string.movies to "movie", R.string.series to "series")
@@ -372,8 +401,9 @@ internal fun HomeScreen(
     onOpen: (Media) -> Unit,
     onRetry: () -> Unit,
     onRemoveContinue: (Media) -> Unit = {},
+    onSeeAll: (ResourceRequest) -> Unit = {},
 ) {
-    val groups = remember(state.shelves) { groupedMedia(state.shelves) }
+    val rows = homeRows(state.shelves)
     var options by remember { mutableStateOf<Media?>(null) }
     options?.let { media ->
         Dialog(onDismissRequest = { options = null }) {
@@ -415,10 +445,18 @@ internal fun HomeScreen(
             )
             if (state.continueWatching.isEmpty()) StatusText(R.string.continue_empty)
         }
-        items(groups, key = { it.first }) { (label, media) ->
-            MediaShelf("home-$label", stringResource(label), media.take(12), onOpen)
+        items(rows, key = { it.shelf.id }) { row ->
+            MediaShelf(
+                "home-${row.shelf.id}",
+                row.shelf.name,
+                row.shelf.items.take(12),
+                onOpen,
+                detail = row.detail,
+                onSeeAll = row.shelf.request?.let { request -> { onSeeAll(request) } },
+                loading = row.shelf.items.isEmpty(),
+            )
         }
-        if (state.shelves.any { it.loading } && groups.isEmpty()) {
+        if (state.shelves.any { it.loading } && rows.isEmpty()) {
             item {
                 Text(
                     stringResource(R.string.movies),
@@ -444,7 +482,7 @@ internal fun HomeScreen(
         if (
             state.shelves.isNotEmpty() &&
                 state.shelves.none { it.loading || it.failed } &&
-                groups.isEmpty()
+                rows.isEmpty()
         ) {
             item { StatusText(R.string.catalogs_empty) }
         }
@@ -459,16 +497,40 @@ private fun MediaShelf(
     onOpen: (Media) -> Unit,
     resume: Boolean = false,
     onOptions: ((Media) -> Unit)? = null,
+    detail: String = "",
+    onSeeAll: (() -> Unit)? = null,
+    loading: Boolean = false,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(
-            title,
-            Modifier.padding(start = PageGutter),
-            fontSize = 20.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = (-.2).sp,
-        )
-        if (media.isNotEmpty())
+        Row(Modifier.padding(start = PageGutter), verticalAlignment = Alignment.Bottom) {
+            Text(
+                title,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = (-.2).sp,
+            )
+            if (detail.isNotEmpty())
+                Text(
+                    detail,
+                    Modifier.padding(start = 8.dp, bottom = 2.dp),
+                    fontSize = 16.sp,
+                    color = KinoColors.TextFaint,
+                )
+        }
+        if (loading)
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = PageGutter, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                items(6) {
+                    Box(
+                        Modifier.width(PosterWidth)
+                            .height(PosterHeight)
+                            .background(SurfaceColor, RoundedCornerShape(10.dp))
+                    )
+                }
+            }
+        else if (media.isNotEmpty())
             LazyRow(
                 Modifier.focusRestorer(),
                 contentPadding = PaddingValues(horizontal = PageGutter, vertical = 12.dp),
@@ -485,7 +547,42 @@ private fun MediaShelf(
                         onOpen(item)
                     }
                 }
+                if (onSeeAll != null) item(key = "see-all") { SeeAllCard(title, detail, onSeeAll) }
             }
+    }
+}
+
+/** The last stop in a Home row, opening the whole catalog in Discover. */
+@Composable
+private fun SeeAllCard(title: String, detail: String, onClick: () -> Unit) {
+    val label = stringResource(R.string.see_all_title, listOf(title, detail).filter { it.isNotEmpty() }.joinToString(" "))
+    Card(
+        onClick,
+        Modifier.width(PosterWidth).height(PosterHeight).semantics { contentDescription = label },
+        shape = CardDefaults.shape(RoundedCornerShape(10.dp)),
+        colors = CardDefaults.colors(containerColor = SurfaceColor),
+        border =
+            CardDefaults.border(
+                focusedBorder =
+                    Border(
+                        androidx.compose.foundation.BorderStroke(2.dp, KinoColors.TextStrong),
+                        shape = RoundedCornerShape(10.dp),
+                    )
+            ),
+        scale = CardDefaults.scale(focusedScale = 1f, pressedScale = 1f),
+    ) {
+        Column(
+            Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Icon(painterResource(R.drawable.ic_compass), null, Modifier.size(28.dp))
+            Text(
+                stringResource(R.string.see_all),
+                Modifier.padding(top = 10.dp).clearAndSetSemantics {},
+                fontSize = 15.sp,
+            )
+        }
     }
 }
 

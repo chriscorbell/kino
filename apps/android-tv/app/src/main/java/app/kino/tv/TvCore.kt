@@ -44,6 +44,12 @@ data class Shelf(
     val items: List<Media>,
     val loading: Boolean,
     val failed: Boolean,
+    /** The catalog's own name, its content type, and the add-on that offers it. */
+    val name: String = title,
+    val type: String = "",
+    val addon: String = "",
+    /** Opens this catalog in Discover. */
+    val request: ResourceRequest? = null,
 )
 
 data class Source(val provider: String, val stream: Stream, val request: ResourceRequest) {
@@ -287,6 +293,11 @@ class TvCore(
         )
     }
 
+    /** Opens Discover on the first Board catalog, unless a catalog was already chosen. */
+    fun openDiscover() {
+        if (!discoverRequested) discover()
+    }
+
     fun loadMoreDiscover() {
         if (!mutable.value.discover.more) return
         Core.dispatch(
@@ -507,6 +518,11 @@ class TvCore(
     }
 
     private fun shelves(field: Field): List<Shelf> {
+        // Loaded at startup; names the add-on behind a row when two rows read the same.
+        val addonNames =
+            Core.getState<AddonsWithFilters>(Field.ADDONS).catalog?.ready?.items.orEmpty().associate {
+                it.transportUrl to it.manifest.name
+            }
         val catalogs = Core.getState<CatalogsWithExtra>(field).catalogs
         if (catalogs.any { it.pages.firstOrNull()?.content == null }) {
             Core.dispatch(
@@ -534,6 +550,10 @@ class TvCore(
                     .map { it.media() },
                 catalog.pages.any { it.content == null || it.loading != null },
                 catalog.pages.any { it.error != null },
+                name = first.catalogName?.takeIf { it.isNotBlank() } ?: first.title,
+                type = first.catalogType.orEmpty(),
+                addon = addonNames[first.request.base] ?: first.addonId.orEmpty(),
+                request = first.request,
             )
         }
     }

@@ -79,6 +79,8 @@ class NavigationMotionTest {
                                                             },
                                                         loading,
                                                         false,
+                                                        name = "Popular",
+                                                        type = "movie",
                                                     )
                                                 )
                                         ),
