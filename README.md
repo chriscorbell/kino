@@ -45,7 +45,7 @@ pnpm macos:build
 open build/macos/Kino.app
 ```
 
-The shell loads the packaged Kino UI, keeps Stremio authentication material in an owner-only file under Kino's application data, and hands playback to libmpv with VideoToolbox hardware decoding, forced SDR output, and optional stereo downmixing. Playback integrates with macOS media keys and Now Playing, blocks display sleep only while video plays, and exposes embedded and add-on subtitles with delay, size, and position controls. It is a local validation build, not yet a signed or self-contained distribution. Run the short native launch regression probe with:
+The shell loads the packaged Kino UI, keeps Stremio authentication material in an owner-only file under Kino's application data, and hands playback to libmpv with VideoToolbox hardware decoding, forced SDR output, and optional stereo downmixing. Playback integrates with macOS media keys and Now Playing, blocks display sleep only while video plays, and exposes embedded and add-on subtitles with delay, size, and position controls. It is a local validation build, not yet a signed or self-contained distribution. The WebChannel, including that authentication store, reaches only Kino's own interface: the main frame refuses any navigation outside the packaged UI directory, or outside the development server's origin. `pnpm macos:check-navigation` drives real navigations from both kinds of interface to check it. Run the short native launch regression probe with:
 
 ```sh
 pnpm macos:check-launch
