@@ -67,7 +67,12 @@ export const enUS = {
     continueWatching: 'Continue Watching',
     continueEmpty: 'Nothing to resume yet.',
     resume: 'Resume',
-    resumeTitle: (name: string) => `Resume ${name}`,
+    resumeTitle: (name: string, episode?: string) =>
+      episode ? `Resume ${name}, ${episode}` : `Resume ${name}`,
+    episodeShort: (season: number, episode: number) =>
+      season === 0 ? `Special ${episode}` : `S${season} E${episode}`,
+    episodeLong: (season: number, episode: number) =>
+      season === 0 ? `Special ${episode}` : `Season ${season}, Episode ${episode}`,
     dismiss: 'Remove from Continue Watching',
     dismissTitle: (name: string) => `Remove from Continue Watching ${name}`,
     dismissing: (name: string) => `Removing ${name} from Continue Watching…`,

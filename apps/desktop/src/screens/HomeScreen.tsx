@@ -11,6 +11,7 @@ import { MediaCard } from '../components/MediaCard';
 import { loadBoardAction, rewindLibraryItemAction } from '../core/actions';
 import { useCore } from '../core/context';
 import { savedTitlePreview } from '../core/preview';
+import { episodeFromVideoId } from '../core/seasons';
 import type {
   CatalogRequest,
   ContinueWatchingItem,
@@ -151,6 +152,9 @@ export function HomeScreen({
               <div className={styles.continueCard} key={item.id}>
                 <MediaCard
                   item={savedTitlePreview(item)}
+                  resumeEpisode={
+                    item.type === 'series' ? episodeFromVideoId(item.id, item.videoId) : null
+                  }
                   resumeProgress={item.progress}
                   onOpen={() =>
                     onResume ? onResume(item) : onOpen(savedTitlePreview(item), item.videoId)
