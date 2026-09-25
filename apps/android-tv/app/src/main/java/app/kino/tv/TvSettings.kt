@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.MediaLibraryInfo
 import androidx.media3.common.util.Util
 import androidx.media3.decoder.ffmpeg.FfmpegLibrary
@@ -150,6 +151,9 @@ internal fun SettingsScreen(
     var clearing by remember { mutableStateOf(false) }
     var cacheStatus by remember { mutableStateOf<Int?>(null) }
     var diagnosticStatus by remember { mutableStateOf<Int?>(null) }
+    val updates = remember { (context.applicationContext as KinoApplication).updates }
+    val updateState by updates.state.collectAsStateWithLifecycle()
+    var updateNotice by remember { mutableStateOf(false) }
     // The notices open in place of the list and Back returns to it, so the list keeps its scroll
     // position and the row that opened them takes focus again.
     val settingsList = rememberLazyListState()
@@ -398,6 +402,12 @@ internal fun SettingsScreen(
             }
         }
         diagnosticStatus?.let { item { SettingsMessage(it) } }
+        item { SettingsHeading(R.string.updates, R.string.updates_description) }
+        item {
+            SettingRow(R.string.check_for_updates, updateSummary(updateState)) {
+                if (updateState.release() != null) updateNotice = true else updates.check()
+            }
+        }
         item { SettingsHeading(R.string.licenses, R.string.licenses_description) }
         item {
             SettingRow(R.string.read_notices, modifier = Modifier.focusRequester(noticesFocus)) {
@@ -422,6 +432,8 @@ internal fun SettingsScreen(
             )
         }
     }
+    if (updateNotice && updateState.release() != null)
+        UpdateNotice(updates, updateState) { updateNotice = false }
     languageDialog?.let { text ->
         LanguageDialog(
             if (text) R.string.subtitle_language else R.string.audio_language,

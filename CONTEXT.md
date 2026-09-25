@@ -97,7 +97,7 @@ The set of validations that must all pass on the release candidate before its ta
 _Avoid_: Validation gate, CI
 
 **Update notice**:
-The prompt Kino shows when a newer release exists. It offers to download the release, dismiss the notice until the next daily check, or skip that version. Download hands the release's disk image to the system browser; Kino never downloads or installs an update on its own.
+The prompt Kino shows when a newer release exists. It offers to download the release, dismiss the notice until the next daily check, or skip that version. On the desktop, Download hands the release's disk image to the system browser. On the TV, Install downloads and checks the APK and hands it to Android's installer, which asks the viewer to confirm. Kino never installs an update on its own.
 _Avoid_: Auto-update, upgrade prompt
 
 **Skipped version**:

@@ -330,6 +330,8 @@ fun KinoApp(
                     }
             }
             if (playing == null) ResumeOverlay(resumePending) { resumePending = false }
+            if (playing == null && state.ready && !linking)
+                UpdatePrompt((context.applicationContext as KinoApplication).updates)
         }
     }
 }

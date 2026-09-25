@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.AndroidJUnitRunner
+import okhttp3.ResponseBody.Companion.toResponseBody
 
 private fun fixtureProfile(arguments: android.os.Bundle) =
     when (arguments.getString("settingsProfile")) {
@@ -33,6 +34,30 @@ class ShieldTestApplication : KinoApplication() {
 
     override val artworkProfile
         get() = fixtureProfile
+
+    // Screens under test must never reach GitHub, or raise a notice for a real release. UpdateTest
+    // builds its own updater against a feed it answers itself.
+    override val updates by lazy {
+        TvUpdates(
+            this,
+            settings,
+            source =
+                UpdateSource(
+                    client =
+                        okhttp3.OkHttpClient.Builder()
+                            .addInterceptor { chain ->
+                                okhttp3.Response.Builder()
+                                    .request(chain.request())
+                                    .protocol(okhttp3.Protocol.HTTP_1_1)
+                                    .code(404)
+                                    .message("")
+                                    .body(ByteArray(0).toResponseBody())
+                                    .build()
+                            }
+                            .build()
+                ),
+        )
+    }
 }
 
 class ShieldTestRunner : AndroidJUnitRunner() {
