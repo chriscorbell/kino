@@ -155,6 +155,12 @@ Packaging writes Kino's GPL text, retained shell provenance, and dependency noti
 
 The collector reads installed npm, Cargo, and Homebrew packages without network access. [Reviewed supplements](third_party/notices/README.md) supply omitted upstream texts, Qt and Chromium attributions, and complete Rust runtime notices. Packaging fails on missing texts, unknown binary origins, or changed dependency versions that need new supplements. `pnpm macos:package --no-dmg` runs the same collection, signing, and verification while skipping disk-image creation; native CI runs this path after its probes. Development builds need the packaging step before Read notices is available.
 
+### Releases
+
+Pushing a tag named for the root `package.json` version, such as `v0.1.0-beta.1`, runs the Release workflow. It builds the macOS disk image and the TV APK from that commit, checks that both carry the tag's version, verifies the APK is signed with the release certificate pinned in `apps/android-tv/release-certificate.sha256`, and publishes both with a combined `SHA256SUMS`. A version with a pre-release label becomes a GitHub pre-release, which the desktop update check follows from preview builds. Running the workflow by hand builds the same artifacts without publishing them.
+
+The TV release key lives only in the workflow's secrets. `scripts/setup-android-release-key.sh` sets it up once: it chooses or creates the keystore, uploads it with its passwords, and writes the certificate pin to commit. Every other build, locally and in CI, is signed with the machine's development key.
+
 ## Project documents
 
 - [Product contract](docs/PRODUCT.md)

@@ -47,9 +47,10 @@ function runInstallNameTool(args, options = {}) {
 
 const qtPrefix = run('brew', ['--prefix', 'qt']).trim();
 
+// The disk image carries Kino's full version, pre-release label included; the bundle's own
+// version fields hold only its numeric part.
 function version() {
-  const plist = join(sourceApp, 'Contents', 'Info.plist');
-  return run('/usr/libexec/PlistBuddy', ['-c', 'Print :CFBundleShortVersionString', plist]).trim();
+  return JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8')).version;
 }
 
 const homebrewPrefix = run('brew', ['--prefix']).trim();
