@@ -21,6 +21,7 @@ import {
   expectedToneMappedPatches,
   generateDolbyVisionProbes,
   generateHdrProbe,
+  generateSdrProbe,
 } from './test-support/hdr-probe-fixture.mjs';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -472,6 +473,7 @@ function generateFixtures() {
   ]);
   for (const { file, scale } of loudnessFixtures) encodeLoudness(file, scale);
   generateHdrProbe(fixturesDir);
+  generateSdrProbe(fixturesDir);
   generateDolbyVisionProbes(fixturesDir);
   writeFixture('external.srt', srtText);
   writeFixture('external.vtt', vttText);
@@ -540,6 +542,14 @@ const fixtures = [
   // Every pixel of the probe is a known code word, so what the player drew can be compared with
   // the host's tone map of the same values. Profile 8.1 carries the same frames under a Dolby
   // Vision RPU and must look the same; profile 5 has no base layer this renderer can show.
+  // The control comes first: an SDR ramp that only proves a drawn frame can be read back.
+  {
+    file: 'sdr-probe.mkv',
+    label: 'pixels-sdr-control',
+    note: 'a drawn frame reads back as a black-to-white ramp',
+    env: { KINO_PLAYBACK_PROBE_FRAME: '1' },
+    expect: { outcome: 'played', frameControl: true },
+  },
   ...['hdr-probe.mkv', 'dv-p8-probe.mkv'].map((file) => ({
     file,
     label: `pixels-${file}`,
@@ -685,6 +695,12 @@ function assertExpectations(fixture, result) {
       problems.push(`gain ${loudness.gainDb} dB, expected ${expect.loudness.gainDb.toFixed(2)}`);
   }
   if (expect.frame) problems.push(...frameProblems(result.frame));
+  if (expect.frameControl) {
+    const ramp = (result.frame?.neutral ?? []).map((pixel) => Math.max(...pixel));
+    const rising = ramp.every((value, index) => index === 0 || value > ramp[index - 1] - 0.01);
+    if (ramp.length !== 16 || !rising || !(ramp[0] < 0.1) || !(ramp[15] > 0.8))
+      problems.push(`the SDR control read back ${ramp.map((v) => v.toFixed(2)).join(' ')}`);
+  }
   return problems;
 }
 
@@ -704,8 +720,17 @@ generateFixtures();
 if (process.argv.includes('--generate-only')) process.exit(0);
 
 let failures = 0;
+// A runner whose GPU cannot hand decoded frames back to a capture, as a hosted CI virtual machine's
+// cannot, declares it with KINO_PLAYBACK_PIXELS=optional. There a failed SDR control marks the
+// pixel checks as not runnable, and says so, rather than failing them; everywhere else it fails.
+const pixelsOptional = process.env.KINO_PLAYBACK_PIXELS === 'optional';
+let framesUnreadable = false;
 for (const fixture of fixtures) {
   const name = fixture.label ?? fixture.file;
+  if (framesUnreadable && fixture.expect.frame) {
+    console.log(`- ${name}: not run, this runner cannot read drawn frames`);
+    continue;
+  }
   const { failure, result, stderr } = runProbe(fixture);
   if (failure) {
     failures += 1;
@@ -714,6 +739,11 @@ for (const fixture of fixtures) {
     continue;
   }
   const problems = assertExpectations(fixture, result);
+  if (problems.length > 0 && fixture.expect.frameControl && pixelsOptional) {
+    framesUnreadable = true;
+    console.log(`- ${name}: ${problems.join('; ')}; pixel checks will not run on this runner`);
+    continue;
+  }
   if (problems.length > 0) {
     failures += 1;
     console.log(`✗ ${name}: ${problems.join('; ')}`);

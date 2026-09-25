@@ -221,6 +221,63 @@ export function generateHdrProbe(fixturesDir) {
 }
 
 /**
+ * The SDR control for the pixel gate: band A's layout as an eight-bit BT.709 neutral ramp from
+ * black to white, lossless. It asks nothing about tone mapping, only whether a drawn frame can be
+ * read back at all, so a failure in the HDR patches means the HDR path and not the capture.
+ */
+export function generateSdrProbe(fixturesDir) {
+  const target = join(fixturesDir, 'sdr-probe.mkv');
+  if (existsSync(target)) return target;
+  mkdirSync(fixturesDir, { recursive: true });
+  const luma = Buffer.alloc(WIDTH * HEIGHT, 126);
+  const chroma = Buffer.alloc((WIDTH / 2) * (HEIGHT / 2) * 2, 128);
+  for (let y = 0; y < 90; y += 1)
+    for (let x = 0; x < WIDTH; x += 1)
+      luma[y * WIDTH + x] =
+        16 + Math.round((Math.min(15, Math.floor((x * 16) / WIDTH)) * 219) / 15);
+  const raw = join(fixturesDir, 'sdr-probe.yuv');
+  writeFileSync(
+    raw,
+    Buffer.concat(Array.from({ length: FRAMES }, () => Buffer.concat([luma, chroma]))),
+  );
+  execFileSync(
+    'ffmpeg',
+    [
+      '-y',
+      '-v',
+      'error',
+      '-f',
+      'rawvideo',
+      '-pix_fmt',
+      'yuv420p',
+      '-s',
+      `${WIDTH}x${HEIGHT}`,
+      '-r',
+      '24',
+      '-i',
+      raw,
+      '-c:v',
+      'libx264',
+      '-qp',
+      '0',
+      '-preset',
+      'ultrafast',
+      '-color_primaries',
+      'bt709',
+      '-color_trc',
+      'bt709',
+      '-colorspace',
+      'bt709',
+      '-color_range',
+      'tv',
+      target,
+    ],
+    { stdio: 'inherit' },
+  );
+  return target;
+}
+
+/**
  * Dolby Vision variants of the probe, for the profile gates. Each carries a generated RPU for its
  * profile and the matching Matroska configuration record, over the same HDR10 frames, so profile
  * 8.1's HDR10-compatible base layer must tone map to exactly the probe's expected patches, while
