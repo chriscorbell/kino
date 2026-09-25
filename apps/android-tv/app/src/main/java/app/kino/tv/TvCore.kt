@@ -351,6 +351,10 @@ class TvCore(
         loadLibrary()
     }
 
+    /** Core rewinds the item's progress, which takes it out of Continue Watching. */
+    fun removeFromContinueWatching(media: Media) =
+        ctx(ActionCtx.Args.RewindLibraryItem(media.id))
+
     private fun metaDetails(args: ActionMetaDetails.Args<*>) =
         Core.dispatch(
             Action(Action.Type.MetaDetails(ActionMetaDetails(args))),

@@ -1,6 +1,9 @@
 package app.kino.tv
 
 import android.app.Instrumentation
+import android.os.SystemClock
+import android.view.KeyEvent
+import android.view.ViewConfiguration
 import android.view.accessibility.AccessibilityNodeInfo
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -12,6 +15,25 @@ import org.junit.Assert.fail
 internal class TvRemote(private val instrumentation: Instrumentation) {
     fun key(code: Int) {
         instrumentation.sendKeyDownUpSync(code)
+        instrumentation.waitForIdleSync()
+        Thread.sleep(80)
+    }
+
+    /**
+     * Holds [code] past the long-press timeout, as a person holding select does. A held remote
+     * key repeats, and TV Material reads the repeat as the long press.
+     */
+    fun hold(code: Int) {
+        val down = SystemClock.uptimeMillis()
+        instrumentation.sendKeySync(KeyEvent(down, down, KeyEvent.ACTION_DOWN, code, 0))
+        Thread.sleep(ViewConfiguration.getLongPressTimeout().toLong())
+        val held = SystemClock.uptimeMillis()
+        instrumentation.sendKeySync(
+            KeyEvent(down, held, KeyEvent.ACTION_DOWN, code, 1, 0, -1, 0, KeyEvent.FLAG_LONG_PRESS)
+        )
+        instrumentation.sendKeySync(
+            KeyEvent(down, SystemClock.uptimeMillis(), KeyEvent.ACTION_UP, code, 0)
+        )
         instrumentation.waitForIdleSync()
         Thread.sleep(80)
     }

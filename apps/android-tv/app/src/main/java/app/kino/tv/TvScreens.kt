@@ -59,8 +59,10 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -273,7 +275,13 @@ fun KinoApp(
                             } else {
                                 savedScreens.SaveableStateProvider(destination) {
                                     when (destination) {
-                                        "home" -> HomeScreen(state, open, core::home)
+                                        "home" ->
+                                            HomeScreen(
+                                                state,
+                                                open,
+                                                core::home,
+                                                core::removeFromContinueWatching,
+                                            )
                                         "search" ->
                                             SearchScreen(query, { query = it }, state.search, open)
                                         "discover" -> {
@@ -359,8 +367,37 @@ private fun groupedMedia(shelves: List<Shelf>): List<Pair<Int, List<Media>>> {
 }
 
 @Composable
-internal fun HomeScreen(state: TvState, onOpen: (Media) -> Unit, onRetry: () -> Unit) {
+internal fun HomeScreen(
+    state: TvState,
+    onOpen: (Media) -> Unit,
+    onRetry: () -> Unit,
+    onRemoveContinue: (Media) -> Unit = {},
+) {
     val groups = remember(state.shelves) { groupedMedia(state.shelves) }
+    var options by remember { mutableStateOf<Media?>(null) }
+    options?.let { media ->
+        Dialog(onDismissRequest = { options = null }) {
+            Column(
+                Modifier.width(420.dp)
+                    .background(SurfaceColor, RoundedCornerShape(12.dp))
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Text(media.title, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                val remove = remember { FocusRequester() }
+                Button(
+                    {
+                        options = null
+                        onRemoveContinue(media)
+                    },
+                    Modifier.fillMaxWidth().focusRequester(remove),
+                ) {
+                    Text(stringResource(R.string.continue_remove))
+                }
+                LaunchedEffect(Unit) { remove.requestFocus() }
+            }
+        }
+    }
     LazyColumn(
         state = rememberLazyListState(),
         modifier = Modifier.fillMaxSize(),
@@ -374,6 +411,7 @@ internal fun HomeScreen(state: TvState, onOpen: (Media) -> Unit, onRetry: () -> 
                 state.continueWatching.take(10),
                 onOpen,
                 resume = true,
+                onOptions = { options = it },
             )
             if (state.continueWatching.isEmpty()) StatusText(R.string.continue_empty)
         }
@@ -420,6 +458,7 @@ private fun MediaShelf(
     media: List<Media>,
     onOpen: (Media) -> Unit,
     resume: Boolean = false,
+    onOptions: ((Media) -> Unit)? = null,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
@@ -436,7 +475,13 @@ private fun MediaShelf(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 itemsIndexed(media, key = { _, it -> "${it.type}:${it.id}" }) { index, item ->
-                    PosterCard(item, resume, "$id:${item.type}:${item.id}", index == 0) {
+                    PosterCard(
+                        item,
+                        resume,
+                        "$id:${item.type}:${item.id}",
+                        index == 0,
+                        onLongClick = onOptions?.let { { it(item) } },
+                    ) {
                         onOpen(item)
                     }
                 }
@@ -450,9 +495,11 @@ internal fun PosterCard(
     resume: Boolean,
     focusKey: String,
     firstInRow: Boolean,
+    onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     val registry = LocalPosterFocus.current
+    val removeLabel = stringResource(R.string.continue_remove)
     val navigation = LocalNavigationFocus.current
     val focus = remember(focusKey) { FocusRequester() }
     val caption =
@@ -476,7 +523,14 @@ internal fun PosterCard(
                 .focusRequester(focus)
                 .focusProperties { if (firstInRow) left = navigation }
                 .onFocusChanged { if (it.isFocused) registry.lastFocusedKey = focusKey }
-                .semantics { contentDescription = accessibilityLabel },
+                .semantics {
+                    contentDescription = accessibilityLabel
+                    // A held select opens the options; screen readers reach them as an action.
+                    if (onLongClick != null)
+                        customActions =
+                            listOf(CustomAccessibilityAction(removeLabel) { onLongClick(); true })
+                },
+            onLongClick = onLongClick,
             shape = CardDefaults.shape(RoundedCornerShape(10.dp)),
             border =
                 CardDefaults.border(

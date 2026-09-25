@@ -151,4 +151,62 @@ class WatchedTest {
             instrumentation.runOnMainSync { activity.finish() }
         }
     }
+
+    @Test
+    fun holdingSelectRemovesATitleFromContinueWatching() {
+        val activity = activity()
+        val fixture = CoreEpisodeFixture(activity)
+        try {
+            onMain {
+                core.initialize()
+                fixture.install()
+                core.open(fixture.media, fixture.firstVideoId)
+            }
+            remote.waitUntil("Core resolves the fixture's source", 15_000) {
+                core.state.value.details.sources.any { it.playable }
+            }
+            onMain {
+                assertTrue(core.startPlayer(core.state.value.details.sources.first { it.playable }))
+            }
+            // Core drops progress until the player has loaded the title's metadata.
+            remote.waitUntil("Core records playback progress", 15_000) {
+                onMain {
+                    core.progress(60_000, 600_000, false)
+                    core.resumePosition(fixture.firstVideoId) > 0
+                }
+            }
+            onMain { core.stopPlayer() }
+            remote.waitUntil("Playback puts the series in Continue Watching") {
+                core.state.value.continueWatching.any { it.id == fixture.seriesId }
+            }
+            instrumentation.runOnMainSync {
+                activity.setContent {
+                    KinoTheme {
+                        val state by core.state.collectAsState()
+                        HomeScreen(state, {}, {}, core::removeFromContinueWatching)
+                    }
+                }
+            }
+            val resume = context.getString(R.string.resume_title, "Kino fixture")
+            remote.waitFor(resume)
+            remote.focus(resume)
+            remote.hold(KeyEvent.KEYCODE_DPAD_CENTER)
+            val remove = context.getString(R.string.continue_remove)
+            remote.waitUntil("Holding select offers removal with focus on it") {
+                remote.node(remove)?.let(remote::focused) == true
+            }
+            remote.key(KeyEvent.KEYCODE_DPAD_CENTER)
+            remote.waitUntil("Core takes the series out of Continue Watching") {
+                core.state.value.continueWatching.none { it.id == fixture.seriesId }
+            }
+            remote.waitUntil("The shelf no longer shows it") { remote.node(resume) == null }
+            remote.waitUntil("Focus stays on the page for the remote") {
+                remote.visible().any { it.isFocused }
+            }
+        } finally {
+            onMain { fixture.uninstall() }
+            fixture.close()
+            instrumentation.runOnMainSync { activity.finish() }
+        }
+    }
 }
