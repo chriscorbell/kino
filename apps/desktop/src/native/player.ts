@@ -29,6 +29,7 @@ export interface NativePlayer {
   playerEvent: NativePlayerEvent;
   seek(seconds: number): void;
   setFullscreen(enabled: boolean): void;
+  setMatchFrameRate?(enabled: boolean): void;
   setMuted(muted: boolean): void;
   setVolume(percent: number): void;
   setNowPlayingMetadata(title: string, subtitle: string): void;

@@ -522,6 +522,12 @@ export function PlayerScreen({
     };
   }, [subtitleMenuOpen]);
 
+  // Declared before the load below, so the shell has the setting before the
+  // first file opens. Changing it later reaches the player without reloading.
+  useEffect(() => {
+    nativePlayer?.setMatchFrameRate?.(settings.matchRefreshRate);
+  }, [nativePlayer, settings.matchRefreshRate]);
+
   useEffect(() => {
     if (!nativePlayer || !streamUrl) return;
     audioAutoDoneRef.current = false;

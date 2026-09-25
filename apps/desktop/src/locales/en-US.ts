@@ -239,6 +239,9 @@ export const enUS = {
     revealLogs: 'Reveal logs',
     desktopOnly: 'Desktop only',
     audioOutput: 'Audio output',
+    matchRefreshRate: 'Match refresh rate',
+    matchRefreshRateDescription:
+      "Switches the display to a rate that shows the video's frames evenly while it plays, where the display offers one. The screen may go dark for a moment.",
     audioOutputDescription: 'Use connected equipment or force a stereo downmix',
     audioAuto: 'Auto',
     audioStereo: 'Stereo',

@@ -9,6 +9,7 @@ export interface KinoSettings {
   automaticIntroSkipping: boolean;
   audioOutput: AudioOutput;
   interfaceScale: InterfaceScale;
+  matchRefreshRate: boolean;
   skipIntroButton: boolean;
   subtitlePosition: number;
   subtitleSize: number;
@@ -24,6 +25,7 @@ export const defaultSettings: KinoSettings = {
   automaticIntroSkipping: false,
   audioOutput: 'auto',
   interfaceScale: 100,
+  matchRefreshRate: false,
   skipIntroButton: true,
   subtitlePosition: 94,
   subtitleSize: 100,
@@ -78,6 +80,10 @@ export function loadSettings(storage: Pick<Storage, 'getItem'>): KinoSettings {
       interfaceScale: interfaceScales.includes(values.interfaceScale as InterfaceScale)
         ? (values.interfaceScale as InterfaceScale)
         : defaultSettings.interfaceScale,
+      matchRefreshRate:
+        typeof values.matchRefreshRate === 'boolean'
+          ? values.matchRefreshRate
+          : defaultSettings.matchRefreshRate,
       skipIntroButton:
         typeof values.skipIntroButton === 'boolean'
           ? values.skipIntroButton

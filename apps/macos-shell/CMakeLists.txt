@@ -35,6 +35,7 @@ find_package(
 # its caption style. An older library would reject them at startup.
 pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv>=2.4)
 find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
+find_library(COREGRAPHICS_FRAMEWORK CoreGraphics REQUIRED)
 find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
 find_library(IOKIT_FRAMEWORK IOKit REQUIRED)
 find_library(MEDIAPLAYER_FRAMEWORK MediaPlayer REQUIRED)
@@ -79,6 +80,7 @@ qt_add_executable(
   src/powerguard.cpp
   src/securestore.cpp
   src/sleepobserver.mm
+    src/displaymode.mm
   src/streamengine.cpp
   src/tlsroots.cpp
 )
@@ -123,7 +125,7 @@ target_link_libraries(
   Kino
   PRIVATE
     PkgConfig::MPV
-    ${APPKIT_FRAMEWORK}
+    ${APPKIT_FRAMEWORK} ${COREGRAPHICS_FRAMEWORK}
     ${FOUNDATION_FRAMEWORK}
     ${IOKIT_FRAMEWORK}
     ${MEDIAPLAYER_FRAMEWORK}
@@ -192,6 +194,9 @@ if(BUILD_TESTING)
   add_test(NAME addon_redirects COMMAND ${NODE_EXECUTABLE}
     "${KINO_REPOSITORY_ROOT}/scripts/check-native-addon-redirects.mjs" $<TARGET_FILE:kino_addonnetwork_probe>)
   set_tests_properties(addon_redirects PROPERTIES TIMEOUT 30)
+  qt_add_executable(kino_displaymode_test tests/displaymode_test.cpp src/displaymode.mm)
+  target_link_libraries(kino_displaymode_test PRIVATE Qt6::Gui Qt6::Test ${APPKIT_FRAMEWORK} ${COREGRAPHICS_FRAMEWORK})
+  add_test(NAME kino_displaymode_test COMMAND kino_displaymode_test)
   qt_add_executable(kino_externalnavigation_test tests/externalnavigation_test.cpp src/externalnavigation.cpp)
   target_include_directories(kino_externalnavigation_test PRIVATE src)
   target_link_libraries(kino_externalnavigation_test PRIVATE Qt6::Gui Qt6::Qml Qt6::Test)
@@ -203,12 +208,13 @@ if(BUILD_TESTING)
     src/mpvitem.cpp
     src/powerguard.cpp
     src/sleepobserver.mm
+    src/displaymode.mm
     src/tlsroots.cpp
   )
   target_include_directories(kino_mpvitem_test PRIVATE src)
   target_link_libraries(
     kino_mpvitem_test
-    PRIVATE PkgConfig::MPV ${APPKIT_FRAMEWORK} ${IOKIT_FRAMEWORK} Qt6::Concurrent Qt6::Network
+    PRIVATE PkgConfig::MPV ${APPKIT_FRAMEWORK} ${COREGRAPHICS_FRAMEWORK} ${IOKIT_FRAMEWORK} Qt6::Concurrent Qt6::Network
             Qt6::Quick Qt6::Test
   )
   add_test(NAME mpvitem_properties COMMAND kino_mpvitem_test)
@@ -223,12 +229,13 @@ if(BUILD_TESTING)
     src/mpvitem.cpp
     src/powerguard.cpp
     src/sleepobserver.mm
+    src/displaymode.mm
     src/tlsroots.cpp
   )
   target_include_directories(kino_mpvitem_unavailable_test PRIVATE src)
   target_link_libraries(
     kino_mpvitem_unavailable_test
-    PRIVATE kino_mpv_failure PkgConfig::MPV ${APPKIT_FRAMEWORK} ${IOKIT_FRAMEWORK}
+    PRIVATE kino_mpv_failure PkgConfig::MPV ${APPKIT_FRAMEWORK} ${COREGRAPHICS_FRAMEWORK} ${IOKIT_FRAMEWORK}
             Qt6::Concurrent Qt6::Network Qt6::Quick Qt6::Test
   )
   foreach(stage create initialize)
@@ -249,12 +256,13 @@ if(BUILD_TESTING)
     src/mpvitem.cpp
     src/powerguard.cpp
     src/sleepobserver.mm
+    src/displaymode.mm
     src/tlsroots.cpp
   )
   target_include_directories(kino_render_lifetime_test PRIVATE src)
   target_link_libraries(
     kino_render_lifetime_test
-    PRIVATE kino_render_lifetime_guard PkgConfig::MPV ${APPKIT_FRAMEWORK} ${IOKIT_FRAMEWORK}
+    PRIVATE kino_render_lifetime_guard PkgConfig::MPV ${APPKIT_FRAMEWORK} ${COREGRAPHICS_FRAMEWORK} ${IOKIT_FRAMEWORK}
             Qt6::Concurrent Qt6::Network Qt6::Quick Qt6::Test
   )
   add_test(NAME render_lifetime COMMAND kino_render_lifetime_test)
@@ -279,9 +287,10 @@ if(BUILD_TESTING)
   qt_add_executable(kino_diagnostics_test
     tests/diagnostics_test.cpp src/diagnostics.cpp src/mpvitem.cpp src/powerguard.cpp
     src/sleepobserver.mm
+    src/displaymode.mm
     src/streamengine.cpp src/logging.cpp src/tlsroots.cpp)
   target_include_directories(kino_diagnostics_test PRIVATE src "${CMAKE_CURRENT_BINARY_DIR}/generated")
-  target_link_libraries(kino_diagnostics_test PRIVATE PkgConfig::MPV ${APPKIT_FRAMEWORK} ${IOKIT_FRAMEWORK}
+  target_link_libraries(kino_diagnostics_test PRIVATE PkgConfig::MPV ${APPKIT_FRAMEWORK} ${COREGRAPHICS_FRAMEWORK} ${IOKIT_FRAMEWORK}
     Qt6::Concurrent Qt6::Network Qt6::Quick Qt6::WebEngineCore Qt6::Test)
   add_test(NAME diagnostic_summary COMMAND kino_diagnostics_test)
   set_tests_properties(diagnostic_summary PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")

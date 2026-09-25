@@ -27,6 +27,7 @@ const fixture = vi.hoisted(() => ({
   native: {
     load: vi.fn(),
     loadWithAudioLanguage: vi.fn(),
+    setMatchFrameRate: vi.fn(),
     stop: vi.fn(),
     fullscreen: false,
     fullscreenChanged: { connect: vi.fn(), disconnect: vi.fn() },
@@ -83,6 +84,11 @@ it('passes the preferred language and selects native audio IDs without reloading
       {},
       'spa',
     ),
+  );
+  // The refresh-rate preference reaches the shell before the file it applies to.
+  expect(fixture.native.setMatchFrameRate).toHaveBeenCalledWith(false);
+  expect(fixture.native.setMatchFrameRate.mock.invocationCallOrder[0]).toBeLessThan(
+    fixture.native.loadWithAudioLanguage.mock.invocationCallOrder[0]!,
   );
   expect(menu).toBeDisabled();
   const event = fixture.native.playerEvent.connect.mock.calls.at(-1)?.[0];

@@ -9,6 +9,7 @@
 #include <QOpenGLContext>
 #include <QOpenGLFramebufferObject>
 #include <QQuickOpenGLUtils>
+#include <QQuickWindow>
 #include <QRegularExpression>
 #include <QSet>
 #include <QUrl>
@@ -428,6 +429,7 @@ bool MpvItem::initialize() {
     mpv_observe_property(handle_, 9, "track-list", MPV_FORMAT_NODE);
     mpv_observe_property(handle_, 10, "volume", MPV_FORMAT_DOUBLE);
     mpv_observe_property(handle_, 11, "demuxer-cache-time", MPV_FORMAT_DOUBLE);
+    mpv_observe_property(handle_, 12, "container-fps", MPV_FORMAT_DOUBLE);
     return true;
 }
 
@@ -655,9 +657,28 @@ void MpvItem::setAudioTrack(int id) {
     mpv_set_property_async(handle_, 0, "aid", MPV_FORMAT_INT64, &value);
 }
 
+void MpvItem::matchDisplayTo(double frameRate) {
+    if (!matchFrameRate_ || frameRateMatched_ || !(frameRate > 1) || !handle_) return;
+    frameRateMatched_ = true;
+    // The display goes dark for a moment while it changes mode; hold playback over it.
+    const bool playing = !paused_;
+    if (playing) mpv_set_property_string(handle_, "pause", "yes");
+    const bool switched = displayMode_.match(window(), frameRate);
+    if (switched)
+        emit playerEvent(QStringLiteral("refreshRate"),
+                         {{QStringLiteral("hz"), DisplayModeMatcher::refreshRate(window())}});
+    if (playing)
+        QTimer::singleShot(switched ? 1500 : 0, this, [this]() {
+            if (handle_) mpv_set_property_string(handle_, "pause", "no");
+        });
+}
+
 void MpvItem::stop() {
     pendingLoad_ = nullptr;
     loudnessTimer_.stop();
+    // Leaving playback hands the display back its own mode.
+    displayMode_.restore();
+    frameRateMatched_ = false;
     renderContextTimer_.stop();
     hardwareDecoderTimer_.stop();
     if (available()) {
@@ -778,6 +799,8 @@ void MpvItem::handleEvent(mpv_event *event) {
                 emit playerEvent(QStringLiteral("volume"),
                                  {{QStringLiteral("percent"), std::clamp(percent, 0.0, 100.0)}});
             }
+        } else if (name == "container-fps" && property->format == MPV_FORMAT_DOUBLE) {
+            matchDisplayTo(*static_cast<double *>(property->data));
         } else if (name == "chapter-list" && property->format == MPV_FORMAT_NODE) {
             const auto *chapters = static_cast<const mpv_node *>(property->data);
             emit playerEvent(
@@ -806,6 +829,8 @@ void MpvItem::handleEvent(mpv_event *event) {
     case MPV_EVENT_END_FILE: {
         const auto *end = static_cast<mpv_event_end_file *>(event->data);
         hardwareDecoderTimer_.stop();
+        displayMode_.restore();
+        frameRateMatched_ = false;
         setActive(false);
         if (end && end->reason == MPV_END_FILE_REASON_ERROR) {
             emitError(QStringLiteral("decoder-or-stream-failed"));
