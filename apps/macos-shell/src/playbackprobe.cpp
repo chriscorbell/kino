@@ -16,6 +16,8 @@ namespace {
 // Enough playback to prove sustained decoding, comfortably past the point
 // where the hardware-decoder stall timer would have rejected the source.
 constexpr qlonglong kRequiredPlaybackMs = 2'500;
+// Long enough for the loudness probe's final passage to settle the gain.
+constexpr qlonglong kRequiredStereoPlaybackMs = 15'000;
 constexpr int kTimeoutMs = 30'000;
 
 } // namespace
@@ -23,6 +25,7 @@ constexpr int kTimeoutMs = 30'000;
 PlaybackProbe::PlaybackProbe(MpvItem *player, const QString &mediaPath,
                              const QString &subtitlesPath, QObject *parent)
     : QObject(parent), sleepCheck_(qEnvironmentVariableIsSet("KINO_PLAYBACK_PROBE_SLEEP")),
+      stereoCheck_(qEnvironmentVariableIsSet("KINO_PLAYBACK_PROBE_STEREO")),
       player_(player), mediaPath_(mediaPath), subtitlesPath_(subtitlesPath) {
     timeout_.setInterval(kTimeoutMs);
     timeout_.setSingleShot(true);
@@ -32,7 +35,7 @@ PlaybackProbe::PlaybackProbe(MpvItem *player, const QString &mediaPath,
 
 void PlaybackProbe::start() {
     timeout_.start();
-    player_->load(mediaPath_, false);
+    player_->load(mediaPath_, stereoCheck_);
 }
 
 void PlaybackProbe::onPlayerEvent(const QString &name, const QVariantMap &payload) {
@@ -92,7 +95,8 @@ void PlaybackProbe::evaluate() {
         }
         return;
     }
-    if (hardwareDecoding_ && timeMs_ >= kRequiredPlaybackMs) {
+    if (hardwareDecoding_ &&
+        timeMs_ >= (stereoCheck_ ? kRequiredStereoPlaybackMs : kRequiredPlaybackMs)) {
         finish(QStringLiteral("played"));
     }
 }
@@ -106,6 +110,7 @@ void PlaybackProbe::finish(const QString &outcome, const QString &errorCode) {
     // Read the caption style from the live player before it stops, so the
     // fixture gate sees what libmpv actually held during playback.
     const double playbackSpeed = player_->playbackSpeed();
+    const QVariantMap loudness = player_->loudness();
     QJsonObject subtitleStyle;
     const QVariantMap style = player_->subtitleStyle();
     for (auto field = style.cbegin(); field != style.cend(); ++field) {
@@ -115,6 +120,7 @@ void PlaybackProbe::finish(const QString &outcome, const QString &errorCode) {
 
     QJsonObject result{
         {QStringLiteral("chapters"), chapterCount_},
+        {QStringLiteral("loudness"), QJsonObject::fromVariantMap(loudness)},
         {QStringLiteral("outcome"), outcome},
         {QStringLiteral("speed"), playbackSpeed},
         {QStringLiteral("subtitleStyle"), subtitleStyle},

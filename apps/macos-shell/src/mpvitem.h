@@ -27,6 +27,8 @@ public:
     bool active() const;
     double playbackSpeed() const;
     QVariantMap subtitleStyle() const;
+    /** The Stereo path's integrated loudness and applied gain, for the probe and diagnostics. */
+    QVariantMap loudness() const;
     QString version() const;
     Renderer *createRenderer() const override;
 
@@ -87,4 +89,12 @@ private:
     // permanently for a file whose video starts before one exists.
     std::function<void()> pendingLoad_;
     QTimer renderContextTimer_;
+    // Stereo loudness normalization: libavfilter measures and applies it in
+    // mpv's audio chain, and this timer steers the gain from the measurement.
+    void steerLoudness();
+    QTimer loudnessTimer_;
+    bool normalizing_ = false;
+    int loudnessTicks_ = 0;
+    double loudnessGainDb_ = 0;
+    double integratedLufs_ = -70;
 };

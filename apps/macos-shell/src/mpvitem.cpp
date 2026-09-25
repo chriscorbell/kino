@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <mutex>
 
 namespace {
@@ -27,6 +28,23 @@ void *resolveOpenGlSymbol(void *, const char *name) {
     }
     return reinterpret_cast<void *>(context->getProcAddress(QByteArray(name)));
 }
+
+// Stereo loudness normalization, matched to the TV's LoudnessNormalizer. The
+// measurement is libavfilter's ebur128, which is ITU-R BS.1770-4 integrated
+// across everything played, so the gain follows the program rather than riding
+// each scene. The limiter holds peaks under -1 dBFS with its shortest attack.
+constexpr double kTargetLufs = -19.0;
+constexpr double kMaxBoostDb = 12.0;
+constexpr double kMaxCutDb = -6.0;
+constexpr int kLoudnessIntervalMs = 500;
+// Eight 400 ms blocks, as on TV, before the measurement is trusted.
+constexpr int kLoudnessWarmupTicks = 7;
+constexpr double kRiseSeconds = 1.5;
+constexpr double kFallSeconds = 1.0;
+constexpr const char *kStereoFilters =
+    "@kinoloud:ebur128=metadata=1,"
+    "@kinogain:volume=volume=0dB:precision=float,"
+    "@kinolimit:alimiter=limit=0.8913:attack=0.1:release=150:level=false";
 
 QVariantMap millisecondsPayload(double seconds) {
     return {{QStringLiteral("milliseconds"), std::llround(seconds * 1000.0)}};
@@ -234,6 +252,8 @@ MpvItem::MpvItem(QQuickItem *parent)
         const char *command[] = {"stop", nullptr};
         mpv_command_async(handle_, 0, command);
     });
+    loudnessTimer_.setInterval(kLoudnessIntervalMs);
+    connect(&loudnessTimer_, &QTimer::timeout, this, &MpvItem::steerLoudness);
     renderContextTimer_.setInterval(5'000);
     renderContextTimer_.setSingleShot(true);
     connect(&renderContextTimer_, &QTimer::timeout, this, [this]() {
@@ -328,6 +348,10 @@ bool MpvItem::initialize() {
         {"demuxer-readahead-secs", "10"},
         {"audio-fallback-to-null", "yes"},
         {"audio-client-name", "Kino"},
+        // The Stereo downmix keeps unity front and -3 dB centre and surround
+        // gains without a static headroom cut; the limiter handles the rare
+        // peak instead, as on TV.
+        {"audio-normalize-downmix", "no"},
         {"title", "Kino"},
         {"sid", "no"},
         {"sub-auto", "no"},
@@ -446,6 +470,16 @@ void MpvItem::load(const QString &url, bool forceStereo, const QVariantMap &head
     char *audioChannelsData = audioChannels.data();
     mpv_set_property_async(handle_, 0, "audio-channels", MPV_FORMAT_STRING,
                            &audioChannelsData);
+    // Only the Stereo path is normalized; Auto leaves levels to the equipment.
+    normalizing_ = forceStereo;
+    loudnessTicks_ = 0;
+    loudnessGainDb_ = 0;
+    integratedLufs_ = -70;
+    QByteArray audioFilters = forceStereo ? QByteArray(kStereoFilters) : QByteArray();
+    char *audioFiltersData = audioFilters.data();
+    mpv_set_property_async(handle_, 0, "af", MPV_FORMAT_STRING, &audioFiltersData);
+    if (forceStereo) loudnessTimer_.start();
+    else loudnessTimer_.stop();
     QByteArray subtitleTrack = QByteArrayLiteral("no");
     char *subtitleTrackData = subtitleTrack.data();
     mpv_set_property_async(handle_, 0, "sid", MPV_FORMAT_STRING, &subtitleTrackData);
@@ -599,6 +633,7 @@ void MpvItem::setAudioTrack(int id) {
 
 void MpvItem::stop() {
     pendingLoad_ = nullptr;
+    loudnessTimer_.stop();
     renderContextTimer_.stop();
     hardwareDecoderTimer_.stop();
     if (available()) {
@@ -769,6 +804,44 @@ void MpvItem::emitError(const QString &code) {
     setActive(false);
     qCritical("[kino:mpv] playback failed code=%s", qPrintable(code));
     emit playerEvent(QStringLiteral("error"), {{QStringLiteral("code"), code}});
+}
+
+QVariantMap MpvItem::loudness() const {
+    return {
+        {QStringLiteral("normalizing"), normalizing_},
+        {QStringLiteral("integratedLufs"), integratedLufs_},
+        {QStringLiteral("gainDb"), loudnessGainDb_},
+    };
+}
+
+void MpvItem::steerLoudness() {
+    if (!available() || !normalizing_ || !active_ || paused_) return;
+    mpv_node metadata{};
+    if (mpv_get_property(handle_, "af-metadata/kinoloud", MPV_FORMAT_NODE, &metadata) < 0) return;
+    double integrated = std::nan("");
+    if (metadata.format == MPV_FORMAT_NODE_MAP && metadata.u.list) {
+        for (int index = 0; index < metadata.u.list->num; ++index) {
+            const mpv_node &value = metadata.u.list->values[index];
+            if (qstrcmp(metadata.u.list->keys[index], "lavfi.r128.I") == 0 &&
+                value.format == MPV_FORMAT_STRING) {
+                integrated = std::strtod(value.u.string, nullptr);
+            }
+        }
+    }
+    mpv_free_node_contents(&metadata);
+    // Below the absolute gate nothing has been measured yet, and the first
+    // blocks of a program are too few to trust.
+    if (!std::isfinite(integrated) || integrated <= -70 || ++loudnessTicks_ < kLoudnessWarmupTicks) {
+        return;
+    }
+    integratedLufs_ = integrated;
+    const double desired = std::clamp(kTargetLufs - integrated, kMaxCutDb, kMaxBoostDb);
+    const double seconds = desired > loudnessGainDb_ ? kRiseSeconds : kFallSeconds;
+    loudnessGainDb_ += (desired - loudnessGainDb_) *
+                       (1.0 - std::exp(-(kLoudnessIntervalMs / 1000.0) / seconds));
+    const QByteArray gain = QByteArray::number(loudnessGainDb_, 'f', 2) + "dB";
+    const char *command[] = {"af-command", "kinogain", "volume", gain.constData(), nullptr};
+    mpv_command_async(handle_, 0, command);
 }
 
 void MpvItem::setActive(bool active) {

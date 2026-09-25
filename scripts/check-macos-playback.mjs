@@ -10,6 +10,13 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+  PROBE,
+  expectedGainDb,
+  integratedLufs,
+  synthesize,
+} from './test-support/loudness-reference.mjs';
+
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const fixturesDir = process.env.KINO_FIXTURES_DIR ?? join(repoRoot, 'build', 'fixtures');
 const appBinary =
@@ -119,6 +126,81 @@ function writeFixture(name, content) {
   const target = join(fixturesDir, name);
   if (!existsSync(target)) writeFileSync(target, content);
   return target;
+}
+
+// The Stereo path's loudness gate plays the TV gate's probe, a film-like level
+// with silence and a quiet passage the BS.1770 gates must discard, once as it
+// is and once loud enough that the cut bound applies. The host reference
+// measures the exact samples, and FLAC carries them to the player unchanged.
+const loudnessFixtures = [
+  { file: 'loudness-probe.mkv', scale: 1 },
+  { file: 'loudness-loud.mkv', scale: 8 },
+];
+
+function loudnessProgram(scale) {
+  return synthesize({
+    ...PROBE,
+    segments: PROBE.segments.map((segment) => ({
+      ...segment,
+      amplitude: segment.amplitude * scale,
+    })),
+  });
+}
+
+function loudnessExpectation(scale) {
+  const { left, right } = loudnessProgram(scale);
+  const measured = integratedLufs(left, right, PROBE.sampleRate);
+  return { integratedLufs: measured, gainDb: expectedGainDb(measured) };
+}
+
+function encodeLoudness(name, scale) {
+  const target = join(fixturesDir, name);
+  if (existsSync(target)) return target;
+  const { left, right } = loudnessProgram(scale);
+  // A 32-bit float WAV, so the reference and the file hold the same samples.
+  const frames = left.length;
+  const wav = Buffer.alloc(44 + frames * 8);
+  wav.write('RIFF', 0);
+  wav.writeUInt32LE(36 + frames * 8, 4);
+  wav.write('WAVEfmt ', 8);
+  wav.writeUInt32LE(16, 16);
+  wav.writeUInt16LE(3, 20);
+  wav.writeUInt16LE(2, 22);
+  wav.writeUInt32LE(PROBE.sampleRate, 24);
+  wav.writeUInt32LE(PROBE.sampleRate * 8, 28);
+  wav.writeUInt16LE(8, 32);
+  wav.writeUInt16LE(32, 34);
+  wav.write('data', 36);
+  wav.writeUInt32LE(frames * 8, 40);
+  for (let frame = 0; frame < frames; frame++) {
+    wav.writeFloatLE(left[frame], 44 + frame * 8);
+    wav.writeFloatLE(right[frame], 48 + frame * 8);
+  }
+  const source = join(fixturesDir, `${name}.wav`);
+  writeFileSync(source, wav);
+  const seconds = frames / PROBE.sampleRate;
+  return encode(name, [
+    '-f',
+    'lavfi',
+    '-i',
+    `color=c=black:size=320x180:rate=24:duration=${seconds}`,
+    // Float samples can outscore the WAV header in ffmpeg's format probe.
+    '-f',
+    'wav',
+    '-i',
+    source,
+    '-c:v',
+    'libx264',
+    '-preset',
+    'veryfast',
+    '-pix_fmt',
+    'yuv420p',
+    '-c:a',
+    'flac',
+    '-sample_fmt',
+    's32',
+    '-shortest',
+  ]);
 }
 
 function generateFixtures() {
@@ -382,6 +464,7 @@ function generateFixtures() {
     '-ac',
     '2',
   ]);
+  for (const { file, scale } of loudnessFixtures) encodeLoudness(file, scale);
   writeFixture('external.srt', srtText);
   writeFixture('external.vtt', vttText);
   if (!existsSync(join(fixturesDir, 'corrupt.mp4'))) {
@@ -439,6 +522,13 @@ const fixtures = [
     env: { KINO_PLAYBACK_PROBE_SLEEP: '1' },
     expect: { outcome: 'paused-for-sleep' },
   },
+  ...loudnessFixtures.map(({ file, scale }) => ({
+    file,
+    label: `stereo-${file}`,
+    note: 'Stereo normalizes loudness toward -19 LUFS within +12 and -6 dB',
+    env: { KINO_PLAYBACK_PROBE_STEREO: '1' },
+    expect: { outcome: 'played', loudness: loudnessExpectation(scale) },
+  })),
   { file: 'corrupt.mp4', expect: { outcome: 'failed' } },
   { file: 'missing.mkv', missing: true, expect: { outcome: 'failed' } },
 ];
@@ -531,6 +621,17 @@ function assertExpectations(fixture, result) {
     problems.push('no external subtitle track appeared');
   }
   if (expect.outlinedSubtitles) problems.push(...outlinedSubtitleProblems(result.subtitleStyle));
+  if (expect.loudness) {
+    const loudness = result.loudness ?? {};
+    // ebur128 and the reference implement the same standard over the same
+    // samples; the gain has settled for eight seconds on the final passage.
+    if (!(Math.abs(loudness.integratedLufs - expect.loudness.integratedLufs) <= 0.3))
+      problems.push(
+        `measured ${loudness.integratedLufs} LUFS, reference ${expect.loudness.integratedLufs.toFixed(2)}`,
+      );
+    if (!(Math.abs(loudness.gainDb - expect.loudness.gainDb) <= 0.3))
+      problems.push(`gain ${loudness.gainDb} dB, expected ${expect.loudness.gainDb.toFixed(2)}`);
+  }
   return problems;
 }
 
