@@ -10,6 +10,8 @@
 -keep,allowoptimization class androidx.tv.material3.** { public protected *; }
 -keep,allowoptimization class pbandk.** { public protected *; }
 -keep,allowoptimization class kotlinx.coroutines.** { public protected *; }
+-keep,allowoptimization class okhttp3.** { public protected *; }
+-keep,allowoptimization class okio.** { public protected *; }
 -keep,allowoptimization class androidx.core.view.ViewCompat {
     public static androidx.core.view.WindowInsetsCompat getRootWindowInsets(android.view.View);
 }
