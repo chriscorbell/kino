@@ -387,7 +387,7 @@ jobs:
           VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/build/vendor/stream-server/vcpkg-overlays
         with:
           vcpkgDirectory: ${{ github.workspace }}/build/vcpkg
-          vcpkgGitCommitId: 84bab45d415d22042bd0b9081aea57f362da3f35
+          vcpkgGitCommitId: 617ef1c0c422737d117eda00a471ea1be5bad088
           vcpkgJsonGlob: build/vendor/stream-server/vcpkg.json
           runVcpkgInstall: true
       - name: Save the vcpkg installation
@@ -396,16 +396,23 @@ jobs:
         with:
           path: build/vcpkg-installed
           key: ${{ steps.vcpkg-cache.outputs.cache-primary-key }}
-      # The engine links libtorrent statically, and its notices are reviewed
-      # for one release (third_party/notices/reviewed.json).
-      - name: Check the libtorrent release
+      # The engine links libtorrent and Boost statically, and their notices
+      # are reviewed for one release each (third_party/notices/reviewed.json).
+      - name: Check the libtorrent and Boost releases
         shell: bash
         run: |
-          reviewed=$(node -p "require('./third_party/notices/reviewed.json').homebrew.find((f) => f.name === 'libtorrent-rasterbar').version")
-          header="build/vcpkg-installed/${VCPKG_DEFAULT_TRIPLET}/include/libtorrent/version.hpp"
-          grep -q "LIBTORRENT_VERSION \"${reviewed}" "$header" || {
-            grep LIBTORRENT_VERSION "$header"
-            echo "vcpkg built a libtorrent other than the reviewed ${reviewed}."
+          reviewed() { node -p "require('./third_party/notices/reviewed.json').homebrew.find((f) => f.name === '$1').version"; }
+          include="build/vcpkg-installed/${VCPKG_DEFAULT_TRIPLET}/include"
+          libtorrent=$(reviewed libtorrent-rasterbar)
+          boost=$(reviewed boost)
+          grep -q "LIBTORRENT_VERSION \"${libtorrent}" "$include/libtorrent/version.hpp" || {
+            grep LIBTORRENT_VERSION "$include/libtorrent/version.hpp"
+            echo "vcpkg built a libtorrent other than the reviewed ${libtorrent}."
+            exit 1
+          }
+          grep -q "BOOST_LIB_VERSION \"$(echo "${boost}" | sed -E 's/^([0-9]+)\.([0-9]+)\.0$/\1_\2/')\"" "$include/boost/version.hpp" || {
+            grep BOOST_LIB_VERSION "$include/boost/version.hpp"
+            echo "vcpkg built a Boost other than the reviewed ${boost}."
             exit 1
           }
       - name: Build the engine
