@@ -120,6 +120,8 @@ android {
         "../../../build/android-ffmpeg/jniLibs",
     )
     sourceSets["main"].java.srcDirs(generatedTokens, "../../../build/android-ffmpeg/java")
+    // The license index scripts/android-notices.mjs collects, packaged as assets/licenses.
+    sourceSets["main"].assets.srcDir("../../../build/android-notices")
     sourceSets["androidTest"].assets.srcDir("../../../build/android-fixtures")
     sourceSets["release"].jniLibs.srcDir("../../../build/android-core/jniLibs")
     sourceSets["debug"].jniLibs.srcDir("../../../build/android-core/jniLibs")
@@ -146,7 +148,21 @@ val requireFfmpegRenderer by
         }
     }
 
-tasks.named("preBuild") { dependsOn(generateDesignTokens, requireFfmpegRenderer) }
+// Without the index the app would ship its dependencies with no license texts at all.
+val requireLicenseNotices by
+    tasks.registering {
+        val manifest = file("../../../build/android-notices/licenses/manifest.json")
+        doLast {
+            check(manifest.exists()) {
+                "Missing $manifest. Run `pnpm android:build`, which collects the license " +
+                    "notices the APK must carry before Gradle runs."
+            }
+        }
+    }
+
+tasks.named("preBuild") {
+    dependsOn(generateDesignTokens, requireFfmpegRenderer, requireLicenseNotices)
+}
 
 dependencies {
     implementation(files("../../../build/android-core/classes.jar"))

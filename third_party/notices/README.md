@@ -11,6 +11,9 @@ The reviews explain recovered notices and their limits:
 - [Streaming engine and embedded native libraries](../../docs/research/engine-notices.md)
 - [Native Rust runtime](../../docs/research/native-rust-notices.md)
 - [FFmpeg and compiled Boost headers](../../docs/research/homebrew-extra-notices.md)
+- [Android TV](../../docs/research/android-notices.md)
+
+The Android TV APK has its own record, `android.json`, which shares `texts/` with `reviewed.json`. It covers the release runtime classpath artifact by artifact, the Core crates that publish no notice file, and the Rust, FFmpeg, Media3, font, and icon texts. `pnpm android:build` collects the crate graph it just compiled around that record, packages the index as `assets/licenses/`, and reads it back out of the finished APK.
 
 The GLib and FreeType supplements come from release archives whose SHA256s matched the installed Homebrew source metadata. FreeType's supplement includes its full FTL and GPLv2 texts and the original secondary notices referenced by `LICENSE.TXT`. Portions of this software are copyright © 2026 The FreeType Project (https://freetype.org). All rights reserved.
 
@@ -20,4 +23,4 @@ The native supplements also retain referenced source notices for libarchive, D-B
 
 Homebrew moves these formulae on its own schedule, and CI installs whatever is current, so a reviewed version goes stale without any change in Kino. `pnpm notices:refresh <formula>...` carries a supplement to the installed keg's release when the review still holds: it downloads the new release, requires every retained text back byte for byte and every extracted text still present verbatim, follows vendored resources to the revisions the new formula pins, and rewrites only the versions named in Kino-written statements, printing them for checking against the formula. A text that changed is written to `third_party/notices/review/` and the entry is left alone; after reading it, `pnpm notices:refresh --accept <formula>` records it. When CI's Homebrew has moved a formula this machine has not, `pnpm notices:refresh --release <formula>` reads the release and formula Homebrew ships now instead of the local keg, and changes nothing outside the repository.
 
-Run `pnpm notices:check` to verify retained text hashes and dependency pins. Run a clean `pnpm macos:package` to verify the complete staged artifact. The package collector performs no downloads and rejects missing coverage before signing.
+Run `pnpm notices:check` to verify retained text hashes and dependency pins, including the Android record against `gradle.lockfile`, the TV Core's `Cargo.lock`, and the versions in `scripts/build-android.py`. Run a clean `pnpm macos:package` to verify the complete staged artifact. The package collector performs no downloads and rejects missing coverage before signing.

@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const reviewedRoot = join(root, 'third_party/notices');
 const reviewed = JSON.parse(readFileSync(join(reviewedRoot, 'reviewed.json'), 'utf8'));
-const hash = (data) => createHash('sha256').update(data).digest('hex');
+export const hash = (data) => createHash('sha256').update(data).digest('hex');
 const json = (path) => JSON.parse(readFileSync(path, 'utf8'));
 const run = (cmd, args) =>
   execFileSync(cmd, args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
@@ -38,7 +38,7 @@ function walk(directory) {
   });
 }
 
-function noticeFiles(directory, recursive = true) {
+export function noticeFiles(directory, recursive = true) {
   if (!existsSync(directory)) return [];
   return (
     recursive ? walk(directory) : readdirSync(directory).map((name) => join(directory, name))
@@ -46,7 +46,7 @@ function noticeFiles(directory, recursive = true) {
     (path) =>
       statSync(path).isFile() &&
       (noticeName.test(basename(path)) || /[/\\]LICENSES?[/\\]/i.test(path)) &&
-      !/\.(rs|c|h|py|cfg|ts|tsx|js|mjs|cjs)$/i.test(path),
+      !/\.(rs|c|h|py|pl|pm|sh|cfg|ts|tsx|js|mjs|cjs)$/i.test(path),
   );
 }
 

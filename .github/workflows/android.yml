@@ -7,6 +7,8 @@ on:
         'apps/android-tv/**',
         'packages/design-tokens/**',
         'scripts/*android*',
+        'scripts/license-notices.mjs',
+        'third_party/notices/**',
         '.github/workflows/android.yml',
       ]
   push:
@@ -16,6 +18,8 @@ on:
         'apps/android-tv/**',
         'packages/design-tokens/**',
         'scripts/*android*',
+        'scripts/license-notices.mjs',
+        'third_party/notices/**',
         '.github/workflows/android.yml',
       ]
 
@@ -37,6 +41,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+      # The build collects the APK's license notices with a Node script.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
       - name: Install the pinned Android toolchain
         # The runner image ships the SDK under ANDROID_HOME but leaves the
         # command-line tools off PATH, so resolve sdkmanager before using it.

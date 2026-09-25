@@ -1,4 +1,8 @@
+import { verifyAndroidReview } from './android-notices.mjs';
 import { verifyReviewedNotices } from './license-notices.mjs';
 
 verifyReviewedNotices();
-console.log('Reviewed notice texts, Core WASM identity, and engine locks match.');
+verifyAndroidReview();
+console.log(
+  'Reviewed notice texts, Core WASM identity, engine locks, and the Android record match.',
+);
