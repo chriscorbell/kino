@@ -91,6 +91,7 @@
     <string name="resume_title">Resume %1$s</string>
     <string name="continue_remove">Remove from Continue Watching</string>
     <string name="see_all">See all</string>
+    <string name="signing_out">Signing out…</string>
     <string name="see_all_title">See all %1$s</string>
     <string name="sign_in_body">Scan the code with your phone, or open the link below.</string>
     <string name="sign_in_waiting">Waiting for sign-in…</string>

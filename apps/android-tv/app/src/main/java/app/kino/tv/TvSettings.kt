@@ -192,9 +192,18 @@ internal fun SettingsScreen(
             SettingRow(
                 if (state.signedIn) R.string.sign_out else R.string.sign_in,
                 stringResource(
-                    if (state.signedIn) R.string.account_profile else R.string.guest_profile
+                    when {
+                        state.signingOut -> R.string.signing_out
+                        state.signedIn -> R.string.account_profile
+                        else -> R.string.guest_profile
+                    }
                 ),
-                onClick = if (state.signedIn) onSignOut else onSignIn,
+                onClick =
+                    when {
+                        state.signingOut -> ({})
+                        state.signedIn -> onSignOut
+                        else -> onSignIn
+                    },
             )
         }
         item { SettingRow(R.string.view_addons, onClick = onAddons) }

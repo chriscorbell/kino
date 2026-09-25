@@ -37,6 +37,10 @@ try:
     subprocess.run([*adb, "shell", "am", "force-stop", "app.kino.tv"], check=True)
     instrument("-e", "class", "app.kino.tv.PlaybackShutdownTest#savedEpisodeSurvivesProcessRestart",
         "-e", "persistencePhase", "verify")
+    # Sign-out must reach Stremio: a stored session loads in a fresh process and signs out.
+    instrument("-e", "class", "app.kino.tv.LogoutTest", "-e", "logoutPhase", "prepare")
+    subprocess.run([*adb, "shell", "am", "force-stop", "app.kino.tv"], check=True)
+    instrument("-e", "class", "app.kino.tv.LogoutTest", "-e", "logoutPhase", "verify")
     # Both profile names must restore their own language defaults through a new JNI Core.
     for profile in ["guest", "account"]:
         instrument("-e", "class", "app.kino.tv.SettingsTest#preferencesSurviveProcessRestart",

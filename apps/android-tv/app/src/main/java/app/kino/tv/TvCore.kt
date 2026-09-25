@@ -127,6 +127,8 @@ data class TvState(
     val linkFailed: Boolean = false,
     val nextVideo: Video? = null,
     val subtitles: List<AddonSubtitle> = emptyList(),
+    /** Sign-out has asked Stremio to end the session and waits for its answer. */
+    val signingOut: Boolean = false,
 )
 
 fun secureUrl(value: String?): Boolean =
@@ -166,6 +168,14 @@ class TvCore(
     private val update = Runnable { refresh() }
     private val listener =
         Core.EventListener { event ->
+            event.coreEvent?.let { core ->
+                when {
+                    core.sessionDeleted != null ->
+                        handler.post { finishLogout(SessionEnd.Deleted) }
+                    core.error?.source?.sessionDeleted != null ->
+                        handler.post { finishLogout(SessionEnd.Refused) }
+                }
+            }
             val changed = event.newState?.fields ?: listOf(Field.CTX)
             synchronized(dirty) { dirty.addAll(changed) }
             handler.removeCallbacks(update)
@@ -389,6 +399,42 @@ class TvCore(
                 ActionMetaDetails.MarkSeasonAsWatchedArgs(season, watched)
             )
         )
+
+    enum class SessionEnd {
+        /** Stremio confirmed the session is gone. */
+        Deleted,
+        /** Stremio answered with an error, such as a session it no longer knows. */
+        Refused,
+        /** No answer in time, as on a TV that is offline. */
+        TimedOut,
+    }
+
+    private val LogoutTimeoutMs = 10_000L
+    private var logoutDone: ((SessionEnd) -> Unit)? = null
+    private val logoutTimeout = Runnable { finishLogout(SessionEnd.TimedOut) }
+
+    /**
+     * Ends the Stremio session rather than only forgetting it: Core asks the API to delete the
+     * session, then resets its own profile. [onDone] runs once Stremio answered or ten seconds
+     * passed, so a TV without a connection still signs out locally.
+     */
+    fun logout(onDone: (SessionEnd) -> Unit) {
+        if (logoutDone != null) return
+        val signedIn = initialized && Core.getState<Ctx>(Field.CTX).profile.auth != null
+        logoutDone = onDone
+        mutable.value = mutable.value.copy(signingOut = true)
+        ctx(ActionCtx.Args.Logout(Empty()))
+        if (signedIn) handler.postDelayed(logoutTimeout, LogoutTimeoutMs)
+        else finishLogout(SessionEnd.Deleted)
+    }
+
+    private fun finishLogout(end: SessionEnd) {
+        handler.removeCallbacks(logoutTimeout)
+        val done = logoutDone ?: return
+        logoutDone = null
+        Log.i("KinoCore", "Sign-out finished session=${end.name.lowercase()}")
+        done(end)
+    }
 
     fun beginLink() {
         linking = true
