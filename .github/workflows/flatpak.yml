@@ -1,0 +1,86 @@
+name: Linux Flatpak
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/flatpak.yml
+      - packaging/flatpak/**
+      - apps/macos-shell/**
+      - apps/desktop/**
+      - apps/stream-engine/**
+      - package.json
+      - pnpm-lock.yaml
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flatpak-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flatpak:
+    name: Build the Flatpak
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.11
+      options: --privileged
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      # The Flatpak sandbox has no network, so the web interface is built here.
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @kino/desktop build
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@79327416609af08178ad73b352877e51450790b3 # v6.8
+        with:
+          manifest-path: packaging/flatpak/com.chriscorbell.Kino.yml
+          bundle: Kino.flatpak
+          cache-key: flatpak-builder-${{ hashFiles('packaging/flatpak/com.chriscorbell.Kino.yml') }}
+          upload-artifact: true
+      # The packaged app must start and load the interface it carries, on a
+      # virtual display, with its own instance name so nothing else answers.
+      # The container runs as root, where Chromium will not start with its
+      # sandbox, so this run alone turns it off.
+      - name: Start the packaged app
+        run: |
+          flatpak install --user -y --noninteractive Kino.flatpak
+          # Mesa's GL for the runtime, which a desktop installs with it.
+          flatpak install --user -y --noninteractive flathub org.freedesktop.Platform.GL.default//25.08
+          log=$(mktemp)
+          # This image's Xvfb has no GLX, which Chromium's GPU process needs;
+          # Qt itself draws through Mesa's EGL, and Chromium draws in software.
+          timeout 60 xvfb-run -a -s "-screen 0 1920x1080x24" flatpak run --user --env=KINO_INSTANCE_NAME=ci-smoke \
+            --env=QTWEBENGINE_DISABLE_SANDBOX=1 --env=QTWEBENGINE_CHROMIUM_FLAGS=--disable-gpu \
+            com.chriscorbell.Kino >"$log" 2>&1 &
+          for _ in $(seq 1 45); do
+            grep -q "packaged UI loaded" "$log" && break
+            sleep 1
+          done
+          if ! grep -q "packaged UI loaded" "$log"; then
+            sed -n '1,120p' "$log"
+            echo "The Flatpak did not load its packaged interface."
+            exit 1
+          fi
+          grep -E "native shell started|packaged UI loaded" "$log"
+          # A second launch, a sandbox of its own, finds the first and exits.
+          second=$(mktemp)
+          timeout 30 xvfb-run -a flatpak run --user --env=KINO_INSTANCE_NAME=ci-smoke \
+            com.chriscorbell.Kino >"$second" 2>&1 || true
+          for _ in $(seq 1 10); do
+            grep -q "brought forward by a second launch" "$log" && break
+            sleep 1
+          done
+          if ! grep -q "asked it to come forward" "$second" || ! grep -q "brought forward by a second launch" "$log"; then
+            sed -n '1,40p' "$second"
+            echo "A second launch did not reach the running Flatpak."
+            exit 1
+          fi
+          pkill -f com.chriscorbell.Kino || true

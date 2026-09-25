@@ -50,6 +50,10 @@ int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
     QCoreApplication::setApplicationName(QStringLiteral("Kino"));
     QCoreApplication::setApplicationVersion(QStringLiteral(KINO_VERSION));
+#if defined(Q_OS_LINUX)
+    // Wayland matches the window to its launcher entry by this name.
+    QGuiApplication::setDesktopFileName(QStringLiteral("com.chriscorbell.Kino"));
+#endif
     std::setlocale(LC_NUMERIC, "C");
     installLocalLogger();
     TlsRoots::prepare();
