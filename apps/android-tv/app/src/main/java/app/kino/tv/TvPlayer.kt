@@ -42,8 +42,10 @@ import androidx.media3.common.util.Util
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.HttpDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.LoadControl
 import androidx.media3.exoplayer.Renderer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioCapabilities
@@ -418,11 +420,27 @@ class TvPresentationPlayer(
     }
 }
 
+/**
+ * Media3's default buffer stops at about 128 MB of video, about 17 seconds of a 60 Mbps remux, so
+ * a Wi-Fi stall any longer rebuffers it. The manifest asks for Android's large heap, where Media3
+ * holds its buffer, and Kino lets the buffer take up to half of it, capped at 384 MB. Media3's
+ * 50-second limit still applies, so lighter sources buffer no further than before.
+ */
+internal fun kinoLoadControl(maxMemory: Long = Runtime.getRuntime().maxMemory()): DefaultLoadControl =
+    DefaultLoadControl.Builder()
+        .setTargetBufferBytes(
+            (maxMemory / 2)
+                .coerceIn(DefaultLoadControl.DEFAULT_VIDEO_BUFFER_SIZE.toLong(), 384L shl 20)
+                .toInt()
+        )
+        .build()
+
 fun createTvPlayer(
     context: Context,
     renderers: HardwareRenderers,
     headers: Map<String, String> = emptyMap(),
     extractorsFactory: ExtractorsFactory? = null,
+    loadControl: LoadControl = kinoLoadControl(),
 ): ExoPlayer {
     // ExoPlayer's default throwable logging includes request URLs. Emit only stable event names.
     androidx.media3.common.util.Log.setLogger(
@@ -462,6 +480,7 @@ fun createTvPlayer(
         // Holds the Wi-Fi and CPU awake while playing, so a Shield on Wi-Fi does not drop the
         // stream when its radio would otherwise sleep.
         .setWakeMode(C.WAKE_MODE_NETWORK)
+        .setLoadControl(loadControl)
         .setAudioAttributes(
             AudioAttributes.Builder()
                 .setUsage(C.USAGE_MEDIA)
