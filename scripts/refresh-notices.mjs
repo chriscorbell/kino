@@ -175,4 +175,6 @@ for (const formula of process.argv.slice(2).filter((argument) => argument !== '-
     console.log(`Check this rewritten statement against the ${version} formula:\n${statement}`);
 }
 writeFileSync(reviewedPath, JSON.stringify(reviewed, null, 2) + '\n');
+// Keep the manifest in the repository's own format so the web check stays green.
+execFileSync('pnpm', ['exec', 'prettier', '--write', reviewedPath], { cwd: root, stdio: 'ignore' });
 if (failed) process.exit(1);
