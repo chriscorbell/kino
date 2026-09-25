@@ -1,10 +1,13 @@
 #pragma once
 
-#include <IOKit/pwr_mgt/IOPMLib.h>
+#include <memory>
 
+// Keeps the display awake while video plays: an IOKit assertion on macOS, the
+// desktop portal's idle inhibitor on Linux, and the thread execution state on
+// Windows.
 class PowerGuard {
 public:
-    PowerGuard() = default;
+    PowerGuard();
     ~PowerGuard();
     PowerGuard(const PowerGuard &) = delete;
     PowerGuard &operator=(const PowerGuard &) = delete;
@@ -12,5 +15,6 @@ public:
     void setActive(bool active);
 
 private:
-    IOPMAssertionID assertion_ = kIOPMNullAssertionID;
+    struct State;
+    std::unique_ptr<State> state_;
 };

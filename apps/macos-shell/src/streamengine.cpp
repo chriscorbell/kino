@@ -1,4 +1,5 @@
 #include "streamengine.h"
+#include "platform.h"
 #include "tlsroots.h"
 
 #include <QCoreApplication>
@@ -19,8 +20,7 @@ QString helperPath() {
     if (!overridePath.isEmpty()) {
         return overridePath;
     }
-    return QDir(QCoreApplication::applicationDirPath())
-        .absoluteFilePath(QStringLiteral("kino-stream-engine"));
+    return Platform::helperPath(QStringLiteral("kino-stream-engine"));
 }
 
 QString cacheDirectory() {

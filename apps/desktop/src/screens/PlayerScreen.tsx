@@ -30,7 +30,12 @@ import type { CoreTransport } from '../core/transport';
 import type { CoreVideo } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
-import { connectNativePlayer, nativeShellPresent, type NativePlayer } from '../native/player';
+import {
+  connectNativePlayer,
+  nativeShellPresent,
+  playbackDevice,
+  type NativePlayer,
+} from '../native/player';
 import { formatTime, nativeChapterCues, nativeErrorMessage } from '../player/nativeEvents';
 import {
   addonSubtitleLabel,
@@ -179,13 +184,13 @@ export function PlayerScreen({
       const progressTime = video ? Math.round(video.currentTime * 1000) : playbackRef.current.time;
       if (progressDuration <= 0) return;
       const args = {
-        device: nativeShell ? 'kino-macos' : 'kino-web',
+        device: playbackDevice(),
         duration: progressDuration,
         time: progressTime,
       };
       dispatchPlayer(isSeek ? 'Seek' : 'TimeChanged', args);
     },
-    [dispatchPlayer, nativeShell],
+    [dispatchPlayer],
   );
 
   const reportMediaReady = useCallback(() => {
@@ -226,7 +231,7 @@ export function PlayerScreen({
         await target.dispatch(
           playerAction('TimeChanged', {
             ...progress,
-            device: nativeShell ? 'kino-macos' : 'kino-web',
+            device: playbackDevice(),
           }),
           'player',
         );

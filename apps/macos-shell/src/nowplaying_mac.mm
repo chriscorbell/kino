@@ -3,16 +3,6 @@
 #import <Foundation/Foundation.h>
 #import <MediaPlayer/MediaPlayer.h>
 
-#include <cmath>
-
-namespace {
-
-double systemUptimeSeconds() {
-    return [[NSProcessInfo processInfo] systemUptime];
-}
-
-} // namespace
-
 NowPlaying::NowPlaying(QObject *parent) : QObject(parent) {
     MPRemoteCommandCenter *commands = [MPRemoteCommandCenter sharedCommandCenter];
     [commands.playCommand addTargetWithHandler:^(MPRemoteCommandEvent *) {
@@ -56,58 +46,6 @@ NowPlaying::~NowPlaying() {
     publish();
 }
 
-void NowPlaying::setActive(bool active) {
-    if (active_ == active) {
-        return;
-    }
-    active_ = active;
-    if (!active_) {
-        duration_ = 0;
-        position_ = 0;
-        subtitle_.clear();
-        title_.clear();
-    }
-    publish();
-}
-
-void NowPlaying::setDuration(double seconds) {
-    const bool changed = std::fabs(seconds - duration_) > 0.5;
-    duration_ = seconds;
-    if (active_ && changed) {
-        publish();
-    }
-}
-
-void NowPlaying::setMetadata(const QString &title, const QString &subtitle) {
-    title_ = title;
-    subtitle_ = subtitle;
-    if (active_) {
-        publish();
-    }
-}
-
-void NowPlaying::setPaused(bool paused) {
-    const bool changed = paused_ != paused;
-    paused_ = paused;
-    if (active_ && changed) {
-        publish();
-    }
-}
-
-void NowPlaying::setPosition(double seconds) {
-    position_ = seconds;
-    if (!active_) {
-        return;
-    }
-    // The system extrapolates elapsed time from the published rate; republish
-    // only when the real position drifts from that projection, such as a seek.
-    const double projected =
-        publishedPosition_ + (paused_ ? 0.0 : systemUptimeSeconds() - publishedUptime_);
-    if (std::fabs(seconds - projected) > 2.0) {
-        publish();
-    }
-}
-
 void NowPlaying::publish() {
     MPNowPlayingInfoCenter *center = [MPNowPlayingInfoCenter defaultCenter];
     if (!active_) {
@@ -128,6 +66,5 @@ void NowPlaying::publish() {
     center.nowPlayingInfo = info;
     center.playbackState =
         paused_ ? MPNowPlayingPlaybackStatePaused : MPNowPlayingPlaybackStatePlaying;
-    publishedPosition_ = position_;
-    publishedUptime_ = systemUptimeSeconds();
+    published();
 }

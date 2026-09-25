@@ -22,6 +22,7 @@ const native = vi.hoisted(() => ({
 }));
 vi.mock('../native/player', () => ({
   nativeShellPresent: () => true,
+  playbackDevice: () => 'kino-macos',
   connectNativePlayer: async () => native,
 }));
 

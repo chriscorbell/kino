@@ -51,6 +51,8 @@ The shell loads the packaged Kino UI, keeps Stremio authentication material in a
 pnpm macos:check-launch
 ```
 
+The shell also builds on Linux against Qt 6.8 and libmpv 2.4 or newer, and CI compiles it and runs its unit tests in an Ubuntu 26.04 container. Each operating system supplies its own media controls, sleep notice, display-sleep guard, and display modes behind the same headers: MediaPlayer, AppKit, IOKit, and CoreGraphics on macOS; MPRIS, logind, and the desktop portal on Linux, which cannot switch display modes; and on Windows the thread execution state, the suspend broadcast, and the display settings API, with no media session yet. Hardware decoding stays mandatory everywhere: VideoToolbox on macOS, VA-API or NVDEC on Linux, and Direct3D 11 on Windows. Linux and Windows are not packaged or validated on hardware yet.
+
 Settings can copy a diagnostic summary with the application version and build kind, macOS, Qt, Core, player, and engine versions, and playback capabilities. The summary excludes account data, media URLs, paths, and log contents. External engine overrides report an unknown version. The `diagnostic_summary` CTest suite uses an offscreen clipboard contained within the test process.
 
 The player saves volume locally between launches. Its slider and Up/Down shortcuts adjust 0-100% volume; M toggles mute, and raising volume unmutes playback. Focused sliders keep their native keyboard step. Run `pnpm macos:check-volume` to verify the production WebChannel method and libmpv volume notifications, including bounds.

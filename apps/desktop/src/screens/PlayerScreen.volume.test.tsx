@@ -40,6 +40,7 @@ const fixture = vi.hoisted(() => ({
 }));
 vi.mock('../native/player', () => ({
   nativeShellPresent: () => fixture.nativeShell,
+  playbackDevice: () => (fixture.nativeShell ? 'kino-macos' : 'kino-web'),
   connectNativePlayer: async () => fixture.native,
 }));
 vi.mock('../core/context', () => ({ useCore: () => ({ transport: fixture.transport }) }));

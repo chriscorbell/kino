@@ -2,24 +2,24 @@
 #include "closecoordinator.h"
 #include "diagnostics.h"
 #include "mpvitem.h"
+#include "platform.h"
 #include "playbackprobe.h"
 #include "streamengine.h"
 #include "tlsroots.h"
 
 #include <QCoreApplication>
-#include <QDir>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQuickWebEngineProfile>
 #include <QQuickWindow>
 #include <QSGRendererInterface>
 #include <QSurfaceFormat>
+#include <QSysInfo>
 #include <QTimer>
 #include <QUrl>
 #include <QtWebEngineQuick/qtwebenginequickglobal.h>
 
 #include <clocale>
-#include <csignal>
 #include <cstdio>
 #include <memory>
 
@@ -30,9 +30,7 @@ QUrl uiUrl() {
     if (!overrideUrl.isEmpty()) {
         return QUrl::fromUserInput(overrideUrl);
     }
-    const QDir executableDirectory(QCoreApplication::applicationDirPath());
-    return QUrl::fromLocalFile(executableDirectory.absoluteFilePath(
-        QStringLiteral("../Resources/ui/index.html")));
+    return QUrl::fromLocalFile(Platform::resourcePath(QStringLiteral("ui/index.html")));
 }
 
 } // namespace
@@ -138,7 +136,7 @@ int main(int argc, char *argv[]) {
                 if (lifecycle->ready() && !*interfaceKilled) {
                     auto *view = window->findChild<QObject *>(QStringLiteral("webView"));
                     const qint64 pid = view ? view->property("renderProcessPid").toLongLong() : 0;
-                    if (pid <= 0 || ::kill(static_cast<pid_t>(pid), SIGKILL) != 0) {
+                    if (!Platform::killProcess(pid)) {
                         QCoreApplication::exit(1);
                         return;
                     }
@@ -156,6 +154,7 @@ int main(int argc, char *argv[]) {
         });
     }
 
-    qInfo("[kino:shell] native shell started architecture=arm64");
+    qInfo("[kino:shell] native shell started platform=%s architecture=%s",
+          qPrintable(Platform::name()), qPrintable(QSysInfo::currentCpuArchitecture()));
     return app.exec();
 }

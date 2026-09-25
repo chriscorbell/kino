@@ -25,7 +25,7 @@ export const enUS = {
     storageFailed: 'Core could not save data on this device.',
     invalidSession: 'The stored Stremio session is invalid.',
     invalidProfile: 'Stremio Core returned an invalid account profile.',
-    secureStoreUnavailable: 'The macOS secure store is unavailable.',
+    secureStoreUnavailable: 'The secure store is unavailable.',
     sessionReadFailed: 'The saved Stremio session could not be read.',
     sessionRemoveFailed: 'The saved Stremio session could not be removed.',
     sessionSaveFailed: 'The Stremio session could not be saved.',
@@ -371,7 +371,7 @@ export const enUS = {
     watchedFailed: 'The watched state could not be saved. Try again.',
   },
   player: {
-    hardwareDecodingFailed: 'This source could not be hardware-decoded on this Mac.',
+    hardwareDecodingFailed: 'This source could not be hardware-decoded on this computer.',
     rendererFailed: 'Kino could not start the native video renderer.',
     dolbyVisionUnsupported:
       'This Dolby Vision profile 5 source cannot be shown in correct colour on a Mac. Choose another source.',

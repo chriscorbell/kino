@@ -1,9 +1,10 @@
 /*
  * Derived from Stremio/stremio-shell's GPL-3.0 mpv Qt Quick integration and
- * rewritten for Qt 6, Apple Silicon, and Kino's playback contract.
+ * rewritten for Qt 6 and Kino's playback contract.
  */
 
 #include "mpvitem.h"
+#include "platform.h"
 #include "tlsroots.h"
 
 #include <QOpenGLContext>
@@ -350,6 +351,7 @@ QString MpvItem::version() const {
 }
 
 bool MpvItem::initialize() {
+    const QByteArray hardwareDecoders = Platform::hardwareDecoders();
     const struct Option {
         const char *name;
         const char *value;
@@ -360,7 +362,7 @@ bool MpvItem::initialize() {
         {"input-vo-keyboard", "no"},
         {"osc", "no"},
         {"vo", "libmpv"},
-        {"hwdec", "videotoolbox"},
+        {"hwdec", hardwareDecoders.constData()},
         {"hwdec-codecs", "all"},
         {"hwdec-software-fallback", "no"},
         {"vd-lavc-check-hw-profile", "yes"},
@@ -742,7 +744,7 @@ void MpvItem::handleEvent(mpv_event *event) {
         }
         const QByteArray name(property->name);
         if (name == "hwdec-current") {
-            hardwareDecoderActive_ = stringPropertyValue(*property) == "videotoolbox";
+            hardwareDecoderActive_ = Platform::isHardwareDecoder(stringPropertyValue(*property));
             emit playerEvent(QStringLiteral("hardwareDecoding"),
                              {{QStringLiteral("active"), hardwareDecoderActive_}});
             if (hardwareDecoderActive_) {

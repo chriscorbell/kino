@@ -1,4 +1,5 @@
 #include "mpvitem.h"
+#include "platform.h"
 
 #include <QSignalSpy>
 #include <QtTest>
@@ -198,7 +199,13 @@ private slots:
     void hardwareDecoderProperties_data() {
         QTest::addColumn<QByteArray>("value");
         QTest::addColumn<bool>("expected");
-        QTest::newRow("videotoolbox") << QByteArray("videotoolbox") << true;
+        // Each system accepts its own decoders only: VideoToolbox is not a
+        // hardware decoder Kino uses on Linux, nor VA-API on a Mac.
+        for (const QByteArray &decoder : Platform::hardwareDecoders().split(','))
+            QTest::newRow(decoder.constData()) << decoder << true;
+        for (const char *other : {"videotoolbox", "vaapi", "d3d11va"})
+            if (!Platform::hardwareDecoders().split(',').contains(other))
+                QTest::newRow(other) << QByteArray(other) << false;
         QTest::newRow("software") << QByteArray("no") << false;
         QTest::newRow("empty") << QByteArray("") << false;
         QTest::newRow("unknown-decoder") << QByteArray("unknown") << false;
@@ -211,7 +218,7 @@ private slots:
         MpvItem player;
         player.setActive(true);
         sendString(player, "video-format", "h264");
-        sendString(player, "hwdec-current", "videotoolbox");
+        sendString(player, "hwdec-current", Platform::hardwareDecoders().split(',').first());
         QSignalSpy events(&player, &MpvItem::playerEvent);
 
         sendString(player, "hwdec-current", value.isNull() ? nullptr : value.constData());
@@ -245,8 +252,9 @@ private slots:
         MpvItem player;
         player.setActive(true);
         sendString(player, "video-format", "h264");
+        const QByteArray decoder = Platform::hardwareDecoders().split(',').first();
         sendString(player, "hwdec-current",
-                   name == "hwdec-current" ? "videotoolbox" : "no");
+                   name == "hwdec-current" ? decoder.constData() : "no");
         int flag = 1;
 
         sendProperty(player, name.constData(), mpv_format(format), hasData ? &flag : nullptr);
@@ -286,7 +294,9 @@ private slots:
 
     void alignedStrings() {
         MpvItem player;
-        alignas(256) char decoder[] = "videotoolbox";
+        alignas(256) char decoder[32] = {};
+        const QByteArray name = Platform::hardwareDecoders().split(',').first();
+        std::memcpy(decoder, name.constData(), size_t(name.size()));
         alignas(256) char format[] = "h264";
         char *decoderData = decoder;
         char *formatData = format;

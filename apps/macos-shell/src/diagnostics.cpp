@@ -1,6 +1,7 @@
 #include "diagnostics.h"
 #include "diagnosticbuildinfo.h"
 #include "logging.h"
+#include "platform.h"
 
 #include <QClipboard>
 #include <QDesktopServices>
@@ -92,8 +93,7 @@ bool Diagnostics::revealLogs() {
 }
 
 bool Diagnostics::openNotices() {
-    const QString path = QCoreApplication::applicationDirPath() +
-                         QStringLiteral("/../Resources/licenses/index.html");
+    const QString path = Platform::resourcePath(QStringLiteral("licenses/index.html"));
     return QFileInfo::exists(path) && QDesktopServices::openUrl(QUrl::fromLocalFile(path));
 }
 
@@ -124,7 +124,8 @@ bool Diagnostics::copyDiagnosticSummary() {
         QStringLiteral("Stremio Core: %1").arg(QStringLiteral(KINO_CORE_VERSION)),
         QStringLiteral("Player: %1").arg(playback_ ? playback_->version() : QStringLiteral("Unavailable")),
         QStringLiteral("libmpv client API: %1.%2").arg(api >> 16).arg(api & 0xffff),
-        QStringLiteral("Video decoder: VideoToolbox required, software fallback disabled"),
+        QStringLiteral("Video decoder: %1 required, software fallback disabled")
+            .arg(Platform::hardwareDecoderName()),
         QStringLiteral("Video output: SDR"),
         QStringLiteral("Streaming engine: %1").arg(engine),
     }.join(QLatin1Char('\n')) + QLatin1Char('\n');
