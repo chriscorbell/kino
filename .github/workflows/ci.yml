@@ -193,7 +193,9 @@ jobs:
       # bundle or its notices change; every push to main runs it.
       - name: Package and verify bundled dependency notices
         if: github.event_name == 'push' || needs.changes.outputs.packaging == 'true'
-        timeout-minutes: 15
+        # Bundling and re-signing every Qt framework takes 10 to 15 minutes on the hosted
+        # runner, so a 15-minute limit failed runs that were only slow.
+        timeout-minutes: 30
         run: pnpm macos:package --no-dmg
 
   validate:
