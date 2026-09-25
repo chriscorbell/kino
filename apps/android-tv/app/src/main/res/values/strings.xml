@@ -89,6 +89,13 @@
     <string name="format_estimated_megabits">~%1$s Mbps</string>
     <string name="network_error">Could not load results. Check your connection and try again.</string>
     <string name="playback_error">This source could not play. Choose another source.</string>
+    <string name="playback_refused">The source refused to play. Its link may have expired; choose it again or choose another source.</string>
+    <string name="playback_gone">The source\'s file is no longer there. Choose another source.</string>
+    <string name="playback_server_failed">The source\'s server kept failing. Try again later or choose another source.</string>
+    <string name="playback_network">The connection to the source was lost. Try again or choose another source.</string>
+    <string name="playback_damaged">This file is damaged or in a form the player cannot read. Choose another source.</string>
+    <string name="playback_audio_output">The audio output failed. Check the TV\'s sound, then try again.</string>
+    <string name="source_failed">Failed</string>
     <string name="hardware_required">This source needs a supported hardware decoder.</string>
     <string name="hdr_unsupported">HDR-to-SDR conversion is not available for this source on this TV.</string>
     <string name="search_hint">Search movies and series</string>
