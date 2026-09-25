@@ -10,6 +10,9 @@ on:
       - apps/stream-engine/**
       - package.json
       - pnpm-lock.yaml
+      - scripts/license-notices.mjs
+      - scripts/linux-notices.mjs
+      - third_party/notices/**
   push:
     branches:
       - main
@@ -22,8 +25,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The build sandbox has neither the npm packages nor the crates, so the
+  # license notices are collected here and handed to the build.
+  notices:
+    name: Collect the Linux notices
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Vendor the patched stream-server and fetch its crates
+        run: |
+          bash scripts/build-engine.sh --vendor-only
+          cargo fetch --locked --manifest-path apps/stream-engine/Cargo.toml
+      - run: node scripts/linux-notices.mjs generate
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: linux-notices
+          path: build/linux-notices
+          retention-days: 7
+
   flatpak:
     name: Build the Flatpak
+    needs: notices
     runs-on: ubuntu-24.04
     container:
       image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.11
@@ -39,21 +68,31 @@ jobs:
       # The Flatpak sandbox has no network, so the web interface is built here.
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @kino/desktop build
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: linux-notices
+          path: build/linux-notices
       - uses: flatpak/flatpak-github-actions/flatpak-builder@79327416609af08178ad73b352877e51450790b3 # v6.8
         with:
           manifest-path: packaging/flatpak/com.chriscorbell.Kino.yml
           bundle: Kino.flatpak
           cache-key: flatpak-builder-${{ hashFiles('packaging/flatpak/com.chriscorbell.Kino.yml') }}
           upload-artifact: true
+      - name: Install the bundle
+        run: |
+          flatpak install --user -y --noninteractive Kino.flatpak
+          # Mesa's GL for the runtime, which a desktop installs with it.
+          flatpak install --user -y --noninteractive flathub org.freedesktop.Platform.GL.default//25.08
+      # What people install, read back: every native file in /app belongs to a
+      # reviewed component, and the notices page carries every text.
+      - name: Verify the installed notices
+        run: node scripts/linux-notices.mjs verify "$(flatpak info --user --show-location com.chriscorbell.Kino)/files"
       # The packaged app must start and load the interface it carries, on a
       # virtual display, with its own instance name so nothing else answers.
       # The container runs as root, where Chromium will not start with its
       # sandbox, so this run alone turns it off.
       - name: Start the packaged app
         run: |
-          flatpak install --user -y --noninteractive Kino.flatpak
-          # Mesa's GL for the runtime, which a desktop installs with it.
-          flatpak install --user -y --noninteractive flathub org.freedesktop.Platform.GL.default//25.08
           log=$(mktemp)
           # This image's Xvfb has no GLX, which Chromium's GPU process needs;
           # Qt itself draws through Mesa's EGL, and Chromium draws in software.

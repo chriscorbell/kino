@@ -205,11 +205,24 @@ export function collectEngineCrates({ file, supplement, add }, target, cargo = '
       files: [...new Map(files.map((f) => [f.sha256, f])).values()],
     });
   }
+  // Reviews for names Cargo does not know describe native code a crate compiles in, and count
+  // only while that crate is selected. A crate this target does not select is not embedded code.
+  const crateNames = new Set(
+    [
+      ...readFileSync(join(root, 'apps/stream-engine/Cargo.lock'), 'utf8').matchAll(
+        /^name = "([^"]+)"/gm,
+      ),
+    ].map((m) => m[1]),
+  );
+  const selectedNames = new Set([...selected].map((id) => id.split('@')[0]));
   for (const item of reviewed.engine.filter(
-    (p) => !metadata.packages.some((pkg) => pkg.name === p.name && pkg.version === p.version),
+    (p) =>
+      !crateNames.has(p.name) && (!embeddedBy[p.name] || selectedNames.has(embeddedBy[p.name])),
   ))
     add(supplement(item, 'Streaming engine, embedded native code'));
 }
+
+export const embeddedBy = { UnRAR: 'async-rar', '7-Zip': 'async-sevenz' };
 
 // The Rust runtime review matching the one compiler revision a built engine embeds.
 export function engineRuntime(binary, reviews = reviewed.rust) {
