@@ -1,0 +1,651 @@
+{
+  "schemaVersion": 1,
+  "scope": "Third-party native code the Kino Flatpak places in /app: the modules in packaging/flatpak/com.chriscorbell.Kino.yml, the Rust standard library compiled into the engine, and what io.qt.qtwebengine.BaseApp//6.11 builds into /app. The KDE runtime (org.kde.Platform//6.11, with Qt itself and the libraries FFmpeg, mpv, libass, and libplacebo link against) is a separate Flatpak runtime that carries its own notices. Build-only inputs are excluded: the node24, rust-stable (apart from its standard library), and llvm20 SDK extensions, the BaseApp's python-html5lib and node20, libplacebo's jinja and markupsafe, and glad's generator. The npm packages, Core, and the engine's Cargo graph come from the shared collectors.",
+  "pins": {
+    "baseApp": "io.qt.qtwebengine.BaseApp//6.11",
+    "baseAppRevision": "ab059370c5faf2f7579cfad6eebedad167024886",
+    "baseAppManifestSha256": "11e5ab3a6dbd7a497ebf1edff0478a8fdb5521171d121930e6fc9bf08f429407",
+    "architecture": "x86_64"
+  },
+  "buildOnly": {
+    "kino": "Kino itself, the Application entry.",
+    "kino-stream-engine": "Kino's engine; its crates come from the Cargo graph, and libtorrent, Boost, and Rust have their own entries."
+  },
+  "components": [
+    {
+      "name": "uchardet",
+      "version": "0.0.8",
+      "license": "MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later",
+      "repository": "https://gitlab.freedesktop.org/uchardet/uchardet",
+      "sourceArchive": "https://www.freedesktop.org/software/uchardet/releases/uchardet-0.0.8.tar.xz",
+      "sourceArchiveSha256": "e97a60cfc00a1c147a674b097bb1422abd9fa78a2d9ce3f3fdcc2e78a34ac5f0",
+      "binaries": ["/app/lib/libuchardet.so*"],
+      "notes": "COPYING holds all three license texts. Every library source file carries the same MPL 1.1/GPL 2.0/LGPL 2.1 block; the retained uchardet.cpp header is representative and carries the Netscape copyright line. The module's cleanup removes /bin, so the uchardet command is not shipped.",
+      "files": [
+        {
+          "path": "texts/107a29ccdd2d778aa2df5462f85dddfa099059abd22e064e07ec2cc9bafc37cd.txt",
+          "source": "https://www.freedesktop.org/software/uchardet/releases/uchardet-0.0.8.tar.xz#uchardet-0.0.8/COPYING",
+          "sha256": "107a29ccdd2d778aa2df5462f85dddfa099059abd22e064e07ec2cc9bafc37cd",
+          "name": "COPYING"
+        },
+        {
+          "path": "texts/ecee5662ab874693bf13ea0193fb53eac82ac72367d4eea29c9d740390fbe683.txt",
+          "source": "https://www.freedesktop.org/software/uchardet/releases/uchardet-0.0.8.tar.xz#uchardet-0.0.8/src/uchardet.cpp",
+          "sha256": "ecee5662ab874693bf13ea0193fb53eac82ac72367d4eea29c9d740390fbe683",
+          "extraction": "First 36 lines, the file's license comment, copied without editing.",
+          "name": "uchardet.cpp (header)"
+        }
+      ],
+      "scope": "Playback",
+      "flatpakModule": "uchardet"
+    },
+    {
+      "name": "libass",
+      "version": "0.17.5",
+      "license": "ISC",
+      "repository": "https://github.com/libass/libass",
+      "revision": "4a05d8127f525943ebf45fdc6497c9e665947f0d",
+      "binaries": ["/app/lib/libass.so*"],
+      "notes": "Built with --enable-asm, so on x86_64 the libass/x86 assembly is compiled together with x264's x86inc.asm, which carries its own ISC notice and copyright; that header is retained. libass/wyhash.h is released under the Unlicense and asks for no notice. libass/aarch64/asm.S (BSD-2-Clause, VideoLAN and dav1d authors) is compiled only for aarch64; the Flatpak workflow builds x86_64 only, so it is not listed.",
+      "files": [
+        {
+          "path": "texts/f7e30699d02798351e7f839e3d3bfeb29ce65e44efa7735c225464c4fd7dfe9c.txt",
+          "source": "https://raw.githubusercontent.com/libass/libass/4a05d8127f525943ebf45fdc6497c9e665947f0d/COPYING",
+          "sha256": "f7e30699d02798351e7f839e3d3bfeb29ce65e44efa7735c225464c4fd7dfe9c",
+          "name": "COPYING"
+        },
+        {
+          "path": "texts/28e1d08c3aab06bb2a0bf15365261cf8b371fe1ba8c4427b351e57429dd80e06.txt",
+          "source": "https://raw.githubusercontent.com/libass/libass/4a05d8127f525943ebf45fdc6497c9e665947f0d/libass/x86/x86inc.asm",
+          "sha256": "28e1d08c3aab06bb2a0bf15365261cf8b371fe1ba8c4427b351e57429dd80e06",
+          "extraction": "First 22 lines, the file's license comment, copied without editing.",
+          "name": "x86inc.asm (header)"
+        }
+      ],
+      "scope": "Playback",
+      "flatpakModule": "libass"
+    },
+    {
+      "name": "FFmpeg",
+      "version": "n9.0.1",
+      "license": "GPL-3.0-or-later; IJG notices retained for libjpeg-derived code",
+      "repository": "https://github.com/FFmpeg/FFmpeg",
+      "revision": "bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa",
+      "binaries": [
+        "/app/lib/libavcodec.so*",
+        "/app/lib/libavformat.so*",
+        "/app/lib/libavfilter.so*",
+        "/app/lib/libavutil.so*",
+        "/app/lib/libswscale.so*",
+        "/app/lib/libswresample.so*",
+        "/app/lib/libavdevice.so*"
+      ],
+      "notes": "Configured with --enable-gpl and --enable-version3, so per LICENSE.md the libraries as built are licensed under the GPL version 3 or later; the LGPL and GPLv2 texts are kept because LICENSE.md names them as the underlying terms of individual files. --disable-programs means no ffmpeg or ffprobe binary is shipped. GnuTLS, dav1d, libdrm, and libva are linked dynamically from the KDE runtime and are not bundled. The IJG-derived files named by LICENSE.md keep their complete initial comment blocks, byte-identical to the 9.0.2 and n6.0.1 extractions already reviewed, plus a Linux-specific acknowledgement. tests/reference.pnm is a test image and is not shipped. Like the macOS review, this entry does not enumerate the other library files whose own headers carry MIT, BSD, ISC, or zlib terms; see README.txt.",
+      "files": [
+        {
+          "path": "texts/2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af.txt",
+          "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa/LICENSE.md",
+          "sha256": "2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af",
+          "name": "LICENSE.md"
+        },
+        {
+          "path": "texts/8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643.txt",
+          "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa/COPYING.GPLv2",
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+          "name": "COPYING.GPLv2"
+        },
+        {
+          "path": "texts/8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903.txt",
+          "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa/COPYING.GPLv3",
+          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+          "name": "COPYING.GPLv3"
+        },
+        {
+          "path": "texts/246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30.txt",
+          "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa/COPYING.LGPLv2.1",
+          "sha256": "246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30",
+          "name": "COPYING.LGPLv2.1"
+        },
+        {
+          "path": "texts/da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768.txt",
+          "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa/COPYING.LGPLv3",
+          "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768",
+          "name": "COPYING.LGPLv3"
+        },
+        {
+          "path": "texts/9608a1781393c906ac6254ee965f19a599608428eaf84efdd8c7ba198f14e877.txt",
+          "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa/libavcodec/jfdctfst.c",
+          "sha256": "9608a1781393c906ac6254ee965f19a599608428eaf84efdd8c7ba198f14e877",
+          "extraction": "First 62 lines, the file's license comment, copied without editing.",
+          "name": "jfdctfst.c (header)"
+        },
+        {
+          "path": "texts/7469382cb23a47a033113c2c00d8e02e5071d76cb420d804f078527a906da679.txt",
+          "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa/libavcodec/jfdctint_template.c",
+          "sha256": "7469382cb23a47a033113c2c00d8e02e5071d76cb420d804f078527a906da679",
+          "extraction": "First 55 lines, the file's license comment, copied without editing.",
+          "name": "jfdctint_template.c (header)"
+        },
+        {
+          "path": "texts/c5d96aa8ff9e78b9214a1bec3d2dd5d65e3196eae08fa7c6ba7466a5a793ba0f.txt",
+          "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa/libavcodec/jrevdct.c",
+          "sha256": "c5d96aa8ff9e78b9214a1bec3d2dd5d65e3196eae08fa7c6ba7466a5a793ba0f",
+          "extraction": "First 58 lines, the file's license comment, copied without editing.",
+          "name": "jrevdct.c (header)"
+        },
+        {
+          "path": "texts/7138432c8f715718fa9572e0b660cc3d459b99a1c4ca6c5d0b716230ae9546e9.txt",
+          "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa/LICENSE.md",
+          "sha256": "7138432c8f715718fa9572e0b660cc3d459b99a1c4ca6c5d0b716230ae9546e9",
+          "extraction": "Kino-written: the IJG credit LICENSE.md requires for executable distributions, plus a factual statement that neither Kino nor its Flatpak manifest changes FFmpeg's source.",
+          "name": "IJG-ACKNOWLEDGEMENT.txt"
+        }
+      ],
+      "scope": "Playback",
+      "flatpakModule": "ffmpeg"
+    },
+    {
+      "name": "libplacebo",
+      "version": "v7.360.1",
+      "license": "LGPL-2.1-or-later AND Apache-2.0 AND (WTFPL OR CC0-1.0) AND (Apache-2.0 OR BSL-1.0 OR MIT); Khronos header terms in glad LICENSE",
+      "repository": "https://github.com/haasn/libplacebo",
+      "revision": "cee9b076f2c63104ccfd497fa79c39a867293ec4",
+      "binaries": ["/app/lib/libplacebo.so*"],
+      "notes": "libplacebo's own code is LGPL-2.1-or-later (source headers say version 2.1 or any later version). flatpak-builder checks out the git submodules pinned at this commit. With -Dopengl=enabled, 3rdparty/glad (Dav1dde/glad at 73db193f) generates an OpenGL/GLES/EGL loader that is compiled in; glad marks generated code '(WTFPL OR CC0-1.0) AND Apache-2.0', the Apache part covering the bundled Khronos specifications, and copies Khronos platform headers under the MIT-style terms its LICENSE quotes. The SPDX Apache-2.0 text already retained in texts/ supplies the full license glad refers to. 3rdparty/fast_float (97b54ca9) is header-only code included by src/convert.cc; all three of its license options are retained. 3rdparty/jinja and 3rdparty/markupsafe only run at build time, 3rdparty/Vulkan-Headers is unused with -Dvulkan=disabled, and demos are disabled.",
+      "files": [
+        {
+          "path": "texts/b3aa400aca6d2ba1f0bd03bd98d03d1fe7489a3bbb26969d72016360af8a5c9d.txt",
+          "source": "https://raw.githubusercontent.com/haasn/libplacebo/cee9b076f2c63104ccfd497fa79c39a867293ec4/LICENSE",
+          "sha256": "b3aa400aca6d2ba1f0bd03bd98d03d1fe7489a3bbb26969d72016360af8a5c9d",
+          "name": "LICENSE"
+        },
+        {
+          "path": "texts/cbb325cd4ac5bd06717ffa34a322b984f9d285e4c67c8ca1b7380d6ef08c2a77.txt",
+          "source": "https://raw.githubusercontent.com/Dav1dde/glad/73db193f853e2ee079bf3ca8a64aa2eaf6459043/LICENSE",
+          "sha256": "cbb325cd4ac5bd06717ffa34a322b984f9d285e4c67c8ca1b7380d6ef08c2a77",
+          "name": "glad LICENSE"
+        },
+        {
+          "path": "texts/074e6e32c86a4c0ef8b3ed25b721ca23aca83df277cd88106ef7177c354615ff.txt",
+          "source": "https://raw.githubusercontent.com/spdx/license-list-data/v3.26.0/text/Apache-2.0.txt",
+          "sha256": "074e6e32c86a4c0ef8b3ed25b721ca23aca83df277cd88106ef7177c354615ff",
+          "kind": "standard-license-reference",
+          "name": "Apache-2.0.txt"
+        },
+        {
+          "path": "texts/e562f3f974ced7e69dd1db77b820b36bcf8f30377f1aa105723fba449c53c4e6.txt",
+          "source": "https://raw.githubusercontent.com/fastfloat/fast_float/97b54ca9e75f5303507699d27c6b4f4efe4641a1/LICENSE-MIT",
+          "sha256": "e562f3f974ced7e69dd1db77b820b36bcf8f30377f1aa105723fba449c53c4e6",
+          "name": "fast_float LICENSE-MIT"
+        },
+        {
+          "path": "texts/097a889aa954d04e088b790b10a4014d6189561d0a6013935a73ce3d4ddaaf06.txt",
+          "source": "https://raw.githubusercontent.com/fastfloat/fast_float/97b54ca9e75f5303507699d27c6b4f4efe4641a1/LICENSE-APACHE",
+          "sha256": "097a889aa954d04e088b790b10a4014d6189561d0a6013935a73ce3d4ddaaf06",
+          "name": "fast_float LICENSE-APACHE"
+        },
+        {
+          "path": "texts/8d8291caf1cee26d23acf3eb67c9f9a2d58f1c681b16a4fbe8cbfb9e3c0b5a9b.txt",
+          "source": "https://raw.githubusercontent.com/fastfloat/fast_float/97b54ca9e75f5303507699d27c6b4f4efe4641a1/LICENSE-BOOST",
+          "sha256": "8d8291caf1cee26d23acf3eb67c9f9a2d58f1c681b16a4fbe8cbfb9e3c0b5a9b",
+          "name": "fast_float LICENSE-BOOST"
+        }
+      ],
+      "scope": "Playback",
+      "flatpakModule": "libplacebo"
+    },
+    {
+      "name": "libXpresent",
+      "version": "1.0.2",
+      "license": "HPND-sell-variant AND MIT",
+      "repository": "https://gitlab.freedesktop.org/xorg/lib/libxpresent",
+      "revision": "4d92149372461bf575e8a09b1064a2884c38c3aa",
+      "binaries": ["/app/lib/libXpresent.so*"],
+      "notes": "The only compiled source, src/Xpresent.c, and its public header carry a 2013 Keith Packard copyright under HPND-sell-variant terms. COPYING instead names Keith Packard 2001,2003 and an Oracle MIT (X.Org variant) notice; both are retained verbatim. Man pages land in /share/man, which the manifest removes.",
+      "files": [
+        {
+          "path": "texts/d64e671ffeb483d4543f98c842788ab34c77427e27d83d6b082065a4438d4885.txt",
+          "source": "https://gitlab.freedesktop.org/xorg/lib/libxpresent/-/raw/4d92149372461bf575e8a09b1064a2884c38c3aa/COPYING",
+          "sha256": "d64e671ffeb483d4543f98c842788ab34c77427e27d83d6b082065a4438d4885",
+          "name": "COPYING"
+        },
+        {
+          "path": "texts/5e46864ede2fda46c3cb7cfe3a7b9f9e4bd36d8d21d8010a284caa64b81d465a.txt",
+          "source": "https://gitlab.freedesktop.org/xorg/lib/libxpresent/-/raw/4d92149372461bf575e8a09b1064a2884c38c3aa/src/Xpresent.c",
+          "sha256": "5e46864ede2fda46c3cb7cfe3a7b9f9e4bd36d8d21d8010a284caa64b81d465a",
+          "extraction": "First 21 lines, the file's license comment, copied without editing.",
+          "name": "Xpresent.c (header)"
+        }
+      ],
+      "scope": "Playback",
+      "flatpakModule": "libXpresent"
+    },
+    {
+      "name": "hwdata",
+      "version": "v0.394",
+      "license": "GPL-2.0-or-later OR XFree86-1.0",
+      "repository": "https://github.com/vcrhonek/hwdata",
+      "sourceArchive": "https://github.com/vcrhonek/hwdata/archive/refs/tags/v0.394.tar.gz",
+      "sourceArchiveSha256": "b7c3fd7214a3b7c49d2661db127a712dc11cffd1799f793947aa1cb20aaf3298",
+      "binaries": ["/app/lib/libdisplay-info.so*"],
+      "notes": "Only the data libdisplay-info compiles from pnp.ids ships: the module's cleanup removes everything hwdata installs, and libdisplay-info builds a lookup table from pnp.ids into its library. LICENSE offers GPL-2.0-or-later or XFree86 1.0; pci.ids' own header offers GPL-2.0-or-later or BSD-3-Clause. GPL-2.0-or-later is common to both, and upstream ships no XFree86 1.0 text, so none is added.",
+      "files": [
+        {
+          "path": "texts/21d0406f93e884a050426ebc21931839a45d56bfcbcbfdda7686d583f36f107f.txt",
+          "source": "https://github.com/vcrhonek/hwdata/archive/refs/tags/v0.394.tar.gz#hwdata-0.394/LICENSE",
+          "sha256": "21d0406f93e884a050426ebc21931839a45d56bfcbcbfdda7686d583f36f107f",
+          "name": "LICENSE"
+        },
+        {
+          "path": "texts/8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643.txt",
+          "source": "https://github.com/vcrhonek/hwdata/archive/refs/tags/v0.394.tar.gz#hwdata-0.394/COPYING",
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+          "name": "COPYING"
+        },
+        {
+          "path": "texts/f12e150215b012f92d0bfdd29b79dc2d363464d2cd382b4ee4e2f940b3e6e155.txt",
+          "source": "https://github.com/vcrhonek/hwdata/archive/refs/tags/v0.394.tar.gz#hwdata-0.394/pci.ids",
+          "sha256": "f12e150215b012f92d0bfdd29b79dc2d363464d2cd382b4ee4e2f940b3e6e155",
+          "extraction": "First 19 lines, the file's license comment, copied without editing.",
+          "name": "pci.ids (header)"
+        }
+      ],
+      "scope": "Playback",
+      "flatpakModule": "hwdata"
+    },
+    {
+      "name": "libdisplay-info",
+      "version": "0.2.0",
+      "license": "MIT",
+      "repository": "https://gitlab.freedesktop.org/emersion/libdisplay-info",
+      "sourceArchive": "https://gitlab.freedesktop.org/emersion/libdisplay-info/-/archive/0.2.0/libdisplay-info-0.2.0.tar.gz",
+      "sourceArchiveSha256": "f7331fcaf5527251b84c8fb84238d06cd2f458422ce950c80e86c72927aa8c2b",
+      "binaries": ["/app/lib/libdisplay-info.so*"],
+      "notes": "The library embeds a table generated from hwdata v0.394's pnp.ids. The module's cleanup removes the di-edid-decode tool. The edid-decode wrap is only used by tests and is not built without network access.",
+      "files": [
+        {
+          "path": "texts/15b396244e58830c5614b9394f4deccfe684970cd507f299383ab57ad339eedd.txt",
+          "source": "https://gitlab.freedesktop.org/emersion/libdisplay-info/-/archive/0.2.0/libdisplay-info-0.2.0.tar.gz#libdisplay-info-0.2.0/LICENSE",
+          "sha256": "15b396244e58830c5614b9394f4deccfe684970cd507f299383ab57ad339eedd",
+          "name": "LICENSE"
+        }
+      ],
+      "scope": "Playback",
+      "flatpakModule": "libdisplay-info"
+    },
+    {
+      "name": "mpv",
+      "version": "v0.41.0",
+      "license": "GPL-2.0-or-later",
+      "repository": "https://github.com/mpv-player/mpv",
+      "revision": "41f6a645068483470267271e1d09966ca3b9f413",
+      "binaries": ["/app/lib/libmpv.so*"],
+      "uncertain": true,
+      "notes": "Built as libmpv only (-Dcplayer=false) with the default -Dgpl=true and with X11 enabled, which compiles GPL-only files such as video/out/x11_common.c, so per Copyright the result is GPLv2+. Linked with the GPLv3 FFmpeg above, the combination is distributed under GPL-3.0-or-later terms, which Kino's GPL-3.0-only license accepts. Copyright says some files use BSD, MIT, or ISC terms; like FFmpeg, those per-file headers are not enumerated here. Uncertain: libmpv embeds sub/osd_font.otf (mpv-osd-symbols) through file2string. The font states only 'This is generated file.', and TOOLS/mpv-osd-symbols.sfdir/README.md says glyphs are copied from 'a freely licensed font' such as Symbola, so the glyphs' original terms are not recorded upstream.",
+      "files": [
+        {
+          "path": "texts/bfe9ee4cceabcb8ecbfadf208d04156f73d801e6a57369a5606bb8341e204a23.txt",
+          "source": "https://raw.githubusercontent.com/mpv-player/mpv/41f6a645068483470267271e1d09966ca3b9f413/Copyright",
+          "sha256": "bfe9ee4cceabcb8ecbfadf208d04156f73d801e6a57369a5606bb8341e204a23",
+          "name": "Copyright"
+        },
+        {
+          "path": "texts/edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6.txt",
+          "source": "https://raw.githubusercontent.com/mpv-player/mpv/41f6a645068483470267271e1d09966ca3b9f413/LICENSE.GPL",
+          "sha256": "edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6",
+          "name": "LICENSE.GPL"
+        },
+        {
+          "path": "texts/72b672113d642cbb8ef5dcc76938db801983c56e50b1400ab930f1a64d6dc8d9.txt",
+          "source": "https://raw.githubusercontent.com/mpv-player/mpv/41f6a645068483470267271e1d09966ca3b9f413/LICENSE.LGPL",
+          "sha256": "72b672113d642cbb8ef5dcc76938db801983c56e50b1400ab930f1a64d6dc8d9",
+          "name": "LICENSE.LGPL"
+        }
+      ],
+      "scope": "Playback",
+      "flatpakModule": "mpv"
+    },
+    {
+      "name": "libtorrent-rasterbar",
+      "version": "2.1.2",
+      "license": "BSD-3-Clause",
+      "repository": "https://github.com/arvidn/libtorrent",
+      "sourceArchive": "https://github.com/arvidn/libtorrent/releases/download/v2.1.2/libtorrent-rasterbar-2.1.2.tar.gz",
+      "sourceArchiveSha256": "3362546d9cd71b9e49ee6cac7d3f1f914ce9cdb217c86b63d5b22cbed0334dbc",
+      "binaries": ["/app/bin/kino-stream-engine"],
+      "notes": "Linked statically into the engine; the module's cleanup removes the library itself. Every retained text is byte-identical to reviewed.json's libtorrent-rasterbar 2.1.2 entry. That entry's WebTorrent dependency notices (libdatachannel, libjuice, plog, usrsctp) are left out because the manifest sets -Dwebtorrent=OFF, and its route.h and APSL-2.0 texts are left out because enum_net.cpp includes aux_/route.h only for iOS targets. try_signal, puff, and ed25519 are compiled on Linux and kept. OpenSSL comes from the runtime; deps/asio-gnutls (BSL-1.0) would only be compiled if CMake found no OpenSSL.",
+      "files": [
+        {
+          "path": "texts/f4b492afbde73d2f4e051050a619622876a13b77e7b8b6ea3ec2868a6929b31b.txt",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.2/libtorrent-rasterbar-2.1.2.tar.gz#libtorrent-rasterbar-2.1.2/COPYING",
+          "sha256": "f4b492afbde73d2f4e051050a619622876a13b77e7b8b6ea3ec2868a6929b31b",
+          "name": "COPYING"
+        },
+        {
+          "path": "texts/77d319baf9b855d3f41e7a8a05ce90d407be1396b16a362bea2351bff7e3ce46.txt",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.2/libtorrent-rasterbar-2.1.2.tar.gz#libtorrent-rasterbar-2.1.2/LICENSE",
+          "sha256": "77d319baf9b855d3f41e7a8a05ce90d407be1396b16a362bea2351bff7e3ce46",
+          "name": "LICENSE"
+        },
+        {
+          "path": "texts/18a7c1435a7a7ebc120a181c7309d0d7dfcbec76be4950ff23c9aa37f9c93725.txt",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.2/libtorrent-rasterbar-2.1.2.tar.gz#libtorrent-rasterbar-2.1.2/deps/try_signal/LICENSE",
+          "sha256": "18a7c1435a7a7ebc120a181c7309d0d7dfcbec76be4950ff23c9aa37f9c93725",
+          "name": "LICENSE"
+        },
+        {
+          "path": "texts/7a8be3114e2ebd39c83fe8a95ef2b97f4abe1ea85a56d3a75a0b9e54852424e5.txt",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.2/libtorrent-rasterbar-2.1.2.tar.gz#libtorrent-rasterbar-2.1.2/include/libtorrent/aux_/puff.hpp",
+          "sha256": "7a8be3114e2ebd39c83fe8a95ef2b97f4abe1ea85a56d3a75a0b9e54852424e5",
+          "name": "puff.hpp"
+        },
+        {
+          "path": "texts/74390004d59f722f396bbc961e509a31f2aca8e01942c7b2f9fce14aab4e3803.txt",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.2/libtorrent-rasterbar-2.1.2.tar.gz#libtorrent-rasterbar-2.1.2/src/ed25519/LICENSE",
+          "sha256": "74390004d59f722f396bbc961e509a31f2aca8e01942c7b2f9fce14aab4e3803",
+          "name": "LICENSE"
+        }
+      ],
+      "scope": "Streaming engine",
+      "flatpakModule": "libtorrent"
+    },
+    {
+      "name": "boost",
+      "version": "1.92.0",
+      "license": "BSL-1.0",
+      "repository": "https://github.com/boostorg/boost",
+      "sourceArchive": "https://github.com/boostorg/boost/releases/download/boost-1.92.0/boost-1.92.0-b2-nodocs.tar.xz",
+      "sourceArchiveSha256": "ea7b982002cc9dfbe59b0b217b206f470dc75f3de0bb2973d844118934d82411",
+      "binaries": ["/app/bin/kino-stream-engine"],
+      "uncertain": true,
+      "notes": "Header code compiled into the engine through libtorrent and the engine's C++ wrappers; the boost-headers module is removed after the build. Both texts are reused from reviewed.json. LICENSE_1_0.txt was re-verified against the archive. Uncertain: BOOST-HEADER-NOTICES.txt was assembled from a macOS preprocessing run (Homebrew include paths, Darwin headers such as the kqueue reactor). A Linux build selects different platform headers (epoll, eventfd), so the aggregate should be regenerated from preprocessing the same sources inside the Flatpak SDK before it is trusted for this package.",
+      "files": [
+        {
+          "path": "texts/c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566.txt",
+          "source": "https://github.com/boostorg/boost/releases/download/boost-1.92.0/boost-1.92.0-b2-nodocs.tar.xz#boost-1.92.0/LICENSE_1_0.txt",
+          "sha256": "c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566",
+          "name": "LICENSE_1_0.txt"
+        },
+        {
+          "path": "texts/ee77ea6c960104ebe998b5cf4c951f5741a3a4a07971a6c49c7f4e90e7f83608.txt",
+          "source": "https://github.com/boostorg/boost/releases/download/boost-1.92.0/boost-1.92.0-b2-nodocs.tar.xz",
+          "sha256": "ee77ea6c960104ebe998b5cf4c951f5741a3a4a07971a6c49c7f4e90e7f83608",
+          "extraction": "Copyright/license comment blocks from 1387 byte-verified Boost headers identified by engine C++ preprocessing. Original comment text retained; identical blocks grouped by original archive path. Source-file SHA256 index is boost-header-source-index.json in the research artifact directory.",
+          "name": "BOOST-HEADER-NOTICES.txt"
+        }
+      ],
+      "scope": "Streaming engine",
+      "flatpakModule": "boost-headers"
+    },
+    {
+      "name": "rust-standard-library",
+      "version": "1.98.1",
+      "license": "MIT OR Apache-2.0; third-party terms in COPYRIGHT-library.txt",
+      "repository": "https://github.com/rust-lang/rust",
+      "revision": "48a229ceaefd4985c50990b14116b6d856af0985",
+      "sourceArchive": "https://static.rust-lang.org/dist/2026-09-03/rustc-1.98.1-x86_64-unknown-linux-gnu.tar.xz",
+      "sourceArchiveSha256": "e974f036b28565f37c0f3bd92ddefa809bee16c04f9dcf07b9ed96e05aaaf7c4",
+      "sourceArchiveChecksumSource": "https://static.rust-lang.org/dist/2026-09-03/rustc-1.98.1-x86_64-unknown-linux-gnu.tar.xz.sha256",
+      "binaries": ["/app/bin/kino-stream-engine"],
+      "notes": "The engine is compiled by org.freedesktop.Sdk.Extension.rust-stable//25.08, which Flathub moves on its own schedule; Flathub's branch/25.08 installed Rust 1.98.1 for x86_64 when this was reviewed. The Flatpak workflow reads the compiler revision out of the built engine and fails when it is not this one. Every text is byte-identical to reviewed.json's 1.98.0 entry.",
+      "files": [
+        {
+          "path": "texts/b71bd43a069ca0641a9ecfe585ca7b3c53b5cc1608f8b68321168698e28b5ea1.txt",
+          "source": "https://static.rust-lang.org/dist/2026-09-03/rustc-1.98.1-x86_64-unknown-linux-gnu.tar.xz#rustc-1.98.1-x86_64-unknown-linux-gnu/LICENSE-MIT",
+          "sha256": "b71bd43a069ca0641a9ecfe585ca7b3c53b5cc1608f8b68321168698e28b5ea1",
+          "name": "LICENSE-MIT"
+        },
+        {
+          "path": "texts/62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a.txt",
+          "source": "https://static.rust-lang.org/dist/2026-09-03/rustc-1.98.1-x86_64-unknown-linux-gnu.tar.xz#rustc-1.98.1-x86_64-unknown-linux-gnu/LICENSE-APACHE",
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+          "name": "LICENSE-APACHE"
+        },
+        {
+          "path": "texts/172020dbfd5b53a226dfde77616190a48dcff519b0bc0e6deb91a8450782c4af.txt",
+          "source": "https://static.rust-lang.org/dist/2026-09-03/rustc-1.98.1-x86_64-unknown-linux-gnu.tar.xz#rustc-1.98.1-x86_64-unknown-linux-gnu/COPYRIGHT",
+          "sha256": "172020dbfd5b53a226dfde77616190a48dcff519b0bc0e6deb91a8450782c4af",
+          "name": "COPYRIGHT"
+        },
+        {
+          "path": "texts/68129500b616d5838629e68f55ff3aed5e096dacf60ce9eb41bbe599a563afa6.html",
+          "source": "https://static.rust-lang.org/dist/2026-09-03/rustc-1.98.1-x86_64-unknown-linux-gnu.tar.xz#rustc-1.98.1-x86_64-unknown-linux-gnu/rustc/share/doc/rust/COPYRIGHT-library.html",
+          "sha256": "68129500b616d5838629e68f55ff3aed5e096dacf60ce9eb41bbe599a563afa6",
+          "name": "COPYRIGHT-library.html"
+        },
+        {
+          "path": "texts/ee9d7a755acd5d768caafd3088f1891142f5e6b9b4ef62f343f031e484dd8ac2.txt",
+          "source": "https://static.rust-lang.org/dist/2026-09-03/rustc-1.98.1-x86_64-unknown-linux-gnu.tar.xz#rustc-1.98.1-x86_64-unknown-linux-gnu/rustc/share/doc/rust/COPYRIGHT-library.html",
+          "sha256": "ee9d7a755acd5d768caafd3088f1891142f5e6b9b4ef62f343f031e484dd8ac2",
+          "extraction": "HTML body text with character entities decoded and repeated blank lines collapsed. Original HTML is retained alongside it. Reused: this archive's COPYRIGHT-library.html is byte-identical to the 1.98.0 file the extraction was made from.",
+          "name": "COPYRIGHT-library.txt"
+        },
+        {
+          "path": "texts/f5062c9a188d81dfe66b56db4182dcf9e4b17c0d9b0d311a8e20b3a1b075c443.txt",
+          "source": "https://raw.githubusercontent.com/rust-lang/rust/48a229ceaefd4985c50990b14116b6d856af0985/LICENSES/Unicode-3.0.txt",
+          "sha256": "f5062c9a188d81dfe66b56db4182dcf9e4b17c0d9b0d311a8e20b3a1b075c443",
+          "name": "LICENSE-Unicode-3.0.txt"
+        },
+        {
+          "path": "texts/f32fb3b417a194167cfad068223fc975ba96c5960513a10f66a3c28720aec1df.txt",
+          "source": "https://raw.githubusercontent.com/rust-lang/rust/48a229ceaefd4985c50990b14116b6d856af0985/LICENSES/BSD-2-Clause.txt",
+          "sha256": "f32fb3b417a194167cfad068223fc975ba96c5960513a10f66a3c28720aec1df",
+          "name": "LICENSE-BSD-2-Clause.txt"
+        }
+      ],
+      "scope": "Streaming engine"
+    },
+    {
+      "name": "qtwebengine",
+      "version": "6.11.2",
+      "repository": "https://github.com/qt/qtwebengine/tree/a33fa2a897e5ee58e385b3f88dc247d99fca56db",
+      "license": "See module license options and third-party declarations",
+      "binaries": [
+        "/app/lib/**/libQt6WebEngine*",
+        "/app/lib/**/libQt6Pdf*",
+        "/app/lib/libexec/QtWebEngineProcess",
+        "/app/**/qml/QtWebEngine/**",
+        "/app/**/qml/QtQuick/Pdf/**",
+        "/app/**/plugins/imageformats/libqpdf.so"
+      ],
+      "provenance": {
+        "baseApp": "io.qt.qtwebengine.BaseApp//6.11",
+        "baseAppRevision": "ab059370c5faf2f7579cfad6eebedad167024886",
+        "baseAppManifest": "https://raw.githubusercontent.com/flathub/io.qt.qtwebengine.BaseApp/ab059370c5faf2f7579cfad6eebedad167024886/io.qt.qtwebengine.BaseApp.json",
+        "baseAppManifestSha256": "11e5ab3a6dbd7a497ebf1edff0478a8fdb5521171d121930e6fc9bf08f429407",
+        "source": "https://invent.kde.org/qt/qt/qtwebengine.git",
+        "tag": "v6.11.2",
+        "sourceRevision": "a33fa2a897e5ee58e385b3f88dc247d99fca56db",
+        "reviewedEntry": "reviewed.json qt/qtwebengine 6.11.2 (same revision)"
+      },
+      "notes": "The BaseApp builds Qt WebEngine and Qt PDF at the same v6.11.2 revision reviewed.json reviews, so its NOTICES bundle is reused. It includes the Chromium root notice, the module's LICENSES texts, and Qt's module-wide WebEngine and PDF attribution pages. The BaseApp keeps Chromium's bundled FFmpeg (webengine_system_ffmpeg=OFF, proprietary codecs ON), whose notice is in that bundle, and links ICU, FreeType, libxml2, and libevent from the system rather than Chromium's copies. It applies seven patches for Flatpak paths and the sandbox, so corresponding source means the BaseApp repository at the recorded revision plus upstream. The bundle's preamble, written for the macOS package, mentions Homebrew; the Linux package carries no Homebrew libraries.",
+      "files": [
+        {
+          "path": "texts/432970657e1e5d548bc0086d765fad0bd21379cd145a47efb2f93ca0d79110a7.txt",
+          "source": "https://github.com/qt/qtwebengine/tree/a33fa2a897e5ee58e385b3f88dc247d99fca56db",
+          "sha256": "432970657e1e5d548bc0086d765fad0bd21379cd145a47efb2f93ca0d79110a7",
+          "name": "qtwebengine-6.11.2-NOTICES.txt"
+        }
+      ],
+      "scope": "Qt WebEngine"
+    },
+    {
+      "name": "krb5",
+      "version": "1.22.2",
+      "license": "BSD-2-Clause; additional permissive terms for bundled and contributed code in NOTICE",
+      "repository": "https://kerberos.org/dist/",
+      "sourceArchive": "https://kerberos.org/dist/krb5/1.22/krb5-1.22.2.tar.gz",
+      "sourceArchiveSha256": "3243ffbc8ea4d4ac22ddc7dd2a1dc54c57874c40648b60ff97009763554eaf13",
+      "binaries": [
+        "/app/lib/libkrb5*.so*",
+        "/app/lib/libgssapi_krb5.so*",
+        "/app/lib/libk5crypto.so*",
+        "/app/lib/libcom_err.so*",
+        "/app/lib/krb5/**",
+        "/app/etc/krb5.conf"
+      ],
+      "provenance": {
+        "baseAppRevision": "ab059370c5faf2f7579cfad6eebedad167024886",
+        "module": "krb5/krb5.json"
+      },
+      "notes": "Built into /app by the BaseApp for Chromium's Kerberos support (webengine_kerberos=ON). NOTICE is the release's complete copyright file: MIT's BSD-2-Clause terms, then separate notices for the crypto, AES, verto, libev, RPC, UTF-8, MD4/MD5, and other contributed code, plus a US export-control statement and the Creative Commons BY-SA 3.0 statement for documentation, which is not shipped. /bin, examples, and man pages are cleaned. /app/etc/krb5.conf comes from the BaseApp repository, which carries no license file.",
+      "files": [
+        {
+          "path": "texts/d37fcb886de2ad1c602f61c99c6893bcbd9a1949f54d9a6bb40d191204eb605e.txt",
+          "source": "https://kerberos.org/dist/krb5/1.22/krb5-1.22.2.tar.gz#krb5-1.22.2/NOTICE",
+          "sha256": "d37fcb886de2ad1c602f61c99c6893bcbd9a1949f54d9a6bb40d191204eb605e",
+          "name": "NOTICE"
+        }
+      ],
+      "scope": "Qt WebEngine"
+    },
+    {
+      "name": "libevent",
+      "version": "2.1.13-stable",
+      "license": "BSD-3-Clause; LICENSE also carries ISC (arc4random) and MIT (Windows timer) terms for bundled portions",
+      "repository": "https://github.com/libevent/libevent",
+      "sourceArchive": "https://github.com/libevent/libevent/releases/download/release-2.1.13-stable/libevent-2.1.13-stable.tar.gz",
+      "sourceArchiveSha256": "f7e9383b8c0baa81b687e5b5eecc01beefaf1b19b64151d95ed61647fe7a315c",
+      "binaries": ["/app/lib/libevent*.so*"],
+      "provenance": {
+        "baseAppRevision": "ab059370c5faf2f7579cfad6eebedad167024886",
+        "module": "libevent/libevent.json"
+      },
+      "notes": "Built into /app by the BaseApp; Qt WebEngine uses it through webengine_system_libevent=ON. LICENSE lists the per-file copyright holders and is retained whole.",
+      "files": [
+        {
+          "path": "texts/ff02effc9b331edcdac387d198691bfa3e575e7d244ad10cb826aa51ef085670.txt",
+          "source": "https://github.com/libevent/libevent/releases/download/release-2.1.13-stable/libevent-2.1.13-stable.tar.gz#libevent-2.1.13-stable/LICENSE",
+          "sha256": "ff02effc9b331edcdac387d198691bfa3e575e7d244ad10cb826aa51ef085670",
+          "name": "LICENSE"
+        }
+      ],
+      "scope": "Qt WebEngine"
+    },
+    {
+      "name": "minizip",
+      "version": "1.3.2 (zlib contrib/minizip)",
+      "license": "Zlib AND Info-ZIP",
+      "repository": "https://github.com/madler/zlib/tree/v1.3.2/contrib/minizip",
+      "sourceArchive": "https://zlib.net/zlib-1.3.2.tar.gz",
+      "sourceArchiveSha256": "bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16",
+      "binaries": ["/app/lib/libminizip.so*"],
+      "provenance": {
+        "baseAppRevision": "ab059370c5faf2f7579cfad6eebedad167024886",
+        "module": "minizip/minizip.json"
+      },
+      "notes": "The BaseApp deletes everything except contrib/minizip and builds only libminizip (ioapi.c, mztools.c, unzip.c, zip.c); the demo programs are off by default and zlib itself comes from the runtime. Minizip's files use zlib's terms. unzip.c and crypt.h contain Info-ZIP-derived decryption code, and zlib 1.3.2 ships LICENSE.Info-Zip beside them. The BaseApp's minizip-headers.patch only changes headers.",
+      "files": [
+        {
+          "path": "texts/e32ff4e00d9d94930537635291da39e7e612703334bf6fde8c7f1686fe8a45a2.txt",
+          "source": "https://zlib.net/zlib-1.3.2.tar.gz#zlib-1.3.2/LICENSE",
+          "sha256": "e32ff4e00d9d94930537635291da39e7e612703334bf6fde8c7f1686fe8a45a2",
+          "name": "LICENSE"
+        },
+        {
+          "path": "texts/fc686023047ce5ce3a18a9b8a777156f0e475929d3de06bac279f3c025d2b2ca.txt",
+          "source": "https://zlib.net/zlib-1.3.2.tar.gz#zlib-1.3.2/contrib/minizip/LICENSE.Info-Zip",
+          "sha256": "fc686023047ce5ce3a18a9b8a777156f0e475929d3de06bac279f3c025d2b2ca",
+          "name": "LICENSE.Info-Zip"
+        },
+        {
+          "path": "texts/194b8e4f163788a7f2ba99c0b96432e07003c63d8c8524c57eca01264e8340dd.txt",
+          "source": "https://zlib.net/zlib-1.3.2.tar.gz#zlib-1.3.2/contrib/minizip/unzip.h",
+          "sha256": "194b8e4f163788a7f2ba99c0b96432e07003c63d8c8524c57eca01264e8340dd",
+          "extraction": "First 40 lines, the file's license comment, copied without editing.",
+          "name": "unzip.h (header)"
+        },
+        {
+          "path": "texts/6cda14d3c3102b322d133047ec0eb2612e2f3cb1793ced34ff3a7c31a3e8c133.txt",
+          "source": "https://zlib.net/zlib-1.3.2.tar.gz#zlib-1.3.2/contrib/minizip/unzip.c",
+          "sha256": "6cda14d3c3102b322d133047ec0eb2612e2f3cb1793ced34ff3a7c31a3e8c133",
+          "extraction": "First 63 lines, the file's license comment, copied without editing.",
+          "name": "unzip.c (header)"
+        }
+      ],
+      "scope": "Qt WebEngine"
+    },
+    {
+      "name": "pciutils",
+      "version": "3.15.0",
+      "license": "GPL-2.0-or-later",
+      "repository": "https://github.com/pciutils/pciutils",
+      "sourceArchive": "https://mj.ucw.cz/download/linux/pci/pciutils-3.15.0.tar.gz",
+      "sourceArchiveSha256": "a42e6e3f76fb6b1f6ac2e08cdd151f6bf78bc4f6312c591f4b6ec197582ede3a",
+      "binaries": ["/app/lib/libpci.so*"],
+      "provenance": {
+        "baseAppRevision": "ab059370c5faf2f7579cfad6eebedad167024886",
+        "module": "pciutils/pciutils.json"
+      },
+      "notes": "Built into /app by the BaseApp. Only libpci remains: the module cleans /bin and /share. README states the package-wide license and copyright; its opening paragraphs are retained with COPYING.",
+      "files": [
+        {
+          "path": "texts/ab15fd526bd8dd18a9e77ebc139656bf4d33e97fc7238cd11bf60e2b9b8666c6.txt",
+          "source": "https://mj.ucw.cz/download/linux/pci/pciutils-3.15.0.tar.gz#pciutils-3.15.0/COPYING",
+          "sha256": "ab15fd526bd8dd18a9e77ebc139656bf4d33e97fc7238cd11bf60e2b9b8666c6",
+          "name": "COPYING"
+        },
+        {
+          "path": "texts/ea7b986f6658215fc1d056d0c7ffc8e0cd4370cdd66cc927f9ed189a8bfb8cd3.txt",
+          "source": "https://mj.ucw.cz/download/linux/pci/pciutils-3.15.0.tar.gz#pciutils-3.15.0/README",
+          "sha256": "ea7b986f6658215fc1d056d0c7ffc8e0cd4370cdd66cc927f9ed189a8bfb8cd3",
+          "extraction": "First 10 lines, the copyright and license statement, copied without editing.",
+          "name": "README (license statement)"
+        }
+      ],
+      "scope": "Qt WebEngine"
+    },
+    {
+      "name": "re2",
+      "version": "2025-11-05",
+      "license": "BSD-3-Clause; util/rune.cc and util/utf.h carry a separate Lucent Technologies permission notice",
+      "repository": "https://github.com/google/re2",
+      "sourceArchive": "https://github.com/google/re2/archive/2025-11-05/re2-2025-11-05.tar.gz",
+      "sourceArchiveSha256": "87f6029d2f6de8aa023654240a03ada90e876ce9a4676e258dd01ea4c26ffd67",
+      "binaries": ["/app/lib/libre2.so*"],
+      "provenance": {
+        "baseAppRevision": "ab059370c5faf2f7579cfad6eebedad167024886",
+        "module": "re2/re2.json"
+      },
+      "notes": "Built into /app by the BaseApp. The Plan 9 UTF code in util/rune.cc is compiled into libre2 and requires its notice in copies and supporting documentation, so that header is retained.",
+      "files": [
+        {
+          "path": "texts/6040cda75d90b1738292a631d89934c411ef7ffd543c4d6a1b7edfc8edf29449.txt",
+          "source": "https://github.com/google/re2/archive/2025-11-05/re2-2025-11-05.tar.gz#re2-2025-11-05/LICENSE",
+          "sha256": "6040cda75d90b1738292a631d89934c411ef7ffd543c4d6a1b7edfc8edf29449",
+          "name": "LICENSE"
+        },
+        {
+          "path": "texts/58e6e6d9cc68d20e0cd6790718e11bec31fc0a9741b550ffe6e895ca150dcb0a.txt",
+          "source": "https://github.com/google/re2/archive/2025-11-05/re2-2025-11-05.tar.gz#re2-2025-11-05/util/rune.cc",
+          "sha256": "58e6e6d9cc68d20e0cd6790718e11bec31fc0a9741b550ffe6e895ca150dcb0a",
+          "extraction": "First 13 lines, the file's license comment, copied without editing.",
+          "name": "rune.cc (header)"
+        }
+      ],
+      "scope": "Qt WebEngine"
+    },
+    {
+      "name": "snappy",
+      "version": "1.2.2",
+      "license": "BSD-3-Clause",
+      "repository": "https://github.com/google/snappy",
+      "revision": "6af9287fbdb913f0794d0148c6aa43b58e63c8e3",
+      "binaries": ["/app/lib/libsnappy.so*"],
+      "provenance": {
+        "baseAppRevision": "ab059370c5faf2f7579cfad6eebedad167024886",
+        "module": "snappy/snappy.json"
+      },
+      "notes": "Built into /app by the BaseApp with its snappy-rtti.patch. The COPYING section on testdata/ describes benchmark files that are not shipped. The benchmark and googletest submodules are not built.",
+      "files": [
+        {
+          "path": "texts/55172044f7e241207117448a4d9d6ba1d0925c8ad66b5d4c08c70adfa9cc3de6.txt",
+          "source": "https://raw.githubusercontent.com/google/snappy/6af9287fbdb913f0794d0148c6aa43b58e63c8e3/COPYING",
+          "sha256": "55172044f7e241207117448a4d9d6ba1d0925c8ad66b5d4c08c70adfa9cc3de6",
+          "name": "COPYING"
+        }
+      ],
+      "scope": "Qt WebEngine"
+    }
+  ]
+}

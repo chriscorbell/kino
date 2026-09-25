@@ -77,9 +77,16 @@ export function verifyReviewedNotices() {
   }
 }
 
-export function generateLicenseNotices(app, binaries) {
-  verifyReviewedNotices();
-  const output = join(app, 'Contents/Resources/licenses');
+// The pieces every desktop collector shares: texts are stored once by content hash under
+// texts/, and every component must carry at least one.
+export const kinoSources = [
+  'LICENSE',
+  'apps/macos-shell/UPSTREAM.md',
+  'apps/stream-engine/engine.lock',
+  'third_party/notices/README.md',
+];
+
+export function noticeCollector(output) {
   mkdirSync(join(output, 'texts'), { recursive: true });
   const components = [];
   function file(path, source, name = basename(path), extra = {}) {
@@ -103,30 +110,12 @@ export function generateLicenseNotices(app, binaries) {
     item.files = [...new Map(item.files.map((f) => [f.sha256, f])).values()];
     components.push(item);
   }
-  add({
-    name: 'Kino',
-    version: run('/usr/libexec/PlistBuddy', [
-      '-c',
-      'Print :CFBundleShortVersionString',
-      join(app, 'Contents/Info.plist'),
-    ]).trim(),
-    scope: 'Application',
-    license: 'GPL-3.0-only',
-    repository: 'https://github.com/chriscorbell/kino',
-    binaries: binaries
-      .filter((p) =>
-        ['Contents/MacOS/Kino', 'Contents/MacOS/kino-stream-engine'].includes(relative(app, p)),
-      )
-      .map((p) => relative(app, p)),
-    files: [
-      'LICENSE',
-      'apps/macos-shell/UPSTREAM.md',
-      'apps/stream-engine/engine.lock',
-      'third_party/notices/README.md',
-    ].map((p) => file(join(root, p), `Kino source: ${p}`)),
-  });
+  return { components, file, supplement, add };
+}
 
-  // Runtime npm closure includes bundled JS, fonts and the Core worker/WASM.
+// The runtime npm closure, which includes the bundled JS, fonts, and the Core worker and WASM,
+// then the reviewed Core graph and the retained shell integration.
+export function collectWebInterface({ file, supplement, add }) {
   const seen = new Set();
   function npm(directory) {
     directory = realpathSync(directory);
@@ -166,84 +155,107 @@ export function generateLicenseNotices(app, binaries) {
     add(
       supplement(item, item.name === 'stremio-shell' ? 'Retained shell integration' : 'Core WASM'),
     );
+}
 
-  if (existsSync(join(app, 'Contents/MacOS/kino-stream-engine'))) {
-    const manifest = join(root, 'apps/stream-engine/Cargo.toml');
-    const target = 'aarch64-apple-darwin';
-    const tree = run('cargo', [
-      'tree',
-      '--offline',
-      '--locked',
-      '--manifest-path',
-      manifest,
-      '--target',
-      target,
-      '-e',
-      'normal',
-      '--prefix',
-      'none',
-      '--format',
-      '{p}',
-    ]);
-    const selected = new Set([...tree.matchAll(/^(\S+) v(\S+)/gm)].map((m) => `${m[1]}@${m[2]}`));
-    const metadata = JSON.parse(
-      run('cargo', [
-        'metadata',
-        '--offline',
-        '--locked',
-        '--manifest-path',
-        manifest,
-        '--format-version',
-        '1',
-        '--filter-platform',
-        target,
-      ]),
+// The engine's normal dependency graph as Cargo selects it for one target, with the reviewed
+// supplements for crates that publish no notice, then the native code crates compile in from
+// outside Cargo.
+export function collectEngineCrates({ file, supplement, add }, target, cargo = 'cargo') {
+  const manifest = join(root, 'apps/stream-engine/Cargo.toml');
+  const cargoArgs = ['--offline', '--locked', '--manifest-path', manifest];
+  const tree = run(cargo, [
+    'tree',
+    ...cargoArgs,
+    '--target',
+    target,
+    '-e',
+    'normal',
+    '--prefix',
+    'none',
+    '--format',
+    '{p}',
+  ]);
+  const selected = new Set([...tree.matchAll(/^(\S+) v(\S+)/gm)].map((m) => `${m[1]}@${m[2]}`));
+  const metadata = JSON.parse(
+    run(cargo, ['metadata', ...cargoArgs, '--format-version', '1', '--filter-platform', target]),
+  );
+  for (const pkg of metadata.packages) {
+    if (!selected.has(`${pkg.name}@${pkg.version}`)) continue;
+    const directory = dirname(pkg.manifest_path);
+    const extra = reviewed.engine.filter((p) => p.name === pkg.name && p.version === pkg.version);
+    const files = noticeFiles(directory).map((p) =>
+      file(
+        p,
+        pkg.source?.startsWith('registry+')
+          ? `https://static.crates.io/crates/${pkg.name}/${pkg.name}-${pkg.version}.crate#${pkg.name}-${pkg.version}/${relative(directory, p)}`
+          : `${pkg.repository ?? extra[0]?.repository ?? 'Kino source'}#${relative(directory, p)}`,
+      ),
     );
-    for (const pkg of metadata.packages) {
-      if (!selected.has(`${pkg.name}@${pkg.version}`)) continue;
-      const directory = dirname(pkg.manifest_path);
-      const extra = reviewed.engine.filter((p) => p.name === pkg.name && p.version === pkg.version);
-      const files = noticeFiles(directory).map((p) =>
-        file(
-          p,
-          pkg.source?.startsWith('registry+')
-            ? `https://static.crates.io/crates/${pkg.name}/${pkg.name}-${pkg.version}.crate#${pkg.name}-${pkg.version}/${relative(directory, p)}`
-            : `${pkg.repository ?? extra[0]?.repository ?? 'Kino source'}#${relative(directory, p)}`,
-        ),
-      );
-      for (const item of extra) files.push(...supplement(item, 'Streaming engine').files);
-      add({
-        name: pkg.name,
-        version: pkg.version,
-        license: pkg.license ?? extra[0]?.license,
-        repository: pkg.repository ?? extra[0]?.repository,
-        scope: 'Streaming engine',
-        notes: extra
-          .map((p) => p.notes)
-          .filter(Boolean)
-          .join(' '),
-        files: [...new Map(files.map((f) => [f.sha256, f])).values()],
-      });
-    }
-    for (const item of reviewed.engine.filter(
-      (p) => !metadata.packages.some((pkg) => pkg.name === p.name && pkg.version === p.version),
-    ))
-      add(supplement(item, 'Streaming engine, embedded native code'));
-    const compilerRevisions = new Set(
-      [
-        ...run('strings', [join(app, 'Contents/MacOS/kino-stream-engine')]).matchAll(
-          /\/rustc\/([a-f0-9]{40})/g,
-        ),
-      ].map((m) => m[1]),
+    for (const item of extra) files.push(...supplement(item, 'Streaming engine').files);
+    add({
+      name: pkg.name,
+      version: pkg.version,
+      license: pkg.license ?? extra[0]?.license,
+      repository: pkg.repository ?? extra[0]?.repository,
+      scope: 'Streaming engine',
+      notes: extra
+        .map((p) => p.notes)
+        .filter(Boolean)
+        .join(' '),
+      files: [...new Map(files.map((f) => [f.sha256, f])).values()],
+    });
+  }
+  for (const item of reviewed.engine.filter(
+    (p) => !metadata.packages.some((pkg) => pkg.name === p.name && pkg.version === p.version),
+  ))
+    add(supplement(item, 'Streaming engine, embedded native code'));
+}
+
+// The Rust runtime review matching the one compiler revision a built engine embeds.
+export function engineRuntime(binary, reviews = reviewed.rust) {
+  const revisions = new Set(
+    [
+      ...readFileSync(binary)
+        .toString('latin1')
+        .matchAll(/\/rustc\/([a-f0-9]{40})/g),
+    ].map((m) => m[1]),
+  );
+  const found = reviews.find((p) => revisions.size === 1 && revisions.has(p.revision));
+  if (!found)
+    throw new Error(
+      `Review the Rust runtime embedded in the engine: ${[...revisions].join(', ') || 'unknown compiler revision'}`,
     );
-    const rustNotices = reviewed.rust.find(
-      (p) => compilerRevisions.size === 1 && compilerRevisions.has(p.revision),
-    );
-    if (!rustNotices)
-      throw new Error(
-        `Review the Rust runtime embedded in the staged engine: ${[...compilerRevisions].join(', ') || 'unknown compiler revision'}`,
-      );
-    add(supplement(rustNotices, 'Streaming engine'));
+  return found;
+}
+
+export function generateLicenseNotices(app, binaries) {
+  verifyReviewedNotices();
+  const output = join(app, 'Contents/Resources/licenses');
+  const collector = noticeCollector(output);
+  const { components, file, supplement, add } = collector;
+  add({
+    name: 'Kino',
+    version: run('/usr/libexec/PlistBuddy', [
+      '-c',
+      'Print :CFBundleShortVersionString',
+      join(app, 'Contents/Info.plist'),
+    ]).trim(),
+    scope: 'Application',
+    license: 'GPL-3.0-only',
+    repository: 'https://github.com/chriscorbell/kino',
+    binaries: binaries
+      .filter((p) =>
+        ['Contents/MacOS/Kino', 'Contents/MacOS/kino-stream-engine'].includes(relative(app, p)),
+      )
+      .map((p) => relative(app, p)),
+    files: kinoSources.map((p) => file(join(root, p), `Kino source: ${p}`)),
+  });
+  collectWebInterface(collector);
+
+  const engine = join(app, 'Contents/MacOS/kino-stream-engine');
+  if (existsSync(engine)) {
+    collectEngineCrates(collector, 'aarch64-apple-darwin');
+    add(supplement(engineRuntime(engine), 'Streaming engine'));
   }
 
   // Match UUIDs, which survive install-name changes and signing, to the active
@@ -402,7 +414,9 @@ export function verifyLicenseBundle(app, binaries) {
   return manifest;
 }
 
-function render(manifest) {
+// With inline, the page carries every text itself. A sandboxed app hands a browser a single
+// file through the desktop portal, so links to the texts beside it would not resolve.
+export function render(manifest, inline) {
   const escape = (value) =>
     String(value ?? '').replace(
       /[&<>"']/g,
@@ -410,8 +424,8 @@ function render(manifest) {
     );
   const sections = [...new Set(manifest.components.map((p) => p.scope))];
   return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kino licenses and notices</title>
-<style>*{box-sizing:border-box}html{color-scheme:dark;background:#16191b;color:#e9e6df;font:16px/1.6 system-ui,sans-serif}body{max-width:960px;margin:auto;padding:48px 24px}h1{font-size:36px;line-height:1.2;font-weight:600}h2{margin-top:48px;font-size:23px}h3{margin:0;font-size:17px;font-weight:550}p{color:#b9b8b3}a{color:#b1ccce;text-underline-offset:3px}nav{display:flex;gap:12px 24px;flex-wrap:wrap;margin:28px 0}article{border-top:1px solid #34383a;padding:20px 0}article p{margin:4px 0}ul{padding-left:24px}input{width:100%;padding:13px 16px;border:1px solid #555c5e;border-radius:6px;background:#202527;color:inherit;font:inherit}a:focus-visible,input:focus-visible{outline:2px solid #b1ccce;outline-offset:4px}[hidden]{display:none}</style>
-<body><h1>Licenses and notices</h1><p>Kino and its bundled dependencies. Full upstream texts and retained provenance are available below, without an internet connection.</p><p>${escape(manifest.scope)}</p><a href="manifest.json">Read the component inventory and file checksums</a><nav>${sections.map((s, i) => `<a href="#section-${i}">${escape(s)}</a>`).join('')}</nav><label for="search">Find a component</label><input type="search" id="search" placeholder="Name or license" autocomplete="off"><p id="count" role="status">${manifest.components.length} components</p>
+<style>*{box-sizing:border-box}html{color-scheme:dark;background:#16191b;color:#e9e6df;font:16px/1.6 system-ui,sans-serif}body{max-width:960px;margin:auto;padding:48px 24px}h1{font-size:36px;line-height:1.2;font-weight:600}h2{margin-top:48px;font-size:23px}h3{margin:0;font-size:17px;font-weight:550}p{color:#b9b8b3}a{color:#b1ccce;text-underline-offset:3px}nav{display:flex;gap:12px 24px;flex-wrap:wrap;margin:28px 0}article{border-top:1px solid #34383a;padding:20px 0}article p{margin:4px 0}ul{padding-left:24px}input{width:100%;padding:13px 16px;border:1px solid #555c5e;border-radius:6px;background:#202527;color:inherit;font:inherit}a:focus-visible,input:focus-visible{outline:2px solid #b1ccce;outline-offset:4px}[hidden]{display:none}${inline ? 'figure{margin:0;border-top:1px solid #34383a;padding:20px 0}figcaption{font-weight:550}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.5 ui-monospace,monospace;color:#cfccc5}' : ''}</style>
+<body><h1>Licenses and notices</h1><p>Kino and its bundled dependencies. Full upstream texts and retained provenance are available below, without an internet connection.</p><p>${escape(manifest.scope)}</p>${inline ? '' : '<a href="manifest.json">Read the component inventory and file checksums</a>'}<nav>${sections.map((s, i) => `<a href="#section-${i}">${escape(s)}</a>`).join('')}</nav><label for="search">Find a component</label><input type="search" id="search" placeholder="Name or license" autocomplete="off"><p id="count" role="status">${manifest.components.length} components</p>
 ${sections
   .map(
     (s, i) =>
@@ -419,10 +433,23 @@ ${sections
         .filter((p) => p.scope === s)
         .map(
           (p) =>
-            `<article data-search="${escape(`${p.name} ${p.version} ${p.license}`.toLowerCase())}"><h3>${escape(p.name)} <span>${escape(p.version)}</span></h3><p>Declared license: ${escape(p.license || 'Terms in the original notice files')}</p>${p.notes ? `<p>${escape(p.notes)}</p>` : ''}<ul>${p.files.map((f) => `<li><a href="${f.path}">${escape(f.name)}</a>${f.kind ? ` (${escape(f.kind)})` : ''}</li>`).join('')}</ul></article>`,
+            `<article data-search="${escape(`${p.name} ${p.version} ${p.license}`.toLowerCase())}"><h3>${escape(p.name)} <span>${escape(p.version)}</span></h3><p>Declared license: ${escape(p.license || 'Terms in the original notice files')}</p>${p.notes ? `<p>${escape(p.notes)}</p>` : ''}<ul>${p.files.map((f) => `<li><a href="${inline ? `#text-${f.sha256}` : f.path}">${escape(f.name)}</a>${f.kind ? ` (${escape(f.kind)})` : ''}</li>`).join('')}</ul></article>`,
         )
         .join('')}</section>`,
   )
-  .join('')}
+  .join('')}${
+    inline
+      ? `<div id="texts"><h2>License texts</h2>${[
+          ...new Map(
+            manifest.components.flatMap((p) => p.files).map((f) => [f.sha256, f]),
+          ).values(),
+        ]
+          .map(
+            (f) =>
+              `<figure id="text-${f.sha256}"><figcaption>${escape(f.name)}</figcaption><pre>${escape(readFileSync(join(inline, f.path), 'utf8'))}</pre></figure>`,
+          )
+          .join('')}</div>`
+      : ''
+  }
 <script>const input=document.querySelector('#search');const items=[...document.querySelectorAll('article')];input.addEventListener('input',()=>{const query=input.value.trim().toLowerCase();let count=0;for(const item of items){item.hidden=!item.dataset.search.includes(query);if(!item.hidden)count++}for(const section of document.querySelectorAll('section'))section.hidden=![...section.querySelectorAll('article')].some(item=>!item.hidden);document.querySelector('#count').textContent=count+' component'+(count===1?'':'s')});</script></body></html>`;
 }

@@ -1,0 +1,5 @@
+This software is based in part on the work of the Independent JPEG Group.
+
+Kino includes the IJG-derived jfdctfst.c, jfdctint_template.c, and jrevdct.c code as part of FFmpeg 9.0.1, built by Kino's Flatpak manifest from the n9.0.1 tag, commit bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa. Kino has made no changes to those FFmpeg source files. The Flatpak manifest applies no source patches to FFmpeg.
+
+The accompanying source-header notices retain the original copyright, license, and upstream implementation comments. The complete FFmpeg source at that tag is available at https://github.com/FFmpeg/FFmpeg/tree/n9.0.1.
