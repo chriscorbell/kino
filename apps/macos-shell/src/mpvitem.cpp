@@ -7,6 +7,7 @@
 #include "platform.h"
 #include "tlsroots.h"
 
+#include <QGuiApplication>
 #include <QOpenGLContext>
 #include <QOpenGLFramebufferObject>
 #include <QQuickOpenGLUtils>
@@ -20,6 +21,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <mutex>
+#include <vector>
 
 namespace {
 
@@ -201,13 +203,26 @@ public:
     QOpenGLFramebufferObject *createFramebufferObject(const QSize &size) override {
         if (!renderContext_ && context_->initialized) {
             mpv_opengl_init_params openGlParameters{resolveOpenGlSymbol, nullptr};
-            mpv_render_param parameters[] = {
+            std::vector<mpv_render_param> parameters{
                 {MPV_RENDER_PARAM_API_TYPE, const_cast<char *>(MPV_RENDER_API_TYPE_OPENGL)},
                 {MPV_RENDER_PARAM_OPENGL_INIT_PARAMS, &openGlParameters},
-                {MPV_RENDER_PARAM_INVALID, nullptr},
             };
+#if defined(Q_OS_LINUX)
+            // VA-API hands decoded frames to this OpenGL context through the
+            // display server connection Qt already holds; without it mpv can
+            // only copy them back through the CPU.
+#if QT_CONFIG(xcb)
+            if (auto *x11 = qGuiApp->nativeInterface<QNativeInterface::QX11Application>())
+                parameters.push_back({MPV_RENDER_PARAM_X11_DISPLAY, x11->display()});
+#endif
+#if QT_CONFIG(wayland)
+            if (auto *wayland = qGuiApp->nativeInterface<QNativeInterface::QWaylandApplication>())
+                parameters.push_back({MPV_RENDER_PARAM_WL_DISPLAY, wayland->display()});
+#endif
+#endif
+            parameters.push_back({MPV_RENDER_PARAM_INVALID, nullptr});
             const int result = mpv_render_context_create(&renderContext_, context_->handle,
-                                                         parameters);
+                                                         parameters.data());
             if (result < 0) {
                 std::lock_guard lock(context_->callbackMutex);
                 if (auto *item = context_->item) {
