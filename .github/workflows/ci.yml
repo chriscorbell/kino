@@ -359,16 +359,23 @@ jobs:
           foreach ($unwanted in 'vc_redist.x64.exe', 'd3dcompiler_47.dll', 'dxcompiler.dll', 'dxil.dll', 'opengl32sw.dll', 'qmltooling') {
             if (Test-Path "$out/$unwanted") { throw "The portable build carries $unwanted" }
           }
-      # The portable build itself, started as someone would start it. The
-      # runner's display has no OpenGL driver, so Qt draws with the software
-      # OpenGL the package carries for such machines.
+      # The portable build, started as someone would start it. The runner's
+      # display has no OpenGL driver, so a copy of the build gets Mesa's
+      # software OpenGL beside Kino.exe, which Windows loads ahead of its own.
       - name: Run the interface probes
         timeout-minutes: 10
         shell: bash
         env:
-          KINO_APP_BINARY: ${{ github.workspace }}/build/windows-package/Kino/Kino.exe
-          QT_OPENGL: software
+          KINO_APP_BINARY: ${{ github.workspace }}/build/windows-probe/Kino/Kino.exe
+          KINO_MESA_ARCHIVE: mesa3d-26.2.1-release-msvc.7z
+          KINO_MESA_SHA256: 78a0305844074535e73dfb6dcb5eb2a65f1d9dc445102e1f4c3c3e97dace19bf
         run: |
+          mkdir -p build/windows-probe
+          cp -r build/windows-package/Kino build/windows-probe/
+          curl.exe -fsSL -o "build/$KINO_MESA_ARCHIVE" \
+            "https://github.com/pal1000/mesa-dist-win/releases/download/26.2.1/$KINO_MESA_ARCHIVE"
+          echo "$KINO_MESA_SHA256  build/$KINO_MESA_ARCHIVE" | sha256sum -c -
+          7z e "build/$KINO_MESA_ARCHIVE" -obuild/windows-probe/Kino x64/opengl32.dll x64/libgallium_wgl.dll -y >/dev/null
           pnpm macos:check-launch
           pnpm macos:check-navigation
           pnpm macos:check-focus
