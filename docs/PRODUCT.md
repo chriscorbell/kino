@@ -55,7 +55,7 @@ Desktop Settings provides Open Log Folder and Copy Diagnostic Summary. TV Settin
 
 ## Distribution and updates
 
-Official releases are published through GitHub with signatures and checksums. Kino checks once daily, prompts when an update exists, and never installs silently. Sideloaded TV builds notify the user and open the release page. Kino settings remain device-local and do not sync.
+Official releases are published through GitHub with signatures and checksums, built by the Release workflow from a version tag. The TV APK is signed with Kino's release key, whose certificate the repository pins, so every release installs over the last. Kino checks once daily, prompts when an update exists, and never installs silently. Sideloaded TV builds notify the user and open the release page. Kino settings remain device-local and do not sync.
 
 Desktop update discovery uses the packaged release version and the public GitHub releases feed for `chriscorbell/kino`. A private repository or a channel without a published release reports "No public release is available yet." Stable builds check GitHub's latest published release; preview builds compare the most recent 100 releases, including previews. A check runs at launch if the last attempt was at least 24 hours ago, then once the next daily interval expires while the app is running. Failed automatic attempts use the same daily limit. Settings can request a manual check at any time.
 

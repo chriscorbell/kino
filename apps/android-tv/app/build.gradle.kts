@@ -80,16 +80,31 @@ android {
         compose = true
         buildConfig = true
     }
+    signingConfigs {
+        // The release workflow supplies Kino's release key through these variables. Without
+        // them, as on every development machine and in CI, release builds use the machine's
+        // development key, so a local build can never pass for an official one.
+        System.getenv("KINO_ANDROID_KEYSTORE")?.let { keystore ->
+            create("kinoRelease") {
+                storeFile = file(keystore)
+                storePassword = System.getenv("KINO_ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KINO_ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("KINO_ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         getByName("release") {
             isMinifyEnabled = true
             isShrinkResources = true
-            // This is still a development artifact, using the existing development key.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig =
+                signingConfigs.findByName("kinoRelease") ?: signingConfigs.getByName("debug")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
         create("benchmark") {
             initWith(getByName("release"))
+            // The instrumentation APK is always development signed and must match its target.
+            signingConfig = signingConfigs.getByName("debug")
             matchingFallbacks += "release"
             proguardFiles("benchmark-rules.pro")
         }

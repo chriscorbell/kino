@@ -1,0 +1,183 @@
+name: Release
+
+# A tag named for the root package.json version, such as v0.1.0-beta.1, builds the macOS disk
+# image and the TV APK from that commit and publishes both with their checksums. A version with a
+# pre-release label is published as a GitHub pre-release, which is what Kino calls a pre-release:
+# unsigned by Apple and unannounced. Running the workflow by hand builds the same artifacts without
+# publishing anything.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Check the release version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - id: version
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            node scripts/check-version.mjs --tag "$GITHUB_REF_NAME"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          case "$version" in
+            *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+  macos:
+    name: Build the macOS disk image
+    needs: version
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/build/engine-target
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install native dependencies
+        run: |
+          brew update
+          brew install cmake qt mpv pkgconf libtorrent-rasterbar boost
+      - name: Install the pinned Rust toolchain
+        working-directory: apps/stream-engine
+        run: rustup toolchain install "$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)" --profile minimal
+      - name: Build the streaming engine
+        run: pnpm engine:build
+      - name: Package, verify notices, and build the disk image
+        run: pnpm macos:package
+      - name: Check the bundle carries the release version
+        run: node scripts/check-version.mjs --app build/dist/Kino.app
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: macos
+          path: |
+            build/dist/Kino-*-arm64.dmg
+            build/dist/SHA256SUMS
+          if-no-files-found: error
+
+  android:
+    name: Build the signed TV APK
+    needs: version
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Install the pinned Android toolchain
+        run: |
+          tools="$ANDROID_HOME/cmdline-tools/latest/bin"
+          if [ ! -x "$tools/sdkmanager" ]; then
+            tools="$(dirname "$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | sort -V | tail -1)")"
+          fi
+          yes | "$tools/sdkmanager" --licenses > /dev/null
+          "$tools/sdkmanager" 'platforms;android-36' 'build-tools;35.0.0' 'ndk;29.0.14206865'
+      - name: Restore the vendored Core and its Cargo dependencies
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            build/android-core-target
+            build/vendor/stremio-core-kotlin
+            build/vendor/stremio-core-kotlin.stamp
+            build/stremio-core-kotlin-1.15.0.tar.gz
+            build/android-ffmpeg
+            build/android-ffmpeg.stamp
+          key: android-core-${{ runner.os }}-${{ hashFiles('scripts/build-android.py', 'apps/android-tv/core/Cargo.lock', 'apps/android-tv/core/patches/**') }}
+          restore-keys: android-core-${{ runner.os }}-
+      - name: Unpack the release key
+        env:
+          KEYSTORE: ${{ secrets.KINO_ANDROID_KEYSTORE_BASE64 }}
+        # A tag must be signed with Kino's release key. A dry run without it builds with the
+        # runner's development key so the rest of the pipeline can still be exercised.
+        run: |
+          if [ -z "$KEYSTORE" ]; then
+            if [ "$GITHUB_REF_TYPE" = tag ]; then
+              echo "::error::The KINO_ANDROID_KEYSTORE_BASE64 secret is missing; see scripts/setup-android-release-key.sh"
+              exit 1
+            fi
+            echo "No release key; this dry run is development signed."
+            exit 0
+          fi
+          printf '%s' "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/kino-release.jks"
+          echo "KINO_ANDROID_KEYSTORE=$RUNNER_TEMP/kino-release.jks" >> "$GITHUB_ENV"
+      - name: Build the distributed APK
+        env:
+          KINO_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.KINO_ANDROID_KEYSTORE_PASSWORD }}
+          KINO_ANDROID_KEY_ALIAS: ${{ secrets.KINO_ANDROID_KEY_ALIAS }}
+          KINO_ANDROID_KEY_PASSWORD: ${{ secrets.KINO_ANDROID_KEY_PASSWORD }}
+        run: python3 scripts/build-android.py
+      - name: Check the version and the signing certificate
+        run: |
+          node scripts/check-version.mjs --apk build/android/Kino-TV.apk
+          if [ -n "${KINO_ANDROID_KEYSTORE:-}" ]; then
+            node scripts/check-android-signature.mjs build/android/Kino-TV.apk
+          fi
+      - name: Name the APK for the release
+        run: |
+          version="${{ needs.version.outputs.version }}"
+          mkdir -p build/release
+          cp build/android/Kino-TV.apk "build/release/Kino-TV-$version.apk"
+          (cd build/release && sha256sum "Kino-TV-$version.apk" > SHA256SUMS)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: android
+          path: build/release/
+          if-no-files-found: error
+
+  publish:
+    name: Publish the release
+    if: github.ref_type == 'tag'
+    needs: [version, macos, android]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          path: artifacts
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+          PRERELEASE: ${{ needs.version.outputs.prerelease }}
+        run: |
+          mkdir release
+          cp artifacts/macos/Kino-*-arm64.dmg artifacts/android/Kino-TV-*.apk release/
+          cat artifacts/macos/SHA256SUMS artifacts/android/SHA256SUMS > release/SHA256SUMS
+          (cd release && sha256sum --check SHA256SUMS)
+          flags=(--title "Kino $VERSION" --generate-notes --verify-tag)
+          if [ "$PRERELEASE" = true ]; then flags+=(--prerelease); fi
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" "${flags[@]}" release/*
