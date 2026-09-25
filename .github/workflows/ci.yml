@@ -222,9 +222,44 @@ jobs:
         timeout-minutes: 30
         run: pnpm macos:package --no-dmg
 
+  linux:
+    name: Linux shell build
+    needs: changes
+    if: needs.changes.outputs.native == 'true'
+    runs-on: ubuntu-24.04
+    # The shell needs Qt 6.8 and libmpv 2.4 or newer, which Ubuntu ships from
+    # 26.04. The container supplies them until the hosted image catches up.
+    container: ubuntu:26.04
+    timeout-minutes: 30
+    steps:
+      - name: Install build dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git build-essential cmake \
+            ninja-build pkg-config libmpv-dev qt6-base-dev qt6-declarative-dev qt6-webengine-dev \
+            qt6-webchannel-dev libgl-dev
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Compile the shell
+        run: |
+          cmake -S apps/macos-shell -B build/linux -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
+          cmake --build build/linux --parallel "$(nproc)"
+      - name: Run native unit tests
+        timeout-minutes: 5
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: ctest --test-dir build/linux --output-on-failure --timeout 30
+
   validate:
     name: Validate
-    needs: [changes, web, native]
+    needs: [changes, web, native, linux]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -234,12 +269,15 @@ jobs:
           KINO_CHANGES_RESULT: ${{ needs.changes.result }}
           KINO_WEB_RESULT: ${{ needs.web.result }}
           KINO_NATIVE_RESULT: ${{ needs.native.result }}
+          KINO_LINUX_RESULT: ${{ needs.linux.result }}
           KINO_NATIVE_REQUIRED: ${{ needs.changes.outputs.native }}
         run: |
           test "$KINO_CHANGES_RESULT" = success
           test "$KINO_WEB_RESULT" = success
           if test "$KINO_NATIVE_REQUIRED" = true; then
             test "$KINO_NATIVE_RESULT" = success
+            test "$KINO_LINUX_RESULT" = success
           else
             test "$KINO_NATIVE_RESULT" = skipped
+            test "$KINO_LINUX_RESULT" = skipped
           fi

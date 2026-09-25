@@ -118,6 +118,15 @@ export function nativeShellPresent() {
   return Boolean(nativeWindow().qt?.webChannelTransport);
 }
 
+/** The device name playback progress carries: the shell's operating system, or the web. */
+export function playbackDevice() {
+  if (!nativeShellPresent()) return 'kino-web';
+  const agent = navigator.userAgent;
+  if (agent.includes('Windows')) return 'kino-windows';
+  if (agent.includes('Linux')) return 'kino-linux';
+  return 'kino-macos';
+}
+
 function loadChannelScript() {
   const target = nativeWindow();
   if (target.QWebChannel) return Promise.resolve();

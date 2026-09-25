@@ -23,7 +23,8 @@ std::optional<RefreshMode> chooseRefreshMode(const std::vector<RefreshMode> &mod
                                              const RefreshMode &current, double frameRate);
 
 // Switches the display a window is on to a matching mode for the rest of the app session, and
-// back. CoreGraphics also puts the mode back if Kino exits without restoring it.
+// back. CoreGraphics on macOS and the display settings API on Windows also put the mode back if
+// Kino exits without restoring it. Linux reports that nothing changed.
 class DisplayModeMatcher {
 public:
     DisplayModeMatcher() = default;

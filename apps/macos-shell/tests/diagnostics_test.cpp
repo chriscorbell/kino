@@ -1,5 +1,6 @@
 #include "diagnosticbuildinfo.h"
 #include "diagnostics.h"
+#include "platform.h"
 #include "mpvitem.h"
 #include "streamengine.h"
 
@@ -132,7 +133,7 @@ private slots:
         QVERIFY(player.version().startsWith("mpv "));
         QVERIFY(summary.contains("Player: " + player.version()));
         QVERIFY(summary.contains("External override (unavailable; version unknown)"));
-        QVERIFY(summary.contains("VideoToolbox"));
+        QVERIFY(summary.contains("Video decoder: " + Platform::hardwareDecoderName() + " required"));
         QVERIFY(summary.contains("SDR"));
         QVERIFY(!summary.contains("SENTINEL"));
         QVERIFY(!summary.contains("https://"));

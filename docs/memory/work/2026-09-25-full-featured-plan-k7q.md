@@ -16,6 +16,17 @@ Source: Chris's instruction of 2026-09-25 to plan and implement a full-featured,
 - After a Homebrew upgrade of mpv or its dependencies, CMake fails with "includes non-existent path". Delete `build/macos/CMakeCache.txt` and build again.
 - Windows (`gaming-pc`, PowerShell over SSH) and Linux with an AMD GPU (`minicore`) are reachable for Milestone 5 hardware checks.
 
+## Milestone 5 inventory (2026-09-25)
+
+- The shell has no conditional compilation at all: every macOS dependency is compiled unconditionally.
+- Already behind neutral headers: `nowplaying.h` (MediaPlayer in `.mm`), `sleepobserver.h` (AppKit in `.mm`), `displaymode.h`. `powerguard.h` leaks IOKit types in its header.
+- Hard-coded: `hwdec=videotoolbox` and the `hwdec-current == "videotoolbox"` check in `mpvitem.cpp`; the `.app` paths `../Resources/ui` (`main.cpp`) and `../Resources/licenses` (`diagnostics.cpp`); the engine name without `.exe` (`streamengine.cpp`, `cmake/PackageEngine.cmake`); `::kill(SIGKILL)` in `main.cpp`; `architecture=arm64` in logs; "VideoToolbox required" in diagnostics.
+- Portable already: `tlsroots`, `streamengine` (QProcess), `securestore` (0600 file, ADR 0016), `logging`, `externalnavigation`, `addonnetwork`, `closecoordinator`.
+- macOS-only tests: `mpv_failure.cpp` and `render_lifetime_guard.cpp` use dyld interposition; `streamengine_test.cpp` uses `kill` and a Homebrew path.
+- Client: `en-US.ts` says "macOS secure store" and "hardware-decoded on this Mac"; `PlayerScreen.tsx` sends `device: 'kino-macos'`.
+- Probes run `build/macos/Kino.app/Contents/MacOS/Kino` unless `KINO_APP_BINARY` is set; most only assume that path.
+- minicore is a production Ubuntu Server running Chris's Docker stacks: installing build packages there needs his yes. Linux work runs in CI containers instead.
+
 ## Waiting on Chris
 
 - Android release signing key: generating it and storing it as repository secrets needs his yes.
