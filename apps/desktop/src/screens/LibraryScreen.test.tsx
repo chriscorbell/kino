@@ -39,6 +39,8 @@ it('uses the requests derived from serialized type options to filter Movies, Ser
     poster: null,
     posterShape: 'poster' as const,
     progress: 0,
+    notifications: 0,
+    watched: false,
     type,
   }));
   const target: CoreTransport = {
@@ -110,6 +112,8 @@ it('loads entries 101-125, retains visible entries on failure, and retries the s
         poster: null,
         posterShape: 'poster' as const,
         progress: 0,
+        notifications: 0,
+        watched: false,
         type: 'movie',
       })),
     })) as CoreTransport['getState'],
@@ -124,4 +128,55 @@ it('loads entries 101-125, retains visible entries on failure, and retries the s
   expect(screen.getAllByRole('button', { name: /Saved title/ })).toHaveLength(125);
   expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument();
   expect(request.page).toBe(2);
+});
+
+it('sorts with Core’s own choices and shows progress, watched, and new episodes', async () => {
+  let request: LibraryRequest = { page: 1, sort: 'lastwatched', type: null };
+  const sorts = ['lastwatched', 'name', 'notwatched'];
+  const target: CoreTransport = {
+    ...idle,
+    dispatch: vi.fn(async (action) => {
+      if (action.action !== 'Load') return;
+      request = (action.args as { args: { request: LibraryRequest } }).args.request;
+    }),
+    getState: (async (): Promise<LibraryState> => ({
+      selected: { request },
+      selectable: {
+        nextPage: false,
+        types: [],
+        sorts: sorts.map((sort) => ({
+          request: { page: 1, sort, type: null },
+          selected: sort === request.sort,
+          sort,
+        })),
+      },
+      catalog: [
+        { id: 'half', name: 'Half seen', progress: 40, notifications: 0, watched: false },
+        { id: 'done', name: 'Seen', progress: 0, notifications: 0, watched: true },
+        { id: 'fresh', name: 'New out', progress: 0, notifications: 2, watched: true },
+      ].map((item) => ({
+        ...item,
+        poster: null,
+        posterShape: 'poster' as const,
+        type: 'series',
+      })),
+    })) as CoreTransport['getState'],
+  };
+  mount(target);
+  const sort = await screen.findByRole('combobox', { name: 'Sort' });
+  expect([...(sort as HTMLSelectElement).options].map((option) => option.text)).toEqual([
+    'Recently watched',
+    'Title A–Z',
+    'Unwatched first',
+  ]);
+  fireEvent.change(sort, { target: { value: 'name' } });
+  await waitFor(() => expect(request).toEqual({ page: 1, sort: 'name', type: null }));
+  await waitFor(() => expect(sort).toHaveValue('name'));
+
+  const card = (name: string) => screen.getByText(name).closest('button')!;
+  expect(card('Half seen').querySelector('[style*="width: 40%"]')).not.toBeNull();
+  expect(card('Seen')).toHaveTextContent('Watched');
+  // New episodes matter more than an old watched mark.
+  expect(card('New out')).toHaveTextContent('2 new');
+  expect(card('New out')).not.toHaveTextContent('Watched');
 });

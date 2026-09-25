@@ -641,6 +641,29 @@
   margin-top: 34px;
 }
 
+.libraryControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 22px 0 28px;
+}
+
+.libraryControls > .pills {
+  margin: 0;
+}
+
+.librarySort {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  color: var(--kino-text-faint);
+  font-size: 12px;
+}
+
+.librarySort select,
 .seasonSelector select {
   min-height: 38px;
   padding: 0 14px;

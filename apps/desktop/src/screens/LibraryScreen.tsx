@@ -17,6 +17,10 @@ function typeLabel(type: string | null) {
   return `${type.charAt(0).toUpperCase()}${type.slice(1)}`;
 }
 
+function sortLabel(sort: string) {
+  return `${sort.charAt(0).toUpperCase()}${sort.slice(1)}`;
+}
+
 export function LibraryScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => void }) {
   const { transport } = useCore();
   const [request, setRequest] = useBrowseState('library');
@@ -46,23 +50,45 @@ export function LibraryScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => v
     <div className={styles.page}>
       <h1>{enUS.library.title}</h1>
 
-      {selectable && selectable.types.length > 0 ? (
-        <div className={styles.pills} aria-label={enUS.library.filterLabel} role="group">
-          {selectable.types.map((option) => (
-            <button
-              aria-pressed={option.selected}
-              className={option.selected ? styles.pillActive : styles.pill}
-              key={option.type ?? 'all'}
-              onClick={() => {
-                // The adapter derived this request from the option and the
-                // selected sort, so the screen never builds a Core link.
-                if (!option.selected) setRequest(option.request);
-              }}
-              type="button"
-            >
-              {typeLabel(option.type)}
-            </button>
-          ))}
+      {selectable && (selectable.types.length > 0 || selectable.sorts.length > 1) ? (
+        <div className={styles.libraryControls}>
+          {selectable.types.length > 0 ? (
+            <div className={styles.pills} aria-label={enUS.library.filterLabel} role="group">
+              {selectable.types.map((option) => (
+                <button
+                  aria-pressed={option.selected}
+                  className={option.selected ? styles.pillActive : styles.pill}
+                  key={option.type ?? 'all'}
+                  onClick={() => {
+                    // The adapter derived this request from the option and the
+                    // selected sort, so the screen never builds a Core link.
+                    if (!option.selected) setRequest(option.request);
+                  }}
+                  type="button"
+                >
+                  {typeLabel(option.type)}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {selectable.sorts.length > 1 ? (
+            <label className={styles.librarySort}>
+              <span>{enUS.library.sortLabel}</span>
+              <select
+                onChange={(event) => {
+                  const option = selectable.sorts.find((sort) => sort.sort === event.target.value);
+                  if (option && !option.selected) setRequest(option.request);
+                }}
+                value={selectable.sorts.find((sort) => sort.selected)?.sort ?? ''}
+              >
+                {selectable.sorts.map((option) => (
+                  <option key={option.sort} value={option.sort}>
+                    {enUS.library.sorts[option.sort] ?? sortLabel(option.sort)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
         </div>
       ) : null}
 
@@ -84,9 +110,11 @@ export function LibraryScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => v
             const preview = savedTitlePreview(item);
             return (
               <MediaCard
+                badge={item.notifications > 0 ? enUS.library.newEpisodes(item.notifications) : null}
                 item={preview}
                 key={`${item.type}:${item.id}`}
                 onOpen={() => onOpen(preview)}
+                progress={item.progress}
               />
             );
           })}

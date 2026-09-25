@@ -724,10 +724,15 @@ export function adaptLibraryState(raw: unknown): LibraryState {
       return {
         id: identity(item._id, at(entrySite, '_id')),
         name: text(item.name, at(entrySite, 'name')),
+        notifications: Math.max(
+          0,
+          Math.trunc(numberOr(item.notifications, at(entrySite, 'notifications'), 0)),
+        ),
         poster: displayText(item.poster, at(entrySite, 'poster')),
         posterShape: posterShape(item.posterShape, at(entrySite, 'posterShape')),
         progress: numberOr(item.progress, at(entrySite, 'progress'), 0),
         type: identity(item.type, at(entrySite, 'type')),
+        watched: flagOr(item.watched, at(entrySite, 'watched'), false),
       };
     }),
     selectable: selectable
