@@ -5,6 +5,7 @@ package app.kino.tv
 
 import android.content.Context
 import android.graphics.Color
+import android.media.MediaCodecInfo.CodecProfileLevel as MediaCodecInfoLevels
 import android.net.Uri
 import android.os.Handler
 import android.text.SpannableString
@@ -36,6 +37,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.*
 import androidx.media3.common.text.Cue
 import androidx.media3.common.text.CueGroup
+import androidx.media3.common.util.CodecSpecificDataUtil
 import androidx.media3.common.util.Util
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
@@ -49,6 +51,7 @@ import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.mediacodec.MediaCodecAdapter
 import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
+import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.video.MediaCodecVideoRenderer
 import androidx.media3.exoplayer.video.VideoRendererEventListener
@@ -61,16 +64,41 @@ import androidx.tv.material3.Text
 import kotlinx.coroutines.*
 
 /**
- * Reject unvalidated HDR before configuring a decoder or exposing a video surface. With [stereo]
- * set, the sink accepts PCM only, so every track is decoded and folded to two channels by
- * [StereoDownmixProcessor] inside Kino rather than passed through or left to the platform mixer,
- * and [LoudnessNormalizer] then evens the level out across sources so a film and a web video do not
- * need different volume settings.
+ * Hardware video only, with HDR10 tone mapped to SDR by Kino rather than passed to the display.
+ *
+ * A PQ source configures its decoder against [HdrVideoOutput]'s surface instead of the player's
+ * display surface; that output tone maps each frame and draws it into the display surface itself.
+ * The renderer intercepts the player's own `MSG_SET_VIDEO_OUTPUT` for this, so the player keeps
+ * managing one display surface while the decoder never sees it during HDR playback. SDR takes the
+ * direct path unchanged. HLG and Dolby Vision stay rejected until each is measured on the device
+ * the way HDR10 was (ADR 0021), before a decoder is configured or a surface exposed.
+ *
+ * With [stereo] set, the sink accepts PCM only, so every track is decoded and folded to two
+ * channels by [StereoDownmixProcessor] inside Kino rather than passed through or left to the
+ * platform mixer, and [LoudnessNormalizer] then evens the level out across sources so a film and a
+ * web video do not need different volume settings.
  */
 class HardwareRenderers(context: Context, private val stereo: Boolean = false) :
     DefaultRenderersFactory(context) {
     var unsupportedReason: Int = R.string.hardware_required
         private set
+
+    /** Whether the current video decoder renders through Kino's HDR tone mapping. */
+    @Volatile
+    var toneMapping: Boolean = false
+        private set
+
+    private var hdrOutput: HdrVideoOutput? = null
+
+    /** Tone-mapped frames the current player has presented, for the playback gates. */
+    val toneMappedFramesPresented: Long
+        get() = hdrOutput?.presentedFrames ?: 0L
+
+    /**
+     * Called on the playback thread with the coded video size when HDR tone mapping starts, so the
+     * display surface's buffers can match the video rather than the interface resolution.
+     */
+    var onToneMappedVideoSize: ((width: Int, height: Int) -> Unit)? = null
 
     override fun buildAudioSink(
         context: Context,
@@ -85,6 +113,26 @@ class HardwareRenderers(context: Context, private val stereo: Boolean = false) :
         }
         return builder.build()
     }
+
+    private fun dolbyVisionProfile(format: Format): Int? =
+        if (format.sampleMimeType != MimeTypes.VIDEO_DOLBY_VISION) null
+        else CodecSpecificDataUtil.getCodecProfileAndLevel(format)?.first ?: -1
+
+    /**
+     * HLG, and every Dolby Vision profile except 8. Profile 8 carries a cross-compatible base
+     * layer that an HEVC decoder plays on its own, ignoring the enhancement metadata, and whose
+     * range the container's colour tags state: 8.1 is HDR10 and takes the tone-mapped path, 8.2
+     * is SDR, 8.4 is HLG and stays rejected with HLG. Profile 5 has no compatible base layer, so
+     * decoding it as HEVC would show the wrong colours, and 7 and 9 have not been measured.
+     */
+    private fun rejectedRange(format: Format): Boolean {
+        if (format.colorInfo?.colorTransfer == C.COLOR_TRANSFER_HLG) return true
+        val profile = dolbyVisionProfile(format) ?: return false
+        return profile != MediaCodecInfoLevels.DolbyVisionProfileDvheSt || format.colorInfo == null
+    }
+
+    private fun pq(format: Format): Boolean =
+        format.colorInfo?.colorTransfer == C.COLOR_TRANSFER_ST2084
 
     override fun buildVideoRenderers(
         context: Context,
@@ -105,21 +153,44 @@ class HardwareRenderers(context: Context, private val stereo: Boolean = false) :
                         .setAllowedJoiningTimeMs(allowedVideoJoiningTimeMs)
                         .setEnableDecoderFallback(false)
                 ) {
+                /** The display surface the player last asked for. */
+                private var displayOutput: Any? = null
+
+                override fun handleMessage(messageType: Int, message: Any?) {
+                    if (messageType == Renderer.MSG_SET_VIDEO_OUTPUT) {
+                        displayOutput = message
+                        // During tone mapping the decoder stays on Kino's input surface and the
+                        // display surface becomes the tone mapper's target instead.
+                        if (toneMapping) {
+                            hdrOutput?.setDisplay(message as? android.view.Surface)
+                            return
+                        }
+                    }
+                    super.handleMessage(messageType, message)
+                }
+
                 override fun getDecoderInfos(
                     selector: MediaCodecSelector,
                     format: Format,
                     requiresSecureDecoder: Boolean,
                 ): List<MediaCodecInfo> {
-                    if (
-                        ColorInfo.isTransferHdr(format.colorInfo) ||
-                            format.sampleMimeType == MimeTypes.VIDEO_DOLBY_VISION
-                    ) {
+                    if (rejectedRange(format)) {
                         unsupportedReason = R.string.hdr_unsupported
                         return emptyList()
                     }
-                    return super.getDecoderInfos(selector, format, requiresSecureDecoder).filter {
-                        it.hardwareAccelerated && !it.softwareOnly
-                    }
+                    // Dolby Vision profile 8 goes to the HEVC decoders for its base layer. The
+                    // Shield's Dolby Vision decoder would hand the display a Dolby Vision signal,
+                    // which is exactly the output Kino does not produce.
+                    val decoders =
+                        if (dolbyVisionProfile(format) != null)
+                            MediaCodecUtil.getAlternativeDecoderInfos(
+                                selector,
+                                format,
+                                requiresSecureDecoder,
+                                false,
+                            )
+                        else super.getDecoderInfos(selector, format, requiresSecureDecoder)
+                    return decoders.filter { it.hardwareAccelerated && !it.softwareOnly }
                 }
 
                 override fun getMediaCodecConfiguration(
@@ -135,19 +206,76 @@ class HardwareRenderers(context: Context, private val stereo: Boolean = false) :
                     check(codecInfo.hardwareAccelerated && !codecInfo.softwareOnly) {
                         "Hardware decoding required"
                     }
-                    if (
-                        ColorInfo.isTransferHdr(format.colorInfo) ||
-                            format.sampleMimeType == MimeTypes.VIDEO_DOLBY_VISION
-                    ) {
+                    if (rejectedRange(format)) {
                         unsupportedReason = R.string.hdr_unsupported
                         throw IllegalStateException("HDR conversion is not validated")
                     }
+                    if (pq(format) && !toneMapping) startToneMapping(format)
+                    else if (!pq(format) && toneMapping) stopToneMapping()
                     return super.getMediaCodecConfiguration(
                         codecInfo,
                         format,
                         crypto,
                         codecOperatingRate,
                     )
+                }
+
+                private fun startToneMapping(format: Format) {
+                    val output =
+                        try {
+                            hdrOutput
+                                ?: HdrVideoOutput(
+                                        HdrToneMapper.sourcePeakNits(
+                                            format.colorInfo?.hdrStaticInfo
+                                        )
+                                    )
+                                    .also { hdrOutput = it }
+                        } catch (error: IllegalStateException) {
+                            unsupportedReason = R.string.hdr_unsupported
+                            throw error
+                        }
+                    output.setDisplay(displayOutput as? android.view.Surface)
+                    toneMapping = true
+                    super.handleMessage(Renderer.MSG_SET_VIDEO_OUTPUT, output.inputSurface)
+                    if (format.width > 0 && format.height > 0)
+                        onToneMappedVideoSize?.invoke(format.width, format.height)
+                }
+
+                private fun stopToneMapping() {
+                    // Release the display surface from EGL before a decoder connects to it.
+                    hdrOutput?.setDisplay(null)
+                    toneMapping = false
+                    super.handleMessage(Renderer.MSG_SET_VIDEO_OUTPUT, displayOutput)
+                }
+
+                override fun getMediaFormat(
+                    format: Format,
+                    codecMimeType: String,
+                    codecMaxValues: CodecMaxValues,
+                    codecOperatingRate: Float,
+                    deviceNeedsNoPostProcessWorkaround: Boolean,
+                    tunnelingAudioSessionId: Int,
+                ): android.media.MediaFormat {
+                    val mediaFormat =
+                        super.getMediaFormat(
+                            format,
+                            codecMimeType,
+                            codecMaxValues,
+                            codecOperatingRate,
+                            deviceNeedsNoPostProcessWorkaround,
+                            tunnelingAudioSessionId,
+                        )
+                    // Media3 names the Dolby Vision profile on the codec, which means nothing to
+                    // the HEVC decoder playing profile 8's ten-bit base layer.
+                    if (
+                        codecMimeType == MimeTypes.VIDEO_H265 &&
+                            format.sampleMimeType == MimeTypes.VIDEO_DOLBY_VISION
+                    )
+                        mediaFormat.setInteger(
+                            android.media.MediaFormat.KEY_PROFILE,
+                            MediaCodecInfoLevels.HEVCProfileMain10,
+                        )
+                    return mediaFormat
                 }
 
                 override fun onOutputFormatChanged(
@@ -160,11 +288,23 @@ class HardwareRenderers(context: Context, private val stereo: Boolean = false) :
                                 it.containsKey(android.media.MediaFormat.KEY_COLOR_TRANSFER)
                             }
                             ?.getInteger(android.media.MediaFormat.KEY_COLOR_TRANSFER)
-                    if (transfer == C.COLOR_TRANSFER_ST2084 || transfer == C.COLOR_TRANSFER_HLG) {
+                    // A decoder that reports PQ or HLG it was not configured for would put HDR
+                    // code values on an SDR display.
+                    if (
+                        transfer == C.COLOR_TRANSFER_HLG ||
+                            (transfer == C.COLOR_TRANSFER_ST2084 && !toneMapping)
+                    ) {
                         unsupportedReason = R.string.hdr_unsupported
                         throw IllegalStateException("HDR conversion is not validated")
                     }
                     super.onOutputFormatChanged(format, mediaFormat)
+                }
+
+                override fun onRelease() {
+                    super.onRelease()
+                    hdrOutput?.release()
+                    hdrOutput = null
+                    toneMapping = false
                 }
             }
         )
@@ -404,6 +544,21 @@ fun FullscreenPlayer(
     val introExtractors = remember(source) { IntroExtractorsFactory(introSession) }
     val stereo = remember(source) { stereoOutputPreferred(context) }
     val renderers = remember(source) { HardwareRenderers(context, stereo) }
+    var view by remember(renderers) { mutableStateOf<PlayerView?>(null) }
+    DisposableEffect(renderers) {
+        val main = Handler(android.os.Looper.getMainLooper())
+        // Tone-mapped frames are drawn into the display surface by Kino, so its buffers would
+        // otherwise follow the interface resolution. Matching the video keeps a 2160p source at
+        // 2160p on a 4K display, as the direct SDR path does.
+        renderers.onToneMappedVideoSize = { width, height ->
+            main.post {
+                (view?.videoSurfaceView as? android.view.SurfaceView)
+                    ?.holder
+                    ?.setFixedSize(width, height)
+            }
+        }
+        onDispose { renderers.onToneMappedVideoSize = null }
+    }
     val player =
         remember(source) { createTvPlayer(context, renderers, sourceHeaders, introExtractors) }
     val session = remember(player) { MediaSession.Builder(context, player).build() }
@@ -482,7 +637,6 @@ fun FullscreenPlayer(
         }
     val presented =
         remember(player, trackSelection) { TvPresentationPlayer(player, trackSelection::select) }
-    var view by remember(player) { mutableStateOf<PlayerView?>(null) }
     var playerLayout by remember(player) { mutableStateOf<TvPlayerLayout?>(null) }
     val currentExit by rememberUpdatedState(onExit)
     val currentFailure by rememberUpdatedState(onFailure)

@@ -21,6 +21,7 @@ const hdr10Params =
   'colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc:hdr10=1:master-display=G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1):max-cll=1000,400';
 const hdrTransfers = new Map([
   ['hevc-hdr10-eac3.mkv', 'smpte2084'],
+  ['hevc-hdr10-2160p.mkv', 'smpte2084'],
   ['hevc-hlg-flac.mkv', 'arib-std-b67'],
 ]);
 
@@ -178,6 +179,32 @@ function generateFixtures() {
     'eac3',
     '-ac',
     '2',
+  ]);
+  // Real HDR sources are 2160p Main10. The tone-mapping paths have to keep pace at that size,
+  // not only at the small fixtures' 360 lines.
+  encode('hevc-hdr10-2160p.mkv', [
+    '-f',
+    'lavfi',
+    '-i',
+    'testsrc2=size=3840x2160:rate=24:duration=12',
+    '-vf',
+    'setparams=color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc',
+    '-c:v',
+    'libx265',
+    '-preset',
+    'ultrafast',
+    '-b:v',
+    '20M',
+    '-pix_fmt',
+    'yuv420p10le',
+    '-color_primaries',
+    'bt2020',
+    '-color_trc',
+    'smpte2084',
+    '-colorspace',
+    'bt2020nc',
+    '-x265-params',
+    hdr10Params,
   ]);
   encode('hevc-hlg-flac.mkv', [
     ...videoSource,
@@ -368,6 +395,7 @@ const fixtures = [
   { file: 'h264-sdr-aac.mp4', expect: { outcome: 'played' } },
   { file: 'hevc-sdr-ac3.mkv', expect: { outcome: 'played' } },
   { file: 'hevc-hdr10-eac3.mkv', expect: { outcome: 'played' } },
+  { file: 'hevc-hdr10-2160p.mkv', expect: { outcome: 'played' } },
   { file: 'hevc-hlg-flac.mkv', expect: { outcome: 'played' } },
   { file: 'h264-sdr-eac3.mkv', expect: { outcome: 'played' } },
   {

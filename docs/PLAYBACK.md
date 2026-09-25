@@ -106,4 +106,4 @@ On TV, `SkipIntroTest` drives the actual Core, Media3 player, timeline, and remo
 
 ## Platform gates
 
-Desktop uses libmpv through the initial shell fork. Android TV prototypes Media3 hardware decoding and OpenGL HDR-to-SDR conversion on the NVIDIA Shield. Media3 remains the TV backend only if it satisfies this entire contract; otherwise the TV playback layer changes to libmpv without changing the rest of the native Kotlin application.
+Desktop uses libmpv through the initial shell fork. Android TV uses Media3 with Kino's own HDR10-to-SDR shader, because Media3's tone mapping cannot run on the Shield ([ADR 0021](adr/0021-tone-map-hdr-in-kino-rather-than-media3.md)). On TV, HDR10 is accepted, and so is Dolby Vision profile 8, whose cross-compatible base layer plays on an HEVC decoder through the same path. HLG and the other Dolby Vision profiles are rejected before a decoder is configured until each is measured on the device the way HDR10 was.
