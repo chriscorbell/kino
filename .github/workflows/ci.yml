@@ -264,8 +264,9 @@ jobs:
     runs-on: windows-2025
     timeout-minutes: 45
     env:
-      # The Mac's Homebrew Qt, so the two builds meet the same Qt.
-      KINO_QT_VERSION: 6.11.2
+      # The newest Qt aqtinstall can install: from 6.11 the Qt repository is
+      # laid out per compiler, which aqtinstall 3.3 cannot read yet.
+      KINO_QT_VERSION: 6.10.3
       # SourceForge keeps every libmpv build; the GitHub releases rotate out.
       KINO_MPV_ARCHIVE: mpv-dev-x86_64-20260920-git-e76a35ec95.7z
       KINO_MPV_SHA256: 60f9102db46aea8cef9bfb4345ee6a106f34fdbd1df9587e38f0660688039341
