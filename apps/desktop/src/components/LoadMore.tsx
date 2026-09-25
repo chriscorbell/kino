@@ -1,4 +1,5 @@
-import styles from '../App.module.css';
+import styles from '../styles/shared.module.css';
+import browseStyles from '../styles/browse.module.css';
 import { t } from '../locales';
 
 export function LoadMore({
@@ -11,7 +12,7 @@ export function LoadMore({
   onLoad: () => void;
 }) {
   return (
-    <div className={styles.pagination}>
+    <div className={browseStyles.pagination}>
       {error ? (
         <p className={styles.loadError} role="alert">
           {t.pagination.error}

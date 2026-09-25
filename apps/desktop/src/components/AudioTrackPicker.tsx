@@ -1,6 +1,6 @@
 import { Headphones } from '@phosphor-icons/react';
 import { useEffect, useRef } from 'react';
-import styles from '../App.module.css';
+import styles from '../styles/player.module.css';
 import { t } from '../locales';
 import { audioTrackLabel, type AudioTrack } from '../player/audio';
 

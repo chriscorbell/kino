@@ -1,4 +1,5 @@
-import styles from '../App.module.css';
+import styles from '../styles/shared.module.css';
+import shellStyles from '../styles/shell.module.css';
 import { useCore, useCoreRecovery } from '../core/context';
 import { t } from '../locales';
 
@@ -14,11 +15,11 @@ export function CoreRecovery({ onGuest }: { onGuest?: () => void }) {
   }
   if (!error && !catalogError) return null;
   return (
-    <section className={styles.coreRecovery} aria-label={t.core.retry}>
+    <section className={shellStyles.coreRecovery} aria-label={t.core.retry}>
       <p className={styles.loadError} role="alert">
         {error ?? catalogError}
       </p>
-      <div className={styles.coreRecoveryActions}>
+      <div className={shellStyles.coreRecoveryActions}>
         <button
           className={styles.secondaryAction}
           onClick={error ? retry : retryCatalog}

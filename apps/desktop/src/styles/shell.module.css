@@ -1,0 +1,211 @@
+.shell {
+  display: grid;
+  grid-template-columns: var(--kino-sidebar-width) minmax(0, 1fr);
+  height: 100dvh;
+  overflow: hidden;
+  color: var(--kino-text);
+  background: var(--kino-bg);
+}
+
+.skipLink {
+  position: fixed;
+  z-index: calc(var(--kino-layer-dialog) + 2);
+  top: 12px;
+  left: 12px;
+  padding: 10px 16px;
+  border-radius: var(--kino-control-radius);
+  color: var(--kino-on-accent);
+  background: var(--kino-accent);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-200%);
+  transition: transform var(--kino-duration-fast) var(--kino-ease-out);
+}
+
+.skipLink:focus-visible {
+  transform: translateY(0);
+}
+
+.sidebar {
+  position: relative;
+  z-index: var(--kino-layer-navigation);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 22px 0 20px;
+  border-right: 1px solid var(--kino-border-subtle);
+  background: var(--kino-bg);
+}
+
+.logoButton,
+.navButton,
+.profileButton {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: var(--kino-control-radius);
+  color: var(--kino-text-faint);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    color var(--kino-duration-fast) ease,
+    background-color var(--kino-duration-fast) ease,
+    transform var(--kino-duration-fast) var(--kino-ease-out);
+}
+
+.profileButton {
+  width: 30px;
+  height: 30px;
+  margin-top: auto;
+  border-radius: 50%;
+  color: var(--kino-text-muted);
+  background: var(--kino-border);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.logoButton {
+  margin-bottom: 6px;
+}
+
+.logoButton img {
+  display: block;
+  width: 22px;
+  height: auto;
+}
+
+.navButton:hover {
+  color: var(--kino-text-strong);
+  background: var(--kino-surface-hover);
+}
+
+.navButton:active,
+.logoButton:active {
+  transform: scale(0.96);
+}
+
+.navButtonActive {
+  color: var(--kino-text-strong);
+  background: var(--kino-surface-active);
+}
+
+.navGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.divider {
+  width: 26px;
+  height: 1px;
+  margin: 18px 0;
+  background: var(--kino-border);
+}
+
+.content {
+  min-width: 0;
+  overflow: auto;
+  animation: enter var(--kino-duration-standard) var(--kino-ease-out);
+}
+
+.shell[hidden],
+.content[hidden] {
+  display: none;
+}
+
+.playbackMain {
+  position: fixed;
+  inset: 0;
+}
+
+.content:focus-visible,
+.content h1:focus-visible {
+  outline: 2px solid var(--kino-accent);
+  outline-offset: -2px;
+}
+
+.content.navigationFocus:focus,
+.content h1.navigationFocus:focus {
+  outline: none;
+}
+
+@media (max-width: 720px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) 64px;
+  }
+
+  .sidebar {
+    grid-row: 2;
+    flex-direction: row;
+    justify-content: center;
+    gap: 2px;
+    padding: 8px 12px;
+    border-top: 1px solid var(--kino-border-subtle);
+    border-right: 0;
+  }
+
+  .logoButton,
+  .divider {
+    display: none;
+  }
+
+  .navButton {
+    width: 40px;
+    height: 44px;
+  }
+
+  .profileButton {
+    width: 40px;
+    height: 40px;
+    margin-top: 0;
+  }
+
+  .navGroup {
+    flex-direction: row;
+    gap: 2px;
+  }
+
+  .content {
+    grid-row: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content {
+    animation: none;
+  }
+
+  .logoButton,
+  .navButton,
+  .skipLink {
+    transition: none;
+  }
+}
+
+.coreRecovery {
+  margin-block-end: 24px;
+  overflow-wrap: anywhere;
+}
+
+.coreRecoveryActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

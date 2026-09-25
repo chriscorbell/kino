@@ -1,7 +1,7 @@
 import { Play } from '@phosphor-icons/react';
 import { useId, useState, type ReactNode } from 'react';
 
-import styles from '../App.module.css';
+import styles from '../styles/details.module.css';
 import { hasStructure, sizeLabel, type SourceFields } from '../core/sourceFields';
 import { t as enUS } from '../locales';
 

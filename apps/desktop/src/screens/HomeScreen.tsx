@@ -2,7 +2,8 @@ import { useEffect, useMemo } from 'react';
 
 import { CaretRight, X } from '@phosphor-icons/react';
 
-import styles from '../App.module.css';
+import sharedStyles from '../styles/shared.module.css';
+import styles from '../styles/browse.module.css';
 import { ActionFeedback } from '../components/ActionFeedback';
 import { useActionFeedback } from '../components/useActionFeedback';
 import { ResourceFailures } from '../components/ResourceFailures';
@@ -139,12 +140,12 @@ export function HomeScreen({
 
   return (
     <div className={styles.homePage}>
-      <h1 className={styles.visuallyHidden}>{enUS.home.title}</h1>
+      <h1 className={sharedStyles.visuallyHidden}>{enUS.home.title}</h1>
       <section className={styles.homeSection} aria-labelledby="continue-watching-title">
         <h2 id="continue-watching-title">{enUS.home.continueWatching}</h2>
         {continueWatching.loading ? <RowSkeleton /> : null}
         {!continueWatching.loading && !continueWatching.error && continueItems.length === 0 ? (
-          <p className={styles.inlineEmpty}>{enUS.home.continueEmpty}</p>
+          <p className={sharedStyles.inlineEmpty}>{enUS.home.continueEmpty}</p>
         ) : null}
         {continueItems.length > 0 ? (
           <div className={styles.continueRow}>
@@ -185,7 +186,7 @@ export function HomeScreen({
         </section>
       ) : null}
       {catalogsPending ? (
-        <p role="status" className={styles.inlineEmpty}>
+        <p role="status" className={sharedStyles.inlineEmpty}>
           {enUS.home.loadingCatalogs}
         </p>
       ) : null}
@@ -195,11 +196,11 @@ export function HomeScreen({
         pending={catalogsPending}
         onRetry={board.retry}
       />
-      {core.error ? <p className={styles.loadError}>{enUS.core.failed(core.error)}</p> : null}
+      {core.error ? <p className={sharedStyles.loadError}>{enUS.core.failed(core.error)}</p> : null}
       {!catalogsPending && !board.error && !resources.failures.length && shownRows.length === 0 ? (
         <section className={styles.homeSection} aria-label={enUS.home.catalogs}>
           <h2>{enUS.home.catalogs}</h2>
-          <p className={styles.inlineEmpty}>
+          <p className={sharedStyles.inlineEmpty}>
             {context.loading
               ? enUS.core.guestLoading
               : context.error

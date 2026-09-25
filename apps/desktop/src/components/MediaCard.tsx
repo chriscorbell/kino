@@ -2,7 +2,7 @@ import { t as enUS } from '../locales';
 import { useEffect, useRef, useState } from 'react';
 import { Play } from '@phosphor-icons/react';
 import type { CoreMetaPreview } from '../core/types';
-import styles from '../App.module.css';
+import styles from '../styles/browse.module.css';
 import { useTextOverflow } from './useTextOverflow';
 
 function year(item: CoreMetaPreview) {

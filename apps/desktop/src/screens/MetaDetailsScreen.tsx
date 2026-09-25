@@ -1,7 +1,8 @@
 import { ArrowLeft, CaretRight, Check, CheckCircle, Plus } from '@phosphor-icons/react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
-import styles from '../App.module.css';
+import sharedStyles from '../styles/shared.module.css';
+import styles from '../styles/details.module.css';
 import { EpisodeSourcesScreen } from './EpisodeSourcesScreen';
 import { availableSeasons, initialSeason, seasonEpisodes } from '../core/seasons';
 import { ResumeCover } from '../components/ResumeCover';
@@ -354,7 +355,7 @@ export function MetaDetailsScreen({
         {sourcesPending ? <span role="status">{enUS.details.refreshing}</span> : null}
       </div>
       {currentFailure ? (
-        <p className={styles.loadError} role="status">
+        <p className={sharedStyles.loadError} role="status">
           {currentFailure}
         </p>
       ) : null}
@@ -363,7 +364,7 @@ export function MetaDetailsScreen({
       !result.error &&
       failures.length === 0 &&
       sources.length === 0 ? (
-        <p role="status" className={styles.inlineEmpty}>
+        <p role="status" className={sharedStyles.inlineEmpty}>
           {enUS.details.noSources}
         </p>
       ) : null}
@@ -515,7 +516,7 @@ export function MetaDetailsScreen({
 
         <div className={styles.detailBody}>
           {!result.error && !metaFailed && !meta ? (
-            <p role="status" className={styles.inlineEmpty}>
+            <p role="status" className={sharedStyles.inlineEmpty}>
               {enUS.details.loading}
             </p>
           ) : null}
@@ -559,7 +560,7 @@ export function MetaDetailsScreen({
                     </button>
                   ) : null}
                   <label className={styles.seasonSelector}>
-                    <span className={styles.visuallyHidden}>{enUS.details.selectSeason}</span>
+                    <span className={sharedStyles.visuallyHidden}>{enUS.details.selectSeason}</span>
                     <select
                       value={activeSeason === null ? 'none' : String(activeSeason)}
                       onChange={(event) =>

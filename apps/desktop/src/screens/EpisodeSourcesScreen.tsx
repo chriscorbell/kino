@@ -1,6 +1,6 @@
 import { ArrowLeft } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
-import styles from '../App.module.css';
+import styles from '../styles/details.module.css';
 import type { CoreMetaPreview, CoreVideo } from '../core/types';
 import { t } from '../locales';
 

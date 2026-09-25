@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { CaretDown } from '@phosphor-icons/react';
 
-import styles from '../App.module.css';
+import sharedStyles from '../styles/shared.module.css';
+import styles from '../styles/browse.module.css';
 import { ResourceFailures } from '../components/ResourceFailures';
 import { useResourceStates } from '../core/useResourceStates';
 import { MediaCard } from '../components/MediaCard';
@@ -89,7 +90,7 @@ export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => 
   };
 
   return (
-    <div className={styles.page}>
+    <div className={sharedStyles.page}>
       <h1>{enUS.discover.title}</h1>
 
       {selectable && selectable.types.length > 0 ? (
@@ -172,12 +173,12 @@ export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => 
 
       <div aria-live="polite">
         {pending ? (
-          <p role="status" className={styles.inlineEmpty}>
+          <p role="status" className={sharedStyles.inlineEmpty}>
             {enUS.discover.loading}
           </p>
         ) : null}
         {!pending && !result.error && !resources.failures.length && items.length === 0 ? (
-          <p role="status" className={styles.inlineEmpty}>
+          <p role="status" className={sharedStyles.inlineEmpty}>
             {enUS.discover.empty}
           </p>
         ) : null}

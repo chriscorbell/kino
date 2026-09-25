@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
-import styles from '../App.module.css';
+import sharedStyles from '../styles/shared.module.css';
+import styles from '../styles/settings.module.css';
 import { SettingSelect, SettingSwitch } from '../components/SettingControls';
 import { ActionFeedback } from '../components/ActionFeedback';
 import { useActionFeedback } from '../components/useActionFeedback';
@@ -131,11 +132,11 @@ export function SettingsScreen({
   };
 
   return (
-    <div className={`${styles.page} ${styles.settingsPage}`}>
+    <div className={`${sharedStyles.page} ${styles.settingsPage}`}>
       <h1>{enUS.settings.title}</h1>
       <section className={styles.settingsGroup} aria-labelledby="appearance-settings-title">
         <h2 id="appearance-settings-title">{enUS.settings.appearance}</h2>
-        <div className={`${styles.settingRow} ${styles.scaleRow}`}>
+        <div className={`${sharedStyles.settingRow} ${styles.scaleRow}`}>
           <label htmlFor="interface-scale">
             <span className={styles.settingLabel}>{enUS.settings.interfaceScale}</span>
             <span className={styles.settingDescription}>
@@ -159,7 +160,7 @@ export function SettingsScreen({
               ))}
             </select>
             <button
-              className={styles.secondaryButton}
+              className={sharedStyles.secondaryButton}
               disabled={
                 !interfaceScale?.available ||
                 settings.interfaceScale === defaultSettings.interfaceScale
@@ -174,13 +175,17 @@ export function SettingsScreen({
         {interfaceScale?.failed ? (
           <div className={styles.scaleError}>
             <p role="alert">{enUS.settings.scaleFailed}</p>
-            <button className={styles.secondaryButton} onClick={interfaceScale.retry} type="button">
+            <button
+              className={sharedStyles.secondaryButton}
+              onClick={interfaceScale.retry}
+              type="button"
+            >
               {enUS.settings.retryScale}
             </button>
           </div>
         ) : null}
         {!interfaceScale?.available ? (
-          <p className={styles.settingsNote}>{enUS.settings.desktopOnly}</p>
+          <p className={sharedStyles.settingsNote}>{enUS.settings.desktopOnly}</p>
         ) : null}
       </section>
       <UpdateSettings updates={updates} />
@@ -228,7 +233,7 @@ export function SettingsScreen({
 
       <section className={styles.settingsGroup} aria-labelledby="language-settings-title">
         <h2 id="language-settings-title">{enUS.settings.languages}</h2>
-        <p className={styles.settingsNote}>{enUS.settings.languagesNote}</p>
+        <p className={sharedStyles.settingsNote}>{enUS.settings.languagesNote}</p>
         <SettingSwitch
           checked={settings.subtitles}
           description={enUS.settings.subtitlesDescription}
@@ -258,14 +263,14 @@ export function SettingsScreen({
 
       <section className={styles.settingsGroup} aria-labelledby="storage-settings-title">
         <h2 id="storage-settings-title">{enUS.settings.storage}</h2>
-        <div className={styles.settingRow}>
+        <div className={sharedStyles.settingRow}>
           <div>
             <div className={styles.settingLabel}>{enUS.settings.cache}</div>
             <div className={styles.settingDescription}>{enUS.settings.cacheDescription}</div>
           </div>
           {nativeShell ? (
             <button
-              className={styles.secondaryButton}
+              className={sharedStyles.secondaryButton}
               disabled={cacheAction.pending}
               aria-busy={cacheAction.pending}
               onClick={clearCache}
@@ -286,7 +291,7 @@ export function SettingsScreen({
 
       <section className={styles.settingsGroup} aria-labelledby="diagnostic-settings-title">
         <h2 id="diagnostic-settings-title">{enUS.settings.diagnostics}</h2>
-        <div className={styles.settingRow}>
+        <div className={sharedStyles.settingRow}>
           <div>
             <div className={styles.settingLabel}>{enUS.settings.diagnosticSummary}</div>
             <div className={styles.settingDescription}>
@@ -297,7 +302,7 @@ export function SettingsScreen({
             <button
               aria-label={enUS.settings.copyDiagnosticSummary}
               aria-busy={copyStatus === 'copying'}
-              className={styles.secondaryButton}
+              className={sharedStyles.secondaryButton}
               disabled={copyStatus === 'copying'}
               onClick={copyDiagnosticSummary}
               type="button"
@@ -309,23 +314,23 @@ export function SettingsScreen({
           )}
         </div>
         {copyStatus === 'copied' ? (
-          <p className={styles.settingsNote} role="status">
+          <p className={sharedStyles.settingsNote} role="status">
             {enUS.settings.diagnosticSummaryCopied}
           </p>
         ) : null}
         {copyStatus === 'failed' ? (
-          <p className={styles.loadError} role="alert">
+          <p className={sharedStyles.loadError} role="alert">
             {enUS.settings.diagnosticSummaryFailed}
           </p>
         ) : null}
-        <div className={styles.settingRow}>
+        <div className={sharedStyles.settingRow}>
           <div>
             <div className={styles.settingLabel}>{enUS.settings.localLogging}</div>
             <div className={styles.settingDescription}>{enUS.settings.localLoggingDescription}</div>
           </div>
           {nativeShell ? (
             <button
-              className={styles.secondaryButton}
+              className={sharedStyles.secondaryButton}
               disabled={logsAction.pending}
               aria-busy={logsAction.pending}
               onClick={revealLogs}
@@ -341,11 +346,11 @@ export function SettingsScreen({
       </section>
       <section className={styles.settingsGroup} aria-labelledby="license-settings-title">
         <h2 id="license-settings-title">{enUS.settings.licenses}</h2>
-        <div className={styles.settingRow}>
+        <div className={sharedStyles.settingRow}>
           <p className={styles.settingDescription}>{enUS.settings.licensesDescription}</p>
           {nativeShell ? (
             <button
-              className={styles.secondaryButton}
+              className={sharedStyles.secondaryButton}
               type="button"
               disabled={noticesAction.pending}
               aria-busy={noticesAction.pending}
