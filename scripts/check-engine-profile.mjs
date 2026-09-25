@@ -328,13 +328,20 @@ try {
   // it streams to the local network. libtorrent's UPnP client listens on the
   // SSDP port and its local service discovery on 6771, so neither socket may
   // exist while the helper runs with a torrent loaded.
+  // Windows has no lsof; netstat lists every UDP socket with its owning process.
   const helperUdpPorts = () =>
-    execFileSync('lsof', ['-nP', '-a', '-p', String(child.pid), '-iUDP', '-Fn'], {
-      encoding: 'utf8',
-    })
-      .split('\n')
-      .filter((line) => line.startsWith('n'))
-      .map((line) => Number(line.split(':').at(-1)));
+    process.platform === 'win32'
+      ? execFileSync('netstat', ['-ano', '-p', 'UDP'], { encoding: 'utf8' })
+          .split('\n')
+          .map((line) => line.trim().split(/\s+/))
+          .filter((fields) => fields[0] === 'UDP' && fields.at(-1) === String(child.pid))
+          .map((fields) => Number(fields[1].split(':').at(-1)))
+      : execFileSync('lsof', ['-nP', '-a', '-p', String(child.pid), '-iUDP', '-Fn'], {
+          encoding: 'utf8',
+        })
+          .split('\n')
+          .filter((line) => line.startsWith('n'))
+          .map((line) => Number(line.split(':').at(-1)));
   const assertNoDiscovery = (when) => {
     const ports = helperUdpPorts();
     assert.ok(ports.length > 0, 'The BitTorrent session must hold its own UDP sockets.');
