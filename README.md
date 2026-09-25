@@ -87,6 +87,22 @@ Direct media uses the add-on's original HTTPS URL and required request headers i
 
 Community intro markers require an exact known runtime. `pnpm intro:check` exercises the bundled client against HTTP fixtures, `pnpm macos:check-intro` repeats the match and cancellation checks in Qt WebEngine, and `pnpm android:check` drives the real Media3 player and remote on the Shield.
 
+### Linux and Windows shells
+
+The same shell builds on Linux and Windows; neither is packaged for release or checked on hardware yet. On Ubuntu 26.04, which is where Qt 6.8 and libmpv 2.4 first meet, install the build dependencies, then build and run the shell from the repository root:
+
+```sh
+sudo apt install build-essential cmake ninja-build pkg-config libmpv-dev qt6-base-dev qt6-declarative-dev qt6-webengine-dev qt6-webchannel-dev qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-window qml6-module-qtwebchannel qml6-module-qtwebengine
+pnpm install
+cmake -S apps/macos-shell -B build/linux -G Ninja
+cmake --build build/linux
+build/linux/Kino
+```
+
+CI's Linux job builds the same way in an Ubuntu 26.04 container, runs the unit tests, and runs the launch, navigation, focus and scale probes against the build on a virtual display.
+
+Windows builds with MSVC against Qt 6.10 with Qt WebEngine and a libmpv development archive. CMake takes the directory holding libmpv's `include` folder and an MSVC `mpv.lib` as `-DKINO_MPV_DIR`; the archive ships only a MinGW import library, so CI makes `mpv.lib` from the DLL's exports. The Windows job in `.github/workflows/ci.yml` is the exact recipe. It runs the unit tests and uploads a portable `Kino-windows-x64` zip, with the Qt libraries and `libmpv-2.dll` beside `Kino.exe`, that runs from any folder.
+
 ### Brand assets
 
 The Kino mark lives in [`assets/brand/`](assets/brand/). `Kino.icon` is the Icon Composer document the app icon is drawn in; `kino-app-icon.png` is its 1024 point export, and `kino-mark.svg` is the K on its own for surfaces that already supply a dark background. Both clients redraw the mark from that SVG rather than embedding a copy of the icon.
