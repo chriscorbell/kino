@@ -135,6 +135,7 @@ qt_add_executable(
   src/nowplaying.cpp
   src/playbackprobe.cpp
   src/securestore.cpp
+  src/singleinstance.cpp
   src/streamengine.cpp
   ${KINO_PLAYER_SOURCES}
   ${KINO_SHELL_PLATFORM_SOURCES}
@@ -336,6 +337,11 @@ if(BUILD_TESTING)
     src/streamengine.cpp src/tlsroots.cpp)
   target_include_directories(kino_streamengine_test PRIVATE src)
   target_link_libraries(kino_streamengine_test PRIVATE Qt6::Concurrent Qt6::Network Qt6::Qml Qt6::Test)
+
+  qt_add_executable(kino_singleinstance_test tests/singleinstance_test.cpp src/singleinstance.cpp)
+  target_include_directories(kino_singleinstance_test PRIVATE src)
+  target_link_libraries(kino_singleinstance_test PRIVATE Qt6::Network Qt6::Test)
+  add_test(NAME single_instance COMMAND kino_singleinstance_test)
 
   qt_add_executable(kino_tlsroots_test tests/tlsroots_test.cpp src/tlsroots.cpp)
   target_include_directories(kino_tlsroots_test PRIVATE src)
