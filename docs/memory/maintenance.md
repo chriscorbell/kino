@@ -4,11 +4,11 @@ Read when Finish reaches step 4, when a category index crosses its threshold, or
 
 ## Entry
 
-| Trigger | Scope |
-| --- | --- |
-| Finish step 4 after a substantive task | Ordinary review, once per session; skipped by a branch-isolated writer (see [concurrency](concurrency.md)) |
-| A category index would exceed its threshold | Ordinary review, with that category first in the sample |
-| A user request, or a substantial unresolved conflict between notes | Dedicated review with an explicit scope |
+| Trigger                                                            | Scope                                                                                                      |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| Finish step 4 after a substantive task                             | Ordinary review, once per session; skipped by a branch-isolated writer (see [concurrency](concurrency.md)) |
+| A category index would exceed its threshold                        | Ordinary review, with that category first in the sample                                                    |
+| A user request, or a substantial unresolved conflict between notes | Dedicated review with an explicit scope                                                                    |
 
 ## Ordinary review
 
@@ -20,14 +20,14 @@ For each sampled note make at most one direct source read or one short read-only
 
 ## Dispositions
 
-| Finding | Disposition |
-| --- | --- |
-| Still useful and supported | Retain; refresh the verification date only for claims actually checked |
-| Useful but inaccurate | Correct from current evidence |
-| Duplicates another note | Merge unique evidence into the canonical note, then retire the duplicate |
-| Completed work or obsolete guidance with historical value | Archive with its reason and any replacement pointer |
-| No remaining actionable or historical value | Remove after the recovery rule in the protocol |
-| Evidence insufficient or in conflict with intent | Mark uncertain with the next concrete verification action |
+| Finding                                                   | Disposition                                                              |
+| --------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Still useful and supported                                | Retain; refresh the verification date only for claims actually checked   |
+| Useful but inaccurate                                     | Correct from current evidence                                            |
+| Duplicates another note                                   | Merge unique evidence into the canonical note, then retire the duplicate |
+| Completed work or obsolete guidance with historical value | Archive with its reason and any replacement pointer                      |
+| No remaining actionable or historical value               | Remove after the recovery rule in the protocol                           |
+| Evidence insufficient or in conflict with intent          | Mark uncertain with the next concrete verification action                |
 
 Age alone establishes neither obsolescence nor correctness. Preserve accepted decisions and their rationale when implementation has drifted; record the discrepancy instead. When a task exposes stale `AGENTS.md` content, apply the delegated repairs in [document maintenance](documents.md); anything else becomes a proposal.
 
