@@ -4,6 +4,7 @@
 #include "mpvitem.h"
 #include "playbackprobe.h"
 #include "streamengine.h"
+#include "tlsroots.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -52,6 +53,7 @@ int main(int argc, char *argv[]) {
     QCoreApplication::setApplicationVersion(QStringLiteral(KINO_VERSION));
     std::setlocale(LC_NUMERIC, "C");
     installLocalLogger();
+    TlsRoots::prepare();
 
     if (!qEnvironmentVariableIsEmpty("KINO_ENGINE_PROBE")) {
         auto *streamEngine = new StreamEngine(&app);

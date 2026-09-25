@@ -1,4 +1,5 @@
 #include "streamengine.h"
+#include "tlsroots.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -180,6 +181,13 @@ void StreamEngine::start() {
     environment.insert(QStringLiteral("KINO_ENGINE_CACHE_DIR"), cacheDir);
     environment.insert(QStringLiteral("KINO_ENGINE_CONFIG_DIR"), configDirectory());
     environment.insert(QStringLiteral("KINO_ENGINE_UI_ORIGIN"), uiOrigin());
+    // libtorrent's OpenSSL looks for roots where Homebrew keeps them; point it
+    // at the system trust anchors instead so HTTPS trackers verify anywhere.
+    const QString roots = TlsRoots::bundlePath();
+    if (!roots.isEmpty()) {
+        environment.insert(QStringLiteral("SSL_CERT_FILE"), roots);
+        environment.remove(QStringLiteral("SSL_CERT_DIR"));
+    }
     process_.setProcessEnvironment(environment);
     process_.setProcessChannelMode(QProcess::SeparateChannels);
     startupDeadline_.start();

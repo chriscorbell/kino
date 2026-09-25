@@ -4,6 +4,7 @@
  */
 
 #include "mpvitem.h"
+#include "tlsroots.h"
 
 #include <QOpenGLContext>
 #include <QOpenGLFramebufferObject>
@@ -425,6 +426,12 @@ void MpvItem::load(const QString &url, bool forceStereo, const QVariantMap &head
     if (!valid) {
         emitError(QStringLiteral("invalid-request-headers"));
         return;
+    }
+    // FFmpeg's OpenSSL would otherwise look for roots only where Homebrew
+    // keeps them, so HTTPS media on a Mac without Homebrew would never verify.
+    const QByteArray roots = TlsRoots::bundlePath().toUtf8();
+    if (!roots.isEmpty()) {
+        mpv_set_property_string(handle_, "tls-ca-file", roots.constData());
     }
     failed_ = false;
     hardwareDecoderActive_ = false;

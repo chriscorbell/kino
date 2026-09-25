@@ -3,6 +3,7 @@
 #include <QCoreApplication>
 #include <QFile>
 #include <QSignalSpy>
+#include <QSslCertificate>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QThread>
@@ -20,6 +21,13 @@ int runHelper(const QString &mode) {
     if (pidFile.open(QIODevice::WriteOnly))
         pidFile.write(QByteArray::number(QCoreApplication::applicationPid()));
     pidFile.close();
+    // Record the trust configuration the shell handed over, for the roots check.
+    QFile trustFile(qEnvironmentVariable("KINO_ENGINE_FIXTURE_PID") + QStringLiteral(".tls"));
+    if (trustFile.open(QIODevice::WriteOnly)) {
+        trustFile.write(qgetenv("SSL_CERT_FILE") + '\n' +
+                        (qEnvironmentVariableIsSet("SSL_CERT_DIR") ? "dir-set" : "dir-unset"));
+    }
+    trustFile.close();
     if (mode == "exit") return 7;
     if (mode != "silent") {
         std::fputs(kReady, stdout);
@@ -160,6 +168,22 @@ private slots:
         QVERIFY(engine.error().isEmpty());
         QVERIFY(changed.count() > 0);
         QTRY_VERIFY_WITH_TIMEOUT(!engine.url().isEmpty(), 1500);
+    }
+
+    void helperVerifiesAgainstSystemRoots() {
+        qputenv("KINO_ENGINE_FIXTURE_MODE", "ready");
+        qputenv("SSL_CERT_DIR", "/opt/homebrew/etc/openssl@3/certs");
+        StreamEngine engine;
+        engine.start();
+        QTRY_VERIFY_WITH_TIMEOUT(!engine.url().isEmpty(), 1500);
+        qunsetenv("SSL_CERT_DIR");
+        QFile trust(directory_.filePath("pid.tls"));
+        QVERIFY(trust.open(QIODevice::ReadOnly));
+        const QList<QByteArray> fields = trust.readAll().split('\n');
+        QCOMPARE(fields.size(), 2);
+        QCOMPARE(fields.at(1), QByteArray("dir-unset"));
+        const auto roots = QSslCertificate::fromPath(QString::fromUtf8(fields.at(0)), QSsl::Pem);
+        QVERIFY2(roots.size() > 100, fields.at(0).constData());
     }
 
 private:
