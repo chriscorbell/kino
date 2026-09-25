@@ -41,7 +41,9 @@ jobs:
           // Inputs to the native build, its tests, and its startup probes. A
           // change anywhere else, including the Android workflow and its
           // scripts, leaves the macOS job skipped.
-          const nativePaths = /^(\.github\/workflows\/ci\.yml$|apps\/(macos-shell|stream-engine)\/|apps\/desktop\/src\/(native\/|player\/|intro\/|screens\/(PlayerScreen|MetaDetailsScreen|EpisodeSourcesScreen)\.tsx$|App\.(tsx|module\.css)$|core\/(actions|seasons)\.ts$|locales\/|components\/AudioTrackPicker\.tsx$|test\/(browser\/|resumeState\.ts$|coreState\.ts$))|scripts\/(build-engine\.sh|build-macos\.sh|check-engine-|check-macos-|check-intro-community\.mjs$|test-support\/|package-macos\.mjs$)|third_party\/|package\.json$|pnpm-lock\.yaml$|\.node-version$)/;
+          // The probes build the production interface and drive it screen by
+          // screen, so every client source counts; only its unit tests do not.
+          const nativePaths = /^(\.github\/workflows\/ci\.yml$|apps\/(macos-shell|stream-engine)\/|apps\/desktop\/(index\.html$|vite\.config\.ts$|package\.json$|src\/(?!.*\.test\.tsx?$))|scripts\/(build-engine\.sh|build-macos\.sh|check-engine-|check-macos-|check-intro-community\.mjs$|test-support\/|package-macos\.mjs$)|third_party\/|package\.json$|pnpm-lock\.yaml$|\.node-version$)/;
           // Inputs to the packaged bundle and the notices it carries. On a pull
           // request the packaging step runs only for these; every push to main
           // packages regardless, so a release artifact is never first built at
@@ -172,6 +174,11 @@ jobs:
         run: |
           pnpm macos:build
           node scripts/check-version.mjs --app build/macos/Kino.app
+      # The request-header, shutdown, and playback gates play these legal
+      # fixtures, which ffmpeg generates rather than the repository storing.
+      - name: Generate the playback fixtures
+        timeout-minutes: 10
+        run: node scripts/check-macos-playback.mjs --generate-only
       - name: Run native unit tests and startup probes
         timeout-minutes: 5
         run: |
@@ -192,6 +199,14 @@ jobs:
           pnpm macos:check-navigation
           pnpm macos:check-interface-recovery
           pnpm macos:check-tls
+          pnpm macos:check-engine-ui
+          pnpm macos:check-engine-retry
+          pnpm macos:check-request-headers
+          pnpm macos:check-shutdown
+          pnpm macos:check-addon-transports
+      - name: Run the playback contract matrix
+        timeout-minutes: 15
+        run: pnpm macos:check-playback
 
       # Packaging is a release-artifact check, not a correctness check, and it
       # is the slowest step in this job. Pull requests run it only when the
