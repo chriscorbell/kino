@@ -46,6 +46,7 @@
     "macos:check-launch": "./scripts/check-macos-launch.sh",
     "macos:check-playback": "node scripts/check-macos-playback.mjs",
     "macos:check-request-headers": "node scripts/check-macos-request-headers.mjs",
+    "macos:check-tls": "node scripts/check-macos-tls.mjs",
     "macos:check-shutdown": "node scripts/check-macos-shutdown.mjs",
     "macos:check-interface-recovery": "node scripts/check-macos-interface-recovery.mjs",
     "macos:check-addon-transports": "node scripts/check-macos-addon-transports.mjs",

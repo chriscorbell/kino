@@ -24,6 +24,7 @@ find_package(
     Core
     Concurrent
     Gui
+    Network
     Qml
     Quick
     QuickControls2
@@ -79,6 +80,7 @@ qt_add_executable(
   src/securestore.cpp
   src/sleepobserver.mm
   src/streamengine.cpp
+  src/tlsroots.cpp
 )
 
 find_program(NODE_EXECUTABLE node REQUIRED)
@@ -128,6 +130,7 @@ target_link_libraries(
     Qt6::Concurrent
     Qt6::Core
     Qt6::Gui
+    Qt6::Network
     Qt6::Qml
     Qt6::Quick
     Qt6::QuickControls2
@@ -200,11 +203,13 @@ if(BUILD_TESTING)
     src/mpvitem.cpp
     src/powerguard.cpp
     src/sleepobserver.mm
+    src/tlsroots.cpp
   )
   target_include_directories(kino_mpvitem_test PRIVATE src)
   target_link_libraries(
     kino_mpvitem_test
-    PRIVATE PkgConfig::MPV ${APPKIT_FRAMEWORK} ${IOKIT_FRAMEWORK} Qt6::Quick Qt6::Test
+    PRIVATE PkgConfig::MPV ${APPKIT_FRAMEWORK} ${IOKIT_FRAMEWORK} Qt6::Concurrent Qt6::Network
+            Qt6::Quick Qt6::Test
   )
   add_test(NAME mpvitem_properties COMMAND kino_mpvitem_test)
   set_tests_properties(mpvitem_properties PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
@@ -218,12 +223,13 @@ if(BUILD_TESTING)
     src/mpvitem.cpp
     src/powerguard.cpp
     src/sleepobserver.mm
+    src/tlsroots.cpp
   )
   target_include_directories(kino_mpvitem_unavailable_test PRIVATE src)
   target_link_libraries(
     kino_mpvitem_unavailable_test
-    PRIVATE kino_mpv_failure PkgConfig::MPV ${APPKIT_FRAMEWORK} ${IOKIT_FRAMEWORK} Qt6::Quick
-            Qt6::Test
+    PRIVATE kino_mpv_failure PkgConfig::MPV ${APPKIT_FRAMEWORK} ${IOKIT_FRAMEWORK}
+            Qt6::Concurrent Qt6::Network Qt6::Quick Qt6::Test
   )
   foreach(stage create initialize)
     add_test(NAME mpv_unavailable_${stage} COMMAND kino_mpvitem_unavailable_test)
@@ -243,11 +249,13 @@ if(BUILD_TESTING)
     src/mpvitem.cpp
     src/powerguard.cpp
     src/sleepobserver.mm
+    src/tlsroots.cpp
   )
   target_include_directories(kino_render_lifetime_test PRIVATE src)
   target_link_libraries(
     kino_render_lifetime_test
-    PRIVATE kino_render_lifetime_guard PkgConfig::MPV ${APPKIT_FRAMEWORK} ${IOKIT_FRAMEWORK} Qt6::Quick Qt6::Test
+    PRIVATE kino_render_lifetime_guard PkgConfig::MPV ${APPKIT_FRAMEWORK} ${IOKIT_FRAMEWORK}
+            Qt6::Concurrent Qt6::Network Qt6::Quick Qt6::Test
   )
   add_test(NAME render_lifetime COMMAND kino_render_lifetime_test)
   set_tests_properties(
@@ -261,19 +269,20 @@ if(BUILD_TESTING)
     tests/logging_test.cpp
     src/logging.cpp
     src/streamengine.cpp
+    src/tlsroots.cpp
   )
   target_include_directories(kino_logging_test PRIVATE src)
-  target_link_libraries(kino_logging_test PRIVATE Qt6::Core Qt6::Qml)
+  target_link_libraries(kino_logging_test PRIVATE Qt6::Concurrent Qt6::Core Qt6::Network Qt6::Qml)
   add_test(NAME diagnostic_logging COMMAND kino_logging_test)
   set_tests_properties(diagnostic_logging PROPERTIES TIMEOUT 30)
 
   qt_add_executable(kino_diagnostics_test
     tests/diagnostics_test.cpp src/diagnostics.cpp src/mpvitem.cpp src/powerguard.cpp
     src/sleepobserver.mm
-    src/streamengine.cpp src/logging.cpp)
+    src/streamengine.cpp src/logging.cpp src/tlsroots.cpp)
   target_include_directories(kino_diagnostics_test PRIVATE src "${CMAKE_CURRENT_BINARY_DIR}/generated")
   target_link_libraries(kino_diagnostics_test PRIVATE PkgConfig::MPV ${APPKIT_FRAMEWORK} ${IOKIT_FRAMEWORK}
-    Qt6::Concurrent Qt6::Quick Qt6::WebEngineCore Qt6::Test)
+    Qt6::Concurrent Qt6::Network Qt6::Quick Qt6::WebEngineCore Qt6::Test)
   add_test(NAME diagnostic_summary COMMAND kino_diagnostics_test)
   set_tests_properties(diagnostic_summary PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
@@ -286,9 +295,15 @@ if(BUILD_TESTING)
   target_link_libraries(kino_closecoordinator_test PRIVATE Qt6::Qml Qt6::Test)
   add_test(NAME ordered_shutdown COMMAND kino_closecoordinator_test)
 
-  qt_add_executable(kino_streamengine_test tests/streamengine_test.cpp src/streamengine.cpp)
+  qt_add_executable(kino_streamengine_test tests/streamengine_test.cpp src/streamengine.cpp
+    src/tlsroots.cpp)
   target_include_directories(kino_streamengine_test PRIVATE src)
-  target_link_libraries(kino_streamengine_test PRIVATE Qt6::Qml Qt6::Test)
+  target_link_libraries(kino_streamengine_test PRIVATE Qt6::Concurrent Qt6::Network Qt6::Qml Qt6::Test)
+
+  qt_add_executable(kino_tlsroots_test tests/tlsroots_test.cpp src/tlsroots.cpp)
+  target_include_directories(kino_tlsroots_test PRIVATE src)
+  target_link_libraries(kino_tlsroots_test PRIVATE Qt6::Concurrent Qt6::Network Qt6::Test)
+  add_test(NAME tls_roots COMMAND kino_tlsroots_test)
   add_test(NAME engine_lifecycle COMMAND kino_streamengine_test)
   set_tests_properties(engine_lifecycle PROPERTIES TIMEOUT 15)
 endif()
