@@ -304,6 +304,8 @@ jobs:
           # Qt 6.11 lays its repository out per compiler, which aqtinstall
           # reads only since a change that is merged but not yet released.
           aqtsource: git+https://github.com/miurahr/aqtinstall.git@076e1659807d0b362a3ed684d54c2e9c775eb9c7
+          # py7zr rejects a path in Qt 6.11's qtsvg archive; 7-Zip does not.
+          extra: --external 7z
       - name: Fetch libmpv and make its MSVC import library
         shell: pwsh
         run: |
