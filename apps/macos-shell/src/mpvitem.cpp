@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 #include <mutex>
 #include <vector>
 
@@ -423,7 +424,11 @@ bool MpvItem::initialize() {
     };
 
     for (const Option &option : options) {
-        if (mpv_set_option_string(handle_, option.name, option.value) < 0) {
+        const int result = mpv_set_option_string(handle_, option.name, option.value);
+        // The on-screen controller is a Lua script, so a libmpv built without
+        // Lua, as the Flatpak's is, has no osc option to turn off.
+        if (result == MPV_ERROR_OPTION_NOT_FOUND && std::strcmp(option.name, "osc") == 0) continue;
+        if (result < 0) {
             qCritical("[kino:mpv] initialization failed stage=option name=%s", option.name);
             return false;
         }

@@ -53,6 +53,8 @@ jobs:
         run: |
           dnf install -y xorg-x11-server-Xvfb >/dev/null 2>&1 || apt-get install -y xvfb >/dev/null 2>&1 || true
           flatpak install --user -y --noninteractive Kino.flatpak
+          # Mesa's GL for the runtime, which a desktop installs with it.
+          flatpak install --user -y --noninteractive flathub org.freedesktop.Platform.GL.default//25.08
           log=$(mktemp)
           timeout 60 xvfb-run -a flatpak run --user --env=KINO_INSTANCE_NAME=ci-smoke \
             --env=QTWEBENGINE_DISABLE_SANDBOX=1 \
