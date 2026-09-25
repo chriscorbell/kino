@@ -93,6 +93,15 @@ data class Library(
     val more: Boolean = false,
 )
 
+/** A subtitle file an add-on offers for the current source. */
+data class AddonSubtitle(
+    val id: String,
+    val language: String,
+    val url: String,
+    val provider: String,
+    val label: String?,
+)
+
 data class TvState(
     val ready: Boolean = false,
     val failed: Boolean = false,
@@ -111,6 +120,7 @@ data class TvState(
     val qrCode: String? = null,
     val linkFailed: Boolean = false,
     val nextVideo: Video? = null,
+    val subtitles: List<AddonSubtitle> = emptyList(),
 )
 
 fun secureUrl(value: String?): Boolean =
@@ -376,7 +386,7 @@ class TvCore(
                 subtitlesPath = source.request.path.copy(resource = "subtitles"),
             )
         playerSelection = selected
-        mutable.value = mutable.value.copy(nextVideo = null)
+        mutable.value = mutable.value.copy(nextVideo = null, subtitles = emptyList())
         load(ActionLoad.Args.Player(selected), Field.PLAYER)
         return true
     }
@@ -411,6 +421,31 @@ class TvCore(
         )
     }
 
+    /**
+     * Reports the playing file's parameters, which is what makes Core ask the add-ons for its
+     * subtitles. Only metadata the source supplied is forwarded: a URL or torrent hash is not a
+     * video hash, and unknown values still let add-ons match by media ID.
+     */
+    fun videoParams(stream: Stream) {
+        val hints = stream.behaviorHints
+        Core.dispatch(
+            Action(
+                Action.Type.Player(
+                    ActionPlayer(
+                        ActionPlayer.Args.VideoParamsChanged(
+                            Player.VideoParams(
+                                hash = hints.videoHash?.takeIf { it.matches(Regex("[a-fA-F0-9]{16}")) },
+                                size = hints.videoSize?.takeIf { it > 0 },
+                                filename = hints.filename?.takeIf { it.isNotBlank() },
+                            )
+                        )
+                    )
+                )
+            ),
+            Field.PLAYER,
+        )
+    }
+
     fun seek(position: Long, duration: Long) {
         if (duration <= 0) return
         Core.dispatch(
@@ -434,7 +469,7 @@ class TvCore(
     fun stopPlayer() {
         playerGeneration++
         playerSelection = null
-        mutable.value = mutable.value.copy(nextVideo = null)
+        mutable.value = mutable.value.copy(nextVideo = null, subtitles = emptyList())
         Core.dispatch(Action(Action.Type.Unload(Action.ActionUnload())), Field.PLAYER)
         loadLibrary()
         // Browse models deferred during playback are read now, before anything can start another
@@ -577,11 +612,29 @@ class TvCore(
             val auth =
                 if (reads(Field.AUTH_LINK)) Core.getState<AuthLink>(Field.AUTH_LINK) else null
             // Read once at the Core event boundary, not on the playback position ticker.
+            val player =
+                if (reads(Field.PLAYER)) playerSelection?.let { Core.getState<Player>(Field.PLAYER) }
+                else null
+            val subtitles =
+                if (!reads(Field.PLAYER)) previous.subtitles
+                else
+                    player
+                        ?.subtitles
+                        .orEmpty()
+                        .filter {
+                            it.request.path == playerSelection?.subtitlesPath &&
+                                secureUrl(it.request.base)
+                        }
+                        .flatMap { resource ->
+                            resource.ready?.subtitles.orEmpty().map {
+                                AddonSubtitle(it.id, it.lang, it.url, resource.title, it.name)
+                            }
+                        }
+                        .filter { secureUrl(it.url) }
             val nextVideo =
                 if (!reads(Field.PLAYER)) previous.nextVideo
                 else
-                    playerSelection
-                        ?.let { Core.getState<Player>(Field.PLAYER) }
+                    player
                         ?.takeIf {
                             // Core rebuilds stream deep links for each model. Match the
                             // actual source and requests, not those derived navigation links.
@@ -658,6 +711,7 @@ class TvCore(
                     qrCode = if (auth != null) auth.code?.ready?.qrcode else previous.qrCode,
                     linkFailed = if (auth != null) auth.code?.error != null else previous.linkFailed,
                     nextVideo = nextVideo,
+                    subtitles = subtitles,
                 )
         } catch (_: Exception) {
             Log.e("KinoCore", "Core state could not be read")

@@ -57,9 +57,12 @@
             android:layout_gravity="center_vertical|end"
             android:layoutDirection="ltr">
 
+            <!-- Kino's own id: Media3 disables its subtitle button when the media has no text
+                 track, but add-on subtitles arrive separately and Kino's panel lists them. -->
             <ImageButton
-                android:id="@id/exo_subtitle"
-                style="@style/ExoStyledControls.Button.Bottom.CC" />
+                android:id="@+id/kino_subtitles"
+                style="@style/ExoStyledControls.Button.Bottom.CC"
+                android:contentDescription="@string/subtitles" />
 
             <ImageButton
                 android:id="@id/exo_settings"

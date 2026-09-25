@@ -141,4 +141,17 @@
     <string name="language_chi">Chinese</string>
     <string name="language_hin">Hindi</string>
     <string name="language_ara">Arabic</string>
+    <string name="subtitle_off">Off</string>
+    <string name="subtitle_delay">Delay</string>
+    <string name="subtitle_delay_value">%1$s s</string>
+    <string name="subtitle_size">Size</string>
+    <string name="subtitle_position">Position</string>
+    <string name="subtitle_position_default">Default</string>
+    <string name="subtitle_position_higher">Higher</string>
+    <string name="subtitle_position_highest">Highest</string>
+    <string name="subtitle_earlier">Earlier</string>
+    <string name="subtitle_later">Later</string>
+    <string name="subtitle_fetch_failed">These subtitles could not be loaded.</string>
+    <string name="subtitle_embedded">Embedded</string>
+    <string name="subtitle_percent">%1$d%%</string>
 </resources>

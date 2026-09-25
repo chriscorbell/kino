@@ -210,6 +210,18 @@ internal class TvPlayerLayout(context: Context, player: Player) : FrameLayout(co
         }
     }
 
+    /** Opens Kino's subtitle panel from the controller's subtitle button. */
+    fun onSubtitles(open: () -> Unit) {
+        playerView.findViewById<View>(R.id.kino_subtitles)?.setOnClickListener { open() }
+    }
+
+    /** Gives the remote back to the controls after the subtitle panel closes. */
+    fun restoreControlsFocus() {
+        playerView.showController()
+        val button = playerView.findViewById<View>(R.id.kino_subtitles)
+        if (button?.requestFocus() != true) playerView.requestFocus()
+    }
+
     fun showIntroNotice(onUndo: () -> Unit) {
         removeCallbacks(hideNotice)
         undo.setOnClickListener {

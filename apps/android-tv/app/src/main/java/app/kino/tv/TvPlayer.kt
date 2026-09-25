@@ -100,6 +100,36 @@ class HardwareRenderers(context: Context, private val stereo: Boolean = false) :
      */
     var onToneMappedVideoSize: ((width: Int, height: Int) -> Unit)? = null
 
+    /**
+     * The session's subtitle delay; positive shows text later. The text renderers read the clock
+     * this much behind the video, so embedded, side-loaded and add-on tracks all move together
+     * without re-parsing anything.
+     */
+    @Volatile var subtitleDelayUs: Long = 0
+
+    override fun buildTextRenderers(
+        context: Context,
+        output: androidx.media3.exoplayer.text.TextOutput,
+        outputLooper: android.os.Looper,
+        extensionRendererMode: Int,
+        out: ArrayList<Renderer>,
+    ) {
+        val first = out.size
+        super.buildTextRenderers(context, output, outputLooper, extensionRendererMode, out)
+        for (index in first until out.size) {
+            out[index] =
+                // Every position the renderer sees moves by the delay, including where a seek
+                // resets it, so its idea of the current cue stays consistent after a seek.
+                object : androidx.media3.exoplayer.ForwardingRenderer(out[index]) {
+                    override fun render(positionUs: Long, elapsedRealtimeUs: Long) =
+                        super.render(positionUs - subtitleDelayUs, elapsedRealtimeUs)
+
+                    override fun resetPosition(positionUs: Long, sampleStreamIsResetToKeyFrame: Boolean) =
+                        super.resetPosition(positionUs - subtitleDelayUs, sampleStreamIsResetToKeyFrame)
+                }
+        }
+    }
+
     override fun buildAudioSink(
         context: Context,
         enableFloatOutput: Boolean,
@@ -495,6 +525,8 @@ fun FullscreenPlayer(
     onFailure: (Int) -> Unit,
     onUpNext: (com.stremio.core.types.resource.Video) -> Unit,
     introEndpoint: String = IntroCommunityClient.DEFAULT_ENDPOINT,
+    /** Hands gates the live player, to read the cues and tracks its views do not expose. */
+    onPlayer: (ExoPlayer) -> Unit = {},
 ) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -650,6 +682,119 @@ fun FullscreenPlayer(
     var closeTask by remember(player) { mutableStateOf<Job?>(null) }
     var departure by remember(player) { mutableStateOf<(() -> Unit)?>(null) }
     var resumeApplied by remember(player) { mutableStateOf(false) }
+    var tracks by remember(player) { mutableStateOf(player.currentTracks) }
+    var subtitlePanel by remember(player) { mutableStateOf(false) }
+    var subtitleDelayMs by remember(player) { mutableLongStateOf(0L) }
+    var subtitleSize by remember(player) { mutableIntStateOf(SubtitleAppearance.size(context)) }
+    var subtitlePosition by
+        remember(player) { mutableIntStateOf(SubtitleAppearance.position(context)) }
+    var sideLoaded by
+        remember(player) { mutableStateOf(listOf<MediaItem.SubtitleConfiguration>()) }
+    var pendingAddon by remember(player) { mutableStateOf<String?>(null) }
+    var addonLoading by remember(player) { mutableStateOf(false) }
+    var addonFailed by remember(player) { mutableStateOf(false) }
+    val addonMemory = remember(media.type, media.id) { AddonSubtitleMemory(context, media) }
+    var addonAutoApplied by remember(player) { mutableStateOf(false) }
+    LaunchedEffect(subtitleDelayMs) { renderers.subtitleDelayUs = subtitleDelayMs * 1_000 }
+    LaunchedEffect(view, subtitleSize, subtitlePosition) {
+        SubtitleAppearance.apply(view?.subtitleView, subtitleSize, subtitlePosition)
+    }
+    val selectedSubtitle: SubtitleChoice =
+        tracks.groups
+            .filter { it.type == C.TRACK_TYPE_TEXT && it.isSelected }
+            .firstNotNullOfOrNull { group ->
+                (0 until group.length)
+                    .firstOrNull { group.isTrackSelected(it) }
+                    ?.let { index ->
+                        val id = sideLoadedTrackId(group.getTrackFormat(index))
+                        coreState.subtitles
+                            .firstOrNull { addonTrackId(it) == id }
+                            ?.let { SubtitleChoice.Addon(it) }
+                            ?: SubtitleChoice.Track(group, index)
+                    }
+            } ?: SubtitleChoice.Off
+    fun selectTrack(target: Player, group: Tracks.Group, index: Int) {
+        target.trackSelectionParameters =
+            target.trackSelectionParameters
+                .buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+                .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, index))
+                .build()
+    }
+    // Side-loading a file means replacing the media item, which Media3 re-prepares; the position
+    // and play state carry across so the change reads as a brief rebuffer, not a restart.
+    fun loadAddon(subtitle: AddonSubtitle) {
+        // A manual choice supersedes the automatic one, which must not load a second file.
+        addonAutoApplied = true
+        val loaded =
+            tracks.groups.firstNotNullOfOrNull { group ->
+                (0 until group.length)
+                    .firstOrNull { sideLoadedTrackId(group.getTrackFormat(it)) == addonTrackId(subtitle) }
+                    ?.let { group to it }
+            }
+        if (loaded != null) {
+            selectTrack(player, loaded.first, loaded.second)
+            return
+        }
+        if (pendingAddon == addonTrackId(subtitle) || addonLoading) return
+        addonLoading = true
+        addonFailed = false
+        Log.i("KinoPlayer", "Add-on subtitles requested")
+        scope.launch {
+            val configuration = AddonSubtitleFiles.fetch(context, subtitle)
+            addonLoading = false
+            val current = player.currentMediaItem
+            if (configuration == null || current == null) {
+                addonFailed = true
+                return@launch
+            }
+            sideLoaded = sideLoaded + configuration
+            pendingAddon = configuration.id
+            // replaceMediaItem would keep the existing source, since a progressive source counts
+            // an item with the same URI as unchanged and drops the new subtitle configurations.
+            // Setting the item again rebuilds the source with them, at the same position.
+            player.setMediaItem(
+                current.buildUpon().setSubtitleConfigurations(sideLoaded).build(),
+                player.currentPosition,
+            )
+        }
+    }
+    fun updateTracks(current: Tracks) {
+        tracks = current
+        val pending = pendingAddon ?: return
+        current.groups.forEach { group ->
+            (0 until group.length)
+                .firstOrNull { sideLoadedTrackId(group.getTrackFormat(it)) == pending }
+                ?.let {
+                    pendingAddon = null
+                    selectTrack(player, group, it)
+                    if (subtitlePanel) {
+                        subtitlePanel = false
+                        playerLayout?.restoreControlsFocus()
+                    }
+                    return
+                }
+        }
+    }
+    // A remembered add-on language, or the Settings language when subtitles are on and the media
+    // has no track in it, loads the first matching add-on file once the add-ons have answered.
+    LaunchedEffect(coreState.subtitles, tracks, resumeApplied) {
+        if (addonAutoApplied || !resumeApplied || coreState.subtitles.isEmpty()) return@LaunchedEffect
+        if (selectedSubtitle != SubtitleChoice.Off) return@LaunchedEffect
+        val language =
+            addonMemory.language()
+                ?: coreState.subtitleLanguage.takeIf {
+                    kinoSettings(context).getBoolean("subtitles", false) &&
+                        addonMemory.allowsAutomatic()
+                }
+                ?: return@LaunchedEffect
+        val match =
+            coreState.subtitles.firstOrNull {
+                Util.normalizeLanguageCode(it.language) == Util.normalizeLanguageCode(language)
+            } ?: return@LaunchedEffect
+        addonAutoApplied = true
+        loadAddon(match)
+    }
     fun close(error: Int? = null, destination: (() -> Unit)? = null) {
         if (closed || closing) return
         if (departure == null)
@@ -674,6 +819,7 @@ fun FullscreenPlayer(
         else close()
     }
     LaunchedEffect(player) {
+        onPlayer(player)
         player.setMediaItem(
             MediaItem.Builder()
                 .setUri(source.stream.url!!.url)
@@ -746,6 +892,7 @@ fun FullscreenPlayer(
                             return
                         }
                         resumeApplied = true
+                        core.videoParams(source.stream)
                         val resume = core.resumePosition(source.request.path.id)
                         if (resume > 0 && resume < player.duration) player.seekTo(resume)
                         Log.i("KinoPlayer", "Playback ready")
@@ -761,6 +908,7 @@ fun FullscreenPlayer(
 
                 override fun onTracksChanged(tracks: Tracks) {
                     logAudioTracks(tracks)
+                    updateTracks(tracks)
                     if (
                         tracks.groups.any { it.type == C.TRACK_TYPE_VIDEO } &&
                             !tracks.isTypeSelected(C.TRACK_TYPE_VIDEO)
@@ -848,6 +996,7 @@ fun FullscreenPlayer(
             lifecycle.removeObserver(observer)
             view?.player = null
             introSession.release()
+            AddonSubtitleFiles.clear(context)
             session.release()
             trackSelection.close()
             player.removeListener(listener)
@@ -889,6 +1038,10 @@ fun FullscreenPlayer(
                     TvPlayerLayout(it, presented).also { created ->
                         playerLayout = created
                         view = created.playerView
+                        created.onSubtitles {
+                            addonFailed = false
+                            subtitlePanel = true
+                        }
                     }
                 },
                 update = { layout ->
@@ -906,6 +1059,56 @@ fun FullscreenPlayer(
                     }
                 },
                 modifier = Modifier.fillMaxSize(),
+            )
+        }
+        if (subtitlePanel && !closing) {
+            val closePanel: () -> Unit = {
+                subtitlePanel = false
+                playerLayout?.restoreControlsFocus()
+            }
+            SubtitlePanel(
+                tracks = tracks,
+                addonSubtitles = coreState.subtitles,
+                selected = selectedSubtitle,
+                delayMs = subtitleDelayMs,
+                size = subtitleSize,
+                position = subtitlePosition,
+                loading = addonLoading || pendingAddon != null,
+                failed = addonFailed,
+                onChoose = { choice ->
+                    when (choice) {
+                        SubtitleChoice.Off -> {
+                            addonMemory.forget()
+                            presented.trackSelectionParameters =
+                                presented.trackSelectionParameters
+                                    .buildUpon()
+                                    .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+                                    .build()
+                            closePanel()
+                        }
+                        is SubtitleChoice.Track -> {
+                            addonMemory.forget()
+                            // Through the presentation player, so the title remembers it.
+                            selectTrack(presented, choice.group, choice.index)
+                            closePanel()
+                        }
+                        is SubtitleChoice.Addon -> {
+                            addonMemory.remember(choice.subtitle.language)
+                            loadAddon(choice.subtitle)
+                            if (pendingAddon == null && !addonLoading) closePanel()
+                        }
+                    }
+                },
+                onDelay = { subtitleDelayMs = it.coerceIn(-30_000L, 30_000L) },
+                onSize = {
+                    subtitleSize = it
+                    SubtitleAppearance.save(context, subtitleSize, subtitlePosition)
+                },
+                onPosition = {
+                    subtitlePosition = it
+                    SubtitleAppearance.save(context, subtitleSize, subtitlePosition)
+                },
+                onDismiss = closePanel,
             )
         }
         if (closing) {

@@ -15,7 +15,11 @@ internal class CoreEpisodeFixture(
     private val activity: PlaybackProbeActivity,
     private val nextSeason: Int = 1,
     private val firstEpisode: Int = 1,
+    /** SubRip text the add-on offers as English subtitles for every episode, when set. */
+    private val subtitles: String? = null,
 ) : AutoCloseable {
+    val port: Int
+        get() = server.localPort
     val seriesId = "kino-fixture-series"
     val firstVideoId = "$seriesId-1-$firstEpisode"
     private val nextEpisode = if (nextSeason == 1) firstEpisode + 1 else 1
@@ -36,9 +40,8 @@ internal class CoreEpisodeFixture(
                     name = "Kino fixture",
                     types = listOf("series"),
                     resources =
-                        listOf("meta", "stream").map {
-                            ManifestResource(it, listOf("series"), listOf("kino-fixture"))
-                        },
+                        (listOf("meta", "stream") + listOfNotNull("subtitles".takeIf { subtitles != null }))
+                            .map { ManifestResource(it, listOf("series"), listOf("kino-fixture")) },
                     idPrefixes = listOf("kino-fixture"),
                     catalogs = emptyList(),
                     addonCatalogs = emptyList(),
@@ -63,6 +66,9 @@ internal class CoreEpisodeFixture(
                             when {
                                 path.startsWith("/meta/") ->
                                     """{"meta":{"id":"$seriesId","type":"series","name":"Kino fixture","videos":[$earlierVideos{"id":"$firstVideoId","title":"First episode","season":1,"episode":$firstEpisode,"released":"2020-01-01T00:00:00.000Z"},{"id":"$secondVideoId","title":"Second episode","season":$nextSeason,"episode":$nextEpisode,"released":"2020-01-02T00:00:00.000Z"}]}}"""
+                                path.startsWith("/subtitles/") && subtitles != null ->
+                                    """{"subtitles":[{"id":"kino-fixture-en","lang":"eng","url":"https://kino-fixture.invalid/files/en.srt"}]}"""
+                                path == "/files/en.srt" && subtitles != null -> subtitles
                                 path.startsWith("/stream/") ->
                                     """{"streams":[{"url":"https://kino-fixture.invalid/video/${path.substringAfterLast('/').removeSuffix(".json")}.mp4"}]}"""
                                 else -> "{}"
