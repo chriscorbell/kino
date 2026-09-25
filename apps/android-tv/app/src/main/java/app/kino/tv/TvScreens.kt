@@ -625,6 +625,7 @@ internal fun DetailScreen(
     var season by rememberSaveable { mutableStateOf<Int?>(null) }
     var lastEpisode by rememberSaveable { mutableStateOf(videoId) }
     var seasonMenu by remember { mutableStateOf(false) }
+    val seasonFocus = remember { FocusRequester() }
     var pendingFocus by remember(videoId) { mutableStateOf(lastEpisode) }
     val videos = meta?.videos.orEmpty()
     LaunchedEffect(meta, videoId) {
@@ -863,7 +864,11 @@ internal fun DetailScreen(
                     Modifier.padding(horizontal = PageGutter),
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
-                    OutlinedButton({ seasonMenu = true }, border = kinoOutlinedBorder()) {
+                    OutlinedButton(
+                        { seasonMenu = true },
+                        Modifier.focusRequester(seasonFocus),
+                        border = kinoOutlinedBorder(),
+                    ) {
                         Text(seasonLabel(shownSeason))
                         Icon(
                             painterResource(R.drawable.ic_chevron_down),
@@ -894,6 +899,9 @@ internal fun DetailScreen(
                 }
             }
             items(episodes, key = { it.id }) { episode ->
+                // Up from the first episode is the way back to the season choice, not to
+                // the season's watched action beside it.
+                val first = episode.id == episodes.firstOrNull()?.id
                 val episodeFocus = remember { FocusRequester() }
                 Row(
                     Modifier.padding(horizontal = PageGutter)
@@ -906,7 +914,10 @@ internal fun DetailScreen(
                             lastEpisode = episode.id
                             onEpisode(episode.id)
                         },
-                        modifier = Modifier.weight(1f).focusRequester(episodeFocus),
+                        modifier =
+                            Modifier.weight(1f).focusRequester(episodeFocus).focusProperties {
+                                if (first) up = seasonFocus
+                            },
                         shape = ClickableSurfaceDefaults.shape(RowShape),
                         colors = rowColors(),
                         border = rowBorder(),
