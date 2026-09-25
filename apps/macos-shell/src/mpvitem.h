@@ -75,6 +75,9 @@ private:
     bool renderContextReady_ = false;
     bool suppressMpvLogDetails_ = false;
     bool videoPresent_ = false;
+    // The last cache end sent to the interface, so the timeline hears about
+    // whole seconds rather than every demuxed packet.
+    long long bufferedMs_ = -1;
     std::shared_ptr<MpvContext> context_;
     mpv_handle *handle_ = nullptr;
     PowerGuard powerGuard_;

@@ -45,6 +45,25 @@ private slots:
         QCOMPARE(events.first().at(1).toMap().value("percent").toDouble(), 37.5);
     }
 
+    void bufferedProperty() {
+        MpvItem player;
+        QSignalSpy events(&player, &MpvItem::playerEvent);
+        auto buffered = [&](double seconds) {
+            sendProperty(player, "demuxer-cache-time", MPV_FORMAT_DOUBLE, &seconds);
+        };
+        buffered(12.5);
+        buffered(12.9);
+        buffered(14.0);
+        buffered(3.0);
+        QList<qlonglong> sent;
+        for (const auto &event : events) {
+            QCOMPARE(event.first().toString(), QStringLiteral("buffered"));
+            sent.append(event.at(1).toMap().value("milliseconds").toLongLong());
+        }
+        // Sub-second growth is folded into the next whole second; a seek back reports at once.
+        QCOMPARE(sent, (QList<qlonglong>{12500, 14000, 3000}));
+    }
+
     // The caption style must come from Kino, not from a libmpv default that
     // could change, and it must survive a load, a track switch, and an
     // external subtitle. Every value is read back from the live player.

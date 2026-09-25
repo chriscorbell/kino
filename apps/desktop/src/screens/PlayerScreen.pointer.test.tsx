@@ -142,3 +142,11 @@ it('moves focus into the subtitle panel and back to its button', async () => {
   fireEvent.keyDown(window, { key: 'Escape' });
   await waitFor(() => expect(toggle).toHaveFocus());
 });
+
+it('shows how far the native player has read ahead', async () => {
+  const { emit } = await mountPlayer();
+  await emit('duration', { milliseconds: 600_000 });
+  await emit('buffered', { milliseconds: 150_000 });
+  const timeline = screen.getByRole('slider', { name: 'Playback position' }).parentElement!;
+  expect(timeline.querySelector<HTMLElement>('[class*="bufferedRange"]')?.style.width).toBe('25%');
+});
