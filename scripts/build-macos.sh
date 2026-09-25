@@ -19,6 +19,10 @@ kino_qt_prefix="${KINO_QT_PREFIX:-$(brew --prefix qt)}"
   -DCMAKE_OSX_DEPLOYMENT_TARGET="${kino_deployment_target}" \
   -DCMAKE_OSX_SYSROOT="$(xcrun --show-sdk-path)"
 
-cmake --build "${kino_build_dir}" --parallel
+# A bare --parallel runs make with no job limit and ignores
+# CMAKE_BUILD_PARALLEL_LEVEL. With every test target compiling at once, a
+# three-core CI runner ran over fifty compilers and took twenty-five minutes.
+kino_build_jobs="${CMAKE_BUILD_PARALLEL_LEVEL:-$(getconf _NPROCESSORS_ONLN)}"
+cmake --build "${kino_build_dir}" --parallel "${kino_build_jobs}"
 
 echo "Built ${kino_build_dir}/Kino.app"
