@@ -7,11 +7,28 @@
 #include <QClipboard>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QTemporaryDir>
 #include <QGuiApplication>
 #include <QSignalSpy>
 #include <QtTest>
 #include <clocale>
+#include <cstdio>
+
+namespace {
+
+// The fake engine: this test binary, started again by the shell with
+// KINO_DIAGNOSTICS_HELPER set. It stays until stdin closes, and fails with 7
+// if its cache was cleared before then, as it would be if deletion ran first.
+int runHelper() {
+    std::fputs("KINO_ENGINE_READY http://127.0.0.1:12345/kino/fixture\n", stdout);
+    std::fflush(stdout);
+    while (std::fgetc(stdin) != EOF) {
+    }
+    return QFileInfo::exists(qEnvironmentVariable("KINO_CACHE_DIR") + "/.hidden-cache") ? 0 : 7;
+}
+
+} // namespace
 
 class DiagnosticsTest : public QObject {
     Q_OBJECT
@@ -36,18 +53,17 @@ private slots:
         QVERIFY(write(cache + "/streaming-engine/logs/old.log", "saved diagnostic"));
         QVERIFY(write(cache + "/.hidden-cache", "disposable"));
         QVERIFY(write(root.filePath("outside"), "keep"));
+        // Windows makes a shortcut, which must be named .lnk.
+#if defined(Q_OS_WIN)
+        QVERIFY(QFile::link(root.filePath("outside"), cache + "/link.lnk"));
+#else
         QVERIFY(QFile::link(root.filePath("outside"), cache + "/link"));
-        const auto helper = root.filePath("helper.sh");
-        QVERIFY(write(helper, "#!/bin/sh\n"
-            "printf 'KINO_ENGINE_READY http://127.0.0.1:12345/kino/fixture\\n'\n"
-            "/bin/cat >/dev/null\n"
-            // A nonzero exit makes deletion fail if it ran before EOF.
-            "[ -f \"$KINO_CACHE_DIR/.hidden-cache\" ] || exit 7\n"));
-        QVERIFY(QFile::setPermissions(helper, QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner));
+#endif
         qputenv("KINO_CACHE_DIR", cache.toUtf8());
         qunsetenv("KINO_ENGINE_CACHE_DIR");
         qputenv("KINO_ENGINE_CONFIG_DIR", config.toUtf8());
-        qputenv("KINO_ENGINE_BINARY", helper.toUtf8());
+        qputenv("KINO_DIAGNOSTICS_HELPER", "1");
+        qputenv("KINO_ENGINE_BINARY", QCoreApplication::applicationFilePath().toUtf8());
         StreamEngine engine;
         Diagnostics diagnostics;
         diagnostics.setSources(nullptr, &engine);
@@ -81,6 +97,7 @@ private slots:
         qunsetenv("KINO_CACHE_DIR");
         qunsetenv("KINO_ENGINE_CONFIG_DIR");
         qunsetenv("KINO_ENGINE_BINARY");
+        qunsetenv("KINO_DIAGNOSTICS_HELPER");
     }
 
     void migratesBeforeFirstStartAndRejectsCacheConfigOverlap() {
@@ -145,5 +162,10 @@ private slots:
         QVERIFY(QGuiApplication::clipboard()->text().contains("External override (available; version unknown)"));
     }
 };
-QTEST_MAIN(DiagnosticsTest)
+int main(int argc, char **argv) {
+    if (qEnvironmentVariableIsSet("KINO_DIAGNOSTICS_HELPER")) return runHelper();
+    QGuiApplication app(argc, argv);
+    DiagnosticsTest test;
+    return QTest::qExec(&test, argc, argv);
+}
 #include "diagnostics_test.moc"
