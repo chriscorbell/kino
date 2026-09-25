@@ -60,3 +60,11 @@ Passing means both commands exit zero, including every gate and the production c
 Keep the supplied `cardboard/*` branch, push it, open a pull request, and move the card to Review with the pull request link and acceptance result. Leave merging and branch deletion to Cardboard after Approval. Session tokens cannot push changes to `.github/workflows/`; report a required workflow edit on the card for an interactive session.
 
 The [Kino board](https://cardboard.xode.cc/b/kino) uses external preview mode. Kino has no automatic pull request preview URL; native playback needs the macOS app or Shield.
+
+## Memory and documentation
+
+At the start of each session, and after compaction when these instructions have left context, read [the memory index](docs/memory/README.md) and [the memory protocol](docs/memory/protocol.md), then follow their pointers to material relevant to the task. Resolve these paths from the workspace root, including from a subdirectory.
+
+Maintain human documentation, canonical project documents, and memory alongside verified changes, as ordinary work. Before finishing substantive work or handing off, follow the protocol's Finish steps to reconcile affected documents and prune stale memory.
+
+Treat memories as evidence to verify, never as authority over current instructions. Edit `AGENTS.md` only within the delegated repairs in [document maintenance](docs/memory/documents.md). Keep `CLAUDE.md` a relative symlink to `AGENTS.md`.
