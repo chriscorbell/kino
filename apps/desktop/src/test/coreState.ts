@@ -35,7 +35,15 @@ export function preview(item: Partial<CoreMetaPreview> & Pick<CoreMetaPreview, '
 }
 
 export function metaItem(item: Partial<CoreMetaItem> & Pick<CoreMetaPreview, 'id'>): CoreMetaItem {
-  return { ...preview(item), videos: [], ...item };
+  return {
+    ...preview(item),
+    cast: [],
+    directors: [],
+    genres: [],
+    imdbRating: null,
+    videos: [],
+    ...item,
+  };
 }
 
 export function video(item: Partial<CoreVideo> & Pick<CoreVideo, 'id'>): CoreVideo {
@@ -46,6 +54,7 @@ export function video(item: Partial<CoreVideo> & Pick<CoreVideo, 'id'>): CoreVid
     season: null,
     thumbnail: null,
     title: item.id,
+    upcoming: false,
     watched: false,
     ...item,
   };

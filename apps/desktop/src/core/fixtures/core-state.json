@@ -786,11 +786,47 @@
               "runtime": null,
               "released": null,
               "posterShape": "landscape",
-              "links": [],
+              "links": [
+                {
+                  "name": "8.2",
+                  "category": "imdb",
+                  "url": "https://imdb.com/title/tt0000000"
+                },
+                {
+                  "name": "Synthetic series",
+                  "category": "share",
+                  "url": "https://fixture.invalid/share"
+                },
+                {
+                  "name": "Drama",
+                  "category": "Genres",
+                  "url": "stremio:///discover/genre-drama"
+                },
+                {
+                  "name": "Comedy",
+                  "category": "Genres",
+                  "url": "stremio:///discover/genre-comedy"
+                },
+                {
+                  "name": "Ada Example",
+                  "category": "Cast",
+                  "url": "stremio:///search?search=Ada%20Example"
+                },
+                {
+                  "name": "Ada Example",
+                  "category": "Cast",
+                  "url": "stremio:///search?search=Ada%20Example"
+                },
+                {
+                  "name": "Ben Example",
+                  "category": "Directors",
+                  "url": "stremio:///search?search=Ben%20Example"
+                }
+              ],
               "behaviorHints": {
                 "defaultVideoId": null,
                 "featuredVideoId": null,
-                "hasScheduledVideos": false
+                "hasScheduledVideos": true
               },
               "watched": false,
               "inLibrary": true
@@ -1003,10 +1039,10 @@
         "posterShape": "landscape",
         "removed": false,
         "temp": false,
-        "_ctime": "2026-09-05T18:18:09.894Z",
-        "_mtime": "2026-09-05T18:18:09.894Z",
+        "_ctime": "2026-09-25T09:25:02.924Z",
+        "_mtime": "2026-09-25T09:25:02.924Z",
         "state": {
-          "lastWatched": "2026-09-05T18:18:09.894Z",
+          "lastWatched": "2026-09-25T09:25:02.924Z",
           "timeWatched": 0,
           "timeOffset": 0,
           "overallTimeWatched": 0,
@@ -1020,7 +1056,7 @@
         "behaviorHints": {
           "defaultVideoId": null,
           "featuredVideoId": null,
-          "hasScheduledVideos": false
+          "hasScheduledVideos": true
         }
       },
       "metaItem": {
@@ -1038,26 +1074,76 @@
             "runtime": null,
             "released": null,
             "posterShape": "landscape",
-            "links": [],
+            "links": [
+              {
+                "name": "8.2",
+                "category": "imdb",
+                "url": "https://imdb.com/title/tt0000000"
+              },
+              {
+                "name": "Synthetic series",
+                "category": "share",
+                "url": "https://fixture.invalid/share"
+              },
+              {
+                "name": "Drama",
+                "category": "Genres",
+                "url": "stremio:///discover/genre-drama"
+              },
+              {
+                "name": "Comedy",
+                "category": "Genres",
+                "url": "stremio:///discover/genre-comedy"
+              },
+              {
+                "name": "Ada Example",
+                "category": "Cast",
+                "url": "stremio:///search?search=Ada%20Example"
+              },
+              {
+                "name": "Ada Example",
+                "category": "Cast",
+                "url": "stremio:///search?search=Ada%20Example"
+              },
+              {
+                "name": "Ben Example",
+                "category": "Directors",
+                "url": "stremio:///search?search=Ben%20Example"
+              }
+            ],
             "behaviorHints": {
               "defaultVideoId": null,
               "featuredVideoId": null,
-              "hasScheduledVideos": false
+              "hasScheduledVideos": true
             },
             "videos": [
               {
                 "id": "kino-fixture:1:1",
                 "title": "Pilot",
-                "released": null,
+                "released": "2024-01-01T00:00:00Z",
                 "overview": null,
-                "thumbnail": null,
+                "thumbnail": "https://fixture.invalid/1-1.jpg",
                 "streams": [],
                 "season": 1,
                 "episode": 1,
                 "upcoming": false,
                 "watched": false,
                 "progress": null,
-                "scheduled": false
+                "scheduled": true
+              },
+              {
+                "id": "kino-fixture:1:2",
+                "title": "Announced",
+                "released": "2099-01-01T00:00:00Z",
+                "overview": null,
+                "thumbnail": null,
+                "streams": [],
+                "season": 1,
+                "episode": 2,
+                "upcoming": true,
+                "watched": false,
+                "progress": null,
+                "scheduled": true
               }
             ],
             "inLibrary": true,
@@ -1086,7 +1172,7 @@
           "id": "kino-fixture:1:1",
           "extra": []
         },
-        "guessStream": true
+        "guessStream": false
       },
       "streams": [
         {
@@ -1616,7 +1702,7 @@
           "id": "failed:1:1",
           "extra": []
         },
-        "guessStream": true
+        "guessStream": false
       },
       "streams": [
         {

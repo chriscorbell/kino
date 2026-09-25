@@ -493,14 +493,36 @@ function adaptVideo(value: unknown, site: Site): CoreVideo {
     season: optionalWholeNumber(source.season, at(site, 'season')),
     thumbnail: displayText(source.thumbnail, at(site, 'thumbnail')),
     title: optionalText(source.title, at(site, 'title')) ?? '',
+    upcoming: flagOr(source.upcoming, at(site, 'upcoming'), false),
     watched: flagOr(source.watched, at(site, 'watched'), false),
+  };
+}
+
+function adaptLink(value: unknown, site: Site) {
+  const source = record(value, site);
+  return {
+    category: text(source.category, at(site, 'category')),
+    name: displayText(source.name, at(site, 'name')),
   };
 }
 
 function adaptMetaItem(value: unknown, site: Site): CoreMetaItem {
   const source = record(value, site);
+  // Add-ons describe genres, people and ratings as categorized links. Kino
+  // shows the names as text; the link targets are Stremio deep links.
+  const links = absent(source.links) ? [] : items(source.links, at(site, 'links'), adaptLink);
+  const names = (category: string) => [
+    ...new Set(
+      links.flatMap((link) => (link.category === category && link.name ? [link.name] : [])),
+    ),
+  ];
+  const rating = links.find((link) => link.category === 'imdb')?.name?.trim() ?? null;
   return {
     ...adaptMetaPreview(value, site),
+    cast: names('Cast'),
+    directors: names('Directors'),
+    genres: names('Genres'),
+    imdbRating: rating && /^\d{1,2}(\.\d{1,2})?$/.test(rating) ? rating : null,
     videos: absent(source.videos) ? [] : items(source.videos, at(site, 'videos'), adaptVideo),
   };
 }

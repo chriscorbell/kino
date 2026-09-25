@@ -282,6 +282,14 @@ export const enUS = {
     otherEpisodes: 'Other episodes',
     watched: 'Watched',
     inProgress: 'In progress',
+    upcoming: 'Upcoming',
+    releaseDate: (value: string) =>
+      new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' }).format(
+        new Date(value),
+      ),
+    imdbRating: (rating: string) => `IMDb ${rating}`,
+    cast: 'Cast',
+    directors: (count: number) => (count === 1 ? 'Director' : 'Directors'),
     episodeIdentity: (season: number | null, episode: number | null) =>
       [
         season === null ? null : season === 0 ? 'Specials' : `Season ${season}`,

@@ -533,3 +533,42 @@ describe('watched state', () => {
     );
   });
 });
+
+describe('title details', () => {
+  it('shows the rating, genres and people, and dates each episode', async () => {
+    const rich = metaItem({
+      ...meta,
+      cast: ['Ada Example', 'Ben Example'],
+      directors: ['Cy Example'],
+      genres: ['Drama', 'Comedy'],
+      imdbRating: '8.2',
+      videos: [
+        video({
+          id: 'ep1',
+          title: 'Episode one',
+          season: 1,
+          episode: 1,
+          released: '2024-01-21T05:00:00Z',
+          thumbnail: 'https://images.invalid/ep1.jpg',
+        }),
+        video({
+          id: 'ep2',
+          title: 'Episode two',
+          season: 1,
+          episode: 2,
+          released: '2099-03-03T00:00:00Z',
+          upcoming: true,
+        }),
+      ],
+    });
+    mountDetails(details('ep1', rich), rich, null);
+    expect(await screen.findByText('Drama, Comedy')).toBeInTheDocument();
+    expect(screen.getByText(/IMDb 8\.2/)).toBeInTheDocument();
+    expect(screen.getByText('Cast').nextElementSibling).toHaveTextContent(
+      'Ada Example, Ben Example',
+    );
+    expect(screen.getByText('Director').nextElementSibling).toHaveTextContent('Cy Example');
+    expect(screen.getByText('Jan 21, 2024')).toBeInTheDocument();
+    expect(screen.getByText('Upcoming · Mar 3, 2099')).toBeInTheDocument();
+  });
+});

@@ -466,6 +466,32 @@ describe('sources and playback', () => {
   });
 });
 
+describe('title details', () => {
+  const details = () => {
+    const resource = adaptMetaDetailsState(raw('ready_meta_details')).metaItem;
+    if (resource?.content.type !== 'Ready') throw new Error('The fixture has no ready title.');
+    return resource.content.content;
+  };
+
+  it('reads genres, people and the rating from the add-on links', () => {
+    const title = details();
+    expect(title.genres).toEqual(['Drama', 'Comedy']);
+    expect(title.cast).toEqual(['Ada Example']);
+    expect(title.directors).toEqual(['Ben Example']);
+    expect(title.imdbRating).toBe('8.2');
+  });
+
+  it('keeps episode art and dates, and marks announced episodes from Core', () => {
+    const [pilot, announced] = details().videos;
+    expect(pilot).toMatchObject({
+      released: '2024-01-01T00:00:00Z',
+      thumbnail: 'https://fixture.invalid/1-1.jpg',
+      upcoming: false,
+    });
+    expect(announced).toMatchObject({ released: '2099-01-01T00:00:00Z', upcoming: true });
+  });
+});
+
 describe('library metadata hints', () => {
   it('carries Core’s title hints through the adapter and back out on AddToLibrary', () => {
     // AddToLibrary rewrites the stored item, so a hint Kino never displays is

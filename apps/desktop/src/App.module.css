@@ -521,6 +521,43 @@
   margin: 10px 0 0;
 }
 
+.detailLogoTitle img {
+  display: block;
+  max-width: min(420px, 100%);
+  max-height: 128px;
+  object-fit: contain;
+  object-position: left bottom;
+}
+
+.detailGenres {
+  margin: 6px 0 0;
+  color: var(--kino-text-faint);
+  font-size: 13px;
+}
+
+.detailCredits {
+  display: grid;
+  gap: 4px;
+  margin: 14px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.detailCredits > div {
+  display: flex;
+  gap: 10px;
+}
+
+.detailCredits dt {
+  flex: 0 0 64px;
+  color: var(--kino-text-faint);
+}
+
+.detailCredits dd {
+  margin: 0;
+  color: var(--kino-text-muted);
+}
+
 .detailMetadata {
   color: var(--kino-text-muted);
   font-size: 13px;
@@ -788,6 +825,29 @@
   gap: 14px;
 }
 
+.episodeButtonArt {
+  grid-template-columns: 38px 128px minmax(0, 1fr) auto;
+}
+
+.episodeThumbnail {
+  overflow: hidden;
+  width: 128px;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--kino-media-radius);
+  background: var(--kino-surface);
+}
+
+.episodeThumbnail img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.episodeText > .episodeUpcoming {
+  color: var(--kino-text);
+}
+
 .episodeRow:hover,
 .episodeActive,
 .sourceButton:hover:not(:disabled) {
@@ -820,6 +880,11 @@
   font-size: 12px;
   font-weight: 400;
   line-height: 1.4;
+}
+
+/* Aligns with the title column: row padding, number, art, and two gaps. */
+.episodeOverviewArt {
+  margin-left: 206px;
 }
 
 .sourceButton {
@@ -2002,6 +2067,18 @@
   .detailSectionHeading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .episodeButtonArt {
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+  }
+
+  .episodeThumbnail {
+    display: none;
+  }
+
+  .episodeOverviewArt {
+    margin-left: 64px;
   }
 
   .seasonControls {
