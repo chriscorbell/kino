@@ -281,7 +281,9 @@ class NavigationPerformanceTest {
                                                     details = true
                                                 }
                                             else ->
-                                                LibraryScreen(movies + series) { details = true }
+                                                LibraryScreen(Library(movies + series), {
+                                                    details = true
+                                                })
                                         }
                                     }
                                 LaunchedEffect(route, details) {
@@ -359,6 +361,8 @@ class NavigationPerformanceTest {
             assertFocused("Movie 17")
             reportFrames("search", frames)
             focus(context.getString(R.string.search))
+            // Discover sits between Search and Library in the rail.
+            key(KeyEvent.KEYCODE_DPAD_DOWN)
             key(KeyEvent.KEYCODE_DPAD_DOWN)
             key(KeyEvent.KEYCODE_DPAD_CENTER)
             assertFocused(context.getString(R.string.all), timeoutMs = 1000)

@@ -69,12 +69,38 @@ data class Details(
     val lastUsedStream: Stream? = null,
 )
 
+/** One choice in a Discover or Library selector, with the Core request that selects it. */
+data class TvChoice<R>(val label: String?, val selected: Boolean, val request: R)
+
+data class DiscoverFilter(val name: String, val options: List<TvChoice<ResourceRequest>>)
+
+/** A Discover catalog: its selectors, the items loaded so far, and whether more pages exist. */
+data class Discover(
+    val types: List<TvChoice<ResourceRequest>> = emptyList(),
+    val catalogs: List<TvChoice<ResourceRequest>> = emptyList(),
+    val filters: List<DiscoverFilter> = emptyList(),
+    val items: List<Media> = emptyList(),
+    val loading: Boolean = true,
+    val failed: Boolean = false,
+    val more: Boolean = false,
+)
+
+/** The loaded pages of the library for one type and sort, and whether more exist. */
+data class Library(
+    val items: List<Media> = emptyList(),
+    val types: List<TvChoice<LibraryWithFilters.LibraryRequest>> = emptyList(),
+    val sorts: List<TvChoice<LibraryWithFilters.LibraryRequest>> = emptyList(),
+    val more: Boolean = false,
+)
+
 data class TvState(
     val ready: Boolean = false,
     val failed: Boolean = false,
     val shelves: List<Shelf> = emptyList(),
     val search: List<Shelf> = emptyList(),
     val library: List<Media> = emptyList(),
+    val libraryPages: Library = Library(),
+    val discover: Discover = Discover(),
     val continueWatching: List<Media> = emptyList(),
     val details: Details = Details(),
     val signedIn: Boolean = false,
@@ -114,9 +140,18 @@ class TvCore(
     private var authenticating = false
     private var detailSelection: MetaDetails.Selected? = null
     private var playerSelection: Player.Selected? = null
+    private var discoverRequested = false
+
+    /**
+     * Fields Core reported changed since the last refresh. Only these are decoded again: reading
+     * every model on every event decoded the whole library each time playback reported progress.
+     */
+    private val dirty = mutableSetOf<Field>()
     private val update = Runnable { refresh() }
     private val listener =
-        Core.EventListener {
+        Core.EventListener { event ->
+            val changed = event.newState?.fields ?: listOf(Field.CTX)
+            synchronized(dirty) { dirty.addAll(changed) }
             handler.removeCallbacks(update)
             handler.postDelayed(update, 40)
         }
@@ -176,16 +211,82 @@ class TvCore(
             Field.SEARCH,
         )
 
+    private var libraryRequest =
+        LibraryWithFilters.LibraryRequest(sort = LibraryWithFilters.Sort.LAST_WATCHED, page = 1)
+
     fun loadLibrary() {
-        val selected =
-            LibraryWithFilters.Selected(
-                LibraryWithFilters.LibraryRequest(
-                    sort = LibraryWithFilters.Sort.LAST_WATCHED,
-                    page = 1,
+        load(
+            ActionLoad.Args.LibraryWithFilters(
+                LibraryWithFilters.Selected(libraryRequest.copy(page = 1))
+            ),
+            Field.LIBRARY,
+        )
+        load(
+            ActionLoad.Args.LibraryWithFilters(
+                LibraryWithFilters.Selected(
+                    LibraryWithFilters.LibraryRequest(
+                        sort = LibraryWithFilters.Sort.LAST_WATCHED,
+                        page = 1,
+                    )
                 )
-            )
-        load(ActionLoad.Args.LibraryWithFilters(selected), Field.LIBRARY)
-        load(ActionLoad.Args.LibraryWithFilters(selected), Field.CONTINUE_WATCHING)
+            ),
+            Field.CONTINUE_WATCHING,
+        )
+    }
+
+    /** Shows the library for another type or sort, from its first page. */
+    fun selectLibrary(request: LibraryWithFilters.LibraryRequest) {
+        libraryRequest = request.copy(page = 1)
+        load(
+            ActionLoad.Args.LibraryWithFilters(LibraryWithFilters.Selected(libraryRequest)),
+            Field.LIBRARY,
+        )
+    }
+
+    fun loadMoreLibrary() {
+        if (!mutable.value.libraryPages.more) return
+        Core.dispatch(
+            Action(
+                Action.Type.LibraryWithFilters(
+                    ActionLibraryWithFilters(ActionLibraryWithFilters.Args.LoadNextPage(Empty()))
+                )
+            ),
+            Field.LIBRARY,
+        )
+    }
+
+    /**
+     * Opens Discover on [request], or on the first home catalog when none is chosen yet. Core
+     * needs a concrete catalog to start from; its selectors then offer every other one.
+     */
+    fun discover(request: ResourceRequest? = null) {
+        val target =
+            request
+                ?: Core.getState<CatalogsWithExtra>(Field.BOARD)
+                    .catalogs
+                    .firstNotNullOfOrNull { catalog ->
+                        catalog.pages.firstOrNull()?.request?.takeIf {
+                            catalog.pages.first().addonId != "org.stremio.local"
+                        }
+                    }
+                ?: return
+        discoverRequested = true
+        load(
+            ActionLoad.Args.CatalogWithFilters(CatalogWithFilters.Selected(target)),
+            Field.DISCOVER,
+        )
+    }
+
+    fun loadMoreDiscover() {
+        if (!mutable.value.discover.more) return
+        Core.dispatch(
+            Action(
+                Action.Type.CatalogWithFilters(
+                    ActionCatalogWithFilters(ActionCatalogWithFilters.Args.LoadNextPage(Empty()))
+                )
+            ),
+            Field.DISCOVER,
+        )
     }
 
     fun open(media: Media, videoId: String? = media.entryVideoId()) {
@@ -336,6 +437,10 @@ class TvCore(
         mutable.value = mutable.value.copy(nextVideo = null)
         Core.dispatch(Action(Action.Type.Unload(Action.ActionUnload())), Field.PLAYER)
         loadLibrary()
+        // Browse models deferred during playback are read now, before anything can start another
+        // player and defer them again.
+        handler.removeCallbacks(update)
+        refresh()
     }
 
     private fun shelves(field: Field): List<Shelf> {
@@ -370,8 +475,8 @@ class TvCore(
         }
     }
 
-    private fun library(field: Field): List<Media> =
-        Core.getState<LibraryWithFilters>(field).catalog.map {
+    private fun libraryItems(model: LibraryWithFilters, resume: Boolean): List<Media> =
+        model.catalog.map {
             Media(
                 it.id,
                 it.type,
@@ -380,49 +485,122 @@ class TvCore(
                 // Core exposes a percentage; the presentation uses a fraction of the poster width.
                 progress = it.progress / 100.0,
                 videoId = it.state.videoId,
-                resume = field == Field.CONTINUE_WATCHING,
+                resume = resume,
             )
         }
 
+    private fun libraryPages(model: LibraryWithFilters) =
+        Library(
+            items = libraryItems(model, resume = false),
+            types = model.selectable.types.map { TvChoice(it.type, it.selected, it.request) },
+            sorts =
+                model.selectable.sorts.map { TvChoice(it.sort.name, it.selected, it.request) },
+            more = model.selectable.nextPage != null,
+        )
+
+    private fun discover(model: CatalogWithFilters): Discover {
+        val pages = model.catalog.pages
+        return Discover(
+            types = model.selectable.types.map { TvChoice(it.type, it.selected, it.request) },
+            catalogs = model.selectable.catalogs.map { TvChoice(it.name, it.selected, it.request) },
+            filters =
+                model.selectable.extra
+                    .filter { it.options.isNotEmpty() }
+                    .map { extra ->
+                        DiscoverFilter(
+                            extra.name,
+                            extra.options.map { TvChoice(it.value, it.selected, it.request) },
+                        )
+                    },
+            items =
+                pages
+                    .flatMap { it.ready?.metaItems.orEmpty() }
+                    .distinctBy { "${it.type}:${it.id}" }
+                    .map { it.media() },
+            loading = pages.isEmpty() || pages.any { it.content == null || it.loading != null },
+            failed = pages.isNotEmpty() && pages.all { it.error != null },
+            more = model.selectable.nextPage != null,
+        )
+    }
+
+    /** Browse models change while playback reports progress; nothing shows them until it ends. */
+    private val deferredDuringPlayback =
+        setOf(Field.BOARD, Field.SEARCH, Field.LIBRARY, Field.CONTINUE_WATCHING, Field.DISCOVER)
+
     private fun refresh() {
         if (!initialized) return
+        val first = !mutable.value.ready
+        val changed =
+            synchronized(dirty) {
+                val ready =
+                    if (playerSelection == null) dirty.toSet()
+                    else dirty.filterNot { it in deferredDuringPlayback }.toSet()
+                dirty.removeAll(ready)
+                ready
+            }
+        fun reads(field: Field) = first || field in changed
         try {
+            val previous = mutable.value
             val profile = Core.getState<Ctx>(Field.CTX).profile
-            val detail = Core.getState<MetaDetails>(Field.META_DETAILS)
             val selection = detailSelection
-            val current = selection != null && detail.selected == selection
-            val metaResource = detail.metaItem?.takeIf { it.request.path == selection?.metaPath }
-            val resources =
-                detail.streams.filter {
-                    current &&
-                        selection?.streamPath != null &&
-                        it.request.path == selection.streamPath &&
-                        secureUrl(it.request.base)
-                }
-            val auth = Core.getState<AuthLink>(Field.AUTH_LINK)
+            val detailState =
+                if (reads(Field.META_DETAILS)) {
+                    val detail = Core.getState<MetaDetails>(Field.META_DETAILS)
+                    val current = selection != null && detail.selected == selection
+                    val metaResource =
+                        detail.metaItem?.takeIf { it.request.path == selection?.metaPath }
+                    val resources =
+                        detail.streams.filter {
+                            current &&
+                                selection?.streamPath != null &&
+                                it.request.path == selection.streamPath &&
+                                secureUrl(it.request.base)
+                        }
+                    Details(
+                        meta = metaResource?.ready ?: previous.details.meta,
+                        metaRequest = metaResource?.request ?: previous.details.metaRequest,
+                        lastUsedStream = detail.lastUsedStream?.ready?.stream.takeIf { current },
+                        sources =
+                            resources.flatMap { resource ->
+                                resource.ready?.streams.orEmpty().map {
+                                    Source(resource.title, it, resource.request)
+                                }
+                            },
+                        loading = metaResource == null || metaResource.loading != null,
+                        sourcesLoading =
+                            selection?.streamPath != null &&
+                                (!current || resources.any { it.loading != null }),
+                        failed = metaResource?.error != null,
+                        sourceErrors = resources.filter { it.error != null }.map { it.title },
+                    )
+                } else previous.details
+            val auth =
+                if (reads(Field.AUTH_LINK)) Core.getState<AuthLink>(Field.AUTH_LINK) else null
             // Read once at the Core event boundary, not on the playback position ticker.
-            val player = playerSelection?.let { Core.getState<Player>(Field.PLAYER) }
             val nextVideo =
-                player
-                    ?.takeIf {
-                        // Core rebuilds stream deep links for each model. Match the
-                        // actual source and requests, not those derived navigation links.
-                        val selected = it.selected
-                        selected != null &&
-                            selected.streamRequest == playerSelection?.streamRequest &&
-                            selected.metaRequest == playerSelection?.metaRequest &&
-                            selected.stream.source == playerSelection?.stream?.source &&
-                            selected.stream.behaviorHints.proxyHeaders ==
-                                playerSelection?.stream?.behaviorHints?.proxyHeaders
-                    }
-                    ?.nextVideo
-                    ?.takeIf {
-                        playerSelection?.streamRequest?.path?.type == "series" &&
-                            it.id != playerSelection?.streamRequest?.path?.id &&
-                            !it.upcoming
-                    }
+                if (!reads(Field.PLAYER)) previous.nextVideo
+                else
+                    playerSelection
+                        ?.let { Core.getState<Player>(Field.PLAYER) }
+                        ?.takeIf {
+                            // Core rebuilds stream deep links for each model. Match the
+                            // actual source and requests, not those derived navigation links.
+                            val selected = it.selected
+                            selected != null &&
+                                selected.streamRequest == playerSelection?.streamRequest &&
+                                selected.metaRequest == playerSelection?.metaRequest &&
+                                selected.stream.source == playerSelection?.stream?.source &&
+                                selected.stream.behaviorHints.proxyHeaders ==
+                                    playerSelection?.stream?.behaviorHints?.proxyHeaders
+                        }
+                        ?.nextVideo
+                        ?.takeIf {
+                            playerSelection?.streamRequest?.path?.type == "series" &&
+                                it.id != playerSelection?.streamRequest?.path?.id &&
+                                !it.upcoming
+                        }
             val signedIn = profile.auth != null
-            if (linking && !authenticating && auth.data?.ready != null) {
+            if (linking && !authenticating && auth?.data?.ready != null) {
                 authenticating = true
                 ctx(
                     ActionCtx.Args.Authenticate(
@@ -434,58 +612,58 @@ class TvCore(
                     )
                 )
             }
-            if (signedIn && !mutable.value.signedIn) {
+            if (signedIn && !previous.signedIn && previous.ready) {
                 linking = false
                 home()
                 loadLibrary()
             }
+            val library =
+                if (reads(Field.LIBRARY))
+                    libraryPages(Core.getState<LibraryWithFilters>(Field.LIBRARY))
+                else previous.libraryPages
             mutable.value =
-                TvState(
+                previous.copy(
                     ready = true,
-                    shelves = shelves(Field.BOARD),
-                    search = shelves(Field.SEARCH),
-                    library = library(Field.LIBRARY),
-                    continueWatching = library(Field.CONTINUE_WATCHING),
+                    failed = false,
+                    shelves = if (reads(Field.BOARD)) shelves(Field.BOARD) else previous.shelves,
+                    search = if (reads(Field.SEARCH)) shelves(Field.SEARCH) else previous.search,
+                    library = library.items,
+                    libraryPages = library,
+                    continueWatching =
+                        if (reads(Field.CONTINUE_WATCHING))
+                            libraryItems(
+                                Core.getState<LibraryWithFilters>(Field.CONTINUE_WATCHING),
+                                resume = true,
+                            )
+                        else previous.continueWatching,
+                    discover =
+                        if (discoverRequested && reads(Field.DISCOVER))
+                            discover(Core.getState<CatalogWithFilters>(Field.DISCOVER))
+                        else previous.discover,
                     signedIn = signedIn,
                     audioLanguage = profile.settings.audioLanguage,
                     subtitleLanguage = profile.settings.subtitlesLanguage,
                     addons =
-                        Core.getState<AddonsWithFilters>(Field.ADDONS)
-                            .catalog
-                            ?.ready
-                            ?.items
-                            .orEmpty()
-                            .filter { it.manifest.id != "org.stremio.local" }
-                            .map { it.manifest.name },
-                    details =
-                        Details(
-                            meta = metaResource?.ready ?: mutable.value.details.meta,
-                            metaRequest =
-                                metaResource?.request ?: mutable.value.details.metaRequest,
-                            lastUsedStream =
-                                detail.lastUsedStream?.ready?.stream.takeIf { current },
-                            sources =
-                                resources.flatMap { resource ->
-                                    resource.ready?.streams.orEmpty().map {
-                                        Source(resource.title, it, resource.request)
-                                    }
-                                },
-                            loading = metaResource == null || metaResource.loading != null,
-                            sourcesLoading =
-                                selection?.streamPath != null &&
-                                    (!current || resources.any { it.loading != null }),
-                            failed = metaResource?.error != null,
-                            sourceErrors = resources.filter { it.error != null }.map { it.title },
-                        ),
-                    link = auth.code?.ready?.link,
-                    qrCode = auth.code?.ready?.qrcode,
-                    linkFailed = auth.code?.error != null,
+                        if (reads(Field.ADDONS))
+                            Core.getState<AddonsWithFilters>(Field.ADDONS)
+                                .catalog
+                                ?.ready
+                                ?.items
+                                .orEmpty()
+                                .filter { it.manifest.id != "org.stremio.local" }
+                                .map { it.manifest.name }
+                        else previous.addons,
+                    details = detailState,
+                    link = if (auth != null) auth.code?.ready?.link else previous.link,
+                    qrCode = if (auth != null) auth.code?.ready?.qrcode else previous.qrCode,
+                    linkFailed = if (auth != null) auth.code?.error != null else previous.linkFailed,
                     nextVideo = nextVideo,
                 )
         } catch (_: Exception) {
             Log.e("KinoCore", "Core state could not be read")
         }
     }
+
 }
 
 fun MetaItemPreview.media() =
