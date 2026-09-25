@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 /**
  * A loopback catalog add-on for the browse gates: one movie catalog with a genre filter and `skip`
- * paging. The unfiltered catalog holds [total] titles served [pageSize] at a time, so Core offers
+ * paging, and metadata for each of its titles. The unfiltered catalog holds [total] titles served [pageSize] at a time, so Core offers
  * further pages until an empty one; each genre holds a single page of its own titles.
  *
  * The add-on lives under its own path on the fixture host, so it never collides with the other
@@ -42,7 +42,11 @@ internal class CoreCatalogFixture(
                     version = "1.0.0",
                     name = "Kino catalog fixture",
                     types = listOf("movie"),
-                    resources = listOf(ManifestResource("catalog", listOf("movie"), emptyList())),
+                    resources =
+                        listOf(
+                            ManifestResource("catalog", listOf("movie"), emptyList()),
+                            ManifestResource("meta", listOf("movie"), listOf("kino-catalog")),
+                        ),
                     idPrefixes = listOf("kino-catalog"),
                     catalogs =
                         listOf(
@@ -88,32 +92,38 @@ internal class CoreCatalogFixture(
                         val path = URLDecoder.decode(reader.readLine().split(' ')[1], "UTF-8")
                         while (!reader.readLine().isNullOrEmpty()) {}
                         val body =
-                            if (!path.startsWith("/browse/catalog/")) "{}"
-                            else {
-                                requests.add(path)
-                                val extra =
-                                    path
-                                        .removePrefix("/browse")
-                                        .removeSuffix(".json")
-                                        .split('/')
-                                        .getOrNull(4)
-                                        .orEmpty()
-                                        .split('&')
-                                        .mapNotNull {
-                                            it.split('=', limit = 2).takeIf { pair -> pair.size == 2 }
+                            when {
+                                path.startsWith("/browse/meta/movie/") -> {
+                                    val id = path.substringAfterLast('/').removeSuffix(".json")
+                                    """{"meta":{"id":"$id","type":"movie","name":"Fixture movie"}}"""
+                                }
+                                !path.startsWith("/browse/catalog/") -> "{}"
+                                else -> {
+                                    requests.add(path)
+                                    val extra =
+                                        path
+                                            .removePrefix("/browse")
+                                            .removeSuffix(".json")
+                                            .split('/')
+                                            .getOrNull(4)
+                                            .orEmpty()
+                                            .split('&')
+                                            .mapNotNull {
+                                                it.split('=', limit = 2).takeIf { pair -> pair.size == 2 }
+                                            }
+                                            .associate { (name, value) -> name to value }
+                                    val skip = extra["skip"]?.toIntOrNull() ?: 0
+                                    val genre = extra["genre"]
+                                    val items =
+                                        when {
+                                            genre != null && skip == 0 -> metas(genre, 0, 20)
+                                            genre != null -> ""
+                                            skip < total ->
+                                                metas("Fixture", skip, minOf(pageSize, total - skip))
+                                            else -> ""
                                         }
-                                        .associate { (name, value) -> name to value }
-                                val skip = extra["skip"]?.toIntOrNull() ?: 0
-                                val genre = extra["genre"]
-                                val items =
-                                    when {
-                                        genre != null && skip == 0 -> metas(genre, 0, 20)
-                                        genre != null -> ""
-                                        skip < total ->
-                                            metas("Fixture", skip, minOf(pageSize, total - skip))
-                                        else -> ""
-                                    }
-                                """{"metas":[$items]}"""
+                                    """{"metas":[$items]}"""
+                                }
                             }.toByteArray()
                         socket.getOutputStream().apply {
                             write(

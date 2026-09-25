@@ -59,8 +59,10 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -71,6 +73,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.*
+import com.stremio.core.types.resource.Video
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.delay
 
@@ -264,12 +267,21 @@ fun KinoApp(
                                         onSource = { source ->
                                             if (core.startPlayer(source)) playing = source
                                         },
+                                        onWatched = core::markWatched,
+                                        onEpisodeWatched = core::markVideoWatched,
+                                        onSeasonWatched = core::markSeasonWatched,
                                     )
                                 }
                             } else {
                                 savedScreens.SaveableStateProvider(destination) {
                                     when (destination) {
-                                        "home" -> HomeScreen(state, open, core::home)
+                                        "home" ->
+                                            HomeScreen(
+                                                state,
+                                                open,
+                                                core::home,
+                                                core::removeFromContinueWatching,
+                                            )
                                         "search" ->
                                             SearchScreen(query, { query = it }, state.search, open)
                                         "discover" -> {
@@ -355,8 +367,37 @@ private fun groupedMedia(shelves: List<Shelf>): List<Pair<Int, List<Media>>> {
 }
 
 @Composable
-internal fun HomeScreen(state: TvState, onOpen: (Media) -> Unit, onRetry: () -> Unit) {
+internal fun HomeScreen(
+    state: TvState,
+    onOpen: (Media) -> Unit,
+    onRetry: () -> Unit,
+    onRemoveContinue: (Media) -> Unit = {},
+) {
     val groups = remember(state.shelves) { groupedMedia(state.shelves) }
+    var options by remember { mutableStateOf<Media?>(null) }
+    options?.let { media ->
+        Dialog(onDismissRequest = { options = null }) {
+            Column(
+                Modifier.width(420.dp)
+                    .background(SurfaceColor, RoundedCornerShape(12.dp))
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Text(media.title, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                val remove = remember { FocusRequester() }
+                Button(
+                    {
+                        options = null
+                        onRemoveContinue(media)
+                    },
+                    Modifier.fillMaxWidth().focusRequester(remove),
+                ) {
+                    Text(stringResource(R.string.continue_remove))
+                }
+                LaunchedEffect(Unit) { remove.requestFocus() }
+            }
+        }
+    }
     LazyColumn(
         state = rememberLazyListState(),
         modifier = Modifier.fillMaxSize(),
@@ -370,6 +411,7 @@ internal fun HomeScreen(state: TvState, onOpen: (Media) -> Unit, onRetry: () -> 
                 state.continueWatching.take(10),
                 onOpen,
                 resume = true,
+                onOptions = { options = it },
             )
             if (state.continueWatching.isEmpty()) StatusText(R.string.continue_empty)
         }
@@ -416,6 +458,7 @@ private fun MediaShelf(
     media: List<Media>,
     onOpen: (Media) -> Unit,
     resume: Boolean = false,
+    onOptions: ((Media) -> Unit)? = null,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
@@ -432,7 +475,13 @@ private fun MediaShelf(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 itemsIndexed(media, key = { _, it -> "${it.type}:${it.id}" }) { index, item ->
-                    PosterCard(item, resume, "$id:${item.type}:${item.id}", index == 0) {
+                    PosterCard(
+                        item,
+                        resume,
+                        "$id:${item.type}:${item.id}",
+                        index == 0,
+                        onLongClick = onOptions?.let { { it(item) } },
+                    ) {
                         onOpen(item)
                     }
                 }
@@ -446,9 +495,11 @@ internal fun PosterCard(
     resume: Boolean,
     focusKey: String,
     firstInRow: Boolean,
+    onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     val registry = LocalPosterFocus.current
+    val removeLabel = stringResource(R.string.continue_remove)
     val navigation = LocalNavigationFocus.current
     val focus = remember(focusKey) { FocusRequester() }
     val caption =
@@ -472,7 +523,14 @@ internal fun PosterCard(
                 .focusRequester(focus)
                 .focusProperties { if (firstInRow) left = navigation }
                 .onFocusChanged { if (it.isFocused) registry.lastFocusedKey = focusKey }
-                .semantics { contentDescription = accessibilityLabel },
+                .semantics {
+                    contentDescription = accessibilityLabel
+                    // A held select opens the options; screen readers reach them as an action.
+                    if (onLongClick != null)
+                        customActions =
+                            listOf(CustomAccessibilityAction(removeLabel) { onLongClick(); true })
+                },
+            onLongClick = onLongClick,
             shape = CardDefaults.shape(RoundedCornerShape(10.dp)),
             border =
                 CardDefaults.border(
@@ -557,6 +615,9 @@ internal fun DetailScreen(
     onRetry: () -> Unit,
     onLibrary: () -> Unit,
     onSource: (Source) -> Unit,
+    onWatched: (Boolean) -> Unit = {},
+    onEpisodeWatched: (Video, Boolean) -> Unit = { _, _ -> },
+    onSeasonWatched: (Int, Boolean) -> Unit = { _, _ -> },
 ) {
     val meta = details.meta?.takeIf { it.id == media.id && it.type == media.type }
     val focus = remember { FocusRequester() }
@@ -564,6 +625,7 @@ internal fun DetailScreen(
     var season by rememberSaveable { mutableStateOf<Int?>(null) }
     var lastEpisode by rememberSaveable { mutableStateOf(videoId) }
     var seasonMenu by remember { mutableStateOf(false) }
+    val seasonFocus = remember { FocusRequester() }
     var pendingFocus by remember(videoId) { mutableStateOf(lastEpisode) }
     val videos = meta?.videos.orEmpty()
     LaunchedEffect(meta, videoId) {
@@ -741,89 +803,176 @@ internal fun DetailScreen(
         }
         if (media.preview != null || meta != null)
             item {
-                OutlinedButton(
-                    onLibrary,
-                    Modifier.padding(start = PageGutter),
-                    shape = ButtonDefaults.shape(RoundedCornerShape(8.dp)),
-                    border = kinoOutlinedBorder(),
+                Row(
+                    Modifier.padding(horizontal = PageGutter),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
-                    Icon(
-                        painterResource(
-                            if (meta?.inLibrary == true) R.drawable.ic_check else R.drawable.ic_plus
-                        ),
-                        null,
-                        Modifier.size(18.dp),
-                    )
-                    Text(
-                        stringResource(
-                            if (meta?.inLibrary == true) R.string.remove_library
-                            else R.string.add_library
-                        ),
-                        Modifier.padding(start = 10.dp),
-                        fontSize = 15.sp,
-                    )
+                    OutlinedButton(
+                        onLibrary,
+                        shape = ButtonDefaults.shape(RoundedCornerShape(8.dp)),
+                        border = kinoOutlinedBorder(),
+                    ) {
+                        Icon(
+                            painterResource(
+                                if (meta?.inLibrary == true) R.drawable.ic_check
+                                else R.drawable.ic_plus
+                            ),
+                            null,
+                            Modifier.size(18.dp),
+                        )
+                        Text(
+                            stringResource(
+                                if (meta?.inLibrary == true) R.string.remove_library
+                                else R.string.add_library
+                            ),
+                            Modifier.padding(start = 10.dp),
+                            fontSize = 15.sp,
+                        )
+                    }
+                    // Core marks a title through its details model, so this waits for the metadata.
+                    if (media.type == "movie" && meta != null)
+                        OutlinedButton(
+                            { onWatched(!meta.watched) },
+                            shape = ButtonDefaults.shape(RoundedCornerShape(8.dp)),
+                            border = kinoOutlinedBorder(),
+                        ) {
+                            Icon(
+                                painterResource(R.drawable.ic_circle_check),
+                                null,
+                                Modifier.size(18.dp),
+                                tint = if (meta.watched) LocalContentColor.current else Muted,
+                            )
+                            Text(
+                                stringResource(
+                                    if (meta.watched) R.string.mark_unwatched
+                                    else R.string.mark_watched
+                                ),
+                                Modifier.padding(start = 10.dp),
+                                fontSize = 15.sp,
+                            )
+                        }
                 }
             }
         if (details.loading) item { StatusText(R.string.loading) }
         if (details.failed) item { RetryRow(onRetry) }
         if (media.type == "series" && meta != null) {
+            val shownSeason = season ?: initialSeason(videos)
+            val episodes = seasonEpisodes(videos, shownSeason)
+            val seasonWatched = episodes.isNotEmpty() && episodes.all { it.watched }
             item {
-                OutlinedButton(
-                    { seasonMenu = true },
+                Row(
                     Modifier.padding(horizontal = PageGutter),
-                    border = kinoOutlinedBorder(),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
-                    Text(seasonLabel(season ?: initialSeason(videos)))
-                    Icon(
-                        painterResource(R.drawable.ic_chevron_down),
-                        null,
-                        Modifier.padding(start = 12.dp).size(18.dp),
-                    )
-                }
-            }
-            items(seasonEpisodes(videos, season ?: initialSeason(videos)), key = { it.id }) {
-                episode ->
-                val episodeFocus = remember { FocusRequester() }
-                Surface(
-                    onClick = {
-                        lastEpisode = episode.id
-                        onEpisode(episode.id)
-                    },
-                    modifier =
-                        Modifier.padding(horizontal = PageGutter)
-                            .fillMaxWidth()
-                            .focusRequester(episodeFocus),
-                    shape = ClickableSurfaceDefaults.shape(RowShape),
-                    colors = rowColors(),
-                    border = rowBorder(),
-                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
-                ) {
-                    Row(
-                        Modifier.padding(18.dp),
-                        horizontalArrangement = Arrangement.spacedBy(20.dp),
+                    OutlinedButton(
+                        { seasonMenu = true },
+                        Modifier.focusRequester(seasonFocus),
+                        border = kinoOutlinedBorder(),
                     ) {
-                        episode.seriesInfo?.let {
+                        Text(seasonLabel(shownSeason))
+                        Icon(
+                            painterResource(R.drawable.ic_chevron_down),
+                            null,
+                            Modifier.padding(start = 12.dp).size(18.dp),
+                        )
+                    }
+                    // Core marks seasons by number; unnumbered episodes are marked one at a time.
+                    if (shownSeason >= 0)
+                        OutlinedButton(
+                            { onSeasonWatched(shownSeason, !seasonWatched) },
+                            border = kinoOutlinedBorder(),
+                        ) {
+                            Icon(
+                                painterResource(R.drawable.ic_circle_check),
+                                null,
+                                Modifier.size(18.dp),
+                                tint = if (seasonWatched) LocalContentColor.current else Muted,
+                            )
                             Text(
-                                it.episode.toString(),
-                                Modifier.width(36.dp),
-                                color = Muted,
-                                fontSize = 18.sp,
+                                stringResource(
+                                    if (seasonWatched) R.string.mark_season_unwatched
+                                    else R.string.mark_season_watched
+                                ),
+                                Modifier.padding(start = 10.dp),
                             )
                         }
-                        Column(
-                            Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                }
+            }
+            items(episodes, key = { it.id }) { episode ->
+                // Up from the first episode is the way back to the season choice, not to
+                // the season's watched action beside it.
+                val first = episode.id == episodes.firstOrNull()?.id
+                val episodeFocus = remember { FocusRequester() }
+                Row(
+                    Modifier.padding(horizontal = PageGutter)
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Surface(
+                        onClick = {
+                            lastEpisode = episode.id
+                            onEpisode(episode.id)
+                        },
+                        modifier =
+                            Modifier.weight(1f).focusRequester(episodeFocus).focusProperties {
+                                if (first) up = seasonFocus
+                            },
+                        shape = ClickableSurfaceDefaults.shape(RowShape),
+                        colors = rowColors(),
+                        border = rowBorder(),
+                        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+                    ) {
+                        Row(
+                            Modifier.padding(18.dp),
+                            horizontalArrangement = Arrangement.spacedBy(20.dp),
                         ) {
-                            Text(episode.title, fontSize = 18.sp, lineHeight = 24.sp)
-                            if (episode.watched || (episode.progress ?: 0.0) > 0)
+                            episode.seriesInfo?.let {
                                 Text(
-                                    stringResource(
-                                        if (episode.watched) R.string.watched
-                                        else R.string.in_progress
-                                    ),
+                                    it.episode.toString(),
+                                    Modifier.width(36.dp),
                                     color = Muted,
-                                    fontSize = 13.sp,
+                                    fontSize = 18.sp,
                                 )
+                            }
+                            Column(
+                                Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                Text(episode.title, fontSize = 18.sp, lineHeight = 24.sp)
+                                if (episode.watched || (episode.progress ?: 0.0) > 0)
+                                    Text(
+                                        stringResource(
+                                            if (episode.watched) R.string.watched
+                                            else R.string.in_progress
+                                        ),
+                                        color = Muted,
+                                        fontSize = 13.sp,
+                                    )
+                            }
+                        }
+                    }
+                    val watchedLabel =
+                        stringResource(
+                            if (episode.watched) R.string.mark_episode_unwatched
+                            else R.string.mark_episode_watched,
+                            episode.title,
+                        )
+                    Surface(
+                        onClick = { onEpisodeWatched(episode, !episode.watched) },
+                        modifier = Modifier.fillMaxHeight().width(72.dp),
+                        shape = ClickableSurfaceDefaults.shape(RowShape),
+                        colors = rowColors(),
+                        border = rowBorder(),
+                        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+                    ) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Icon(
+                                painterResource(R.drawable.ic_circle_check),
+                                watchedLabel,
+                                Modifier.size(22.dp),
+                                tint = if (episode.watched) LocalContentColor.current else Muted,
+                            )
                         }
                     }
                 }
