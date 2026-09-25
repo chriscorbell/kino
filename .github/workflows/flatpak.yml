@@ -47,12 +47,15 @@ jobs:
           upload-artifact: true
       # The packaged app must start and load the interface it carries, on a
       # virtual display, with its own instance name so nothing else answers.
+      # The container runs as root, where Chromium will not start with its
+      # sandbox, so this run alone turns it off.
       - name: Start the packaged app
         run: |
           dnf install -y xorg-x11-server-Xvfb >/dev/null 2>&1 || apt-get install -y xvfb >/dev/null 2>&1 || true
           flatpak install --user -y --noninteractive Kino.flatpak
           log=$(mktemp)
           timeout 60 xvfb-run -a flatpak run --user --env=KINO_INSTANCE_NAME=ci-smoke \
+            --env=QTWEBENGINE_DISABLE_SANDBOX=1 \
             com.chriscorbell.Kino >"$log" 2>&1 &
           for _ in $(seq 1 45); do
             grep -q "packaged UI loaded" "$log" && break
