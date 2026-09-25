@@ -48,6 +48,16 @@ ApplicationWindow {
         return origin(target) !== "" && origin(target) === origin(home)
     }
 
+    // Times of recent interface process losses. Three within a minute stop the
+    // automatic reload so a page that crashes on load cannot loop forever.
+    property var interfaceLosses: []
+
+    Timer {
+        id: interfaceReload
+        interval: 500
+        onTriggered: webView.reload()
+    }
+
     MpvItem {
         id: player
         anchors.fill: parent
@@ -230,6 +240,7 @@ ApplicationWindow {
 
     WebEngineView {
         id: webView
+        objectName: "webView"
 
         anchors.fill: parent
         focus: true
@@ -247,6 +258,24 @@ ApplicationWindow {
         onFullScreenRequested: function(request) {
             root.setFullscreen(request.toggleOn)
             request.accept()
+        }
+
+        onRenderProcessTerminated: function(terminationStatus, exitCode) {
+            const status = ["normal", "abnormal", "crashed", "killed"][terminationStatus] || "unknown"
+            lifecycle.interfaceLost()
+            player.stop()
+            const now = Date.now()
+            root.interfaceLosses = root.interfaceLosses.filter(function(time) {
+                return now - time < 60000
+            }).concat([now])
+            if (root.interfaceLosses.length >= 3) {
+                console.error("[kino:shell] interface process ended status=" + status
+                              + " reload=abandoned")
+                loadFailure.visible = true
+                return
+            }
+            console.warn("[kino:shell] interface process ended status=" + status + " reload=scheduled")
+            interfaceReload.start()
         }
 
         onJavaScriptConsoleMessage: function(level, message, lineNumber, sourceID) {

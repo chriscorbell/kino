@@ -47,6 +47,46 @@ private slots:
         QCOMPARE(approved.size(), 1);
     }
 
+    void lostInterfaceReleasesAPendingClose() {
+        CloseCoordinator lifecycle;
+        QSignalSpy approved(&lifecycle, &CloseCoordinator::closeApproved);
+        lifecycle.setReady(true);
+        QVERIFY(!lifecycle.requestClose());
+        lifecycle.interfaceLost();
+        QCOMPARE(approved.size(), 1);
+        QVERIFY(!lifecycle.ready());
+        QVERIFY(lifecycle.requestClose());
+    }
+
+    void lostInterfaceStopsHoldingLaterCloses() {
+        CloseCoordinator lifecycle;
+        QSignalSpy requested(&lifecycle, &CloseCoordinator::closeRequested);
+        QSignalSpy approved(&lifecycle, &CloseCoordinator::closeApproved);
+        lifecycle.setReady(true);
+        lifecycle.interfaceLost();
+        QCOMPARE(approved.size(), 0);
+        QVERIFY(lifecycle.requestClose());
+        QCOMPARE(requested.size(), 0);
+        // The reloaded interface reports ready again and saves resume.
+        lifecycle.setReady(true);
+        QVERIFY(!lifecycle.requestClose());
+        QCOMPARE(requested.size(), 1);
+    }
+
+    void unansweredSaveLetsTheNextCloseProceed() {
+        qputenv("KINO_CLOSE_TIMEOUT_MS", "50");
+        CloseCoordinator lifecycle;
+        qunsetenv("KINO_CLOSE_TIMEOUT_MS");
+        QSignalSpy requested(&lifecycle, &CloseCoordinator::closeRequested);
+        lifecycle.setReady(true);
+        QTest::ignoreMessage(QtWarningMsg, "[kino:shutdown] save acknowledgement timed out; window kept open");
+        QVERIFY(!lifecycle.requestClose());
+        QTest::qWait(150);
+        QTest::ignoreMessage(QtWarningMsg, "[kino:shutdown] closing after an unanswered save request");
+        QVERIFY(lifecycle.requestClose());
+        QCOMPARE(requested.size(), 1);
+    }
+
     void applicationQuitUsesTheSameSaveRequest() {
         CloseCoordinator lifecycle;
         QSignalSpy requested(&lifecycle, &CloseCoordinator::closeRequested);
