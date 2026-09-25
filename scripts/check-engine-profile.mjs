@@ -328,18 +328,34 @@ try {
   // it streams to the local network. libtorrent's UPnP client listens on the
   // SSDP port and its local service discovery on 6771, so neither socket may
   // exist while the helper runs with a torrent loaded.
-  const helperUdpPorts = execFileSync(
-    'lsof',
-    ['-nP', '-a', '-p', String(child.pid), '-iUDP', '-Fn'],
-    { encoding: 'utf8' },
-  )
-    .split('\n')
-    .filter((line) => line.startsWith('n'))
-    .map((line) => Number(line.split(':').at(-1)));
-  assert.ok(helperUdpPorts.length > 0, 'The BitTorrent session must hold its own UDP sockets.');
-  assert.ok(!helperUdpPorts.includes(1900), 'The engine must not run a UPnP port-mapping client.');
-  assert.ok(!helperUdpPorts.includes(6771), 'The engine must not run local service discovery.');
-  console.log('The engine runs no UPnP client and no local service discovery.');
+  const helperUdpPorts = () =>
+    execFileSync('lsof', ['-nP', '-a', '-p', String(child.pid), '-iUDP', '-Fn'], {
+      encoding: 'utf8',
+    })
+      .split('\n')
+      .filter((line) => line.startsWith('n'))
+      .map((line) => Number(line.split(':').at(-1)));
+  const assertNoDiscovery = (when) => {
+    const ports = helperUdpPorts();
+    assert.ok(ports.length > 0, 'The BitTorrent session must hold its own UDP sockets.');
+    assert.ok(!ports.includes(1900), `The engine must not run a UPnP port-mapping client ${when}.`);
+    assert.ok(!ports.includes(6771), `The engine must not run local service discovery ${when}.`);
+  };
+  assertNoDiscovery('at startup');
+  // A settings write rebuilds libtorrent's whole settings pack. Upstream's rebuild turned port
+  // mapping back on, so the same sockets are checked again after one, once libtorrent has had
+  // time to start the clients it would start.
+  const settingsWrite = await fetch(`${address}/settings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ seedingEnabled: initialSettings.values.seedingEnabled }),
+  });
+  assert.equal(settingsWrite.status, 200);
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+  assertNoDiscovery('after a settings change');
+  console.log(
+    'The engine runs no UPnP client and no local service discovery, before or after a settings change.',
+  );
 } finally {
   child.stdin.end();
   await exited;
