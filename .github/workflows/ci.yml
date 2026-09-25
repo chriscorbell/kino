@@ -359,6 +359,20 @@ jobs:
           foreach ($unwanted in 'vc_redist.x64.exe', 'd3dcompiler_47.dll', 'dxcompiler.dll', 'dxil.dll', 'qmltooling') {
             if (Test-Path "$out/$unwanted") { throw "The portable build carries $unwanted" }
           }
+      # The portable build itself, started as someone would start it. The
+      # runner's display has no OpenGL driver, so Qt draws with the software
+      # OpenGL the package carries for such machines.
+      - name: Run the interface probes
+        timeout-minutes: 10
+        shell: bash
+        env:
+          KINO_APP_BINARY: ${{ github.workspace }}/build/windows-package/Kino/Kino.exe
+          QT_OPENGL: software
+        run: |
+          pnpm macos:check-launch
+          pnpm macos:check-navigation
+          pnpm macos:check-focus
+          pnpm macos:check-scale
           Compress-Archive -Path $out -DestinationPath build/windows-package/Kino-windows-x64.zip
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
