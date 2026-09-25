@@ -14,6 +14,7 @@ export function MediaCard({
   onOpen,
   badge = null,
   progress,
+  resumeEpisode = null,
   resumeProgress,
 }: {
   item: CoreMetaPreview;
@@ -22,6 +23,7 @@ export function MediaCard({
   onOpen: () => void;
   /** Partial progress without the resume affordance, for a card that opens details. */
   progress?: number;
+  resumeEpisode?: { season: number; episode: number } | null;
   resumeProgress?: number;
 }) {
   const titleRef = useRef<HTMLSpanElement>(null);
@@ -37,7 +39,16 @@ export function MediaCard({
   }, [truncated]);
   return (
     <button
-      aria-label={resumeProgress === undefined ? undefined : enUS.home.resumeTitle(item.name)}
+      aria-label={
+        resumeProgress === undefined
+          ? undefined
+          : enUS.home.resumeTitle(
+              item.name,
+              resumeEpisode
+                ? enUS.home.episodeLong(resumeEpisode.season, resumeEpisode.episode)
+                : undefined,
+            )
+      }
       className={styles.mediaCard}
       onClick={onOpen}
       onFocus={() => setTitleDismissed(false)}
@@ -82,7 +93,13 @@ export function MediaCard({
       <span className={styles.mediaTitle} ref={titleRef}>
         {item.name}
       </span>
-      {resumeProgress === undefined ? <span className={styles.mediaMeta}>{year(item)}</span> : null}
+      {resumeProgress === undefined ? (
+        <span className={styles.mediaMeta}>{year(item)}</span>
+      ) : resumeEpisode ? (
+        <span className={styles.mediaMeta}>
+          {enUS.home.episodeShort(resumeEpisode.season, resumeEpisode.episode)}
+        </span>
+      ) : null}
     </button>
   );
 }

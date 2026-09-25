@@ -32,3 +32,13 @@ export function initialSeason(videos: CoreVideo[], progress: LibraryPlaybackProg
     episodes.at(-1)?.id === previous.id;
   return finale ? (regular.find((candidate) => candidate > season) ?? season) : season;
 }
+
+/**
+ * Stremio series video ids follow `<title id>:<season>:<episode>`, which is
+ * all a saved library item keeps of its episode. Anything else stays unnamed.
+ */
+export function episodeFromVideoId(titleId: string, videoId: string | null) {
+  if (!videoId?.startsWith(`${titleId}:`)) return null;
+  const match = /^(\d{1,4}):(\d{1,5})$/.exec(videoId.slice(titleId.length + 1));
+  return match ? { season: Number(match[1]), episode: Number(match[2]) } : null;
+}

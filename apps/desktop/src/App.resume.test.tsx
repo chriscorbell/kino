@@ -83,7 +83,7 @@ function mount() {
 
 it('waits for the remembered add-on and resumes once, returning to selection after failure', async () => {
   const fixture = mount();
-  fireEvent.click(await screen.findByRole('button', { name: 'Resume Saved series' }));
+  fireEvent.click(await screen.findByRole('button', { name: /^Resume Saved series/ }));
   expect(screen.getByRole('dialog', { name: 'Loading playback' }).textContent).toBe('');
   expect(played).not.toHaveBeenCalled();
   const ready = details();
@@ -112,7 +112,7 @@ it('waits for the remembered add-on and resumes once, returning to selection aft
 
 it('silently offers sources for the saved episode when the remembered URL has changed', async () => {
   const fixture = mount();
-  fireEvent.click(await screen.findByRole('button', { name: 'Resume Saved series' }));
+  fireEvent.click(await screen.findByRole('button', { name: /^Resume Saved series/ }));
   const next = details();
   const replacement = urlSource('https://media.invalid/replacement.mp4', {
     name: 'Changed source',
@@ -136,7 +136,7 @@ it.each(['close', 'profile'])(
   'does not start playback after %s cancels a pending check',
   async (cancel) => {
     const fixture = mount();
-    fireEvent.click(await screen.findByRole('button', { name: 'Resume Saved series' }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Resume Saved series/ }));
     await screen.findByRole('dialog', { name: 'Loading playback' });
     if (cancel === 'close')
       fireEvent(
