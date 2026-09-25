@@ -1,0 +1,244 @@
+.page {
+  width: min(100%, 1500px);
+  min-height: 100%;
+  padding: 44px var(--kino-page-gutter) 64px;
+}
+
+.inlineEmpty,
+.loadError {
+  margin: 14px 0 0;
+  color: var(--kino-text-faint);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.loadError {
+  color: var(--kino-danger);
+}
+
+.accountDialog::backdrop {
+  background: rgb(0 0 0 / 72%);
+  backdrop-filter: blur(12px);
+}
+
+.accountDialog {
+  position: fixed;
+  inset: 0;
+  width: min(calc(100% - 48px), 420px);
+  max-height: calc(100% - 48px);
+  margin: auto;
+  padding: 34px;
+  border: 1px solid var(--kino-border);
+  border-radius: var(--kino-panel-radius);
+  color: var(--kino-text);
+  background: var(--kino-surface);
+  box-shadow: 0 24px 80px rgb(0 0 0 / 48%);
+  animation: enter var(--kino-duration-standard) var(--kino-ease-out);
+}
+
+.accountDialog > img {
+  width: 26px;
+  height: auto;
+  margin-bottom: 24px;
+}
+
+.accountDialog h1 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: -0.025em;
+}
+
+.accountDialog p {
+  margin: 10px 0 24px;
+  color: var(--kino-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.accountDialog form {
+  display: grid;
+}
+
+.accountDialog label {
+  margin: 14px 0 7px;
+  color: var(--kino-text-muted);
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.accountDialog input {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--kino-border);
+  border-radius: var(--kino-control-radius);
+  outline: 0;
+  color: var(--kino-text);
+  background: var(--kino-bg);
+  font: inherit;
+  font-size: 14px;
+}
+
+.accountDialog input:focus {
+  border-color: var(--kino-text-muted);
+}
+
+.primaryAction,
+.secondaryAction {
+  min-height: 42px;
+  margin-top: 22px;
+  padding: 0 18px;
+  border: 1px solid var(--kino-accent);
+  border-radius: var(--kino-control-radius);
+  color: var(--kino-on-accent);
+  background: var(--kino-accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.secondaryAction {
+  color: var(--kino-text);
+  background: transparent;
+}
+
+.primaryAction:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.accountDialog .formError {
+  margin: 12px 0 0;
+  color: var(--kino-danger);
+}
+
+.page h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+
+.settingsNote {
+  margin: 0 0 4px;
+  color: var(--kino-text-faint);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.secondaryButton {
+  min-height: 34px;
+  padding: 0 16px;
+  border: 1px solid var(--kino-border);
+  border-radius: var(--kino-control-radius);
+  color: var(--kino-text);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color var(--kino-duration-fast) ease;
+}
+
+.secondaryButton:hover {
+  border-color: var(--kino-text-faint);
+}
+
+.settingRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+  min-height: 72px;
+  border-top: 1px solid var(--kino-border-subtle);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 720px) {
+  .page {
+    padding: 32px 22px 48px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .accountDialog {
+    animation: none;
+  }
+
+  .secondaryButton {
+    transition: none;
+  }
+}
+
+.updateNotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px clamp(18px, 4vw, 46px);
+  border-bottom: 1px solid var(--kino-border);
+  background: var(--kino-surface);
+  font-size: 13px;
+  animation: enter var(--kino-duration-standard) var(--kino-ease-out);
+}
+
+.updateNotice p {
+  margin: 5px 0 0;
+  color: var(--kino-text-muted);
+  font-size: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .updateNotice {
+    animation: none;
+  }
+}
+
+.updateSettings .settingRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 14px 0;
+}
+
+.updateSettings .settingRow > :first-child {
+  flex: 1 1 240px;
+}
+
+.updateSettings .formError,
+.updateNotice .formError {
+  color: var(--kino-danger);
+  font-size: 13px;
+}
+
+.updateSettings button:disabled,
+.updateNotice button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

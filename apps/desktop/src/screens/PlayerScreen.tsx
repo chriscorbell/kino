@@ -11,7 +11,7 @@ import {
 } from '@phosphor-icons/react';
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 
-import styles from '../App.module.css';
+import styles from '../styles/player.module.css';
 import { AudioTrackPicker } from '../components/AudioTrackPicker';
 import { SubtitlePanel } from '../components/SubtitlePanel';
 import { parseAudioTracks, type AudioTrack } from '../player/audio';

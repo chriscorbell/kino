@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import styles from '../App.module.css';
+import sharedStyles from '../styles/shared.module.css';
+import styles from '../styles/browse.module.css';
 import { MediaCard } from '../components/MediaCard';
 import { LoadMore } from '../components/LoadMore';
 import { useCore } from '../core/context';
@@ -47,7 +48,7 @@ export function LibraryScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => v
   const pagingError = Boolean(result.error && (request?.page ?? 1) > 1 && items.length > 0);
 
   return (
-    <div className={styles.page}>
+    <div className={sharedStyles.page}>
       <h1>{enUS.library.title}</h1>
 
       {selectable && (selectable.types.length > 0 || selectable.sorts.length > 1) ? (
@@ -94,13 +95,13 @@ export function LibraryScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => v
 
       <div aria-live="polite">
         {result.loading && items.length === 0 ? (
-          <p className={styles.inlineEmpty}>{enUS.library.loading}</p>
+          <p className={sharedStyles.inlineEmpty}>{enUS.library.loading}</p>
         ) : null}
         {result.error && !pagingError ? (
-          <p className={styles.loadError}>{enUS.library.error}</p>
+          <p className={sharedStyles.loadError}>{enUS.library.error}</p>
         ) : null}
         {!result.loading && !result.error && items.length === 0 ? (
-          <p className={styles.inlineEmpty}>{enUS.library.empty}</p>
+          <p className={sharedStyles.inlineEmpty}>{enUS.library.empty}</p>
         ) : null}
       </div>
 

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 
-import styles from '../App.module.css';
+import styles from '../styles/shared.module.css';
+import settingsStyles from '../styles/settings.module.css';
 import { t } from '../locales';
 import { openExternalUrl } from '../native/externalNavigation';
 import type { Release } from './releases';
@@ -49,7 +50,7 @@ export function UpdateNotice({ updates }: { updates: Updates }) {
         <strong>{t.updates.availableVersion(state.release.version)}</strong>
         <p>{t.updates.currentVersion(state.currentVersion ?? t.updates.unknownVersion)}</p>
       </div>
-      <div className={styles.updateActions}>
+      <div className={settingsStyles.updateActions}>
         <ReleaseDownload key={state.release.version} release={state.release} />
         <button className={styles.secondaryButton} onClick={client.dismiss} type="button">
           {t.updates.later}
@@ -67,16 +68,16 @@ export function UpdateSettings({ updates }: { updates: Updates | undefined }) {
   const status = state?.status ?? 'unavailable';
   return (
     <section
-      className={`${styles.settingsGroup} ${styles.updateSettings}`}
+      className={`${settingsStyles.settingsGroup} ${styles.updateSettings}`}
       aria-labelledby="update-settings-title"
     >
       <h2 id="update-settings-title">{t.updates.title}</h2>
       <div className={styles.settingRow}>
         <div>
-          <div className={styles.settingLabel}>
+          <div className={settingsStyles.settingLabel}>
             {t.updates.currentVersion(state?.currentVersion ?? t.updates.unknownVersion)}
           </div>
-          <div className={styles.settingDescription}>{t.updates.description}</div>
+          <div className={settingsStyles.settingDescription}>{t.updates.description}</div>
         </div>
         <button
           className={styles.secondaryButton}
@@ -104,7 +105,7 @@ export function UpdateSettings({ updates }: { updates: Updates | undefined }) {
       ) : null}
       {state?.release ? (
         <div className={styles.settingRow}>
-          <div className={styles.settingLabel} role="status">
+          <div className={settingsStyles.settingLabel} role="status">
             {t.updates.availableVersion(state.release.version)}
           </div>
           <ReleaseDownload key={state.release.version} release={state.release} />

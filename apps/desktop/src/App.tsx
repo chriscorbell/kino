@@ -10,7 +10,8 @@ import {
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import logo from './assets/kino.svg';
-import styles from './App.module.css';
+import sharedStyles from './styles/shared.module.css';
+import styles from './styles/shell.module.css';
 import { CoreRecovery } from './components/CoreRecovery';
 import { AccountDialog } from './components/AccountDialog';
 import type { PlaybackSelection } from './core/actions';
@@ -260,7 +261,7 @@ export function App() {
       (element) => !element.closest('[hidden]'),
     );
     const target =
-      heading && !heading.classList.contains(styles.visuallyHidden ?? '') ? heading : main;
+      heading && !heading.classList.contains(sharedStyles.visuallyHidden ?? '') ? heading : main;
     target.tabIndex = -1;
     // WebEngine treats cold-launch focus as keyboard focus. Suppress only this
     // navigation focus, then restore the indicator when the target loses focus.

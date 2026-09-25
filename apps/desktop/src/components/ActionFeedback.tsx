@@ -1,4 +1,4 @@
-import styles from '../App.module.css';
+import styles from '../styles/shared.module.css';
 import { t } from '../locales';
 import type { ActionFeedbackState } from './useActionFeedback';
 

@@ -3,7 +3,8 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 
 import { CoreRecovery } from './CoreRecovery';
 import logo from '../assets/kino.svg';
-import styles from '../App.module.css';
+import styles from '../styles/shared.module.css';
+import settingsStyles from '../styles/settings.module.css';
 import { useCore } from '../core/context';
 import { coreFailureMessage } from '../core/errors';
 import { createCoreTransport, type CoreTransport } from '../core/transport';
@@ -171,7 +172,7 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
     >
       <button
         aria-label={enUS.actions.close}
-        className={styles.dialogClose}
+        className={settingsStyles.dialogClose}
         disabled={submitting}
         onClick={close}
         ref={closeRef}
@@ -247,7 +248,7 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
           <a
             aria-describedby={creationError ? 'account-creation-error' : undefined}
             aria-disabled={openingRegistration || undefined}
-            className={styles.accountCreate}
+            className={settingsStyles.accountCreate}
             href="https://www.stremio.com/register"
             onClick={(event) => {
               if (!nativeShellPresent()) return;
