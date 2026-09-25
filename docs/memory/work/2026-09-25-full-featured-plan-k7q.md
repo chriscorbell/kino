@@ -16,6 +16,16 @@ Source: Chris's instruction of 2026-09-25 to plan and implement a full-featured,
 - After a Homebrew upgrade of mpv or its dependencies, CMake fails with "includes non-existent path". Delete `build/macos/CMakeCache.txt` and build again.
 - Windows (`gaming-pc`, PowerShell over SSH) and Linux with an AMD GPU (`minicore`) are reachable for Milestone 5 hardware checks.
 
+## Traps found on 2026-09-25
+
+- `cmake --build --parallel` with no count runs `make` unbounded and ignores `CMAKE_BUILD_PARALLEL_LEVEL`; on the three-core macOS runner that thrashed a two-minute compile into twenty-five (#229). Keep an explicit job count.
+- GitHub runs every stacked branch's workflows on each restack. Restacking the TV chain queues about eighteen runs; cancel superseded ones (`gh run cancel`) to free the account's runners.
+- `git rebase --onto origin/main <old base> <top branch> --update-refs` restacks a whole chain in one pass.
+- The Shield sleeps between sessions, and Media3 then renders no frames: every playback test fails with decoder timeouts. Send `KEYCODE_WAKEUP` before running instrumentation by hand (`pnpm android:check` already does).
+- Media3 1.9 buffers `file:` URIs as local playback with a one-second target; buffering gates must stream over HTTP.
+- TV dialogs need `WideDialog` (`usePlatformDefaultWidth = false`); the platform default is about 440 dp on the Shield.
+- `refactor/split-desktop-styles` exists locally only. After the desktop stack lands, rebase it by rerunning `build/tools/split-desktop-styles.mjs` on main rather than resolving conflicts, and compare with `build/tools/compare-desktop-css.mjs` against a build of main.
+
 ## Milestone 5 inventory (2026-09-25)
 
 - The shell has no conditional compilation at all: every macOS dependency is compiled unconditionally.

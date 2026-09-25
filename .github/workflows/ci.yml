@@ -239,7 +239,9 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends ca-certificates git build-essential cmake \
             ninja-build pkg-config libmpv-dev qt6-base-dev qt6-declarative-dev qt6-webengine-dev \
-            qt6-webchannel-dev libgl-dev
+            qt6-webchannel-dev libgl-dev xvfb xauth libgl1-mesa-dri fonts-dejavu-core \
+            qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-window \
+            qml6-module-qtquick-templates qml6-module-qtwebchannel qml6-module-qtwebengine
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -256,6 +258,20 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: ctest --test-dir build/linux --output-on-failure --timeout 30
+      # The same probes the Mac runs, against the Linux build on a virtual
+      # display. Chromium's sandbox cannot start as root inside the container.
+      # Interface recovery stays Mac-only for now: inside the container the
+      # renderer crash DevTools requests never reaches the shell.
+      - name: Run the interface probes
+        timeout-minutes: 10
+        env:
+          KINO_APP_BINARY: ${{ github.workspace }}/build/linux/Kino
+          QTWEBENGINE_DISABLE_SANDBOX: '1'
+        run: |
+          xvfb-run -a -s "-screen 0 1920x1080x24" pnpm macos:check-launch
+          xvfb-run -a -s "-screen 0 1920x1080x24" pnpm macos:check-navigation
+          xvfb-run -a -s "-screen 0 1920x1080x24" pnpm macos:check-focus
+          xvfb-run -a -s "-screen 0 1920x1080x24" pnpm macos:check-scale
 
   windows:
     name: Windows shell build
