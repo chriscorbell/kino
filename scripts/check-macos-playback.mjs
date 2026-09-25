@@ -16,6 +16,13 @@ import {
   integratedLufs,
   synthesize,
 } from './test-support/loudness-reference.mjs';
+import {
+  BAND_B_IN_GAMUT,
+  expectedToneMappedPatches,
+  generateDolbyVisionProbes,
+  generateHdrProbe,
+  generateSdrProbe,
+} from './test-support/hdr-probe-fixture.mjs';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const fixturesDir = process.env.KINO_FIXTURES_DIR ?? join(repoRoot, 'build', 'fixtures');
@@ -465,6 +472,9 @@ function generateFixtures() {
     '2',
   ]);
   for (const { file, scale } of loudnessFixtures) encodeLoudness(file, scale);
+  generateHdrProbe(fixturesDir);
+  generateSdrProbe(fixturesDir);
+  generateDolbyVisionProbes(fixturesDir);
   writeFixture('external.srt', srtText);
   writeFixture('external.vtt', vttText);
   if (!existsSync(join(fixturesDir, 'corrupt.mp4'))) {
@@ -529,6 +539,28 @@ const fixtures = [
     env: { KINO_PLAYBACK_PROBE_STEREO: '1' },
     expect: { outcome: 'played', loudness: loudnessExpectation(scale) },
   })),
+  // Every pixel of the probe is a known code word, so what the player drew can be compared with
+  // the host's tone map of the same values. Profile 8.1 carries the same frames under a Dolby
+  // Vision RPU and must look the same; profile 5 has no base layer this renderer can show.
+  // The control comes first: an SDR ramp that only proves a drawn frame can be read back.
+  {
+    file: 'sdr-probe.mkv',
+    label: 'pixels-sdr-control',
+    note: 'a drawn frame reads back as a black-to-white ramp',
+    env: { KINO_PLAYBACK_PROBE_FRAME: '1' },
+    expect: { outcome: 'played', frameControl: true },
+  },
+  ...['hdr-probe.mkv', 'dv-p8-probe.mkv'].map((file) => ({
+    file,
+    label: `pixels-${file}`,
+    note: 'drawn pixels match the host tone map of the probe',
+    env: { KINO_PLAYBACK_PROBE_FRAME: '1' },
+    expect: { outcome: 'played', frame: true },
+  })),
+  {
+    file: 'dv-p5-probe.mkv',
+    expect: { outcome: 'failed', errorCode: 'dolby-vision-unsupported' },
+  },
   { file: 'corrupt.mp4', expect: { outcome: 'failed' } },
   { file: 'missing.mkv', missing: true, expect: { outcome: 'failed' } },
 ];
@@ -592,6 +624,36 @@ function outlinedSubtitleProblems(style) {
   return problems;
 }
 
+// mpv's tone mapping and the host reference agree to about 0.01 on the neutral ramp and 0.035 on
+// the coloured patches. A dropped gamut conversion moves those patches by about 0.15, and a
+// misread transfer or matrix by far more, so these bounds separate right from wrong.
+function frameProblems(frame) {
+  const patches = expectedToneMappedPatches();
+  const neutral = patches.filter((patch) => patch.band === 'A').map((patch) => patch.expected);
+  const coloured = patches.filter((patch) => patch.band === 'B').map((patch) => patch.expected);
+  const problems = [];
+  const compare = (label, drawn = [], expected, tolerance) => {
+    if (drawn.length !== expected.length) {
+      problems.push(`${label}: sampled ${drawn.length} patches, expected ${expected.length}`);
+      return;
+    }
+    expected.forEach((want, index) => {
+      const worst = Math.max(
+        ...want.map((value, channel) => Math.abs(value - drawn[index][channel])),
+      );
+      if (!(worst <= tolerance))
+        problems.push(
+          `${label} patch ${index}: drew ${drawn[index].map((v) => v.toFixed(3))}, ` +
+            `expected ${want.map((v) => v.toFixed(3))}`,
+        );
+    });
+  };
+  compare('neutral ramp', frame?.neutral, neutral, 0.03);
+  compare('coloured patches', frame?.coloured, coloured, 0.05);
+  if (coloured.length !== BAND_B_IN_GAMUT.length) problems.push('the probe layout changed');
+  return problems;
+}
+
 function assertExpectations(fixture, result) {
   const problems = [];
   const { expect } = fixture;
@@ -632,6 +694,13 @@ function assertExpectations(fixture, result) {
     if (!(Math.abs(loudness.gainDb - expect.loudness.gainDb) <= 0.3))
       problems.push(`gain ${loudness.gainDb} dB, expected ${expect.loudness.gainDb.toFixed(2)}`);
   }
+  if (expect.frame) problems.push(...frameProblems(result.frame));
+  if (expect.frameControl) {
+    const ramp = (result.frame?.neutral ?? []).map((pixel) => Math.max(...pixel));
+    const rising = ramp.every((value, index) => index === 0 || value > ramp[index - 1] - 0.01);
+    if (ramp.length !== 16 || !rising || !(ramp[0] < 0.1) || !(ramp[15] > 0.8))
+      problems.push(`the SDR control read back ${ramp.map((v) => v.toFixed(2)).join(' ')}`);
+  }
   return problems;
 }
 
@@ -651,8 +720,17 @@ generateFixtures();
 if (process.argv.includes('--generate-only')) process.exit(0);
 
 let failures = 0;
+// A runner whose GPU cannot hand decoded frames back to a capture, as a hosted CI virtual machine's
+// cannot, declares it with KINO_PLAYBACK_PIXELS=optional. There a failed SDR control marks the
+// pixel checks as not runnable, and says so, rather than failing them; everywhere else it fails.
+const pixelsOptional = process.env.KINO_PLAYBACK_PIXELS === 'optional';
+let framesUnreadable = false;
 for (const fixture of fixtures) {
   const name = fixture.label ?? fixture.file;
+  if (framesUnreadable && fixture.expect.frame) {
+    console.log(`- ${name}: not run, this runner cannot read drawn frames`);
+    continue;
+  }
   const { failure, result, stderr } = runProbe(fixture);
   if (failure) {
     failures += 1;
@@ -661,6 +739,11 @@ for (const fixture of fixtures) {
     continue;
   }
   const problems = assertExpectations(fixture, result);
+  if (problems.length > 0 && fixture.expect.frameControl && pixelsOptional) {
+    framesUnreadable = true;
+    console.log(`- ${name}: ${problems.join('; ')}; pixel checks will not run on this runner`);
+    continue;
+  }
   if (problems.length > 0) {
     failures += 1;
     console.log(`✗ ${name}: ${problems.join('; ')}`);

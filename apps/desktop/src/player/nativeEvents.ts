@@ -22,6 +22,9 @@ export function nativeErrorMessage(code: unknown) {
   if (code === 'player-unavailable') {
     return enUS.player.playerUnavailable;
   }
+  if (code === 'dolby-vision-unsupported') {
+    return enUS.player.dolbyVisionUnsupported;
+  }
   return enUS.player.nativePlaybackFailed;
 }
 

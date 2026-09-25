@@ -118,7 +118,7 @@ jobs:
       - name: Install native dependencies
         run: |
           brew update
-          brew install cmake qt mpv pkgconf libtorrent-rasterbar boost
+          brew install cmake qt mpv pkgconf libtorrent-rasterbar boost dovi_tool mkvtoolnix
           pkg-config --print-errors --atleast-version=2.1.1 libtorrent-rasterbar
       # Homebrew's rust follows upstream releases, and the packaged engine's
       # runtime notices are reviewed for one release. rustup installs exactly
@@ -206,6 +206,10 @@ jobs:
           pnpm macos:check-addon-transports
       - name: Run the playback contract matrix
         timeout-minutes: 15
+        # The hosted runner's virtual GPU draws video a capture reads back as black, so the pixel
+        # cases run on a Mac with a real GPU; the SDR control still runs here and says so.
+        env:
+          KINO_PLAYBACK_PIXELS: optional
         run: pnpm macos:check-playback
 
       # Packaging is a release-artifact check, not a correctness check, and it

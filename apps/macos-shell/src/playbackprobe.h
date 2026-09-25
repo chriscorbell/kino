@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QJsonArray>
+#include <QJsonObject>
 #include <QObject>
 #include <QString>
 #include <QTimer>
@@ -22,6 +23,7 @@ private slots:
     void onPlayerEvent(const QString &name, const QVariantMap &payload);
 
 private:
+    void captureFrame();
     void evaluate();
     void finish(const QString &outcome, const QString &errorCode = QString());
 
@@ -31,6 +33,10 @@ private:
     bool sleepCheck_ = false;
     // The Stereo path plays long enough for the loudness gain to settle.
     bool stereoCheck_ = false;
+    // The HDR gate pauses on a frame of the probe fixture and samples its patches.
+    bool frameCheck_ = false;
+    bool framePaused_ = false;
+    QJsonObject frame_;
     bool sleepPosted_ = false;
     bool hardwareDecoding_ = false;
     bool subtitlesAdded_ = false;
