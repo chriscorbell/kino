@@ -14,7 +14,10 @@ import { fileURLToPath } from 'node:url';
 import { generateLicenseNotices, verifyLicenseBundle } from './license-notices.mjs';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const sourceApp = join(repoRoot, 'build', 'macos', 'Kino.app');
+// Packaging builds its own Release configuration beside the Debug development
+// build, so probes keep their assertions and a shipped bundle never carries them.
+const releaseBuildDir = join(repoRoot, 'build', 'macos-release');
+const sourceApp = join(releaseBuildDir, 'Kino.app');
 const distDir = join(repoRoot, 'build', 'dist');
 const stagedApp = join(distDir, 'Kino.app');
 const frameworksDir = join(stagedApp, 'Contents', 'Frameworks');
@@ -265,9 +268,22 @@ function checksum(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
 
-if (!existsSync(sourceApp)) {
-  console.error('Build the app first: pnpm macos:build');
-  process.exit(1);
+execFileSync(join(repoRoot, 'scripts', 'build-macos.sh'), [], {
+  stdio: 'inherit',
+  env: {
+    ...process.env,
+    KINO_MACOS_BUILD_DIR: releaseBuildDir,
+    KINO_MACOS_BUILD_TYPE: 'Release',
+    KINO_MACOS_BUILD_TESTING: 'OFF',
+  },
+});
+const buildType = readFileSync(join(releaseBuildDir, 'CMakeCache.txt'), 'utf8').match(
+  /^CMAKE_BUILD_TYPE:STRING=(.*)$/m,
+)?.[1];
+if (buildType !== 'Release') {
+  throw new Error(
+    `Refusing to package a ${buildType ?? 'unknown'} build; packages are Release only`,
+  );
 }
 
 console.log('Staging the app bundle…');

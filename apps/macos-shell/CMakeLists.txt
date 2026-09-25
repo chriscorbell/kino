@@ -40,6 +40,13 @@ file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/../stream-engine/Cargo.toml" KINO_ENGI
 string(REGEX REPLACE "^version = \"([^\"]+)\".*" "\\1" KINO_ENGINE_VERSION "${KINO_ENGINE_VERSION_LINE}")
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/../stream-engine/engine.lock" KINO_ENGINE_REVISION_LINE REGEX "^KINO_ENGINE_REVISION=")
 string(REPLACE "KINO_ENGINE_REVISION=" "" KINO_ENGINE_REVISION "${KINO_ENGINE_REVISION_LINE}")
+# The diagnostic summary names the build kind, so a report from a development
+# build is never mistaken for one from a packaged release.
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+  set(KINO_BUILD_KIND "release")
+else()
+  set(KINO_BUILD_KIND "development")
+endif()
 configure_file(cmake/DiagnosticBuildInfo.h.in generated/diagnosticbuildinfo.h @ONLY)
 
 set(KINO_ICON ${CMAKE_CURRENT_SOURCE_DIR}/resources/Kino.icns)
