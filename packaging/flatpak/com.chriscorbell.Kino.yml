@@ -10,6 +10,8 @@ base: io.qt.qtwebengine.BaseApp
 base-version: '6.11'
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.node24
+  - org.freedesktop.Sdk.Extension.rust-stable
+  - org.freedesktop.Sdk.Extension.llvm20
 command: Kino
 finish-args:
   - --share=ipc
@@ -159,6 +161,83 @@ modules:
         url: https://github.com/mpv-player/mpv.git
         tag: v0.41.0
         commit: 41f6a645068483470267271e1d09966ca3b9f413
+
+  # The torrent engine: stream-server at the revision engine.lock pins, with
+  # Kino's patches, over libtorrent and Boost at the releases the Android
+  # build pins. Build-time only; the engine links them statically.
+  - name: boost-headers
+    buildsystem: simple
+    build-commands:
+      - mkdir -p ${FLATPAK_DEST}/include && cp -r boost ${FLATPAK_DEST}/include/
+    cleanup:
+      - '*'
+    sources:
+      - type: archive
+        url: https://github.com/boostorg/boost/releases/download/boost-1.92.0/boost-1.92.0-b2-nodocs.tar.xz
+        sha256: ea7b982002cc9dfbe59b0b217b206f470dc75f3de0bb2973d844118934d82411
+
+  - name: libtorrent
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_SHARED_LIBS=OFF
+      - -DCMAKE_CXX_STANDARD=17
+      - -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+      - -Dwebtorrent=OFF
+      - -Dbuild_tests=OFF
+      - -Dbuild_examples=OFF
+      - -Dbuild_tools=OFF
+      - -Dpython-bindings=OFF
+      - -DBoost_INCLUDE_DIR=/app/include
+    cleanup:
+      - '*'
+    sources:
+      - type: archive
+        url: https://github.com/arvidn/libtorrent/releases/download/v2.1.2/libtorrent-rasterbar-2.1.2.tar.gz
+        sha256: 3362546d9cd71b9e49ee6cac7d3f1f914ce9cdb217c86b63d5b22cbed0334dbc
+
+  # Cargo fetches the locked crates, so this module builds with network
+  # access, which a Flathub build would not have.
+  - name: kino-stream-engine
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm20/bin
+      build-args:
+        - --share=network
+      env:
+        CARGO_HOME: /run/build/kino-stream-engine/cargo
+        CXXFLAGS: -I/app/include
+        LIBCLANG_PATH: /usr/lib/sdk/llvm20/lib
+        LIBTORRENT_STATIC: '1'
+        PKG_CONFIG_PATH: /app/lib/pkgconfig
+    build-commands:
+      - cargo build --locked --release --manifest-path apps/stream-engine/Cargo.toml
+      - install -Dm755 apps/stream-engine/target/release/kino-stream-engine ${FLATPAK_DEST}/bin/kino-stream-engine
+    sources:
+      - type: dir
+        path: ../..
+        skip:
+          - .git
+          - build
+          - node_modules
+          - apps/android-tv
+          - apps/desktop
+          - mockup
+      - type: git
+        url: https://github.com/stremio-native/stream-server.git
+        commit: f585ab6eda9b1411034548c131bb0dc30c6f5f9e
+        dest: build/vendor/stream-server
+      - type: patch
+        use-git: true
+        dest: build/vendor/stream-server
+        paths:
+          - ../../apps/stream-engine/patches/0001-decode-info-hash-without-internal-libtorrent-symbols.patch
+          - ../../apps/stream-engine/patches/0002-exclude-youtube-tools.patch
+          - ../../apps/stream-engine/patches/0003-allow-embedded-router-ownership.patch
+          - ../../apps/stream-engine/patches/0004-retain-torrent-web-seeds.patch
+          - ../../apps/stream-engine/patches/0005-keep-the-engine-off-router-port-mapping-and-lan-discovery.patch
+          - ../../apps/stream-engine/patches/0006-give-the-engine-its-roots-on-android.patch
+          - ../../apps/stream-engine/patches/0007-leave-archive-readers-out-of-android.patch
 
   # The shell. CI builds the web interface first, since the sandbox has no
   # network for pnpm; node is still needed for the locale the shell embeds.

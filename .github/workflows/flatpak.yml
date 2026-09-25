@@ -7,6 +7,7 @@ on:
       - packaging/flatpak/**
       - apps/macos-shell/**
       - apps/desktop/**
+      - apps/stream-engine/**
       - package.json
       - pnpm-lock.yaml
   push:
