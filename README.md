@@ -59,7 +59,7 @@ Continue Watching covers the desktop with a spinner while the remembered add-on 
 
 The fullscreen button and F toggle the current window state. Escape exits fullscreen after closing any open subtitle menu. The native bridge follows Qt window visibility, including changes through macOS window controls. Run `pnpm macos:check-fullscreen` to verify the actual WebChannel property and change notifications through repeated entry and exit.
 
-Validate the playback contract against generated legal fixtures — codecs, HDR ranges, audio formats, subtitles, chapters, and failure paths — with:
+Validate the playback contract against generated legal fixtures — codecs, HDR ranges, audio formats, subtitles, chapters, and failure paths — with the command below. The probe keeps its player hidden until playback starts and loads immediately, as the app does, so a source that opens before the renderer exists would fail it by playing without video:
 
 ```sh
 pnpm macos:check-playback
