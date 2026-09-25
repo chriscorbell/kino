@@ -339,8 +339,8 @@ jobs:
       # A portable folder: the shell, its interface, libmpv, the Qt libraries
       # and QML modules windeployqt finds it using, and the C++ runtime beside
       # them rather than as an installer to run first. Qt Quick draws with
-      # OpenGL, so the Direct3D shader compilers stay out; Qt's software
-      # OpenGL stays for machines without a GPU driver.
+      # OpenGL, so the Direct3D shader compilers stay out, and so does Qt's
+      # software OpenGL: a 2016 Mesa whose LLVM release nothing records.
       - name: Package a portable build
         shell: pwsh
         run: |
@@ -351,12 +351,12 @@ jobs:
           Copy-Item build/mpv/libmpv-2.dll $out
           windeployqt --release --qmldir apps/macos-shell/qml --no-translations `
             --skip-plugin-types qmltooling --no-system-d3d-compiler --no-system-dxc-compiler `
-            --no-compiler-runtime "$out/Kino.exe"
+            --no-compiler-runtime --no-opengl-sw "$out/Kino.exe"
           Copy-Item "$env:VCToolsRedistDir/x64/Microsoft.VC143.CRT/*.dll" $out
-          foreach ($required in 'Kino.exe', 'libmpv-2.dll', 'Qt6WebEngineCore.dll', 'QtWebEngineProcess.exe', 'vcruntime140.dll', 'msvcp140.dll', 'opengl32sw.dll', 'ui/index.html') {
+          foreach ($required in 'Kino.exe', 'libmpv-2.dll', 'Qt6WebEngineCore.dll', 'QtWebEngineProcess.exe', 'vcruntime140.dll', 'msvcp140.dll', 'ui/index.html') {
             if (-not (Test-Path "$out/$required")) { throw "The portable build lacks $required" }
           }
-          foreach ($unwanted in 'vc_redist.x64.exe', 'd3dcompiler_47.dll', 'dxcompiler.dll', 'dxil.dll', 'qmltooling') {
+          foreach ($unwanted in 'vc_redist.x64.exe', 'd3dcompiler_47.dll', 'dxcompiler.dll', 'dxil.dll', 'opengl32sw.dll', 'qmltooling') {
             if (Test-Path "$out/$unwanted") { throw "The portable build carries $unwanted" }
           }
       # The portable build itself, started as someone would start it. The
