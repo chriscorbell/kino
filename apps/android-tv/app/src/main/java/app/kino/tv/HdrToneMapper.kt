@@ -33,6 +33,7 @@ class HdrToneMapper(
 ) {
     private var program = 0
     private var textureUniform = 0
+    private var texMatrixUniform = 0
     private var maxSourcePqUniform = 0
     private var maxLumUniform = 0
     private var kneeStartUniform = 0
@@ -43,6 +44,7 @@ class HdrToneMapper(
         if (program != 0) return
         program = GlPrograms.link(VERTEX_SHADER, FRAGMENT_SHADER)
         textureUniform = GLES30.glGetUniformLocation(program, "uTexture")
+        texMatrixUniform = GLES30.glGetUniformLocation(program, "uTexMatrix")
         maxSourcePqUniform = GLES30.glGetUniformLocation(program, "uMaxSourcePq")
         maxLumUniform = GLES30.glGetUniformLocation(program, "uMaxLum")
         kneeStartUniform = GLES30.glGetUniformLocation(program, "uKneeStart")
@@ -52,10 +54,14 @@ class HdrToneMapper(
     /**
      * Draws [externalTextureId] over the whole of the bound framebuffer.
      *
+     * [texMatrix] is the frame's `SurfaceTexture.getTransformMatrix()`. A decoder that aligns its
+     * buffers, such as a 1088-line HEVC decode of 1080p, crops through it, and a flipped producer
+     * relies on it; sampling without it would show the padding rows.
+     *
      * The knee parameters are computed here rather than per pixel; they depend only on the source
      * and target peaks, which do not change within a stream.
      */
-    fun draw(externalTextureId: Int) {
+    fun draw(externalTextureId: Int, texMatrix: FloatArray = IDENTITY) {
         check(program != 0) { "prepare() must run on the GL thread first" }
         val maxSourcePq = linearToPq(sourcePeakNits / 10_000f)
         val maxTargetPq = linearToPq(targetPeakNits / 10_000f)
@@ -75,6 +81,7 @@ class HdrToneMapper(
             GLES30.GL_LINEAR,
         )
         GLES30.glUniform1i(textureUniform, 0)
+        GLES30.glUniformMatrix4fv(texMatrixUniform, 1, false, texMatrix, 0)
         GLES30.glUniform1f(maxSourcePqUniform, maxSourcePq)
         GLES30.glUniform1f(maxLumUniform, maxLum)
         GLES30.glUniform1f(kneeStartUniform, 1.5f * maxLum - 0.5f)
@@ -89,11 +96,32 @@ class HdrToneMapper(
 
     companion object {
         /**
-         * Most HDR10 is graded to 1000 cd/m^2, and a stream that does not say otherwise is assumed
-         * to be. Reading the real value from the mastering display metadata is a later refinement;
-         * grading it too high only makes highlights conservative, never wrong in hue.
+         * Most HDR10 is graded to 1000 cd/m^2, and a stream that carries no light-level metadata
+         * is assumed to be. Assuming too high only makes highlights conservative, never wrong in
+         * hue.
          */
         const val DEFAULT_SOURCE_PEAK_NITS = 1000f
+
+        private val IDENTITY =
+            floatArrayOf(1f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 1f)
+
+        /**
+         * The source peak for the roll-off, from the stream's CTA-861.3 static metadata as Media3
+         * stores it: a descriptor byte, then little-endian 16-bit fields with the mastering
+         * display's maximum luminance at byte 17 and MaxCLL at byte 21. MaxCLL describes the
+         * brightest pixel actually in the content, so it wins when present; the mastering peak is
+         * the ceiling otherwise. Values outside a plausible HDR range fall back to the default
+         * rather than bending the curve around a broken tag.
+         */
+        fun sourcePeakNits(hdrStaticInfo: ByteArray?): Float {
+            if (hdrStaticInfo == null || hdrStaticInfo.size < 25) return DEFAULT_SOURCE_PEAK_NITS
+            fun field(offset: Int) =
+                (hdrStaticInfo[offset].toInt() and 0xff) or
+                    ((hdrStaticInfo[offset + 1].toInt() and 0xff) shl 8)
+            val plausible = 400..10_000
+            return (field(21).takeIf { it in plausible } ?: field(17).takeIf { it in plausible })
+                ?.toFloat() ?: DEFAULT_SOURCE_PEAK_NITS
+        }
 
         /** ITU-R BT.2408 puts HDR reference white at 203 cd/m^2, which is SDR diffuse white. */
         const val SDR_REFERENCE_WHITE_NITS = 203f
@@ -113,10 +141,11 @@ class HdrToneMapper(
         // gl_VertexID builds the quad, so there is no vertex buffer to bind or leak.
         private val VERTEX_SHADER =
             """#version 300 es
+            uniform mat4 uTexMatrix;
             out vec2 vTexCoord;
             void main() {
               vec2 corner = vec2(float((gl_VertexID & 1) << 1), float(gl_VertexID & 2));
-              vTexCoord = corner * 0.5;
+              vTexCoord = (uTexMatrix * vec4(corner * 0.5, 0.0, 1.0)).xy;
               gl_Position = vec4(corner - 1.0, 0.0, 1.0);
             }"""
 

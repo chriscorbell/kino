@@ -8,14 +8,12 @@ import android.opengl.EGL14
 import android.opengl.EGLConfig
 import android.opengl.GLES11Ext
 import android.opengl.GLES30
-import android.util.Log
 import android.view.Surface
 import androidx.test.platform.app.InstrumentationRegistry
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import kotlin.math.abs
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
@@ -84,66 +82,17 @@ class ShieldToneMapTest {
         }
     }
 
-    private fun verify(pixels: FloatArray, patches: org.json.JSONArray) {
-        fun at(x: Int, y: Int): Triple<Float, Float, Float> {
+    // Neutral bands: the driver centres chroma on about 510 rather than 512, a constant two code
+    // offset measured in ShieldHdrSamplerTest, and pushing that offset through the reference
+    // pipeline predicts at most 0.0176 of per-channel error and 0.0244 of spread. The constants
+    // below are those numbers with half again for GPU pow. Correcting the offset in the shader would
+    // bake a driver quirk into Kino and become an equal and opposite error the day a driver fixes
+    // it. A wrong gamut matrix tints an order of magnitude harder and still fails.
+    private fun verify(pixels: FloatArray, patches: org.json.JSONArray) =
+        verifyToneMappedPatches(patches, TOLERANCE, NEUTRAL_SPREAD) { x, y ->
             val i = (y * WIDTH + x) * 4
-            return Triple(pixels[i], pixels[i + 1], pixels[i + 2])
+            listOf(pixels[i], pixels[i + 1], pixels[i + 2])
         }
-        fun Triple<Float, Float, Float>.toList() = listOf(first, second, third)
-
-        var worst = 0.0
-        var worstLabel = ""
-        val ramp = mutableListOf<Float>()
-        for (i in 0 until patches.length()) {
-            val patch = patches.getJSONObject(i)
-            val band = patch.getString("band")
-            val luma = patch.getInt("luma")
-            val rendered = at(patch.getInt("x"), patch.getInt("y")).toList()
-            val want = patch.getJSONArray("expected")
-
-            // Neutral in, neutral out. Both bounds here are the driver's, not the shader's. It
-            // centres chroma on about 510 rather than 512, a constant two code offset measured in
-            // ShieldHdrSamplerTest, and pushing that offset through the reference pipeline predicts
-            // at most 0.0176 of per-channel error and 0.0244 of spread. The constants below are
-            // those numbers with half again for GPU pow. Correcting the offset in the shader would
-            // bake a driver quirk into Kino and become an equal and opposite error the day a driver
-            // fixes it. A wrong gamut matrix tints an order of magnitude harder and still fails.
-            if (band != "B") {
-                val spread = rendered.max() - rendered.min()
-                assertTrue(
-                    "$band luma $luma is not neutral, spread $spread: $rendered",
-                    spread < NEUTRAL_SPREAD,
-                )
-            }
-
-            for (channel in 0..2) {
-                val error = abs(rendered[channel] - want.getDouble(channel).toFloat()).toDouble()
-                if (error > worst) {
-                    worst = error
-                    worstLabel = "$band luma $luma channel ${"RGB"[channel]}"
-                }
-                assertEquals(
-                    "$band luma $luma channel ${"RGB"[channel]}: expected " +
-                        "${want.getDouble(channel)}, rendered ${rendered[channel]}",
-                    want.getDouble(channel).toFloat(),
-                    rendered[channel],
-                    TOLERANCE,
-                )
-            }
-            if (band == "A") ramp.add(rendered[1])
-        }
-        Log.i(TAG, "worst channel error ${"%.4f".format(worst)} at $worstLabel")
-
-        // Structural properties, which need no tolerance and fail loudly on a broken curve.
-        assertEquals("video black must render as black", 0f, ramp.first(), 0.01f)
-        assertEquals("the brightest step must clip to white", 1f, ramp.last(), 0.01f)
-        for (i in 1 until ramp.size) {
-            assertTrue(
-                "the ramp must never fall: step $i went ${ramp[i - 1]} -> ${ramp[i]}",
-                ramp[i] >= ramp[i - 1] - 0.001f,
-            )
-        }
-    }
 
     private fun renderToneMapped(toneMapper: HdrToneMapper, textureId: Int): FloatArray {
         val fbo = IntArray(1)
@@ -299,7 +248,6 @@ class ShieldToneMapTest {
     }
 
     private companion object {
-        const val TAG = "KinoToneMap"
         const val WIDTH = 640
         const val HEIGHT = 360
         // The device measures 0.0250 at worst. About 0.015 of that is the driver's own two

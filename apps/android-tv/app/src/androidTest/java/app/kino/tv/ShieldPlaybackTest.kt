@@ -134,21 +134,23 @@ class ShieldPlaybackTest {
 
     @Test
     fun hardwareSdrAndUnsupportedInputs() {
-        for (fixture in listOf("h264-sdr-aac.mp4", "hevc-sdr-ac3.mkv")) {
+        // SDR renders directly; HDR10 renders through Kino's own tone mapping.
+        for ((fixture, toneMapped) in
+            listOf(
+                "h264-sdr-aac.mp4" to false,
+                "hevc-sdr-ac3.mkv" to false,
+                "hevc-hdr10-eac3.mkv" to true,
+            )) {
             val result = play(fixture)
             assertTrue("$fixture must render hardware-decoded frames: $result", result.frame)
             assertTrue(
                 result.decoder.startsWith("OMX.Nvidia.") || result.decoder.startsWith("c2.nvidia.")
             )
             assertNull(result.error)
+            assertEquals("$fixture tone mapping", toneMapped, result.toneMapped)
         }
-        for (fixture in
-            listOf(
-                "av1-aac.mkv",
-                "ffv1-software-only.mkv",
-                "hevc-hdr10-eac3.mkv",
-                "hevc-hlg-flac.mkv",
-            )) {
+        // HLG stays rejected until it is measured the way HDR10 was.
+        for (fixture in listOf("av1-aac.mkv", "ffv1-software-only.mkv", "hevc-hlg-flac.mkv")) {
             val result = play(fixture)
             assertFalse(
                 "$fixture must not render unvalidated or software-decoded video: $result",
@@ -180,6 +182,7 @@ class ShieldPlaybackTest {
 
     private data class Outcome(
         var frame: Boolean = false,
+        var toneMapped: Boolean = false,
         var decoder: String = "",
         var error: Int? = null,
         var unsupported: Boolean = false,
@@ -286,11 +289,6 @@ class ShieldPlaybackTest {
                             }
                         }
 
-                        override fun onRenderedFirstFrame() {
-                            result.frame = true
-                            done.countDown()
-                        }
-
                         override fun onPlayerError(error: PlaybackException) {
                             result.error = error.errorCode
                             done.countDown()
@@ -316,6 +314,18 @@ class ShieldPlaybackTest {
                             initializationDurationMs: Long,
                         ) {
                             result.decoder = decoderName
+                        }
+
+                        // The player only announces a first frame rendered to its own display
+                        // surface; a tone-mapped frame is rendered to Kino's input surface first.
+                        override fun onRenderedFirstFrame(
+                            eventTime: AnalyticsListener.EventTime,
+                            output: Any,
+                            renderTimeMs: Long,
+                        ) {
+                            result.frame = true
+                            result.toneMapped = (factory as? HardwareRenderers)?.toneMapping == true
+                            done.countDown()
                         }
                     }
                 )

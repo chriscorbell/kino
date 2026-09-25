@@ -110,7 +110,7 @@
     <string name="copy_diagnostic_summary">Copy diagnostic summary</string>
     <string name="diagnostic_summary_copied">Diagnostic summary copied.</string>
     <string name="diagnostic_summary_failed">The summary could not be copied. Try again.</string>
-    <string name="diagnostic_summary_text">Kino: %1$s (build %2$d)\nAndroid: %3$s (API %4$d)\nABI: %5$s\nStremio Core revision: %6$s\nMedia3: %7$s\nFFmpeg audio: %8$s\nVideo decoding: hardware only\nVideo output: SDR\nAudio output: %9$s</string>
+    <string name="diagnostic_summary_text">Kino: %1$s (build %2$d)\nAndroid: %3$s (API %4$d)\nABI: %5$s\nStremio Core revision: %6$s\nMedia3: %7$s\nFFmpeg audio: %8$s\nVideo decoding: hardware only\nVideo output: SDR, HDR10 tone mapped by Kino\nAudio output: %9$s</string>
     <string name="language_eng">English</string>
     <string name="language_spa">Spanish</string>
     <string name="language_fre">French</string>
