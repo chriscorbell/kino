@@ -135,6 +135,7 @@ qt_add_executable(
   src/nowplaying.cpp
   src/playbackprobe.cpp
   src/securestore.cpp
+  src/singleinstance.cpp
   src/streamengine.cpp
   ${KINO_PLAYER_SOURCES}
   ${KINO_SHELL_PLATFORM_SOURCES}
@@ -203,15 +204,22 @@ set_target_properties(
 )
 
 set(KINO_REPOSITORY_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
-set(KINO_WEB_DIST ${KINO_REPOSITORY_ROOT}/apps/desktop/dist)
-find_program(PNPM_EXECUTABLE NAMES pnpm pnpm.cmd REQUIRED)
+# A package build, such as the Flatpak, builds the web interface beforehand
+# and points KINO_WEB_DIST at it instead of running pnpm inside its sandbox.
+option(KINO_BUILD_WEB_UI "Build the web interface with pnpm as part of the shell" ON)
+set(KINO_WEB_DIST ${KINO_REPOSITORY_ROOT}/apps/desktop/dist CACHE PATH "The built web interface")
 
-add_custom_target(
-  kino_web_ui
-  COMMAND ${PNPM_EXECUTABLE} --filter @kino/desktop build
-  WORKING_DIRECTORY ${KINO_REPOSITORY_ROOT}
-  COMMENT "Building Kino web UI"
-)
+if(KINO_BUILD_WEB_UI)
+  find_program(PNPM_EXECUTABLE NAMES pnpm pnpm.cmd REQUIRED)
+  add_custom_target(
+    kino_web_ui
+    COMMAND ${PNPM_EXECUTABLE} --filter @kino/desktop build
+    WORKING_DIRECTORY ${KINO_REPOSITORY_ROOT}
+    COMMENT "Building Kino web UI"
+  )
+else()
+  add_custom_target(kino_web_ui)
+endif()
 add_dependencies(Kino kino_web_ui)
 
 # Files beside the shell, where Platform::resourcePath looks for them: the app
@@ -244,6 +252,17 @@ add_custom_target(
   COMMENT "Packaging Kino streaming engine"
 )
 add_dependencies(kino_package_engine Kino)
+
+# Linux installs follow the usual prefix layout, which Platform::resourcePath
+# reads as share/kino beside the executable's directory.
+if(UNIX AND NOT APPLE)
+  include(GNUInstallDirs)
+  install(TARGETS Kino RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+  install(DIRECTORY ${KINO_WEB_DIST}/ DESTINATION ${CMAKE_INSTALL_DATADIR}/kino/ui)
+  if(EXISTS ${KINO_ENGINE_BINARY})
+    install(PROGRAMS ${KINO_ENGINE_BINARY} DESTINATION ${CMAKE_INSTALL_BINDIR})
+  endif()
+endif()
 
 include(CTest)
 if(BUILD_TESTING)
@@ -336,6 +355,11 @@ if(BUILD_TESTING)
     src/streamengine.cpp src/tlsroots.cpp)
   target_include_directories(kino_streamengine_test PRIVATE src)
   target_link_libraries(kino_streamengine_test PRIVATE Qt6::Concurrent Qt6::Network Qt6::Qml Qt6::Test)
+
+  qt_add_executable(kino_singleinstance_test tests/singleinstance_test.cpp src/singleinstance.cpp)
+  target_include_directories(kino_singleinstance_test PRIVATE src)
+  target_link_libraries(kino_singleinstance_test PRIVATE Qt6::Network Qt6::Test)
+  add_test(NAME single_instance COMMAND kino_singleinstance_test)
 
   qt_add_executable(kino_tlsroots_test tests/tlsroots_test.cpp src/tlsroots.cpp)
   target_include_directories(kino_tlsroots_test PRIVATE src)

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Kino
+Comment=Browse and play your Stremio library and add-ons
+Exec=Kino
+Icon=com.chriscorbell.Kino
+Categories=AudioVideo;Video;Player;
+Terminal=false
+StartupWMClass=Kino

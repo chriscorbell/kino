@@ -1,0 +1,76 @@
+diff --git a/server/Cargo.toml b/server/Cargo.toml
+index 6489fe1..fb7c296 100644
+--- a/server/Cargo.toml
++++ b/server/Cargo.toml
+@@ -14,6 +14,7 @@ crate-type = ["cdylib", "rlib"]
+ [[bin]]
+ name = "server"
+ path = "src/main.rs"
++required-features = ["tray"]
+ 
+ [dependencies]
+ jni = "0.22.4"
+@@ -69,22 +70,22 @@ bytes = "1.11.0"
+ axum-server = { version = "0.8.0", features = ["tls-rustls"] }
+ ssdp-client = "2.1.0"
+ fslock = "0.2.1"
+-open = "5.3.3"
+-image = "0.25.9"
+-ico = "0.5.0"
++open = { version = "5.3.3", optional = true }
++image = { version = "0.25.9", optional = true }
++ico = { version = "0.5.0", optional = true }
+ zip = "8.6.0"
+ chrono = "0.4.42"
+ sysinfo = "0.39.5"
+ 
+ [target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
+-tao = "0.35.3"
+-settings-gui = { path = "../settings-gui" }
++tao = { version = "0.35.3", optional = true }
++settings-gui = { path = "../settings-gui", optional = true }
+ 
+ [target.'cfg(any(target_os = "windows", target_os = "macos"))'.dependencies]
+-tray-icon = { version = "0.24.1", default-features = false }
++tray-icon = { version = "0.24.1", default-features = false, optional = true }
+ 
+ [target.'cfg(target_os = "linux")'.dependencies]
+-tray-icon = { version = "0.24.1", default-features = false, features = ["gtk"] }
++tray-icon = { version = "0.24.1", default-features = false, features = ["gtk"], optional = true }
+ 
+ [target.'cfg(target_os = "android")'.dependencies]
+ rustls-platform-verifier = "0.7.0"
+@@ -104,7 +105,9 @@ windows = { version = "0.62.2", features = [
+ 
+ 
+ [features]
+-default = ["libtorrent"]
++# The tray icon and settings window. An embedding app that has its own interface leaves them out.
++default = ["libtorrent", "tray"]
++tray = ["dep:tao", "dep:settings-gui", "dep:tray-icon", "dep:open", "dep:image", "dep:ico"]
+ libtorrent = ["enginefs/libtorrent"]
+ librqbit = ["enginefs/librqbit", "dep:librqbit"]
+ 
+diff --git a/server/src/lib.rs b/server/src/lib.rs
+index 7f872ac..e975141 100644
+--- a/server/src/lib.rs
++++ b/server/src/lib.rs
+@@ -20,10 +20,16 @@ pub const DEFAULT_HTTPS_PORT: u16 = 12470;
+ pub static GLOBAL_STATE: once_cell::sync::Lazy<std::sync::RwLock<Option<AppState>>> =
+     once_cell::sync::Lazy::new(|| std::sync::RwLock::new(None));
+ 
+-#[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
++#[cfg(all(
++    feature = "tray",
++    any(target_os = "windows", target_os = "macos", target_os = "linux")
++))]
+ pub mod tray;
+ 
+-#[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
++#[cfg(not(all(
++    feature = "tray",
++    any(target_os = "windows", target_os = "macos", target_os = "linux")
++)))]
+ pub mod tray {
+     #[derive(Default)]
+     pub struct TrayStats;

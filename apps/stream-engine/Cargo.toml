@@ -15,7 +15,7 @@ regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 subtle = "2.6"
-stream-server = { path = "../../build/vendor/stream-server/server", package = "server" }
+stream-server = { path = "../../build/vendor/stream-server/server", package = "server", default-features = false, features = ["libtorrent"] }
 tokio = { version = "1", features = ["io-std", "io-util", "macros", "rt-multi-thread"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
