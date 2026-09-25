@@ -1,0 +1,19 @@
+diff --git a/enginefs/src/backend/libtorrent/mod.rs b/enginefs/src/backend/libtorrent/mod.rs
+index 0f48e92..36879d6 100644
+--- a/enginefs/src/backend/libtorrent/mod.rs
++++ b/enginefs/src/backend/libtorrent/mod.rs
+@@ -98,9 +98,11 @@ impl LibtorrentBackend {
+             user_agent: "stream-server/1.0".to_string(),
+             enable_dht: config.privacy.bt_enable_dht,
+             enable_pex: config.privacy.bt_enable_pex,
+-            enable_lsd: config.privacy.bt_enable_lsd,
+-            enable_upnp: true,
+-            enable_natpmp: true,
++            // Kino never asks the router to open ports, and never multicasts
++            // the torrents being watched to the local network (ADR 0022).
++            enable_lsd: false,
++            enable_upnp: false,
++            enable_natpmp: false,
+             encryption_mode: config.privacy.bt_encryption_mode.as_libtorrent_code(),
+             max_connections,
+             max_connections_per_torrent,

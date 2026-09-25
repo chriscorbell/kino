@@ -1,6 +1,6 @@
 # Adopt stream-server with a locked-down embedded profile
 
-The requirement to expose seeding and download-limit controls is superseded by [ADR 0020](0020-remove-torrent-configuration-from-settings.md).
+The requirement to expose seeding and download-limit controls is superseded by [ADR 0020](0020-remove-torrent-configuration-from-settings.md). [ADR 0022](0022-keep-the-streaming-engine-off-router-port-mapping-and-lan-discovery.md) extends this profile to the BitTorrent session's router port mapping and local discovery.
 
 The open torrent engine gate from ADR 0013 passed a hands-on macOS audit of `stremio-native/stream-server` (MIT, Rust, libtorrent-rasterbar backend, BSD-3): its embedded library profile binds the Stremio-compatible HTTP API to loopback only, serves byte-identical original media over HTTP ranges (cold start to first bytes ~9 s, cold deep seek ~12 s via piece reprioritization, ~80–120 MB resident while streaming, 10 GB capped cache with a cleaner), and its dependencies are pinned by checksummed lock file. Kino will embed it as a pinned, built-from-source component using that embedded profile — never the standalone binary, whose defaults (bind on all interfaces, SSDP, background auto-update, runtime FFmpeg download) violate Kino's network-exposure and no-unverified-blob rules.
 
