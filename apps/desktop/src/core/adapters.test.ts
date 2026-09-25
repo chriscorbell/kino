@@ -74,6 +74,14 @@ describe('discover', () => {
     expect(detail?.type === 'Err' && detail.content.kind).toBe('Env');
   });
 
+  it('carries the Discover request for each board and search catalog', () => {
+    const [movies] = adaptCoreState('search', raw('failed_search')).catalogs;
+    expect(movies?.request).toEqual({
+      base: 'https://v3-cinemeta.strem.io/manifest.json',
+      path: { extra: [['search', 'failed']], id: 'top', resource: 'catalog', type: 'movie' },
+    });
+  });
+
   it('accepts every failure payload pinned Core emits, not only Env', () => {
     // A tagged failure carries an object for Env, a plain string for
     // UnexpectedResponse, and nothing at all for EmptyContent, which is what an

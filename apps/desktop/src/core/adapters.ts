@@ -582,6 +582,10 @@ function adaptCatalog(value: unknown, site: Site): CoreCatalog {
     ),
     id: identity(source.id, at(site, 'id')),
     name: text(source.name, at(site, 'name')),
+    request: catalogRequestFromLink(
+      optionalRecord(source.deepLinks, at(site, 'deepLinks'))?.discover,
+      at(site, 'deepLinks.discover'),
+    ),
     type: identity(source.type, at(site, 'type')),
   };
 }
