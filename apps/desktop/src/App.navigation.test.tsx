@@ -197,7 +197,10 @@ it('restores the query, results, scroll and originating card focus without reloa
   const user = userEvent.setup();
   await user.click(screen.getByRole('button', { name: 'Search' }));
   const input = screen.getByRole('searchbox');
-  await user.type(input, 'Silo');
+  // Typing one key at a time can outlast the search debounce on a loaded
+  // machine and send a search for a partial query; this test is about
+  // restoring the page, so the query arrives whole.
+  fireEvent.change(input, { target: { value: 'Silo' } });
   fireEvent.submit(input.closest('form')!);
   const card = await screen.findByRole('button', { name: /Silo/ });
   const main = screen.getByRole('main');
