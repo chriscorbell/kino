@@ -373,7 +373,8 @@ jobs:
           windeployqt --release --qmldir apps/macos-shell/qml --no-translations `
             --skip-plugin-types qmltooling --no-system-d3d-compiler --no-system-dxc-compiler `
             --no-compiler-runtime --no-opengl-sw "$out/Kino.exe"
-          Copy-Item "$env:VCToolsRedistDir/x64/Microsoft.VC143.CRT/*.dll" $out
+          # The folder is named for the toolset (VC143, VC145, ...).
+          Copy-Item "$env:VCToolsRedistDir/x64/Microsoft.VC*.CRT/*.dll" $out
           foreach ($required in 'Kino.exe', 'libmpv-2.dll', 'Qt6WebEngineCore.dll', 'QtWebEngineProcess.exe', 'vcruntime140.dll', 'msvcp140.dll', 'ui/index.html') {
             if (-not (Test-Path "$out/$required")) { throw "The portable build lacks $required" }
           }
