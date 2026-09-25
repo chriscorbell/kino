@@ -16,6 +16,8 @@ subprocess.run(["node", "scripts/test-support/tv-ending-fixtures.mjs", str(root 
 subprocess.run(["node", "scripts/test-support/tv-intro-fixtures.mjs", str(root / "build/android-fixtures")], cwd=root, check=True)
 subprocess.run(["node", "scripts/test-support/hdr-probe-fixture.mjs", str(root / "build/android-fixtures")], cwd=root, check=True)
 subprocess.run(["node", "scripts/test-support/loudness-reference.mjs", str(root / "build/android-fixtures")], cwd=root, check=True)
+remux = Path(subprocess.run(["node", "scripts/test-support/remux-fixture.mjs", str(root / "build/android-remux")],
+    cwd=root, check=True, capture_output=True, text=True).stdout.strip())
 subprocess.run([sys.executable, "scripts/build-android.py", ":app:assembleBenchmark", ":app:assembleBenchmarkAndroidTest"], cwd=root, check=True)
 adb = ["adb", "-s", device]
 # UpdateTest needs this build signed by someone else, which the update check must refuse. A
@@ -36,6 +38,12 @@ subprocess.run([str(apksigner), "sign", "--ks", str(keystore), "--ks-pass", "pas
 try:
     subprocess.run([*adb, "push", str(other_key / "kino-other-key.apk"), "/data/local/tmp/kino-other-key.apk"],
         check=True, capture_output=True)
+    # RemuxBufferTest's 225 MB stream is too large for the test APK. Push it only when the device's
+    # copy differs in size, since it rarely changes and takes a while over network ADB.
+    remote_remux = "/data/local/tmp/kino-remux-60mbps.mp4"
+    pushed = subprocess.run([*adb, "shell", "stat", "-c", "%s", remote_remux], capture_output=True, text=True)
+    if pushed.stdout.strip() != str(remux.stat().st_size):
+        subprocess.run([*adb, "push", str(remux), remote_remux], check=True, capture_output=True)
     for path in ["benchmark/app-benchmark.apk", "androidTest/benchmark/app-benchmark-androidTest.apk"]:
         subprocess.run([*adb, "install", "-r", str(root / "apps/android-tv/app/build/outputs/apk" / path)], check=True)
     # Apply the APK's baseline profile as a device does in idle maintenance after an install, so
