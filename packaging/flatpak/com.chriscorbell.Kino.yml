@@ -1,0 +1,162 @@
+# Kino for Linux. The KDE runtime and the Qt WebEngine base app match the Qt
+# release the macOS build uses. libmpv and its FFmpeg are built here rather
+# than taken from the runtime, so hardware decoding through VA-API is present.
+# The source pins follow Flathub's io.mpv.Mpv manifest.
+id: com.chriscorbell.Kino
+runtime: org.kde.Platform
+runtime-version: '6.11'
+sdk: org.kde.Sdk
+base: io.qt.qtwebengine.BaseApp
+base-version: '6.11'
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.node24
+command: Kino
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio
+  - --device=dri
+  # Media keys and desktop controls.
+  - --own-name=org.mpris.MediaPlayer2.kino
+  - --own-name=org.mpris.MediaPlayer2.kino.*
+  # The screensaver fallback when the desktop has no idle-inhibit portal.
+  - --talk-name=org.freedesktop.ScreenSaver
+  # Pausing before sleep.
+  - --system-talk-name=org.freedesktop.login1
+  - --env=QTWEBENGINEPROCESS_PATH=/app/bin/QtWebEngineProcess
+cleanup:
+  - /include
+  - /lib/pkgconfig
+  - /share/man
+  - '*.la'
+  - '*.a'
+cleanup-commands:
+  - /app/cleanup-BaseApp.sh
+modules:
+  - name: uchardet
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_STATIC=0
+      - -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+    cleanup:
+      - /bin
+    sources:
+      - type: archive
+        url: https://www.freedesktop.org/software/uchardet/releases/uchardet-0.0.8.tar.xz
+        sha256: e97a60cfc00a1c147a674b097bb1422abd9fa78a2d9ce3f3fdcc2e78a34ac5f0
+
+  - name: libass
+    config-opts:
+      - --disable-static
+      - --enable-asm
+      - --enable-harfbuzz
+      - --enable-fontconfig
+    sources:
+      - type: git
+        url: https://github.com/libass/libass.git
+        tag: 0.17.5
+        commit: 4a05d8127f525943ebf45fdc6497c9e665947f0d
+
+  # Decoders only. The native ones cover H.264, HEVC, VP9 and the audio
+  # formats Kino plays; dav1d covers AV1, and VA-API the hardware path.
+  - name: ffmpeg
+    config-opts:
+      - --disable-debug
+      - --disable-doc
+      - --disable-programs
+      - --disable-static
+      - --enable-shared
+      - --enable-gpl
+      - --enable-version3
+      - --enable-gnutls
+      - --enable-libdav1d
+      - --enable-libdrm
+      - --enable-vaapi
+    cleanup:
+      - /share/ffmpeg
+    sources:
+      - type: git
+        url: https://github.com/FFmpeg/FFmpeg.git
+        tag: n9.0.1
+        commit: bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa
+
+  - name: libplacebo
+    buildsystem: meson
+    config-opts:
+      - -Dvulkan=disabled
+      - -Dopengl=enabled
+      - -Ddemos=false
+      - -Dtests=false
+    sources:
+      - type: git
+        url: https://github.com/haasn/libplacebo.git
+        tag: v7.360.1
+        commit: cee9b076f2c63104ccfd497fa79c39a867293ec4
+
+  - name: mpv
+    buildsystem: meson
+    config-opts:
+      - -Dlibmpv=true
+      - -Dcplayer=false
+      - -Dbuild-date=false
+      - -Dlua=disabled
+      - -Djavascript=disabled
+      - -Dlibarchive=disabled
+      - -Dlibbluray=disabled
+      - -Ddvdnav=disabled
+      - -Dcdda=disabled
+      - -Drubberband=disabled
+      - -Dvapoursynth=disabled
+      - -Dvulkan=disabled
+      - -Duchardet=enabled
+      - -Dlcms2=enabled
+      - -Dgl=enabled
+      - -Degl=enabled
+      - -Degl-wayland=enabled
+      - -Degl-x11=enabled
+      - -Dwayland=enabled
+      - -Dx11=enabled
+      - -Ddrm=enabled
+      - -Dgbm=enabled
+      - -Dvaapi=enabled
+      - -Dvaapi-drm=enabled
+      - -Dvaapi-wayland=enabled
+      - -Dvaapi-x11=enabled
+      - -Dpulse=enabled
+      - -Dpipewire=enabled
+      - -Dalsa=enabled
+    sources:
+      - type: git
+        url: https://github.com/mpv-player/mpv.git
+        tag: v0.41.0
+        commit: 41f6a645068483470267271e1d09966ca3b9f413
+
+  # The shell. CI builds the web interface first, since the sandbox has no
+  # network for pnpm; node is still needed for the locale the shell embeds.
+  - name: kino
+    buildsystem: cmake-ninja
+    subdir: apps/macos-shell
+    build-options:
+      append-path: /usr/lib/sdk/node24/bin
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_TESTING=OFF
+      - -DKINO_BUILD_WEB_UI=OFF
+    post-install:
+      - install -Dm644 /run/build/kino/packaging/flatpak/com.chriscorbell.Kino.desktop ${FLATPAK_DEST}/share/applications/com.chriscorbell.Kino.desktop
+      - install -Dm644 /run/build/kino/packaging/flatpak/com.chriscorbell.Kino.png ${FLATPAK_DEST}/share/icons/hicolor/512x512/apps/com.chriscorbell.Kino.png
+      - install -Dm644 /run/build/kino/packaging/flatpak/com.chriscorbell.Kino.metainfo.xml ${FLATPAK_DEST}/share/metainfo/com.chriscorbell.Kino.metainfo.xml
+      - sed -i -e "s/@KINO_VERSION@/$(node -p "require('/run/build/kino/package.json').version")/"
+        -e "s/@KINO_DATE@/$(date -u +%F)/" ${FLATPAK_DEST}/share/metainfo/com.chriscorbell.Kino.metainfo.xml
+    sources:
+      - type: dir
+        path: ../..
+        skip:
+          - .git
+          - build
+          - node_modules
+          - apps/android-tv
+          - mockup

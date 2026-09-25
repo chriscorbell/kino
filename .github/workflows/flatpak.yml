@@ -1,0 +1,46 @@
+name: Linux Flatpak
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/flatpak.yml
+      - packaging/flatpak/**
+      - apps/macos-shell/**
+      - apps/desktop/**
+      - package.json
+      - pnpm-lock.yaml
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flatpak-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flatpak:
+    name: Build the Flatpak
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.11
+      options: --privileged
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      # The Flatpak sandbox has no network, so the web interface is built here.
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @kino/desktop build
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@79327416609af08178ad73b352877e51450790b3 # v6.8
+        with:
+          manifest-path: packaging/flatpak/com.chriscorbell.Kino.yml
+          bundle: Kino.flatpak
+          cache-key: flatpak-builder-${{ hashFiles('packaging/flatpak/com.chriscorbell.Kino.yml') }}
+          upload-artifact: true
