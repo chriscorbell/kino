@@ -54,21 +54,21 @@ function nativeAuthStorage(): SecureAuthStorage {
       enqueue(async () => {
         const secureStore = await store();
         const result = await secureStore.readStremioAuth();
-        if (!result.ok) throw new Error(t.core.keychainReadFailed);
+        if (!result.ok) throw new Error(t.core.sessionReadFailed);
         return result.value || null;
       }),
     remove: () =>
       enqueue(async () => {
         const secureStore = await store();
         if (!(await secureStore.clearStremioAuth())) {
-          throw new Error(t.core.keychainRemoveFailed);
+          throw new Error(t.core.sessionRemoveFailed);
         }
       }),
     write: (value) =>
       enqueue(async () => {
         const secureStore = await store();
         if (!(await secureStore.writeStremioAuth(value))) {
-          throw new Error(t.core.keychainSaveFailed);
+          throw new Error(t.core.sessionSaveFailed);
         }
       }),
   };
@@ -123,10 +123,16 @@ export function createCoreTransport(
   };
   worker.addEventListener('error', workerFailed);
   worker.addEventListener('messageerror', workerFailed);
-  const call = <Result>(path: string[], args: unknown[]): Promise<Result> => {
+  // A call that never answers means the worker is gone, so the session stops.
+  // Flush is the exception: it waits for storage and account sync, which the
+  // worker already bounds, and a slow network must not end the session.
+  const call = <Result>(path: string[], args: unknown[], fatal = true): Promise<Result> => {
     if (stopped) return Promise.reject(stopped);
     return new Promise<Result>((resolve, reject) => {
-      const timeout = window.setTimeout(() => stop(new Error(t.core.timeout), true), 20_000);
+      const timeout = window.setTimeout(() => {
+        if (fatal) stop(new Error(t.core.timeout), true);
+        else cancel(new Error(t.core.storageTimeout));
+      }, 20_000);
       const finish = () => {
         window.clearTimeout(timeout);
         pending.delete(cancel);
@@ -150,9 +156,9 @@ export function createCoreTransport(
   };
   const beforeDestroy = new Set<() => Promise<void>>();
   let initializing: Promise<void> | null = null;
-  const flush = () => call<void>(['flush'], []);
+  const flush = () => call<void>(['flush'], [], false);
   const prepareClose = async () => {
-    // Closing while Keychain/WASM startup is still running must also wait for
+    // Closing while session storage or WASM startup is still running must also wait for
     // initialization's storage work before terminating the worker.
     await initializing?.catch(() => undefined);
     if (stopped) throw stopped;
