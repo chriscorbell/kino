@@ -5,6 +5,7 @@ package app.kino.tv
 
 import android.content.Context
 import android.graphics.Color
+import android.media.MediaCodecInfo.CodecProfileLevel as MediaCodecInfoLevels
 import android.net.Uri
 import android.os.Handler
 import android.text.SpannableString
@@ -36,6 +37,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.*
 import androidx.media3.common.text.Cue
 import androidx.media3.common.text.CueGroup
+import androidx.media3.common.util.CodecSpecificDataUtil
 import androidx.media3.common.util.Util
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
@@ -49,6 +51,7 @@ import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.mediacodec.MediaCodecAdapter
 import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
+import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.video.MediaCodecVideoRenderer
 import androidx.media3.exoplayer.video.VideoRendererEventListener
@@ -111,9 +114,22 @@ class HardwareRenderers(context: Context, private val stereo: Boolean = false) :
         return builder.build()
     }
 
-    private fun rejectedRange(format: Format): Boolean =
-        format.sampleMimeType == MimeTypes.VIDEO_DOLBY_VISION ||
-            format.colorInfo?.colorTransfer == C.COLOR_TRANSFER_HLG
+    private fun dolbyVisionProfile(format: Format): Int? =
+        if (format.sampleMimeType != MimeTypes.VIDEO_DOLBY_VISION) null
+        else CodecSpecificDataUtil.getCodecProfileAndLevel(format)?.first ?: -1
+
+    /**
+     * HLG, and every Dolby Vision profile except 8. Profile 8 carries a cross-compatible base
+     * layer that an HEVC decoder plays on its own, ignoring the enhancement metadata, and whose
+     * range the container's colour tags state: 8.1 is HDR10 and takes the tone-mapped path, 8.2
+     * is SDR, 8.4 is HLG and stays rejected with HLG. Profile 5 has no compatible base layer, so
+     * decoding it as HEVC would show the wrong colours, and 7 and 9 have not been measured.
+     */
+    private fun rejectedRange(format: Format): Boolean {
+        if (format.colorInfo?.colorTransfer == C.COLOR_TRANSFER_HLG) return true
+        val profile = dolbyVisionProfile(format) ?: return false
+        return profile != MediaCodecInfoLevels.DolbyVisionProfileDvheSt || format.colorInfo == null
+    }
 
     private fun pq(format: Format): Boolean =
         format.colorInfo?.colorTransfer == C.COLOR_TRANSFER_ST2084
@@ -162,9 +178,19 @@ class HardwareRenderers(context: Context, private val stereo: Boolean = false) :
                         unsupportedReason = R.string.hdr_unsupported
                         return emptyList()
                     }
-                    return super.getDecoderInfos(selector, format, requiresSecureDecoder).filter {
-                        it.hardwareAccelerated && !it.softwareOnly
-                    }
+                    // Dolby Vision profile 8 goes to the HEVC decoders for its base layer. The
+                    // Shield's Dolby Vision decoder would hand the display a Dolby Vision signal,
+                    // which is exactly the output Kino does not produce.
+                    val decoders =
+                        if (dolbyVisionProfile(format) != null)
+                            MediaCodecUtil.getAlternativeDecoderInfos(
+                                selector,
+                                format,
+                                requiresSecureDecoder,
+                                false,
+                            )
+                        else super.getDecoderInfos(selector, format, requiresSecureDecoder)
+                    return decoders.filter { it.hardwareAccelerated && !it.softwareOnly }
                 }
 
                 override fun getMediaCodecConfiguration(
@@ -220,6 +246,36 @@ class HardwareRenderers(context: Context, private val stereo: Boolean = false) :
                     hdrOutput?.setDisplay(null)
                     toneMapping = false
                     super.handleMessage(Renderer.MSG_SET_VIDEO_OUTPUT, displayOutput)
+                }
+
+                override fun getMediaFormat(
+                    format: Format,
+                    codecMimeType: String,
+                    codecMaxValues: CodecMaxValues,
+                    codecOperatingRate: Float,
+                    deviceNeedsNoPostProcessWorkaround: Boolean,
+                    tunnelingAudioSessionId: Int,
+                ): android.media.MediaFormat {
+                    val mediaFormat =
+                        super.getMediaFormat(
+                            format,
+                            codecMimeType,
+                            codecMaxValues,
+                            codecOperatingRate,
+                            deviceNeedsNoPostProcessWorkaround,
+                            tunnelingAudioSessionId,
+                        )
+                    // Media3 names the Dolby Vision profile on the codec, which means nothing to
+                    // the HEVC decoder playing profile 8's ten-bit base layer.
+                    if (
+                        codecMimeType == MimeTypes.VIDEO_H265 &&
+                            format.sampleMimeType == MimeTypes.VIDEO_DOLBY_VISION
+                    )
+                        mediaFormat.setInteger(
+                            android.media.MediaFormat.KEY_PROFILE,
+                            MediaCodecInfoLevels.HEVCProfileMain10,
+                        )
+                    return mediaFormat
                 }
 
                 override fun onOutputFormatChanged(

@@ -16,7 +16,7 @@
 //      the readback works when precision alone is not the limit.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { samplerOutput, toneMapPixel } from './tone-map-reference.mjs';
@@ -220,9 +220,98 @@ export function generateHdrProbe(fixturesDir) {
   return target;
 }
 
+/**
+ * Dolby Vision variants of the probe, for the profile gates. Each carries a generated RPU for its
+ * profile and the matching Matroska configuration record, over the same HDR10 frames, so profile
+ * 8.1's HDR10-compatible base layer must tone map to exactly the probe's expected patches, while
+ * profile 5, which has no compatible base layer, must be refused. The Colour elements are written
+ * explicitly, as a real release's mux carries them. Requires dovi_tool and mkvmerge.
+ */
+export function generateDolbyVisionProbes(fixturesDir) {
+  const probe = join(fixturesDir, 'hdr-probe.mkv');
+  const work = join(fixturesDir, 'dv-work');
+  mkdirSync(work, { recursive: true });
+  const run = (command, args) =>
+    execFileSync(command, args, { stdio: ['ignore', 'ignore', 'inherit'] });
+  try {
+    run('dovi_tool', ['--version']);
+    run('mkvmerge', ['--version']);
+  } catch {
+    throw new Error(
+      'Dolby Vision fixtures need dovi_tool and mkvmerge: brew install dovi_tool mkvtoolnix',
+    );
+  }
+  const base = join(work, 'base.hevc');
+  run('ffmpeg', [
+    '-nostdin',
+    '-y',
+    '-v',
+    'error',
+    '-i',
+    probe,
+    '-c:v',
+    'copy',
+    '-bsf:v',
+    'hevc_mp4toannexb',
+    '-f',
+    'hevc',
+    base,
+  ]);
+  const outputs = [];
+  for (const [profile, name] of [
+    ['8.1', 'dv-p8-probe.mkv'],
+    ['5', 'dv-p5-probe.mkv'],
+  ]) {
+    const config = join(work, `generate-${profile}.json`);
+    writeFileSync(
+      config,
+      JSON.stringify({
+        cm_version: 'V40',
+        length: FRAMES,
+        profile,
+        level6: {
+          max_display_mastering_luminance: 1000,
+          min_display_mastering_luminance: 1,
+          max_content_light_level: 1000,
+          max_frame_average_light_level: 400,
+        },
+      }),
+    );
+    const rpu = join(work, `rpu-${profile}.bin`);
+    const stream = join(work, `dv-${profile}.hevc`);
+    run('dovi_tool', ['generate', '-j', config, '-o', rpu]);
+    run('dovi_tool', ['inject-rpu', '-i', base, '--rpu-in', rpu, '-o', stream]);
+    const target = join(fixturesDir, name);
+    run('mkvmerge', [
+      '-q',
+      '-o',
+      target,
+      '--default-duration',
+      '0:24fps',
+      '--colour-matrix-coefficients',
+      '0:9',
+      '--colour-range',
+      '0:1',
+      '--colour-transfer-characteristics',
+      '0:16',
+      '--colour-primaries',
+      '0:9',
+      '--max-luminance',
+      '0:1000',
+      '--min-luminance',
+      '0:0.0001',
+      stream,
+    ]);
+    outputs.push(target);
+  }
+  rmSync(work, { recursive: true, force: true });
+  return outputs;
+}
+
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop())) {
   const dir = process.argv[2];
   if (!dir)
     throw new Error('Usage: node scripts/test-support/hdr-probe-fixture.mjs <fixtures dir>');
   console.log(`Generated ${generateHdrProbe(dir)}`);
+  for (const target of generateDolbyVisionProbes(dir)) console.log(`Generated ${target}`);
 }

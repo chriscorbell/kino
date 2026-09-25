@@ -12,9 +12,11 @@ import android.os.HandlerThread
 import android.util.Log
 import android.view.SurfaceView
 import android.view.WindowManager
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.test.platform.app.InstrumentationRegistry
@@ -22,6 +24,7 @@ import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import org.json.JSONObject
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -42,14 +45,78 @@ class ShieldHdrPlaybackTest {
 
     @Test
     fun hdrTenPlaysThroughKinoToneMappingWithReferencePixels() {
+        val result = playIntoReader("hdr-probe.mkv", expectFrames = true)
+        assertReferencePixels(result)
+    }
+
+    /**
+     * Profile 8.1's base layer is plain HDR10, so the HEVC decoder must produce exactly the HDR10
+     * probe's pixels from it; the enhancement metadata changes nothing Kino renders.
+     */
+    @Test
+    fun dolbyVisionProfileEightPlaysItsBaseLayerThroughToneMapping() {
+        val result = playIntoReader("dv-p8-probe.mkv", expectFrames = true)
+        assertTrue(
+            "Profile 8 must decode on an HEVC decoder, not the Dolby Vision one: ${result.decoder}",
+            !result.decoder.contains("dovi", ignoreCase = true) &&
+                !result.decoder.contains("dolby", ignoreCase = true),
+        )
+        assertReferencePixels(result)
+    }
+
+    /** Profile 5 has no compatible base layer; decoding it as HEVC would show the wrong colours. */
+    @Test
+    fun dolbyVisionProfileFiveIsRefused() {
+        val result = playIntoReader("dv-p5-probe.mkv", expectFrames = false)
+        assertTrue(
+            "Profile 5 must be refused, not played: $result",
+            result.failure != null || result.unsupported,
+        )
+        assertEquals("Profile 5 must present nothing", 0, result.frames)
+    }
+
+    private data class ReaderResult(
+        val pixels: IntArray?,
+        val frames: Int,
+        val decoder: String,
+        val toneMapping: Boolean,
+        val failure: Int?,
+        val unsupported: Boolean,
+    )
+
+    private fun assertReferencePixels(result: ReaderResult) {
         val expected =
             JSONObject(
                 instrumentation.context.assets.open("hdr-probe-expected.json").use {
                     it.readBytes().decodeToString()
                 }
             )
-        val file = File(context.cacheDir, "hdr-playback.mkv")
-        instrumentation.context.assets.open("hdr-probe.mkv").use { input ->
+        assertNull("Playback must not fail", result.failure)
+        assertTrue("Frames must reach the display surface: $result", result.frames >= FRAMES)
+        assertTrue("The source must go through Kino's tone mapping", result.toneMapping)
+        assertTrue(
+            "Video must stay hardware decoded: ${result.decoder}",
+            result.decoder.startsWith("OMX.Nvidia.") || result.decoder.startsWith("c2.nvidia."),
+        )
+        val frame = checkNotNull(result.pixels)
+        // Eight-bit output adds half a code of quantisation to the shader test's tolerances.
+        verifyToneMappedPatches(
+            expected.getJSONArray("patches"),
+            TOLERANCE + QUANTISATION,
+            NEUTRAL_SPREAD + 2 * QUANTISATION,
+        ) { x, y ->
+            val rgb = frame[y * WIDTH + x]
+            listOf((rgb shr 16 and 0xff) / 255f, (rgb shr 8 and 0xff) / 255f, (rgb and 0xff) / 255f)
+        }
+    }
+
+    /**
+     * Plays a probe through the production player and renderer into an `ImageReader` standing in
+     * for the display, and returns the last presented frame.
+     */
+    private fun playIntoReader(asset: String, expectFrames: Boolean): ReaderResult {
+        val file = File(context.cacheDir, "reader-$asset")
+        instrumentation.context.assets.open(asset).use { input ->
             file.outputStream().use { input.copyTo(it) }
         }
         val readerThread = HandlerThread("KinoHdrReader").apply { start() }
@@ -62,6 +129,7 @@ class ShieldHdrPlaybackTest {
                 HardwareBuffer.USAGE_CPU_READ_OFTEN or HardwareBuffer.USAGE_GPU_COLOR_OUTPUT,
             )
         val frames = CountDownLatch(FRAMES)
+        var frameCount = 0
         var pixels: IntArray? = null
         reader.setOnImageAvailableListener(
             { source ->
@@ -82,17 +150,18 @@ class ShieldHdrPlaybackTest {
                         }
                     }
                     pixels = copy
+                    frameCount++
                     frames.countDown()
                 }
             },
             Handler(readerThread.looper),
         )
-
         val renderers = HardwareRenderers(context)
         lateinit var player: ExoPlayer
         var decoder = ""
         var failure: Int? = null
-        var firstFrame = false
+        var unsupported = false
+        val refused = CountDownLatch(1)
         instrumentation.runOnMainSync {
             player = createTvPlayer(context, renderers)
             player.setVideoSurface(reader.surface)
@@ -101,6 +170,17 @@ class ShieldHdrPlaybackTest {
                 object : Player.Listener {
                     override fun onPlayerError(error: PlaybackException) {
                         failure = error.errorCode
+                        refused.countDown()
+                    }
+
+                    override fun onTracksChanged(tracks: Tracks) {
+                        if (
+                            tracks.groups.any { it.type == C.TRACK_TYPE_VIDEO } &&
+                                !tracks.isTypeSelected(C.TRACK_TYPE_VIDEO)
+                        ) {
+                            unsupported = true
+                            refused.countDown()
+                        }
                     }
                 }
             )
@@ -114,14 +194,6 @@ class ShieldHdrPlaybackTest {
                     ) {
                         decoder = decoderName
                     }
-
-                    override fun onRenderedFirstFrame(
-                        eventTime: AnalyticsListener.EventTime,
-                        output: Any,
-                        renderTimeMs: Long,
-                    ) {
-                        firstFrame = true
-                    }
                 }
             )
             player.setMediaItem(MediaItem.fromUri(Uri.fromFile(file)))
@@ -129,29 +201,20 @@ class ShieldHdrPlaybackTest {
             player.play()
         }
         try {
-            val presented = frames.await(20, TimeUnit.SECONDS)
-            assertNull("HDR10 playback must not fail", failure)
-            assertTrue("HDR10 frames must reach the display surface", presented)
-            assertTrue("The renderer must report its first frame", firstFrame)
-            assertTrue("HDR10 must go through Kino's tone mapping", renderers.toneMapping)
-            assertTrue(
-                "Video must stay hardware decoded: $decoder",
-                decoder.startsWith("OMX.Nvidia.") || decoder.startsWith("c2.nvidia."),
-            )
-            val frame = checkNotNull(pixels)
-            // Eight-bit output adds half a code of quantisation to the shader test's tolerances.
-            verifyToneMappedPatches(
-                expected.getJSONArray("patches"),
-                TOLERANCE + QUANTISATION,
-                NEUTRAL_SPREAD + 2 * QUANTISATION,
-            ) { x, y ->
-                val rgb = frame[y * WIDTH + x]
-                listOf(
-                    (rgb shr 16 and 0xff) / 255f,
-                    (rgb shr 8 and 0xff) / 255f,
-                    (rgb and 0xff) / 255f,
-                )
+            if (expectFrames) frames.await(20, TimeUnit.SECONDS)
+            else {
+                refused.await(10, TimeUnit.SECONDS)
+                // Give a wrongly accepted stream time to present, so the check can see it.
+                Thread.sleep(1_000)
             }
+            return ReaderResult(
+                pixels,
+                frameCount,
+                decoder,
+                renderers.toneMapping,
+                failure,
+                unsupported,
+            )
         } finally {
             instrumentation.runOnMainSync { player.release() }
             reader.close()
