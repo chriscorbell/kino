@@ -421,9 +421,37 @@ jobs:
           path: build/engine-target/release/kino-stream-engine.exe
           retention-days: 7
 
+  # The portable build with the engine beside the shell, where the shell
+  # looks for it.
+  windows-package:
+    name: Windows package
+    needs: [windows, windows-engine]
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: Kino-windows-x64
+          path: build/shell
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: kino-stream-engine-windows-x64
+          path: build/engine
+      - name: Add the engine to the portable build
+        shell: pwsh
+        run: |
+          Expand-Archive build/shell/Kino-windows-x64.zip -DestinationPath build/package
+          Copy-Item build/engine/kino-stream-engine.exe build/package/Kino/
+          Compress-Archive -Path build/package/Kino -DestinationPath build/Kino-windows-x64.zip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Kino-windows-x64-with-engine
+          path: build/Kino-windows-x64.zip
+          retention-days: 7
+
   validate:
     name: Validate
-    needs: [changes, web, native, linux, windows, windows-engine]
+    needs: [changes, web, native, linux, windows, windows-engine, windows-package]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -436,6 +464,7 @@ jobs:
           KINO_LINUX_RESULT: ${{ needs.linux.result }}
           KINO_WINDOWS_RESULT: ${{ needs.windows.result }}
           KINO_WINDOWS_ENGINE_RESULT: ${{ needs.windows-engine.result }}
+          KINO_WINDOWS_PACKAGE_RESULT: ${{ needs.windows-package.result }}
           KINO_NATIVE_REQUIRED: ${{ needs.changes.outputs.native }}
         run: |
           test "$KINO_CHANGES_RESULT" = success
@@ -445,9 +474,11 @@ jobs:
             test "$KINO_LINUX_RESULT" = success
             test "$KINO_WINDOWS_RESULT" = success
             test "$KINO_WINDOWS_ENGINE_RESULT" = success
+            test "$KINO_WINDOWS_PACKAGE_RESULT" = success
           else
             test "$KINO_NATIVE_RESULT" = skipped
             test "$KINO_LINUX_RESULT" = skipped
             test "$KINO_WINDOWS_RESULT" = skipped
             test "$KINO_WINDOWS_ENGINE_RESULT" = skipped
+            test "$KINO_WINDOWS_PACKAGE_RESULT" = skipped
           fi

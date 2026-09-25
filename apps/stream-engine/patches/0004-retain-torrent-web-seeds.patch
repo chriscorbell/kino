@@ -1,11 +1,14 @@
 --- a/bindings/libtorrent-sys/cpp/wrapper.cpp
 +++ b/bindings/libtorrent-sys/cpp/wrapper.cpp
-@@ -495,6 +495,8 @@
+@@ -495,6 +495,11 @@
      if (ec)
        throw std::runtime_error("Failed to parse torrent: " + ec.message());
      p.ti = std::move(loaded.ti);
 +    p.url_seeds = std::move(loaded.url_seeds);
++#if TORRENT_ABI_VERSION < 4
++    // BEP 17 seeds exist only while libtorrent keeps its deprecated APIs.
 +    p.http_seeds = std::move(loaded.http_seeds);
++#endif
    }
  
    p.save_path = rust_str_to_std(params.save_path);
