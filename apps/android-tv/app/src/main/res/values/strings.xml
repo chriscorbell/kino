@@ -96,6 +96,8 @@
     <string name="playback_damaged">This file is damaged or in a form the player cannot read. Choose another source.</string>
     <string name="playback_audio_output">The audio output failed. Check the TV\'s sound, then try again.</string>
     <string name="source_failed">Failed</string>
+    <string name="match_frame_rate">Match frame rate</string>
+    <string name="match_frame_rate_description">Switches the TV to the video\'s frame rate while it plays, so 24 fps films move smoothly. The screen goes dark for a moment when it switches.</string>
     <string name="hardware_required">This source needs a supported hardware decoder.</string>
     <string name="hdr_unsupported">HDR-to-SDR conversion is not available for this source on this TV.</string>
     <string name="search_hint">Search movies and series</string>

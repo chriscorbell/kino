@@ -144,12 +144,16 @@ internal fun SettingsScreen(
     var upNext by remember { mutableStateOf(settings.getBoolean("up_next", true)) }
     var skipIntro by remember { mutableStateOf(settings.getBoolean("skip_intro", true)) }
     var automaticIntro by remember { mutableStateOf(settings.getBoolean("automatic_intro", false)) }
+    var matchFrameRate by remember {
+        mutableStateOf(settings.getBoolean("match_frame_rate", false))
+    }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         stereo = stereoOutputPreferred(context)
         subtitles = settings.getBoolean("subtitles", false)
         upNext = settings.getBoolean("up_next", true)
         skipIntro = settings.getBoolean("skip_intro", true)
         automaticIntro = settings.getBoolean("automatic_intro", false)
+        matchFrameRate = settings.getBoolean("match_frame_rate", false)
     }
     var languageDialog by remember { mutableStateOf<Boolean?>(null) }
     val audioFocus = remember { FocusRequester() }
@@ -315,6 +319,23 @@ internal fun SettingsScreen(
                                 .commit()
                         }
                     if (stored) stereo = next
+                    stored
+                }
+            }
+        }
+        item {
+            SettingRow(
+                R.string.match_frame_rate,
+                stringResource(if (matchFrameRate) R.string.settings_on else R.string.settings_off),
+                description = stringResource(R.string.match_frame_rate_description),
+            ) {
+                val next = !matchFrameRate
+                save {
+                    val stored =
+                        withContext(Dispatchers.IO) {
+                            settings.edit().putBoolean("match_frame_rate", next).commit()
+                        }
+                    if (stored) matchFrameRate = next
                     stored
                 }
             }

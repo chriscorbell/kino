@@ -916,6 +916,12 @@ fun FullscreenPlayer(
             }
         }
     }
+    val frameRate =
+        remember(player) {
+            FrameRateMatcher(activity, player).takeIf {
+                kinoSettings(context).getBoolean("match_frame_rate", false)
+            }
+        }
     DisposableEffect(player) {
         val listener =
             object : Player.Listener {
@@ -959,6 +965,7 @@ fun FullscreenPlayer(
                 override fun onTracksChanged(tracks: Tracks) {
                     logAudioTracks(tracks)
                     updateTracks(tracks)
+                    frameRate?.onTracks(tracks)
                     if (
                         tracks.groups.any { it.type == C.TRACK_TYPE_VIDEO } &&
                             !tracks.isTypeSelected(C.TRACK_TYPE_VIDEO)
@@ -1040,6 +1047,7 @@ fun FullscreenPlayer(
         onDispose {
             disposed = true
             player.pause()
+            frameRate?.release()
             lifecycle.removeObserver(observer)
             view?.player = null
             introSession.release()
