@@ -7,7 +7,11 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QQuickWindow>
+#include <QColor>
+#include <QImage>
 #include <QVariantList>
+
+#include <algorithm>
 
 #include <cstdio>
 
@@ -26,6 +30,7 @@ PlaybackProbe::PlaybackProbe(MpvItem *player, const QString &mediaPath,
                              const QString &subtitlesPath, QObject *parent)
     : QObject(parent), sleepCheck_(qEnvironmentVariableIsSet("KINO_PLAYBACK_PROBE_SLEEP")),
       stereoCheck_(qEnvironmentVariableIsSet("KINO_PLAYBACK_PROBE_STEREO")),
+      frameCheck_(qEnvironmentVariableIsSet("KINO_PLAYBACK_PROBE_FRAME")),
       player_(player), mediaPath_(mediaPath), subtitlesPath_(subtitlesPath) {
     timeout_.setInterval(kTimeoutMs);
     timeout_.setSingleShot(true);
@@ -95,10 +100,56 @@ void PlaybackProbe::evaluate() {
         }
         return;
     }
+    if (frameCheck_) {
+        // Pause on a decoded frame, well inside the one-second probe clip, give the
+        // renderer a moment to present it, then read it.
+        if (hardwareDecoding_ && timeMs_ >= 300 && !framePaused_) {
+            framePaused_ = true;
+            player_->setPaused(true);
+            QTimer::singleShot(600, this, &PlaybackProbe::captureFrame);
+        }
+        return;
+    }
     if (hardwareDecoding_ &&
         timeMs_ >= (stereoCheck_ ? kRequiredStereoPlaybackMs : kRequiredPlaybackMs)) {
         finish(QStringLiteral("played"));
     }
+}
+
+void PlaybackProbe::captureFrame() {
+    if (finished_) return;
+    QQuickWindow *window = player_->window();
+    const QImage image = window ? window->grabWindow() : QImage();
+    if (image.isNull()) {
+        finish(QStringLiteral("frame-unavailable"));
+        return;
+    }
+    // The probe fixture is 640x360 and the player fits it to the window.
+    const double scale = std::min(image.width() / 640.0, image.height() / 360.0);
+    const double left = (image.width() - 640.0 * scale) / 2;
+    const double top = (image.height() - 360.0 * scale) / 2;
+    auto sample = [&](int x, int y) {
+        double red = 0, green = 0, blue = 0;
+        int count = 0;
+        const int cx = qRound(left + x * scale), cy = qRound(top + y * scale);
+        for (int dy = -2; dy <= 2; ++dy) {
+            for (int dx = -2; dx <= 2; ++dx) {
+                const QColor color = image.pixelColor(cx + dx, cy + dy);
+                red += color.redF();
+                green += color.greenF();
+                blue += color.blueF();
+                ++count;
+            }
+        }
+        return QJsonArray{red / count, green / count, blue / count};
+    };
+    // Band A: the neutral ramp. Band B: the in-gamut coloured patches.
+    QJsonArray neutral;
+    for (int index = 0; index < 16; ++index) neutral.append(sample(index * 40 + 20, 45));
+    QJsonArray coloured;
+    for (int index = 4; index < 8; ++index) coloured.append(sample(index * 80 + 40, 135));
+    frame_ = QJsonObject{{QStringLiteral("neutral"), neutral}, {QStringLiteral("coloured"), coloured}};
+    finish(QStringLiteral("played"));
 }
 
 void PlaybackProbe::finish(const QString &outcome, const QString &errorCode) {
@@ -121,6 +172,7 @@ void PlaybackProbe::finish(const QString &outcome, const QString &errorCode) {
     QJsonObject result{
         {QStringLiteral("chapters"), chapterCount_},
         {QStringLiteral("loudness"), QJsonObject::fromVariantMap(loudness)},
+        {QStringLiteral("frame"), frame_},
         {QStringLiteral("outcome"), outcome},
         {QStringLiteral("speed"), playbackSpeed},
         {QStringLiteral("subtitleStyle"), subtitleStyle},

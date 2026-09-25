@@ -370,6 +370,8 @@ export const enUS = {
   player: {
     hardwareDecodingFailed: 'This source could not be hardware-decoded on this Mac.',
     rendererFailed: 'Kino could not start the native video renderer.',
+    dolbyVisionUnsupported:
+      'This Dolby Vision profile 5 source cannot be shown in correct colour on a Mac. Choose another source.',
     playerUnavailable: 'Kino could not start the native player. Quit and reopen Kino to try again.',
     nativePlaybackFailed: 'The native player could not decode or load this source.',
     startFailed: 'Playback could not start with this source.',

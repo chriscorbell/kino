@@ -16,6 +16,12 @@ import {
   integratedLufs,
   synthesize,
 } from './test-support/loudness-reference.mjs';
+import {
+  BAND_B_IN_GAMUT,
+  expectedToneMappedPatches,
+  generateDolbyVisionProbes,
+  generateHdrProbe,
+} from './test-support/hdr-probe-fixture.mjs';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const fixturesDir = process.env.KINO_FIXTURES_DIR ?? join(repoRoot, 'build', 'fixtures');
@@ -465,6 +471,8 @@ function generateFixtures() {
     '2',
   ]);
   for (const { file, scale } of loudnessFixtures) encodeLoudness(file, scale);
+  generateHdrProbe(fixturesDir);
+  generateDolbyVisionProbes(fixturesDir);
   writeFixture('external.srt', srtText);
   writeFixture('external.vtt', vttText);
   if (!existsSync(join(fixturesDir, 'corrupt.mp4'))) {
@@ -529,6 +537,20 @@ const fixtures = [
     env: { KINO_PLAYBACK_PROBE_STEREO: '1' },
     expect: { outcome: 'played', loudness: loudnessExpectation(scale) },
   })),
+  // Every pixel of the probe is a known code word, so what the player drew can be compared with
+  // the host's tone map of the same values. Profile 8.1 carries the same frames under a Dolby
+  // Vision RPU and must look the same; profile 5 has no base layer this renderer can show.
+  ...['hdr-probe.mkv', 'dv-p8-probe.mkv'].map((file) => ({
+    file,
+    label: `pixels-${file}`,
+    note: 'drawn pixels match the host tone map of the probe',
+    env: { KINO_PLAYBACK_PROBE_FRAME: '1' },
+    expect: { outcome: 'played', frame: true },
+  })),
+  {
+    file: 'dv-p5-probe.mkv',
+    expect: { outcome: 'failed', errorCode: 'dolby-vision-unsupported' },
+  },
   { file: 'corrupt.mp4', expect: { outcome: 'failed' } },
   { file: 'missing.mkv', missing: true, expect: { outcome: 'failed' } },
 ];
@@ -592,6 +614,36 @@ function outlinedSubtitleProblems(style) {
   return problems;
 }
 
+// mpv's tone mapping and the host reference agree to about 0.01 on the neutral ramp and 0.035 on
+// the coloured patches. A dropped gamut conversion moves those patches by about 0.15, and a
+// misread transfer or matrix by far more, so these bounds separate right from wrong.
+function frameProblems(frame) {
+  const patches = expectedToneMappedPatches();
+  const neutral = patches.filter((patch) => patch.band === 'A').map((patch) => patch.expected);
+  const coloured = patches.filter((patch) => patch.band === 'B').map((patch) => patch.expected);
+  const problems = [];
+  const compare = (label, drawn = [], expected, tolerance) => {
+    if (drawn.length !== expected.length) {
+      problems.push(`${label}: sampled ${drawn.length} patches, expected ${expected.length}`);
+      return;
+    }
+    expected.forEach((want, index) => {
+      const worst = Math.max(
+        ...want.map((value, channel) => Math.abs(value - drawn[index][channel])),
+      );
+      if (!(worst <= tolerance))
+        problems.push(
+          `${label} patch ${index}: drew ${drawn[index].map((v) => v.toFixed(3))}, ` +
+            `expected ${want.map((v) => v.toFixed(3))}`,
+        );
+    });
+  };
+  compare('neutral ramp', frame?.neutral, neutral, 0.03);
+  compare('coloured patches', frame?.coloured, coloured, 0.05);
+  if (coloured.length !== BAND_B_IN_GAMUT.length) problems.push('the probe layout changed');
+  return problems;
+}
+
 function assertExpectations(fixture, result) {
   const problems = [];
   const { expect } = fixture;
@@ -632,6 +684,7 @@ function assertExpectations(fixture, result) {
     if (!(Math.abs(loudness.gainDb - expect.loudness.gainDb) <= 0.3))
       problems.push(`gain ${loudness.gainDb} dB, expected ${expect.loudness.gainDb.toFixed(2)}`);
   }
+  if (expect.frame) problems.push(...frameProblems(result.frame));
   return problems;
 }
 

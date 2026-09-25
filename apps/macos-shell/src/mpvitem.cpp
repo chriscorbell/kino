@@ -96,6 +96,30 @@ QVariantList chapterPayload(const mpv_node &root) {
     return chapters;
 }
 
+// The Dolby Vision profile of the selected video track, or -1 for none.
+int64_t selectedDolbyVisionProfile(const mpv_node &root) {
+    if (root.format != MPV_FORMAT_NODE_ARRAY || !root.u.list) return -1;
+    for (int index = 0; index < root.u.list->num; ++index) {
+        const mpv_node &track = root.u.list->values[index];
+        if (track.format != MPV_FORMAT_NODE_MAP || !track.u.list) continue;
+        bool video = false;
+        bool selected = false;
+        int64_t profile = -1;
+        for (int field = 0; field < track.u.list->num; ++field) {
+            const char *name = track.u.list->keys[field];
+            const mpv_node &value = track.u.list->values[field];
+            if (qstrcmp(name, "type") == 0 && value.format == MPV_FORMAT_STRING)
+                video = qstrcmp(value.u.string, "video") == 0;
+            else if (qstrcmp(name, "selected") == 0 && value.format == MPV_FORMAT_FLAG)
+                selected = value.u.flag != 0;
+            else if (qstrcmp(name, "dolby-vision-profile") == 0 && value.format == MPV_FORMAT_INT64)
+                profile = value.u.int64;
+        }
+        if (video && selected) return profile;
+    }
+    return -1;
+}
+
 QVariantList trackPayload(const mpv_node &root, const char *type) {
     QVariantList tracks;
     if (root.format != MPV_FORMAT_NODE_ARRAY || !root.u.list) {
@@ -761,6 +785,15 @@ void MpvItem::handleEvent(mpv_event *event) {
                 {{QStringLiteral("items"), chapterPayload(*chapters)}});
         } else if (name == "track-list" && property->format == MPV_FORMAT_NODE) {
             const auto *tracks = static_cast<const mpv_node *>(property->data);
+            // Profile 5 has no base layer mpv can show without Dolby's reshaping, which
+            // this renderer does not apply, so its picture would come out tinted. Refuse it,
+            // as the contract asks, rather than play the wrong colours.
+            if (!failed_ && selectedDolbyVisionProfile(*tracks) == 5) {
+                emitError(QStringLiteral("dolby-vision-unsupported"));
+                const char *command[] = {"stop", nullptr};
+                mpv_command_async(handle_, 0, command);
+                break;
+            }
             emit playerEvent(
                 QStringLiteral("subtitleTracks"),
                 {{QStringLiteral("items"), trackPayload(*tracks, "sub")}});
