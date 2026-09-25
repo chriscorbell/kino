@@ -637,6 +637,71 @@
   border-bottom: 1px solid var(--kino-border-subtle);
 }
 
+.episodeLine {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+}
+
+.episodeWatched,
+.seasonWatched {
+  border: 0;
+  color: var(--kino-text-faint);
+  background: transparent;
+  cursor: pointer;
+  transition: color var(--kino-duration-fast) ease;
+}
+
+.episodeWatched {
+  display: grid;
+  width: 48px;
+  place-items: center;
+}
+
+.episodeWatched[aria-pressed='true'] {
+  color: var(--kino-text-muted);
+}
+
+.episodeWatched:hover:not(:disabled),
+.seasonWatched:hover:not(:disabled) {
+  color: var(--kino-text);
+}
+
+.episodeWatched:disabled,
+.seasonWatched:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.seasonControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+}
+
+.seasonControls > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.seasonControls > div p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.seasonWatched {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 4px;
+  font: inherit;
+  font-size: 12px;
+}
+
 .episodeButton,
 .sourceButton {
   display: grid;
@@ -1639,12 +1704,18 @@
   background: var(--kino-border);
 }
 
+.detailActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
 .libraryButton {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   min-height: 36px;
-  margin-top: 18px;
   padding: 0 16px;
   border: 1px solid var(--kino-border);
   border-radius: var(--kino-pill-radius);
@@ -1933,6 +2004,10 @@
     flex-direction: column;
   }
 
+  .seasonControls {
+    justify-content: flex-start;
+  }
+
   .sourceButton {
     grid-template-columns: minmax(0, 1fr);
     gap: 8px;
@@ -1982,6 +2057,8 @@
   .genreSelect,
   .libraryButton,
   .logoButton,
+  .episodeWatched,
+  .seasonWatched,
   .navButton,
   .addonRemove,
   .secondaryButton,

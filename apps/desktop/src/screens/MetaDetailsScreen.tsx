@@ -1,4 +1,4 @@
-import { ArrowLeft, CaretRight, Check, Plus } from '@phosphor-icons/react';
+import { ArrowLeft, CaretRight, Check, CheckCircle, Plus } from '@phosphor-icons/react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import styles from '../App.module.css';
@@ -14,6 +14,9 @@ import { ExpandableText } from '../components/ExpandableText';
 import {
   addToLibraryAction,
   loadMetaDetailsAction,
+  markSeasonWatchedAction,
+  markVideoWatchedAction,
+  markWatchedAction,
   removeFromLibraryAction,
   type PlaybackSelection,
 } from '../core/actions';
@@ -76,6 +79,7 @@ export function MetaDetailsScreen({
 }) {
   const { transport } = useCore();
   const libraryAction = useActionFeedback(transport);
+  const watchedAction = useActionFeedback(transport);
   const [localVideoId, setLocalVideoId] = useState<string | null>(
     () => initialVideoId ?? (item.type === 'series' ? null : item.defaultVideoId),
   );
@@ -86,6 +90,12 @@ export function MetaDetailsScreen({
   const setSeason = navigation?.selectSeason ?? setLocalSeason;
   const [profileTransport, setProfileTransport] = useState(transport);
   const [libraryOverride, setLibraryOverride] = useState<{ value: boolean } | null>(null);
+  // Keyed by video id, or by the title id for a movie. An entry stands in for
+  // Core's flag until a snapshot agrees with it, so a snapshot fetched before
+  // the change landed cannot flip the control back.
+  const [watchedOverrides, setWatchedOverrides] = useState<ReadonlyMap<string, boolean>>(
+    () => new Map(),
+  );
   const result = useCoreModel(
     'meta_details',
     loadMetaDetailsAction(item, videoId),
@@ -129,6 +139,7 @@ export function MetaDetailsScreen({
   if (profileTransport !== transport) {
     setProfileTransport(transport);
     setLibraryOverride(null);
+    setWatchedOverrides(new Map());
     setLastMeta(loadedMeta);
     setLocalSeason(undefined);
     setLocalVideoId(null);
@@ -230,6 +241,17 @@ export function MetaDetailsScreen({
   const nextEpisode = activeIndex >= 0 ? (videos[activeIndex + 1] ?? null) : null;
   const inLibrary = libraryOverride?.value ?? display.inLibrary;
   const libraryReady = Boolean(transport && meta);
+  const coreWatched = (id: string) =>
+    id === display.id ? display.watched : videos.find((video) => video.id === id)?.watched;
+  const settled = [...watchedOverrides].filter(([id, value]) => coreWatched(id) === value);
+  if (settled.length > 0) {
+    const remaining = new Map(watchedOverrides);
+    for (const [id] of settled) remaining.delete(id);
+    setWatchedOverrides(remaining);
+  }
+  const isWatched = (id: string) => watchedOverrides.get(id) ?? coreWatched(id) ?? false;
+  const seasonWatched =
+    visibleVideos.length > 0 && visibleVideos.every((video) => isWatched(video.id));
   const chooseVideo = (id: string) => {
     onCancelResume?.();
     setVideoId(id);
@@ -257,6 +279,36 @@ export function MetaDetailsScreen({
         pending: enUS.details.savingLibrary,
         success: next ? enUS.details.libraryAdded : enUS.details.libraryRemoved,
         failed: enUS.details.libraryFailed,
+      },
+    );
+  };
+
+  const markWatched = (
+    ids: string[],
+    watched: boolean,
+    action: ReturnType<typeof markWatchedAction>,
+  ) => {
+    if (!transport || !libraryReady) return;
+    const change = new Map(ids.map((id) => [id, watched]));
+    watchedAction.run(
+      async () => {
+        setWatchedOverrides((current) => new Map([...current, ...change]));
+        try {
+          await transport.dispatch(action, 'meta_details');
+          await transport.flush();
+        } catch (error) {
+          setWatchedOverrides((current) => {
+            const next = new Map(current);
+            for (const [id, value] of change) if (next.get(id) === value) next.delete(id);
+            return next;
+          });
+          throw error;
+        }
+      },
+      {
+        pending: enUS.details.savingWatched,
+        success: watched ? enUS.details.markedWatched : enUS.details.markedUnwatched,
+        failed: enUS.details.watchedFailed,
       },
     );
   };
@@ -362,27 +414,49 @@ export function MetaDetailsScreen({
                 text={display.description}
               />
             ) : null}
-            <button
-              className={styles.libraryButton}
-              disabled={!libraryReady || libraryAction.pending}
-              aria-busy={libraryAction.pending}
-              onClick={toggleLibrary}
-              type="button"
-            >
-              {libraryReady ? (
-                inLibrary ? (
-                  <Check aria-hidden size={16} />
-                ) : (
-                  <Plus aria-hidden size={16} />
-                )
+            <div className={styles.detailActions}>
+              <button
+                className={styles.libraryButton}
+                disabled={!libraryReady || libraryAction.pending}
+                aria-busy={libraryAction.pending}
+                onClick={toggleLibrary}
+                type="button"
+              >
+                {libraryReady ? (
+                  inLibrary ? (
+                    <Check aria-hidden size={16} />
+                  ) : (
+                    <Plus aria-hidden size={16} />
+                  )
+                ) : null}
+                {!libraryReady
+                  ? enUS.details.loadingLibrary
+                  : inLibrary
+                    ? enUS.details.inLibrary
+                    : enUS.details.addToLibrary}
+              </button>
+              {item.type !== 'series' && libraryReady ? (
+                <button
+                  className={styles.libraryButton}
+                  disabled={watchedAction.pending}
+                  aria-busy={watchedAction.pending}
+                  onClick={() => {
+                    const next = !isWatched(display.id);
+                    markWatched([display.id], next, markWatchedAction(next));
+                  }}
+                  type="button"
+                >
+                  <CheckCircle
+                    aria-hidden
+                    size={16}
+                    weight={isWatched(display.id) ? 'fill' : 'regular'}
+                  />
+                  {isWatched(display.id) ? enUS.details.watched : enUS.details.markWatched}
+                </button>
               ) : null}
-              {!libraryReady
-                ? enUS.details.loadingLibrary
-                : inLibrary
-                  ? enUS.details.inLibrary
-                  : enUS.details.addToLibrary}
-            </button>
+            </div>
             <ActionFeedback action={libraryAction} />
+            {item.type !== 'series' ? <ActionFeedback action={watchedAction} /> : null}
           </div>
         </header>
 
@@ -404,28 +478,56 @@ export function MetaDetailsScreen({
             <section className={styles.detailSection} aria-labelledby="episodes-heading">
               <div className={styles.detailSectionHeading}>
                 <h2 id="episodes-heading">{enUS.details.episodes}</h2>
-                <label className={styles.seasonSelector}>
-                  <span className={styles.visuallyHidden}>{enUS.details.selectSeason}</span>
-                  <select
-                    value={activeSeason === null ? 'none' : String(activeSeason)}
-                    onChange={(event) =>
-                      setSeason(event.target.value === 'none' ? null : Number(event.target.value))
-                    }
-                  >
-                    {seasons.map((season) => (
-                      <option
-                        key={String(season)}
-                        value={season === null ? 'none' : String(season)}
-                      >
-                        {season === null
-                          ? enUS.details.otherEpisodes
-                          : season === 0
-                            ? enUS.details.specials
-                            : enUS.details.season(season)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div className={styles.seasonControls}>
+                  <ActionFeedback action={watchedAction} />
+                  {activeSeason !== null ? (
+                    <button
+                      className={styles.seasonWatched}
+                      disabled={!libraryReady || watchedAction.pending}
+                      aria-busy={watchedAction.pending}
+                      onClick={() => {
+                        const next = !seasonWatched;
+                        markWatched(
+                          visibleVideos.map((video) => video.id),
+                          next,
+                          markSeasonWatchedAction(activeSeason, next),
+                        );
+                      }}
+                      type="button"
+                    >
+                      <CheckCircle
+                        aria-hidden
+                        size={15}
+                        weight={seasonWatched ? 'fill' : 'regular'}
+                      />
+                      {seasonWatched
+                        ? enUS.details.markSeasonUnwatched
+                        : enUS.details.markSeasonWatched}
+                    </button>
+                  ) : null}
+                  <label className={styles.seasonSelector}>
+                    <span className={styles.visuallyHidden}>{enUS.details.selectSeason}</span>
+                    <select
+                      value={activeSeason === null ? 'none' : String(activeSeason)}
+                      onChange={(event) =>
+                        setSeason(event.target.value === 'none' ? null : Number(event.target.value))
+                      }
+                    >
+                      {seasons.map((season) => (
+                        <option
+                          key={String(season)}
+                          value={season === null ? 'none' : String(season)}
+                        >
+                          {season === null
+                            ? enUS.details.otherEpisodes
+                            : season === 0
+                              ? enUS.details.specials
+                              : enUS.details.season(season)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
               </div>
               <div className={styles.episodeList}>
                 {visibleVideos.map((video: CoreVideo) => (
@@ -433,28 +535,51 @@ export function MetaDetailsScreen({
                     className={`${styles.episodeRow} ${video.id === videoId ? styles.episodeActive : ''}`}
                     key={video.id}
                   >
-                    <button
-                      aria-current={video.id === videoId ? 'true' : undefined}
-                      data-episode-id={video.id}
-                      className={styles.episodeButton}
-                      onClick={() => {
-                        chooseVideo(video.id);
-                      }}
-                      type="button"
-                    >
-                      <span className={styles.episodeNumber}>
-                        {String(video.episode ?? 0).padStart(2, '0')}
-                      </span>
-                      <span className={styles.episodeText}>
-                        <strong>{video.title || enUS.details.episode(video.episode)}</strong>
-                        {video.watched ? (
-                          <span>{enUS.details.watched}</span>
-                        ) : progress?.videoId === video.id && progress.timeOffset > 0 ? (
-                          <span>{enUS.details.inProgress}</span>
-                        ) : null}
-                      </span>
-                      <CaretRight aria-hidden size={16} />
-                    </button>
+                    <div className={styles.episodeLine}>
+                      <button
+                        aria-current={video.id === videoId ? 'true' : undefined}
+                        data-episode-id={video.id}
+                        className={styles.episodeButton}
+                        onClick={() => {
+                          chooseVideo(video.id);
+                        }}
+                        type="button"
+                      >
+                        <span className={styles.episodeNumber}>
+                          {String(video.episode ?? 0).padStart(2, '0')}
+                        </span>
+                        <span className={styles.episodeText}>
+                          <strong>{video.title || enUS.details.episode(video.episode)}</strong>
+                          {isWatched(video.id) ? (
+                            <span>{enUS.details.watched}</span>
+                          ) : progress?.videoId === video.id && progress.timeOffset > 0 ? (
+                            <span>{enUS.details.inProgress}</span>
+                          ) : null}
+                        </span>
+                        <CaretRight aria-hidden size={16} />
+                      </button>
+                      <button
+                        aria-label={(isWatched(video.id)
+                          ? enUS.details.markEpisodeUnwatched
+                          : enUS.details.markEpisodeWatched)(
+                          video.title || enUS.details.episode(video.episode),
+                        )}
+                        aria-pressed={isWatched(video.id)}
+                        className={styles.episodeWatched}
+                        disabled={!libraryReady || watchedAction.pending}
+                        onClick={() => {
+                          const next = !isWatched(video.id);
+                          markWatched([video.id], next, markVideoWatchedAction(video, next));
+                        }}
+                        type="button"
+                      >
+                        <CheckCircle
+                          aria-hidden
+                          size={18}
+                          weight={isWatched(video.id) ? 'fill' : 'regular'}
+                        />
+                      </button>
+                    </div>
                     {video.overview ? (
                       <ExpandableText
                         className={styles.episodeOverview}
