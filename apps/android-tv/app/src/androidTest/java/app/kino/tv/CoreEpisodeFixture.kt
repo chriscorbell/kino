@@ -17,6 +17,11 @@ internal class CoreEpisodeFixture(
     private val firstEpisode: Int = 1,
     /** SubRip text the add-on offers as English subtitles for every episode, when set. */
     private val subtitles: String? = null,
+    /**
+     * Adds Cinemeta-style links, episode art and air dates, and a scheduled episode that has not
+     * aired, for the details gates.
+     */
+    private val details: Boolean = false,
 ) : AutoCloseable {
     val port: Int
         get() = server.localPort
@@ -31,6 +36,21 @@ internal class CoreEpisodeFixture(
         (1 until firstEpisode).joinToString("") {
             """{"id":"$seriesId-1-$it","title":"Earlier episode $it","season":1,"episode":$it,"released":"2020-01-01T00:00:00.000Z"},"""
         }
+    private val detailFields =
+        if (!details) ""
+        else
+            """"behaviorHints":{"hasScheduledVideos":true},"links":[""" +
+                """{"name":"8.2","category":"imdb","url":"https://imdb.com/title/tt0000000"},""" +
+                """{"name":"Drama","category":"Genres","url":"stremio:///discover/drama"},""" +
+                """{"name":"Comedy","category":"Genres","url":"stremio:///discover/comedy"},""" +
+                """{"name":"Ada Example","category":"Cast","url":"stremio:///search?search=Ada"},""" +
+                """{"name":"Ben Example","category":"Directors","url":"stremio:///search?search=Ben"}],"""
+    private val firstArt =
+        if (details) ""","thumbnail":"https://kino-fixture.invalid/art/1.jpg"""" else ""
+    private val announced =
+        if (!details) ""
+        else
+            """,{"id":"$seriesId-1-99","title":"Announced episode","season":1,"episode":99,"released":"2099-03-03T00:00:00.000Z"}"""
     private val addon =
         AddonDescriptor(
             manifest =
@@ -65,7 +85,7 @@ internal class CoreEpisodeFixture(
                         val body =
                             when {
                                 path.startsWith("/meta/") ->
-                                    """{"meta":{"id":"$seriesId","type":"series","name":"Kino fixture","videos":[$earlierVideos{"id":"$firstVideoId","title":"First episode","season":1,"episode":$firstEpisode,"released":"2020-01-01T00:00:00.000Z"},{"id":"$secondVideoId","title":"Second episode","season":$nextSeason,"episode":$nextEpisode,"released":"2020-01-02T00:00:00.000Z"}]}}"""
+                                    """{"meta":{"id":"$seriesId","type":"series","name":"Kino fixture",$detailFields"videos":[$earlierVideos{"id":"$firstVideoId","title":"First episode","season":1,"episode":$firstEpisode,"released":"2020-01-01T00:00:00.000Z"$firstArt},{"id":"$secondVideoId","title":"Second episode","season":$nextSeason,"episode":$nextEpisode,"released":"2020-01-02T00:00:00.000Z"}$announced]}}"""
                                 path.startsWith("/subtitles/") && subtitles != null ->
                                     """{"subtitles":[{"id":"kino-fixture-en","lang":"eng","url":"https://kino-fixture.invalid/files/en.srt"}]}"""
                                 path == "/files/en.srt" && subtitles != null -> subtitles

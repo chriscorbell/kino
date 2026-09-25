@@ -104,6 +104,11 @@
     <string name="specials">Specials</string>
     <string name="other_episodes">Other episodes</string>
     <string name="watched">Watched</string>
+    <string name="upcoming">Upcoming</string>
+    <string name="imdb_rating">IMDb %1$s</string>
+    <string name="cast">Cast</string>
+    <string name="director">Director</string>
+    <string name="directors">Directors</string>
     <string name="in_progress">In progress</string>
     <string name="saving_progress">Saving progress…</string>
     <string name="progress_save_failed">Progress could not be saved. Try again.</string>
