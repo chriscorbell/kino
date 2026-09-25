@@ -9,7 +9,11 @@ import { updateProfileSettingsAction } from '../core/actions';
 import { useCore } from '../core/context';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
-import { connectNativeDiagnostics, nativeShellPresent } from '../native/player';
+import {
+  connectNativeDiagnostics,
+  nativeShellPresent,
+  refreshMatchingAvailable,
+} from '../native/player';
 import { subtitleLanguages } from '../player/subtitles';
 import {
   defaultSettings,
@@ -221,7 +225,7 @@ export function SettingsScreen({
           ]}
           value={settings.audioOutput}
         />
-        {nativeShell ? (
+        {refreshMatchingAvailable() ? (
           <SettingSwitch
             checked={settings.matchRefreshRate}
             description={enUS.settings.matchRefreshRateDescription}

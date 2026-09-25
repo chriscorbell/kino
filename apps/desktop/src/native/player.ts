@@ -118,6 +118,14 @@ export function nativeShellPresent() {
   return Boolean(nativeWindow().qt?.webChannelTransport);
 }
 
+/**
+ * Whether the shell can move the display to the video's refresh rate. Linux cannot: Wayland does
+ * not let an app change the output's mode.
+ */
+export function refreshMatchingAvailable() {
+  return nativeShellPresent() && !navigator.userAgent.includes('Linux');
+}
+
 /** The device name playback progress carries: the shell's operating system, or the web. */
 export function playbackDevice() {
   if (!nativeShellPresent()) return 'kino-web';
