@@ -1,3 +1,4 @@
+#include "diagnosticbuildinfo.h"
 #include "diagnostics.h"
 #include "mpvitem.h"
 #include "streamengine.h"
@@ -123,7 +124,7 @@ private slots:
                  "The native diagnostics API must provide Copy Diagnostic Summary");
         QVERIFY(copied);
         const QString summary = QGuiApplication::clipboard()->text();
-        QVERIFY(summary.startsWith("Kino 0.1.0\n"));
+        QVERIFY(summary.startsWith(QStringLiteral("Kino 0.1.0 (%1 build)\n").arg(KINO_BUILD_KIND)));
         for (const QString &field : {"Platform:", "Qt:", "Qt WebEngine:", "Stremio Core:",
                                      "Player:", "libmpv client API:", "Video output:", "Streaming engine:"}) {
             QVERIFY2(summary.contains(field), qPrintable(field));

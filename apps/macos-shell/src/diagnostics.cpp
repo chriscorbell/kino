@@ -115,7 +115,8 @@ bool Diagnostics::copyDiagnosticSummary() {
     // Build this from explicit fields. Account/profile objects, URLs, paths,
     // environment contents, and diagnostic logs never enter the summary.
     const QString summary = QStringList{
-        QStringLiteral("Kino %1").arg(QCoreApplication::applicationVersion()),
+        QStringLiteral("Kino %1 (%2 build)")
+            .arg(QCoreApplication::applicationVersion(), QStringLiteral(KINO_BUILD_KIND)),
         QStringLiteral("Platform: %1 (%2)").arg(QSysInfo::prettyProductName(), QSysInfo::currentCpuArchitecture()),
         QStringLiteral("Qt: %1").arg(QString::fromLatin1(qVersion())),
         QStringLiteral("Qt WebEngine: %1 (Chromium %2)")

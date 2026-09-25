@@ -51,7 +51,7 @@ The shell loads the packaged Kino UI, keeps Stremio authentication material in a
 pnpm macos:check-launch
 ```
 
-Settings can copy a diagnostic summary with application, macOS, Qt, Core, player, and engine versions and playback capabilities. The summary excludes account data, media URLs, paths, and log contents. External engine overrides report an unknown version. The `diagnostic_summary` CTest suite uses an offscreen clipboard contained within the test process.
+Settings can copy a diagnostic summary with the application version and build kind, macOS, Qt, Core, player, and engine versions, and playback capabilities. The summary excludes account data, media URLs, paths, and log contents. External engine overrides report an unknown version. The `diagnostic_summary` CTest suite uses an offscreen clipboard contained within the test process.
 
 The player saves volume locally between launches. Its slider and Up/Down shortcuts adjust 0-100% volume; M toggles mute, and raising volume unmutes playback. Focused sliders keep their native keyboard step. Run `pnpm macos:check-volume` to verify the production WebChannel method and libmpv volume notifications, including bounds.
 
@@ -149,7 +149,7 @@ Produce a self-contained disk image with checksums:
 pnpm macos:package
 ```
 
-The app carries its own Qt, mpv, and torrent stack, so it runs on a Mac without Homebrew. Packages are ad-hoc signed and Apple Silicon only; code signing, notarization, and universal builds wait for a public release channel, as recorded in [ADR 0017](docs/adr/0017-ship-apple-silicon-first-and-defer-universal-packages.md).
+Packaging configures its own Release build in `build/macos-release` and refuses any other build type; `pnpm macos:build` and the probes keep using the Debug build in `build/macos`. The app carries its own Qt, mpv, and torrent stack, so it runs on a Mac without Homebrew. Packages are ad-hoc signed and Apple Silicon only; code signing, notarization, and universal builds wait for a public release channel, as recorded in [ADR 0017](docs/adr/0017-ship-apple-silicon-first-and-defer-universal-packages.md).
 
 Packaging writes Kino's GPL text, retained shell provenance, and dependency notices to `Kino.app/Contents/Resources/licenses/`. Open **Settings → Licenses and notices → Read notices** to search the local index. The accompanying `manifest.json` records component versions, source URLs, file checksums, and the origin of every shipped Mach-O binary.
 
