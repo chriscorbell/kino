@@ -23,7 +23,7 @@ async function start() {
     await migrateNativeAccountProfile();
   } catch (error) {
     console.error(
-      '[kino:keychain] account migration failed',
+      '[kino:session] account migration failed',
       error instanceof Error ? error.message : 'UnknownError',
     );
   }

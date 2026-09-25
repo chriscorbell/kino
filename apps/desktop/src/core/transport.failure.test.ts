@@ -62,3 +62,19 @@ it('rejects an outstanding model read when a healthy worker is destroyed', async
   await read;
   await expect(transport.getState('ctx')).rejects.toThrow();
 });
+
+it('fails a slow flush without ending the session', async () => {
+  vi.useFakeTimers();
+  const onFailure = vi.fn();
+  state.call.mockImplementation(([method]: string[]) =>
+    method === 'flush' ? new Promise(() => {}) : Promise.resolve({}),
+  );
+  const transport = createCoreTransport('guest', onFailure);
+  await transport.init();
+  const flushed = expect(transport.flush()).rejects.toThrow('Core storage did not finish in time.');
+  await vi.advanceTimersByTimeAsync(30_000);
+  await flushed;
+  expect(onFailure).not.toHaveBeenCalled();
+  expect(state.terminate).not.toHaveBeenCalled();
+  await expect(transport.getState('ctx')).resolves.toEqual({});
+});

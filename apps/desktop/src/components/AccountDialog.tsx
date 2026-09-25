@@ -5,6 +5,8 @@ import { CoreRecovery } from './CoreRecovery';
 import logo from '../assets/kino.svg';
 import styles from '../App.module.css';
 import { useCore } from '../core/context';
+import { coreFailureMessage } from '../core/errors';
+import { createCoreTransport, type CoreTransport } from '../core/transport';
 import type { CoreRuntimeEvent } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
@@ -12,6 +14,40 @@ import { nativeShellPresent, openAccountCreation } from '../native/player';
 
 function authError(event: CoreRuntimeEvent) {
   return event.name === 'CoreEvent' && event.args.event === 'Error';
+}
+
+function authenticate(transport: CoreTransport, email: string, password: string) {
+  return new Promise<void>((resolve, reject) => {
+    let unsubscribe: () => void = () => undefined;
+    const timeout = window.setTimeout(() => {
+      unsubscribe();
+      reject(new Error(enUS.account.timeout));
+    }, 20_000);
+    unsubscribe = transport.subscribe((coreEvent) => {
+      if (coreEvent.name === 'CoreEvent' && coreEvent.args.event === 'UserAuthenticated') {
+        window.clearTimeout(timeout);
+        unsubscribe();
+        resolve();
+      } else if (authError(coreEvent)) {
+        window.clearTimeout(timeout);
+        unsubscribe();
+        reject(new Error(enUS.account.rejected));
+      }
+    });
+    void transport
+      .dispatch({
+        action: 'Ctx',
+        args: {
+          action: 'Authenticate',
+          args: { type: 'Login', email, password },
+        },
+      })
+      .catch((dispatchError: unknown) => {
+        window.clearTimeout(timeout);
+        unsubscribe();
+        reject(dispatchError instanceof Error ? dispatchError : new Error(enUS.account.failed));
+      });
+  });
 }
 
 export function AccountDialog({ onClose }: { onClose: () => void }) {
@@ -29,14 +65,23 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
   const emailRef = useRef<HTMLInputElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
 
-  const close = useCallback(() => {
-    if (!user) selectSession('guest');
-    onClose();
-  }, [onClose, selectSession, user]);
+  // Guest browsing keeps its own Core while the dialog is open. Only a
+  // completed sign-in switches the app to the account profile.
+  const accountCore = session === 'account';
+  const formReady = !accountCore || status === 'ready';
+  const signInCore = useRef<CoreTransport | null>(null);
 
-  useEffect(() => {
-    if (session === 'guest') selectSession('account');
-  }, [selectSession, session]);
+  const close = useCallback(() => {
+    if (accountCore && !user) selectSession('guest');
+    onClose();
+  }, [accountCore, onClose, selectSession, user]);
+
+  useEffect(
+    () => () => {
+      void signInCore.current?.destroy().catch(() => undefined);
+    },
+    [],
+  );
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -51,53 +96,37 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     if (submitting) dialogRef.current?.focus();
-    else if (signedIn || status !== 'ready') closeRef.current?.focus();
+    else if (signedIn || !formReady) closeRef.current?.focus();
     else emailRef.current?.focus();
-  }, [signedIn, status, submitting]);
+  }, [formReady, signedIn, submitting]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!transport || status !== 'ready') return;
+    if (submitting || !formReady) return;
     setError(null);
     setSubmitting(true);
 
     try {
-      await new Promise<void>((resolve, reject) => {
-        let unsubscribe: () => void = () => undefined;
-        const timeout = window.setTimeout(() => {
-          unsubscribe();
-          reject(new Error(enUS.account.timeout));
-        }, 20_000);
-        unsubscribe = transport.subscribe((coreEvent) => {
-          if (coreEvent.name === 'CoreEvent' && coreEvent.args.event === 'UserAuthenticated') {
-            window.clearTimeout(timeout);
-            unsubscribe();
-            resolve();
-          } else if (authError(coreEvent)) {
-            window.clearTimeout(timeout);
-            unsubscribe();
-            reject(new Error(enUS.account.rejected));
-          }
-        });
-        void transport
-          .dispatch({
-            action: 'Ctx',
-            args: {
-              action: 'Authenticate',
-              args: { type: 'Login', email, password },
-            },
-          })
-          .catch((dispatchError: unknown) => {
-            window.clearTimeout(timeout);
-            unsubscribe();
-            reject(dispatchError instanceof Error ? dispatchError : new Error(enUS.account.failed));
-          });
-      });
+      if (accountCore && transport) {
+        await authenticate(transport, email, password);
+      } else {
+        // A separate account Core signs in and saves the session. Its
+        // shutdown flushes that save before the app opens the account profile.
+        const core = createCoreTransport('account');
+        signInCore.current = core;
+        await core.init();
+        await authenticate(core, email, password);
+        signInCore.current = null;
+        await core.destroy();
+        selectSession('account');
+      }
       setPassword('');
       onClose();
     } catch (signInError) {
-      setError(signInError instanceof Error ? signInError.message : enUS.account.failed);
+      setError(coreFailureMessage(signInError, enUS.account.failed));
     } finally {
+      void signInCore.current?.destroy().catch(() => undefined);
+      signInCore.current = null;
       setSubmitting(false);
     }
   };
@@ -178,7 +207,7 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
           <input
             autoComplete="username"
             aria-describedby={error ? 'account-error' : undefined}
-            disabled={status !== 'ready' || submitting}
+            disabled={!formReady || submitting}
             id="stremio-email"
             ref={emailRef}
             onChange={(event) => setEmail(event.target.value)}
@@ -190,7 +219,7 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
           <input
             aria-describedby={error ? 'account-error' : undefined}
             autoComplete="current-password"
-            disabled={status !== 'ready' || submitting}
+            disabled={!formReady || submitting}
             id="stremio-password"
             onChange={(event) => setPassword(event.target.value)}
             required
@@ -204,12 +233,12 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
           ) : null}
           <button
             className={styles.primaryAction}
-            disabled={status !== 'ready' || submitting}
+            disabled={!formReady || submitting}
             type="submit"
           >
-            {status === 'error'
+            {accountCore && status === 'error'
               ? enUS.core.accountUnavailable
-              : status !== 'ready'
+              : !formReady
                 ? enUS.account.preparing
                 : submitting
                   ? enUS.account.submitting

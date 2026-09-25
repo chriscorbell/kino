@@ -127,7 +127,7 @@ it('retries failed startup with a new transport and waits for teardown', async (
   expect(control.transports).toHaveLength(2);
 });
 
-it('shows account initialization failures with retry and a working guest escape', async () => {
+it('reports an account storage failure at sign-in and keeps the guest Core running', async () => {
   control.init.mockImplementation((session: CoreSession) =>
     session === 'account'
       ? Promise.reject(new Error('Account storage unavailable.'))
@@ -141,17 +141,23 @@ it('shows account initialization failures with retry and a working guest escape'
   await waitFor(() => expect(control.init).toHaveBeenCalledWith('guest'));
   fireEvent.click(screen.getByRole('button', { name: enUS.account.signInTitle }));
   const dialog = within(screen.getByRole('dialog'));
+  const accountInits = () => control.init.mock.calls.filter(([session]) => session === 'account');
+  // Opening the dialog leaves the guest Core alone.
+  expect(accountInits()).toHaveLength(0);
+  fireEvent.change(dialog.getByLabelText(enUS.account.email), {
+    target: { value: 'viewer@kino.invalid' },
+  });
+  fireEvent.change(dialog.getByLabelText(enUS.account.password), {
+    target: { value: 'synthetic' },
+  });
+  fireEvent.click(dialog.getByRole('button', { name: enUS.account.signIn }));
   expect(await dialog.findByRole('alert')).toHaveTextContent('Account storage unavailable.');
-  expect(dialog.queryByRole('button', { name: 'Preparing account…' })).not.toBeInTheDocument();
-  fireEvent.click(dialog.getByRole('button', { name: 'Retry Stremio Core' }));
-  await waitFor(() =>
-    expect(control.init.mock.calls.filter(([session]) => session === 'account')).toHaveLength(2),
-  );
-  fireEvent.click(await dialog.findByRole('button', { name: 'Continue as guest' }));
+  expect(accountInits()).toHaveLength(1);
+  fireEvent.click(dialog.getByRole('button', { name: enUS.account.signIn }));
+  await waitFor(() => expect(accountInits()).toHaveLength(2));
+  fireEvent.click(dialog.getByRole('button', { name: enUS.actions.close }));
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  await waitFor(() =>
-    expect(control.init.mock.calls.filter(([session]) => session === 'guest')).toHaveLength(2),
-  );
+  expect(control.init.mock.calls.filter(([session]) => session === 'guest')).toHaveLength(1);
 });
 
 it('does not install a late guest manifest after changing sessions', async () => {
