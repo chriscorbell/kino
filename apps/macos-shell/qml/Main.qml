@@ -32,6 +32,22 @@ ApplicationWindow {
         root.visibility = enabled ? Window.FullScreen : Window.Windowed
     }
 
+    // Every page in the main frame receives the WebChannel, secure store
+    // included, so only Kino's own interface may load there: files inside the
+    // packaged UI directory, or the development server's origin.
+    function isInterfaceUrl(url) {
+        const target = String(url)
+        const home = String(root.kinoUiUrl)
+        if (home.startsWith("file:")) {
+            return target.startsWith(home.slice(0, home.lastIndexOf("/") + 1))
+        }
+        const origin = function(value) {
+            const match = /^[a-z][a-z0-9+.-]*:\/\/[^/?#]+/i.exec(value)
+            return match ? match[0].toLowerCase() : ""
+        }
+        return origin(target) !== "" && origin(target) === origin(home)
+    }
+
     MpvItem {
         id: player
         anchors.fill: parent
@@ -245,8 +261,8 @@ ApplicationWindow {
         }
 
         onNavigationRequested: function(request) {
-            if (request.isMainFrame
-                    && String(request.url).split(":")[0] !== String(root.kinoUiUrl).split(":")[0]) {
+            if (request.isMainFrame && !root.isInterfaceUrl(request.url)) {
+                console.warn("[kino:shell] navigation blocked outside the interface")
                 request.action = WebEngineNavigationRequest.IgnoreRequest
             }
         }

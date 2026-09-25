@@ -38,6 +38,7 @@
     "macos:check-seasons": "node scripts/check-macos-seasons.mjs",
     "macos:check-resume": "node scripts/check-macos-resume.mjs",
     "macos:check-fullscreen": "node scripts/check-macos-fullscreen.mjs",
+    "macos:check-navigation": "node scripts/check-macos-navigation.mjs",
     "macos:check-track-choices": "node scripts/check-macos-track-choices.mjs",
     "macos:check-audio": "node scripts/check-macos-audio.mjs",
     "macos:check-volume": "node scripts/check-macos-volume.mjs",
