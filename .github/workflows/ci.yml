@@ -381,6 +381,7 @@ jobs:
           foreach ($unwanted in 'vc_redist.x64.exe', 'd3dcompiler_47.dll', 'dxcompiler.dll', 'dxil.dll', 'opengl32sw.dll', 'qmltooling') {
             if (Test-Path "$out/$unwanted") { throw "The portable build carries $unwanted" }
           }
+          Compress-Archive -Path $out -DestinationPath build/windows-package/Kino-windows-x64.zip
       # The portable build, started as someone would start it. The runner's
       # display has no OpenGL driver, so a copy of the build gets Mesa's
       # software OpenGL beside Kino.exe, which Windows loads ahead of its own.
@@ -404,7 +405,6 @@ jobs:
           node scripts/check-macos-navigation.mjs
           node scripts/check-macos-focus.mjs
           node scripts/check-macos-scale.mjs
-          Compress-Archive -Path $out -DestinationPath build/windows-package/Kino-windows-x64.zip
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: Kino-windows-x64
