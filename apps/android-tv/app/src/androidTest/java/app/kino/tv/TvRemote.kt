@@ -92,6 +92,13 @@ internal class TvRemote(private val instrumentation: Instrumentation) {
         return inside(focusedNode) || node(text)?.let(::focused) == true
     }
 
+    /** The width of the active window, a dialog's own window when one is open, in dp. */
+    fun windowWidthDp(): Float {
+        val bounds = android.graphics.Rect()
+        instrumentation.uiAutomation.rootInActiveWindow?.getBoundsInScreen(bounds)
+        return bounds.width() / instrumentation.targetContext.resources.displayMetrics.density
+    }
+
     fun focusedLabel(): String =
         focusedNode()?.let { it.contentDescription ?: it.text ?: "" }?.toString().orEmpty()
 

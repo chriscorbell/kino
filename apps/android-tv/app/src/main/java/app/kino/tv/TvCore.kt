@@ -475,11 +475,28 @@ class TvCore(
         mutable.value = mutable.value.copy(addonPreview = null)
     }
 
-    /** Installs the previewed add-on; Core rejects a manifest it cannot use. */
-    fun installPreviewedAddon(): Boolean {
+    /**
+     * Installs the previewed add-on; Core rejects a manifest it cannot use. A new configuration of
+     * an installed add-on replaces it: the old one is removed only once Core holds the new one, and
+     * only when both are the same add-on, so a failed install never loses the working
+     * configuration.
+     */
+    fun installPreviewedAddon(replacing: AddonDescriptor? = null): Boolean {
         val descriptor = mutable.value.addonPreview?.descriptor ?: return false
         ctx(ActionCtx.Args.InstallAddon(descriptor))
+        // Core applies an install synchronously, and the installed add-ons model follows it.
+        val installed =
+            Core.getState<AddonsWithFilters>(Field.ADDONS).catalog?.ready?.items.orEmpty()
+        if (installed.none { it.transportUrl == descriptor.transportUrl }) return false
         cancelAddonPreview()
+        installed
+            .firstOrNull { it.transportUrl == replacing?.transportUrl }
+            ?.takeIf {
+                it.transportUrl != descriptor.transportUrl &&
+                    it.manifest.id == descriptor.manifest.id &&
+                    !it.flags.protected
+            }
+            ?.let { ctx(ActionCtx.Args.UninstallAddon(it)) }
         return true
     }
 

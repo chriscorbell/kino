@@ -158,6 +158,10 @@ class SubtitleTest {
                     .performClick()
             }
             remote.waitFor("English")
+            assertTrue(
+                "The subtitle panel keeps its width: ${remote.windowWidthDp()} dp",
+                remote.windowWidthDp() >= 820f,
+            )
             remote.focus("English")
             remote.key(KeyEvent.KEYCODE_DPAD_CENTER)
             waitFor({

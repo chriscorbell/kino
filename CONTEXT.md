@@ -16,6 +16,14 @@ _Avoid_: Stremio clone
 A provider that follows the Stremio Addon Protocol and supplies one or more catalogs, media records, streams, or subtitles. Kino uses the add-ons attached to a Stremio account and does not operate a separate add-on catalog.
 _Avoid_: Plugin, channel
 
+**Add-on configuration**:
+A new install address an add-on's own settings page produces, carrying the chosen settings. Installing it replaces the add-on's previous configuration once Core holds the new one.
+_Avoid_: Add-on settings (Kino's own settings are separate), upgrade
+
+**Phone handoff**:
+Sending an add-on address from a phone to the TV, through a page the TV serves on the home network while an add-on dialog is open and reached by a QR code. Nothing installs until the viewer confirms on the TV.
+_Avoid_: Companion app, pairing, remote
+
 **Source**:
 A playable option returned by an add-on for a particular movie or episode. Kino asks the user to select a source rather than ranking and choosing one automatically.
 _Avoid_: File, provider

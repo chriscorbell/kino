@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "pins": {
-    "gradleLockfileSha256": "e28851ffaa647fb0972a9b499bdd6d011d4fcc5f0339bbaac8251c55f35ca75f",
+    "gradleLockfileSha256": "c120c1e4e2bff5ce0718545326c727b0568e93637782a81c2cf03a01213fa8b8",
     "coreLockSha256": "0d268728d918cc0580fdc5ffd3c719f3995394ef25ad131fd561f4c9da631033",
     "coreRevision": "2a8083f1026603e7c49f104473340d110902a72c",
     "ffmpegDecoders": ["ac3", "eac3", "dca", "truehd", "mlp"]
@@ -269,6 +269,19 @@
         }
       ],
       "artifacts": ["pro.streem.pbandk:pbandk-protos:0.16.0"]
+    },
+    {
+      "license": "MIT",
+      "notes": "The artifact carries no license file. Its POM declares the MIT License, and the project states the terms in the License section of its readme at the release tag, which is retained here.",
+      "files": [
+        {
+          "name": "LICENSE",
+          "path": "texts/527e09cc1cadbe29d0368a41e7fec6f728a19b03b3cb08839205a18a0d267166.txt",
+          "source": "https://raw.githubusercontent.com/nayuki/QR-Code-generator/v1.8.0/Readme.markdown#License",
+          "sha256": "527e09cc1cadbe29d0368a41e7fec6f728a19b03b3cb08839205a18a0d267166"
+        }
+      ],
+      "artifacts": ["io.nayuki:qrcodegen:1.8.0"]
     }
   ],
   "crates": [

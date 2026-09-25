@@ -68,7 +68,7 @@ internal fun UpdateNotice(updates: TvUpdates, state: UpdateState, onClose: () ->
         if (state is UpdateState.NeedsPermission && context.packageManager.canRequestPackageInstalls())
             updates.install(release)
     }
-    Dialog(onDismissRequest = onClose) {
+    Dialog(onDismissRequest = onClose, properties = WideDialog) {
         Column(
             Modifier.width(640.dp)
                 .background(SurfaceColor, RoundedCornerShape(12.dp))

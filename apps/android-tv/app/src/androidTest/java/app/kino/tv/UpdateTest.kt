@@ -244,6 +244,10 @@ class UpdateTest {
             val title = context.getString(R.string.update_title, "0.2.0")
             remote.waitFor(title)
             assertEquals(listOf("https://api.github.com/repos/chriscorbell/kino/releases/latest"), requests)
+            assertTrue(
+                "The notice keeps its width: ${remote.windowWidthDp()} dp",
+                remote.windowWidthDp() >= 640f,
+            )
             remote.focus(context.getString(R.string.update_skip))
             remote.key(KeyEvent.KEYCODE_DPAD_CENTER)
             remote.waitUntil("Skip closes the notice") { remote.node(title) == null }

@@ -61,6 +61,11 @@ class TvAddonsTest {
             remote.waitFor(context.getString(R.string.addon_built_in))
             remote.focus(context.getString(R.string.install_addon))
             remote.key(KeyEvent.KEYCODE_DPAD_CENTER)
+            // On a home network the phone comes first, and typing waits to be asked for.
+            remote.waitUntil("Typing is offered beside the QR code") {
+                remote.focusedExact(context.getString(R.string.addon_type_address))
+            }
+            remote.key(KeyEvent.KEYCODE_DPAD_CENTER)
             remote.waitFor(context.getString(R.string.addon_url_hint))
             instrumentation.sendStringSync("stremio://kino-fixture.invalid/browse/manifest.json")
             // The on-screen keyboard is up and owns the keys; Back puts it away, as a viewer
