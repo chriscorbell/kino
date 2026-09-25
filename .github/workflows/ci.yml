@@ -169,7 +169,9 @@ jobs:
           key: ${{ steps.engine-cache.outputs.cache-primary-key }}
 
       - name: Compile and bundle the native shell
-        run: pnpm macos:build
+        run: |
+          pnpm macos:build
+          node scripts/check-version.mjs --app build/macos/Kino.app
       - name: Run native unit tests and startup probes
         timeout-minutes: 5
         run: |

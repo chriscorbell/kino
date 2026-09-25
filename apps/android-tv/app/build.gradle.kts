@@ -39,6 +39,26 @@ val generateDesignTokens by
         }
     }
 
+// Kino's version lives in the root package.json, shared with the desktop shell
+// and the web client, so a release tag names one version everywhere.
+val kinoVersion: String =
+    (groovy.json.JsonSlurper().parse(rootProject.file("../../package.json")) as Map<*, *>)["version"]
+        as String
+
+// Android refuses to install a lower versionCode over a higher one. Each
+// release step gets room for 99 pre-releases, and a final release sorts after
+// every pre-release of the same version: 0.2.0-beta.3 is 20003, 0.2.0 is 20099.
+fun kinoVersionCode(version: String): Int {
+    val match = Regex("""^(\d+)\.(\d+)\.(\d+)(?:-[0-9A-Za-z-]+\.(\d+))?$""").matchEntire(version)
+        ?: error("Kino version $version must be MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-label.N")
+    val (major, minor, patch, prerelease) = match.destructured
+    val step = if (prerelease.isEmpty()) 99 else prerelease.toInt()
+    require(minor.toInt() < 100 && patch.toInt() < 100 && step in 1..99) {
+        "Kino version $version does not fit the versionCode scheme"
+    }
+    return major.toInt() * 1_000_000 + minor.toInt() * 10_000 + patch.toInt() * 100 + step
+}
+
 android {
     namespace = "app.kino.tv"
     compileSdk = 36
@@ -46,8 +66,8 @@ android {
         applicationId = "app.kino.tv"
         minSdk = 28
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0-dev"
+        versionCode = kinoVersionCode(kinoVersion)
+        versionName = kinoVersion
         val coreRevision =
             Regex("(?m)^REVISION = \"([a-f0-9]{40})\"")
                 .find(rootProject.file("../../scripts/build-android.py").readText())!!

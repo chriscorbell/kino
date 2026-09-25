@@ -1,6 +1,6 @@
 {
   "name": "kino",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "A Stremio-compatible media client with an original interface.",
@@ -11,7 +11,7 @@
   },
   "scripts": {
     "build": "pnpm --filter @kino/desktop build",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm core:check-contract && pnpm core:check-seasons && pnpm core:check-watched && pnpm core:check-streams && pnpm core:check-pagination && pnpm core:check-subtitles && pnpm core:check-shutdown && pnpm intro:check && pnpm core:check-addon-transports && pnpm engine:check-vendor && pnpm notices:check && pnpm macos:check-icon && pnpm android:check-banner && pnpm build",
+    "check": "pnpm format:check && pnpm version:check && pnpm lint && pnpm typecheck && pnpm test && pnpm core:check-contract && pnpm core:check-seasons && pnpm core:check-watched && pnpm core:check-streams && pnpm core:check-pagination && pnpm core:check-subtitles && pnpm core:check-shutdown && pnpm intro:check && pnpm core:check-addon-transports && pnpm engine:check-vendor && pnpm notices:check && pnpm macos:check-icon && pnpm android:check-banner && pnpm build",
     "core:capture-fixtures": "node scripts/capture-core-fixtures.mjs",
     "core:check-seasons": "node scripts/check-core-seasons.mjs",
     "core:check-watched": "node scripts/check-core-watched.mjs",
@@ -52,6 +52,7 @@
     "macos:package": "node scripts/package-macos.mjs",
     "test": "pnpm --filter @kino/desktop test",
     "typecheck": "pnpm --filter @kino/desktop typecheck",
+    "version:check": "node scripts/check-version.mjs",
     "core:check-pagination": "node scripts/check-core-pagination.mjs",
     "notices:check": "node scripts/check-license-notices.mjs",
     "notices:refresh": "node scripts/refresh-notices.mjs",

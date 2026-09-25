@@ -61,7 +61,7 @@ Desktop update discovery uses the packaged release version and the public GitHub
 
 The notice shows the installed and available versions. "Remind me tomorrow" hides it for 24 hours, and "Skip this version" hides that release until a newer version appears. Both choices stay on the device. Settings still offers the release page for a skipped version. Notices stay hidden during playback. "Download from GitHub" opens the release page in the system browser; Kino never fetches an update asset or installs it automatically.
 
-The native version defaults to the CMake project version. Preview packaging can pass `-DKINO_RELEASE_VERSION=0.2.0-beta.1` to identify its release channel; bundle version fields retain the numeric project version.
+Kino has one version, the `version` in the root `package.json`, which the macOS shell, the TV app, and the web client all read. A pre-release version such as `0.2.0-beta.1` identifies the preview channel. macOS bundle version fields keep its numeric part, and the TV `versionCode` sorts every pre-release before its release, so a sideloaded update always installs over an older one. `pnpm version:check` validates the version, and the macOS and Android CI jobs check that the bundle and the APK they build carry it.
 
 The Kino name and logo identify official builds. The GPL source remains modifiable and distributable, but public redistributed builds must rebrand and preserve all upstream licenses and notices.
 

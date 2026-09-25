@@ -178,7 +178,7 @@ export function createCoreTransport(
       return call<CoreStateMap[Model]>(['getState'], [model]);
     },
     init() {
-      initializing ??= call<void>(['init'], [{ appVersion: '0.0.0', shellVersion: null }]);
+      initializing ??= call<void>(['init'], [{ appVersion: __KINO_VERSION__, shellVersion: null }]);
       return initializing;
     },
     onBeforeDestroy(callback) {
