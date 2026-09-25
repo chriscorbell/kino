@@ -16,7 +16,6 @@
 #include <algorithm>
 #include <cmath>
 #include <mutex>
-#include <stdexcept>
 
 namespace {
 
@@ -135,6 +134,8 @@ struct MpvContext {
     std::mutex callbackMutex;
     MpvItem *item;
     mpv_handle *handle;
+    // Set once on the GUI thread before Qt can create a renderer.
+    bool initialized = false;
 };
 
 class MpvRenderer final : public QQuickFramebufferObject::Renderer {
@@ -153,7 +154,7 @@ public:
     }
 
     QOpenGLFramebufferObject *createFramebufferObject(const QSize &size) override {
-        if (!renderContext_) {
+        if (!renderContext_ && context_->initialized) {
             mpv_opengl_init_params openGlParameters{resolveOpenGlSymbol, nullptr};
             mpv_render_param parameters[] = {
                 {MPV_RENDER_PARAM_API_TYPE, const_cast<char *>(MPV_RENDER_API_TYPE_OPENGL)},
@@ -220,9 +221,6 @@ MpvItem::MpvItem(QQuickItem *parent)
           qInfo("[kino:mpv] paused for system sleep");
           setPaused(true);
       }) {
-    if (!handle_) {
-        throw std::runtime_error("could not create the mpv context");
-    }
     connect(this, &MpvItem::renderUpdateRequested, this, qOverload<>(&MpvItem::update),
             Qt::QueuedConnection);
     hardwareDecoderTimer_.setInterval(5'000);
@@ -240,7 +238,17 @@ MpvItem::MpvItem(QQuickItem *parent)
     connect(&renderContextTimer_, &QTimer::timeout, this, [this]() {
         if (pendingLoad_) emitError(QStringLiteral("render-context-unavailable"));
     });
-    initialize();
+    // A player that cannot start must not take the window down with it. The
+    // item stays inert and every load reports player-unavailable instead.
+    if (!handle_) {
+        qCritical("[kino:mpv] initialization failed stage=create");
+        return;
+    }
+    context_->initialized = initialize();
+}
+
+bool MpvItem::available() const {
+    return context_->initialized;
 }
 
 MpvItem::~MpvItem() {
@@ -251,7 +259,7 @@ MpvItem::~MpvItem() {
         std::lock_guard lock(context_->callbackMutex);
         context_->item = nullptr;
     }
-    mpv_set_wakeup_callback(handle_, nullptr, nullptr);
+    if (available()) mpv_set_wakeup_callback(handle_, nullptr, nullptr);
 }
 
 bool MpvItem::active() const {
@@ -264,6 +272,7 @@ QQuickFramebufferObject::Renderer *MpvItem::createRenderer() const {
 
 double MpvItem::playbackSpeed() const {
     double speed = 0;
+    if (!available()) return 0;
     if (mpv_get_property(handle_, "speed", MPV_FORMAT_DOUBLE, &speed) < 0) return 0;
     return speed;
 }
@@ -275,6 +284,7 @@ QVariantMap MpvItem::subtitleStyle() const {
         "sub-outline-color", "sub-outline-size",       "sub-shadow-offset",
     };
     QVariantMap style;
+    if (!available()) return style;
     for (const char *name : names) {
         char *value = mpv_get_property_string(handle_, name);
         if (!value) continue;
@@ -285,6 +295,7 @@ QVariantMap MpvItem::subtitleStyle() const {
 }
 
 QString MpvItem::version() const {
+    if (!available()) return QStringLiteral("Unavailable");
     char *value = mpv_get_property_string(handle_, "mpv-version");
     if (!value) return QStringLiteral("Unavailable");
     const QString version = QString::fromUtf8(value).trimmed();
@@ -292,7 +303,7 @@ QString MpvItem::version() const {
     return version;
 }
 
-void MpvItem::initialize() {
+bool MpvItem::initialize() {
     const struct Option {
         const char *name;
         const char *value;
@@ -346,11 +357,13 @@ void MpvItem::initialize() {
 
     for (const Option &option : options) {
         if (mpv_set_option_string(handle_, option.name, option.value) < 0) {
-            throw std::runtime_error("mpv rejected a required option");
+            qCritical("[kino:mpv] initialization failed stage=option name=%s", option.name);
+            return false;
         }
     }
     if (mpv_initialize(handle_) < 0) {
-        throw std::runtime_error("could not initialize mpv");
+        qCritical("[kino:mpv] initialization failed stage=initialize");
+        return false;
     }
 
     mpv_set_wakeup_callback(handle_, &MpvItem::onWakeup, context_.get());
@@ -365,9 +378,14 @@ void MpvItem::initialize() {
     mpv_observe_property(handle_, 8, "chapter-list", MPV_FORMAT_NODE);
     mpv_observe_property(handle_, 9, "track-list", MPV_FORMAT_NODE);
     mpv_observe_property(handle_, 10, "volume", MPV_FORMAT_DOUBLE);
+    return true;
 }
 
 void MpvItem::load(const QString &url, bool forceStereo, const QVariantMap &headers, const QString &audioLanguage) {
+    if (!available()) {
+        emitError(QStringLiteral("player-unavailable"));
+        return;
+    }
     // mpv can log arbitrary header values. Keep its free-form messages private
     // for the rest of this instance, including late events from an earlier load.
     suppressMpvLogDetails_ = suppressMpvLogDetails_ || !headers.isEmpty();
@@ -479,6 +497,7 @@ void MpvItem::load(const QString &url, bool forceStereo, const QVariantMap &head
 }
 
 void MpvItem::addSubtitles(const QString &url, const QString &title, const QString &lang) {
+    if (!available()) return;
     const QByteArray encodedUrl = url.toUtf8();
     const QByteArray encodedTitle =
         title.trimmed().isEmpty() ? QByteArrayLiteral("External subtitles")
@@ -494,6 +513,7 @@ void MpvItem::addSubtitles(const QString &url, const QString &title, const QStri
 }
 
 QVariantMap MpvItem::pauseAndSnapshot() {
+    if (!available()) return {};
     int paused = 1;
     mpv_set_property(handle_, "pause", MPV_FORMAT_FLAG, &paused);
     double time = 0;
@@ -507,42 +527,50 @@ QVariantMap MpvItem::pauseAndSnapshot() {
 }
 
 void MpvItem::seek(double seconds) {
+    if (!available()) return;
     double safeSeconds = std::max(0.0, seconds);
     mpv_set_property_async(handle_, 0, "time-pos", MPV_FORMAT_DOUBLE, &safeSeconds);
 }
 
 void MpvItem::setMuted(bool muted) {
+    if (!available()) return;
     int value = muted ? 1 : 0;
     mpv_set_property_async(handle_, 0, "mute", MPV_FORMAT_FLAG, &value);
 }
 
 void MpvItem::setVolume(double percent) {
+    if (!available()) return;
     if (!std::isfinite(percent)) return;
     double value = std::clamp(percent, 0.0, 100.0);
     mpv_set_property_async(handle_, 0, "volume", MPV_FORMAT_DOUBLE, &value);
 }
 
 void MpvItem::setPaused(bool paused) {
+    if (!available()) return;
     int value = paused ? 1 : 0;
     mpv_set_property_async(handle_, 0, "pause", MPV_FORMAT_FLAG, &value);
 }
 
 void MpvItem::setSubtitleDelay(double seconds) {
+    if (!available()) return;
     double value = std::clamp(seconds, -60.0, 60.0);
     mpv_set_property_async(handle_, 0, "sub-delay", MPV_FORMAT_DOUBLE, &value);
 }
 
 void MpvItem::setSubtitlePosition(int position) {
+    if (!available()) return;
     int64_t value = std::clamp(position, 0, 150);
     mpv_set_property_async(handle_, 0, "sub-pos", MPV_FORMAT_INT64, &value);
 }
 
 void MpvItem::setSubtitleScale(double scale) {
+    if (!available()) return;
     double value = std::clamp(scale, 0.1, 5.0);
     mpv_set_property_async(handle_, 0, "sub-scale", MPV_FORMAT_DOUBLE, &value);
 }
 
 void MpvItem::setSubtitleTrack(int id) {
+    if (!available()) return;
     if (id > 0) {
         int64_t value = id;
         mpv_set_property_async(handle_, 0, "sid", MPV_FORMAT_INT64, &value);
@@ -554,6 +582,7 @@ void MpvItem::setSubtitleTrack(int id) {
 }
 
 void MpvItem::setAudioTrack(int id) {
+    if (!available()) return;
     if (id <= 0) return;
     int64_t value = id;
     mpv_set_property_async(handle_, 0, "aid", MPV_FORMAT_INT64, &value);
@@ -563,12 +592,15 @@ void MpvItem::stop() {
     pendingLoad_ = nullptr;
     renderContextTimer_.stop();
     hardwareDecoderTimer_.stop();
-    const char *command[] = {"stop", nullptr};
-    mpv_command_async(handle_, 0, command);
+    if (available()) {
+        const char *command[] = {"stop", nullptr};
+        mpv_command_async(handle_, 0, command);
+    }
     setActive(false);
 }
 
 void MpvItem::togglePaused() {
+    if (!available()) return;
     const char *command[] = {"cycle", "pause", nullptr};
     mpv_command_async(handle_, 0, command);
 }

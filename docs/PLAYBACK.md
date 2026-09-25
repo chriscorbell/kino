@@ -17,7 +17,7 @@ Core requests, manual manifest installation, and guest catalog setup require HTT
 | YouTube ID, FTP, RTMP, NZB, archives | Show as unsupported                                         |
 | Live or DRM-protected source         | Show as unsupported                                         |
 
-If initialization, decoding, or streaming fails, Kino saves progress, records a sanitized diagnostic, marks that source failed for the current selection session, and returns to the source list. It never switches to another source automatically.
+If initialization, decoding, or streaming fails, Kino saves progress, records a sanitized diagnostic, marks that source failed for the current selection session, and returns to the source list. It never switches to another source automatically. On desktop, a libmpv that cannot start leaves the shell running: every source reports that the player is unavailable, and the diagnostic summary shows the mpv version as unavailable. The `mpv_unavailable_create` and `mpv_unavailable_initialize` native tests make libmpv refuse to start and drive the item through loads, controls, and rendering.
 
 ## Video
 
