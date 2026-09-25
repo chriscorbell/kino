@@ -101,6 +101,17 @@
     <string name="guest_profile">Guest profile</string>
     <string name="account_profile">Stremio account</string>
     <string name="addons">Add-ons</string>
+    <string name="install_addon">Install add-on</string>
+    <string name="addon_url_hint">https://…/manifest.json or stremio:// link</string>
+    <string name="addon_continue">Continue</string>
+    <string name="addon_loading">Loading add-on…</string>
+    <string name="addon_invalid">Enter an HTTPS address ending in manifest.json, or a stremio:// link.</string>
+    <string name="addon_failed">This add-on could not be loaded. Check the address and try again.</string>
+    <string name="install">Install</string>
+    <string name="cancel">Cancel</string>
+    <string name="remove_addon">Remove</string>
+    <string name="remove_addon_title">Remove %1$s?</string>
+    <string name="addon_built_in">Built in</string>
     <string name="version">Kino for Android TV · %1$s</string>
     <string name="torrent_pending">Torrent playback is not available in this TV build.</string>
     <string name="season_episode">Season %1$d · Episode %2$d</string>

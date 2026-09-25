@@ -93,6 +93,15 @@ internal class CoreCatalogFixture(
                         while (!reader.readLine().isNullOrEmpty()) {}
                         val body =
                             when {
+                                path == "/browse/manifest.json" ->
+                                    """{"id":"app.kino.fixture.catalog","version":"1.0.0",""" +
+                                        """"name":"Kino catalog fixture",""" +
+                                        """"description":"A loopback catalog for the browse gates.",""" +
+                                        """"types":["movie"],"resources":["catalog","meta"],""" +
+                                        """"idPrefixes":["kino-catalog"],"catalogs":[{"type":"movie",""" +
+                                        """"id":"kino-popular","name":"Kino popular","extra":[""" +
+                                        """{"name":"genre","options":["Action","Drama"]},""" +
+                                        """{"name":"skip"}]}]}"""
                                 path.startsWith("/browse/meta/movie/") -> {
                                     val id = path.substringAfterLast('/').removeSuffix(".json")
                                     """{"meta":{"id":"$id","type":"movie","name":"Fixture movie"}}"""
@@ -144,9 +153,14 @@ internal class CoreCatalogFixture(
      * Main-thread Core boundary; the instrumentation application owns an isolated guest profile.
      */
     fun install() {
+        route()
+        dispatch(ActionCtx.Args.InstallAddon(addon))
+    }
+
+    /** Routes the fixture host to this server without installing, for gates that install it. */
+    fun route() {
         check(Core.getState<Ctx>(Field.CTX).profile.auth == null)
         activity.configureCoreFixture(server.localPort)
-        dispatch(ActionCtx.Args.InstallAddon(addon))
     }
 
     fun uninstall() = dispatch(ActionCtx.Args.UninstallAddon(addon))

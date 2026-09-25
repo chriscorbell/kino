@@ -82,6 +82,31 @@ internal class TvRemote(private val instrumentation: Instrumentation) {
             ?.toString()
             .orEmpty()
 
+    /** Whether the control whose own label is exactly [text] holds focus. */
+    fun focusedExact(text: String): Boolean {
+        var target =
+            visible().firstOrNull {
+                it.text?.toString() == text || it.contentDescription?.toString() == text
+            } ?: return false
+        while (!target.isFocusable && target.parent != null) target = target.parent
+        return target.isFocused
+    }
+
+    /** Focuses the control whose own label is exactly [text], for labels that others contain. */
+    fun focusExact(text: String) {
+        val labelled =
+            visible().firstOrNull {
+                it.text?.toString() == text || it.contentDescription?.toString() == text
+            } ?: error("Missing control: $text")
+        var target: AccessibilityNodeInfo = labelled
+        while (!target.isFocusable && target.parent != null) target = target.parent
+        assertTrue(
+            "Control accepts remote focus: $text",
+            target.performAction(AccessibilityNodeInfo.ACTION_FOCUS),
+        )
+        instrumentation.waitForIdleSync()
+    }
+
     fun focus(text: String) {
         var target = node(text) ?: error("Missing control: $text")
         while (!target.isFocusable && target.parent != null) target = target.parent
