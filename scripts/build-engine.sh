@@ -6,6 +6,11 @@
 
 set -euo pipefail
 
+# --vendor-only reconstructs the patched checkout and stops, for builds of the
+# engine for another platform, such as the Android TV app's.
+kino_vendor_only=false
+[[ "${1:-}" == "--vendor-only" ]] && kino_vendor_only=true
+
 kino_repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 kino_engine_dir="${kino_repo_root}/apps/stream-engine"
 kino_vendor_dir="${kino_repo_root}/build/vendor/stream-server"
@@ -28,7 +33,7 @@ else
   echo "rustup is required to build the streaming engine with Rust ${kino_rust_channel}: brew install rustup" >&2
   exit 1
 fi
-if ! pkg-config --exists libtorrent-rasterbar; then
+if ! ${kino_vendor_only} && ! pkg-config --exists libtorrent-rasterbar; then
   echo "libtorrent-rasterbar is required: brew install libtorrent-rasterbar boost" >&2
   exit 1
 fi
@@ -75,6 +80,8 @@ else
   done
   kino_vendor_state > "${kino_vendor_stamp}"
 fi
+
+${kino_vendor_only} && exit 0
 
 # Offline packaging reads locked package metadata, including inactive optional manifests.
 "${kino_cargo[@]}" fetch --locked --target aarch64-apple-darwin --manifest-path "${kino_engine_dir}/Cargo.toml"

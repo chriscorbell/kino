@@ -54,6 +54,13 @@ open class MainActivity : ComponentActivity() {
         if (!isFinishing) redirectToAccount()
     }
 
+    // A running engine keeps the torrent's peers and seeds it. Nothing plays while Kino is in the
+    // background, so the engine stops with it, and the next torrent starts a new one.
+    override fun onStop() {
+        super.onStop()
+        if (!isChangingConfigurations) (application as KinoApplication).engine.stopInBackground()
+    }
+
     private fun redirectToAccount(): Boolean {
         if (
             !(application as KinoApplication).accountProcess &&

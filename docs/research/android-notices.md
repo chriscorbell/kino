@@ -4,17 +4,18 @@ The TV APK carries its own license index at `assets/licenses/`: `manifest.json` 
 
 Settings opens it under **Licenses and notices → Read notices**, grouped as the manifest groups it, with buttons that jump past the long crate and library lists. `LicensesTest` on the Shield opens every packaged text from the installed app and walks the screen with the remote.
 
-The index covers four things: Kino itself, the release runtime classpath, the Stremio Core crate graph with its build dependencies, and the three native libraries in the APK. The first build produced 464 components.
+The index covers Kino itself, the release runtime classpath, the Stremio Core crate graph with its build dependencies, the torrent engine and what it links, and the four native libraries in the APK. The build produces 840 components.
 
 ## What the APK contains
 
-`lib/arm64-v8a` holds three libraries, and the APK check fails on any library no component claims:
+`lib/arm64-v8a` holds four libraries, and the APK check fails on any library no component claims:
 
 | Library                        | Components that claim it                                                  |
 | ------------------------------ | ------------------------------------------------------------------------- |
 | `libstremio_core_kotlin.so`    | `stremio-core-kotlin` and the Rust standard library, over the crate graph |
 | `libffmpegJNI.so`              | FFmpeg n6.0.1 and the Media3 FFmpeg decoder extension                     |
 | `libandroidx.graphics.path.so` | `androidx.graphics:graphics-path` 1.0.1                                   |
+| `libkino_stream_engine.so`     | `kino-stream-engine`, libtorrent, Boost, OpenSSL, and Rust 1.98.0         |
 
 The dex code comes from Kino, the Maven artifacts, the Media3 FFmpeg extension's Java classes, and the Kotlin bindings from the stremio-core-kotlin 1.15.0 release. Resources include the Geist fonts, the Lucide icons, and two Media3 UI resources that keep their Apache headers.
 
@@ -58,6 +59,12 @@ Nine crates publish no notice file. The record supplies each from the source the
 | `stremio-official-addons` 2.1.1                    | The root `LICENSE.md` at the v2.1.1 tag.                                                                                                                                                                        |
 
 The collector fails when a selected crate has no text or when a supplement no longer matches any crate, and `pnpm notices:check` fails when `apps/android-tv/core/Cargo.lock` changes, so a Core update always comes back here.
+
+## Torrent engine
+
+`libkino_stream_engine.so` is the Mac's `kino-stream-engine`, cross-compiled from the same lock and patches ([ADR 0024](../adr/0024-run-the-torrent-engine-as-a-child-process-on-android-tv.md)), so the Mac's reviews apply to it without a second copy. The collector selects its normal dependency graph for `aarch64-linux-android` and reads each crate's own notice files. It adds the Mac's supplements from `reviewed.json`. Patch 0007 leaves the RAR and 7z readers out of the Android engine, so the UnRAR and 7-Zip sources the Mac's engine compiles in are not part of it. Of the 373 crates, 13 exist only in the Android build. One of them, `rustls-platform-verifier-android` 0.1.1, publishes no license file; `android.json` recovers the workspace root licenses at the commit that released it.
+
+The C++ side is the releases the Mac already reviews. libtorrent and Boost are built at the versions whose Homebrew supplements `reviewed.json` records, and `pnpm notices:check` fails if `LIBTORRENT_VERSION` or `BOOST_VERSION` in `scripts/build-android.py` moves away from them. OpenSSL is built from the openssl-src crate the Core already locks, so its entry claims both libraries. The engine embeds its compiler's revision like the Core does. The collector reads that revision from the built library and takes the Rust runtime review with the same revision, 1.98.0 today.
 
 ## Rust standard library
 

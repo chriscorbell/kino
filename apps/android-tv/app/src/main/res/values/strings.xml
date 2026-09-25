@@ -120,7 +120,8 @@
     <string name="remove_addon_title">Remove %1$s?</string>
     <string name="addon_built_in">Built in</string>
     <string name="version">Kino for Android TV · %1$s</string>
-    <string name="torrent_pending">Torrent playback is not available in this TV build.</string>
+    <string name="torrent_starting">Opening the torrent…</string>
+    <string name="torrent_failed">This torrent could not be opened. Try another source.</string>
     <string name="season_episode">Season %1$d · Episode %2$d</string>
     <string name="episode">Episode</string>
     <string name="season">Season %1$d</string>
@@ -149,7 +150,7 @@
     <string name="settings_save_failed">The preference could not be saved. Try again.</string>
     <string name="tv_languages_note">Defaults for new playback in this profile on this TV. Remembered track choices take precedence.</string>
     <string name="storage">Storage</string>
-    <string name="tv_cache_description">Cached artwork for this profile. Artwork loads again when needed.</string>
+    <string name="tv_cache_description">Cached artwork and torrent downloads for this profile. Both load again when needed.</string>
     <string name="clear_cache">Clear cache</string>
     <string name="clearing">Clearing…</string>
     <string name="cache_cleared">The local cache was cleared.</string>
@@ -198,6 +199,7 @@
     <string name="licenses_scope_application">Kino</string>
     <string name="licenses_scope_playback">Playback and Core</string>
     <string name="licenses_scope_core">Stremio Core</string>
+    <string name="licenses_scope_engine">Torrent engine</string>
     <string name="licenses_scope_android">Android libraries</string>
     <string name="licenses_scope_fonts">Fonts and icons</string>
     <string name="diagnostic_summary_text">Kino: %1$s (build %2$d)\nAndroid: %3$s (API %4$d)\nABI: %5$s\nStremio Core revision: %6$s\nMedia3: %7$s\nFFmpeg audio: %8$s\nVideo decoding: hardware only\nVideo output: SDR, HDR10 tone mapped by Kino\nAudio output: %9$s</string>

@@ -5,7 +5,7 @@
 // then checks the finished APK carries it.
 //
 //   node scripts/android-notices.mjs check
-//   node scripts/android-notices.mjs generate --cargo <pinned cargo>
+//   node scripts/android-notices.mjs generate --cargo <Core's cargo> --engine-cargo <engine's cargo>
 //   node scripts/android-notices.mjs verify-apk <apk>
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -19,7 +19,12 @@ const reviewedRoot = join(root, 'third_party/notices');
 const vendor = join(root, 'build/vendor/stremio-core-kotlin');
 const output = join(root, 'build/android-notices');
 const coreLibrary = 'lib/arm64-v8a/libstremio_core_kotlin.so';
+const engineLibrary = 'lib/arm64-v8a/libkino_stream_engine.so';
+const engineManifest = join(root, 'apps/stream-engine/Cargo.toml');
 const reviewed = JSON.parse(readFileSync(join(reviewedRoot, 'android.json'), 'utf8'));
+// The torrent engine is the Mac's, built from the same lock, so the Mac's reviews of its crates,
+// libtorrent, Boost, and its Rust runtime apply to it as they stand.
+const desktop = JSON.parse(readFileSync(join(reviewedRoot, 'reviewed.json'), 'utf8'));
 
 // The build script is the source of truth for every pinned input, so the record is compared
 // against it rather than repeating the values somewhere a later bump could miss.
@@ -37,8 +42,21 @@ function buildPins() {
     media3: constant('MEDIA3_REVISION'),
     ffmpeg: constant('FFMPEG_TAG'),
     decoders: [...(decoders?.[1] ?? '').matchAll(/"([^"]+)"/g)].map((m) => m[1]),
+    libtorrent: constant('LIBTORRENT_VERSION'),
+    boost: constant('BOOST_VERSION'),
+    engineToolchain: readFileSync(
+      join(root, 'apps/stream-engine/rust-toolchain.toml'),
+      'utf8',
+    ).match(/^channel = "([^"]+)"/m)[1],
   };
 }
+
+const formula = (name) => {
+  const found = desktop.homebrew.find((item) => item.name === name);
+  if (!found) throw new Error(`third_party/notices/reviewed.json has no ${name} review`);
+  return found;
+};
+const released = (item) => item.sourceVersion ?? item.version.replace(/_\d+$/, '');
 
 function releaseArtifacts() {
   return readFileSync(join(root, 'apps/android-tv/app/gradle.lockfile'), 'utf8')
@@ -55,7 +73,12 @@ const component = (name) => {
 };
 
 export function verifyAndroidReview() {
-  const groups = [...reviewed.maven, ...reviewed.crates, ...reviewed.components];
+  const groups = [
+    ...reviewed.maven,
+    ...reviewed.crates,
+    ...(reviewed.engineCrates ?? []),
+    ...reviewed.components,
+  ];
   for (const item of groups) {
     if (!item.files.length)
       throw new Error(`No reviewed Android texts for ${item.name ?? item.license}`);
@@ -76,6 +99,16 @@ export function verifyAndroidReview() {
     problems.push(`Media3 moved to ${pins.media3}; review the FFmpeg extension's license.`);
   if (reviewed.pins.ffmpegDecoders.join() !== pins.decoders.join())
     problems.push('The FFmpeg decoder set changed; review which FFmpeg sources are linked.');
+  if (released(formula('libtorrent-rasterbar')) !== pins.libtorrent)
+    problems.push(
+      `The TV engine builds libtorrent ${pins.libtorrent}, but its notices are reviewed for ${released(formula('libtorrent-rasterbar'))}. Build the release the Mac's review covers.`,
+    );
+  if (released(formula('boost')) !== pins.boost)
+    problems.push(
+      `The TV engine builds with Boost ${pins.boost}, but its notices are reviewed for ${released(formula('boost'))}.`,
+    );
+  if (!desktop.rust.some((item) => item.version === pins.engineToolchain))
+    problems.push(`No Rust ${pins.engineToolchain} runtime review for the TV engine.`);
 
   const lock = (path) => hash(readFileSync(join(root, path)));
   if (reviewed.pins.coreLockSha256 !== lock('apps/android-tv/core/Cargo.lock'))
@@ -103,7 +136,7 @@ export function verifyAndroidReview() {
   if (problems.length) throw new Error(problems.join('\n'));
 }
 
-export function generateAndroidNotices(cargo) {
+export function generateAndroidNotices(cargo, engineCargo) {
   verifyAndroidReview();
   const licenses = join(output, 'licenses');
   rmSync(output, { recursive: true, force: true });
@@ -231,6 +264,119 @@ export function generateAndroidNotices(cargo) {
       `Reviewed crate supplements no longer match the Core graph: ${unused.map((c) => `${c.name}@${c.version}`).join(', ')}`,
     );
 
+  // The torrent engine: its normal dependency graph, as the Mac collector selects it, with the
+  // Mac's crate reviews and the libtorrent and Boost reviews.
+  const engineArgs = ['--offline', '--locked', '--manifest-path', engineManifest];
+  const engineRun = (args) =>
+    execFileSync(engineCargo, args, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+  const engineSelected = new Set(
+    [
+      ...engineRun([
+        'tree',
+        ...engineArgs,
+        '--target',
+        target,
+        '-e',
+        'normal',
+        '--prefix',
+        'none',
+        '--format',
+        '{p}',
+      ]).matchAll(/^(\S+) v(\S+)/gm),
+    ].map((m) => `${m[1]}@${m[2]}`),
+  );
+  const engineMetadata = JSON.parse(
+    engineRun(['metadata', ...engineArgs, '--format-version', '1', '--filter-platform', target]),
+  );
+  // Every crate name in the lock, for every platform, so a Mac-only crate's review is not taken
+  // for code the engine embeds from outside Cargo.
+  const crateNames = new Set(
+    [
+      ...readFileSync(join(root, 'apps/stream-engine/Cargo.lock'), 'utf8').matchAll(
+        /^name = "([^"]+)"/gm,
+      ),
+    ].map((m) => m[1]),
+  );
+  const engineSupplements = [...desktop.engine, ...(reviewed.engineCrates ?? [])];
+  const engineUsed = new Set();
+  for (const pkg of engineMetadata.packages) {
+    const id = `${pkg.name}@${pkg.version}`;
+    if (!engineSelected.has(id)) continue;
+    const directory = dirname(pkg.manifest_path);
+    const extra = engineSupplements.filter((c) => c.name === pkg.name && c.version === pkg.version);
+    extra.forEach(() => engineUsed.add(id));
+    const files = noticeFiles(directory).map((path) =>
+      file(
+        path,
+        pkg.source?.startsWith('registry+')
+          ? `https://static.crates.io/crates/${pkg.name}/${pkg.name}-${pkg.version}.crate#${pkg.name}-${pkg.version}/${relative(directory, path)}`
+          : `${pkg.repository ?? extra[0]?.repository ?? 'Kino source'}#${relative(directory, path)}`,
+      ),
+    );
+    for (const item of extra) files.push(...retained(item.files));
+    add({
+      name: pkg.name,
+      version: pkg.version,
+      license: pkg.license ?? extra[0]?.license,
+      repository: pkg.repository ?? extra[0]?.repository,
+      scope: 'Torrent engine',
+      ...(pkg.name === 'kino-stream-engine' ? { binaries: [engineLibrary] } : {}),
+      ...(extra.some((s) => s.notes)
+        ? {
+            notes: extra
+              .map((s) => s.notes)
+              .filter(Boolean)
+              .join(' '),
+          }
+        : {}),
+      files,
+    });
+  }
+  const staleEngine = (reviewed.engineCrates ?? []).filter(
+    (c) => !engineUsed.has(`${c.name}@${c.version}`),
+  );
+  if (staleEngine.length)
+    throw new Error(
+      `Reviewed engine supplements no longer match its graph: ${staleEngine.map((c) => `${c.name}@${c.version}`).join(', ')}`,
+    );
+  // Code a crate compiles in from outside Cargo counts only while that crate is in this build;
+  // the Android engine leaves the archive readers out.
+  const embeddedBy = { UnRAR: 'async-rar', '7-Zip': 'async-sevenz' };
+  const selectedNames = new Set([...engineSelected].map((id) => id.split('@')[0]));
+  for (const item of desktop.engine.filter(
+    (c) =>
+      !crateNames.has(c.name) && (!embeddedBy[c.name] || selectedNames.has(embeddedBy[c.name])),
+  )) {
+    const { files, ...metadata } = item;
+    add({ ...metadata, scope: 'Torrent engine', files: retained(files) });
+  }
+  const engineBinary = readFileSync(
+    join(root, 'build/android-engine/jniLibs/arm64-v8a/libkino_stream_engine.so'),
+  ).toString('latin1');
+  const engineRevisions = new Set(
+    [...engineBinary.matchAll(/\/rustc\/([a-f0-9]{40})/g)].map((m) => m[1]),
+  );
+  const engineRuntime = desktop.rust.find(
+    (item) => engineRevisions.size === 1 && engineRevisions.has(item.revision),
+  );
+  if (!engineRuntime)
+    throw new Error(
+      `Review the Rust runtime embedded in the TV engine: ${[...engineRevisions].join(', ') || 'unknown compiler revision'}`,
+    );
+  for (const item of [engineRuntime, formula('libtorrent-rasterbar'), formula('boost')]) {
+    const { files, ...metadata } = item;
+    add({
+      ...metadata,
+      ...(item === engineRuntime ? {} : { version: released(item) }),
+      scope: 'Torrent engine',
+      binaries: [engineLibrary],
+      files: retained(files),
+    });
+  }
+  // The engine links the same OpenSSL release the Core does, built from the same crate source.
+  for (const item of components.filter((c) => c.name === 'openssl-src'))
+    item.binaries = [...(item.binaries ?? []), engineLibrary];
+
   for (const group of reviewed.maven) {
     const files = retained(group.files);
     for (const coordinate of group.artifacts) {
@@ -251,6 +397,7 @@ export function generateAndroidNotices(cargo) {
     'Application',
     'Playback and Core',
     'Stremio Core',
+    'Torrent engine',
     'Android libraries',
     'Fonts and icons',
   ];
@@ -266,7 +413,7 @@ export function generateAndroidNotices(cargo) {
       {
         schemaVersion: 1,
         scope:
-          'Kino; the release runtime classpath; the Stremio Core crate graph with its build dependencies; every native library in the APK.',
+          'Kino; the release runtime classpath; the Stremio Core crate graph with its build dependencies; the torrent engine and what it links; every native library in the APK.',
         components,
       },
       null,
@@ -322,11 +469,17 @@ if (process.argv[1] === import.meta.filename) {
   if (command === 'check') {
     verifyAndroidReview();
     console.log('Reviewed Android notices match the build pins and the release classpath.');
-  } else if (command === 'generate' && rest[0] === '--cargo' && rest[1])
-    generateAndroidNotices(rest[1]);
+  } else if (
+    command === 'generate' &&
+    rest[0] === '--cargo' &&
+    rest[1] &&
+    rest[2] === '--engine-cargo' &&
+    rest[3]
+  )
+    generateAndroidNotices(rest[1], rest[3]);
   else if (command === 'verify-apk' && rest[0]) verifyAndroidApk(rest[0]);
   else
     throw new Error(
-      'Usage: node scripts/android-notices.mjs check | generate --cargo <cargo> | verify-apk <apk>',
+      'Usage: node scripts/android-notices.mjs check | generate --cargo <cargo> --engine-cargo <cargo> | verify-apk <apk>',
     );
 }

@@ -204,23 +204,33 @@ fun KinoApp(
         Box(Modifier.fillMaxSize().background(Background)) {
             when {
                 playing != null ->
-                    FullscreenPlayer(
+                    TorrentStart(
                         playing!!,
-                        selected!!,
-                        core,
-                        onExit = { playing = null },
-                        onFailure = { error ->
+                        onFailure = {
+                            core.stopPlayer()
                             playing = null
-                            playbackError = error
+                            playbackError = R.string.torrent_failed
                         },
-                        onUpNext = { next ->
-                            playing = null
-                            resumePending = false
-                            playbackError = null
-                            videoId = next.id
-                            core.open(selected!!, next.id)
-                        },
-                    )
+                    ) { mediaUrl ->
+                        FullscreenPlayer(
+                            playing!!,
+                            selected!!,
+                            core,
+                            onExit = { playing = null },
+                            onFailure = { error ->
+                                playing = null
+                                playbackError = error
+                            },
+                            onUpNext = { next ->
+                                playing = null
+                                resumePending = false
+                                playbackError = null
+                                videoId = next.id
+                                core.open(selected!!, next.id)
+                            },
+                            mediaUrl = mediaUrl,
+                        )
+                    }
                 !state.ready ->
                     CenterMessage(
                         if (state.failed) R.string.network_error else R.string.loading,
@@ -334,6 +344,42 @@ fun KinoApp(
                 UpdatePrompt((context.applicationContext as KinoApplication).updates)
         }
     }
+}
+
+/**
+ * Opens a torrent in the engine before the player starts, and passes any other source straight
+ * through. The engine starts on the first torrent a process plays, which can take a few seconds,
+ * so the wait is a screen of its own that Back leaves.
+ */
+@Composable
+private fun TorrentStart(
+    source: Source,
+    onFailure: () -> Unit,
+    player: @Composable (String) -> Unit,
+) {
+    val torrent = source.torrent
+    if (torrent == null) {
+        player(source.stream.url!!.url)
+        return
+    }
+    val context = LocalContext.current
+    var mediaUrl by remember(source) { mutableStateOf<String?>(null) }
+    LaunchedEffect(source) {
+        mediaUrl =
+            try {
+                (context.applicationContext as KinoApplication).engine.mediaUrl(torrent)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                onFailure()
+                null
+            }
+    }
+    mediaUrl?.let { player(it) }
+        ?: run {
+            BackHandler { onFailure() }
+            CenterMessage(R.string.torrent_starting)
+        }
 }
 
 @Composable
@@ -1578,8 +1624,7 @@ private fun SourceRow(source: Source, runtime: String?, onSelect: () -> Unit) {
                         if (!source.playable)
                             Text(
                                 stringResource(
-                                    if (source.stream.tramvai != null) R.string.torrent_pending
-                                    else R.string.source_unsupported
+                                    R.string.source_unsupported
                                 ),
                                 fontSize = 13.sp,
                                 color = Muted,

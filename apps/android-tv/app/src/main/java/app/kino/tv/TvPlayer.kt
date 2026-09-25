@@ -527,6 +527,11 @@ fun FullscreenPlayer(
     introEndpoint: String = IntroCommunityClient.DEFAULT_ENDPOINT,
     /** Hands gates the live player, to read the cues and tracks its views do not expose. */
     onPlayer: (ExoPlayer) -> Unit = {},
+    /**
+     * What Media3 opens: the source's own URL, or for a torrent the engine's URL for its file.
+     * Core keeps the original stream, so no engine address reaches its storage.
+     */
+    mediaUrl: String = source.stream.url!!.url,
 ) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -546,7 +551,7 @@ fun FullscreenPlayer(
     var ended by remember(source) { mutableStateOf(false) }
     var embeddedDiscovery by
         remember(source) {
-            val contentType = Util.inferContentType(Uri.parse(source.stream.url!!.url))
+            val contentType = Util.inferContentType(Uri.parse(mediaUrl))
             mutableStateOf<IntroDiscovery>(
                 if (
                     contentType == C.CONTENT_TYPE_HLS ||
@@ -626,7 +631,7 @@ fun FullscreenPlayer(
             val payload =
                 readIndexedChapters(
                     context,
-                    Uri.parse(source.stream.url!!.url),
+                    Uri.parse(mediaUrl),
                     sourceHeaders,
                     chapterOffset,
                 )
@@ -822,7 +827,7 @@ fun FullscreenPlayer(
         onPlayer(player)
         player.setMediaItem(
             MediaItem.Builder()
-                .setUri(source.stream.url!!.url)
+                .setUri(mediaUrl)
                 .setMediaMetadata(MediaMetadata.Builder().setTitle(media.title).build())
                 .build()
         )

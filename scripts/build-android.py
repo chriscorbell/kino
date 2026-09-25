@@ -2,6 +2,7 @@
 """Build Kino TV and its pinned, patched ARM64 Stremio Core."""
 import hashlib
 import io
+import json
 import os
 from pathlib import Path
 import platform
@@ -36,6 +37,16 @@ MEDIA3_FFMPEG_FILES = {
     "java/androidx/media3/decoder/ffmpeg/FfmpegDecoderException.java": "9e73968d0802b2d7f8add911ec4dc5a6e621777e997eca74332e173c5463ad7a",
 }
 FFMPEG_TAG = "n6.0.1"
+
+# The torrent engine, the same kino-stream-engine the Mac ships, built for the Shield. Its C++
+# dependencies are the releases whose notices third_party/notices already reviews for the Mac:
+# libtorrent and Boost at the versions Homebrew ships, and the OpenSSL release the TV Core's
+# openssl-src crate carries, from that crate's own checksummed source.
+LIBTORRENT_VERSION = "2.1.2"
+LIBTORRENT_SHA = "3362546d9cd71b9e49ee6cac7d3f1f914ce9cdb217c86b63d5b22cbed0334dbc"
+BOOST_VERSION = "1.92.0"
+BOOST_SHA = "ea7b982002cc9dfbe59b0b217b206f470dc75f3de0bb2973d844118934d82411"
+ENGINE_OUTPUT = BUILD / "android-engine"
 FFMPEG_DECODERS = ["ac3", "eac3", "dca", "truehd", "mlp"]
 FFMPEG_OUTPUT = BUILD / "android-ffmpeg"
 
@@ -130,6 +141,107 @@ def build_ffmpeg_decoders(env, ndk, llvm, host):
     stamp.write_text(state)
 
 
+def build_stream_engine(env, ndk, llvm, host):
+    """kino-stream-engine for arm64, packaged as a native library so Android extracts it executable."""
+    engine = ROOT / "apps/stream-engine"
+    toolchain = re.search(r'^channel = "([^"]+)"', (engine / "rust-toolchain.toml").read_text(), re.M).group(1)
+    library = ENGINE_OUTPUT / "jniLibs/arm64-v8a/libkino_stream_engine.so"
+    patches = sorted((engine / "patches").glob("*.patch"))
+    state = hashlib.sha256(b"\0".join([
+        LIBTORRENT_SHA.encode(), BOOST_SHA.encode(), NDK_VERSION.encode(), toolchain.encode(),
+        Path(__file__).read_bytes(),
+        (engine / "Cargo.lock").read_bytes(), (engine / "engine.lock").read_bytes(),
+        *(p.read_bytes() for p in patches), *(p.read_bytes() for p in sorted((engine / "src").glob("*.rs"))),
+    ])).hexdigest()
+    stamp = ENGINE_OUTPUT.with_suffix(".stamp")
+    if stamp.exists() and stamp.read_text() == state and library.exists():
+        print(f"Reusing the torrent engine for Android")
+        return
+    stamp.unlink(missing_ok=True)
+    rustup = shutil.which("rustup") or str(Path.home() / ".cargo/bin/rustup")
+    run(rustup, "toolchain", "install", toolchain, "--profile", "minimal", "--target", "aarch64-linux-android")
+    run("bash", ROOT / "scripts/build-engine.sh", "--vendor-only")
+    prefix = ENGINE_OUTPUT / "prefix"
+    jobs = str(os.cpu_count() or 4)
+    path = f"{llvm}:{env['PATH']}"
+    build_env = {**env, "PATH": path, "ANDROID_NDK_ROOT": str(ndk)}
+    for variable in ("RUSTC", "RUSTUP_TOOLCHAIN", "CARGO_TARGET_DIR"):
+        build_env.pop(variable, None)
+
+    # OpenSSL from the openssl-src crate the TV Core already locks, found through Cargo itself.
+    if not (prefix / "lib/libssl.a").exists():
+        core_cargo = Path(subprocess.run([rustup, "which", "--toolchain", TOOLCHAIN, "cargo"],
+            capture_output=True, check=True, text=True).stdout.strip())
+        metadata = json.loads(subprocess.run([core_cargo, "metadata", "--offline", "--locked", "--format-version", "1",
+            "--filter-platform", "aarch64-linux-android", "--manifest-path", VENDOR / "Cargo.toml"],
+            capture_output=True, check=True, text=True, env=env).stdout)
+        crate = next(Path(p["manifest_path"]).parent for p in metadata["packages"] if p["name"] == "openssl-src")
+        source = ENGINE_OUTPUT / "openssl"
+        shutil.rmtree(source, ignore_errors=True)
+        shutil.copytree(crate / "openssl", source)
+        subprocess.run(["./Configure", "android-arm64", "no-shared", "no-tests", "no-docs", "no-apps",
+            "-D__ANDROID_API__=28", f"--prefix={prefix}", "--libdir=lib"], check=True, cwd=source, env=build_env)
+        subprocess.run(["make", f"-j{jobs}"], check=True, cwd=source, env=build_env)
+        subprocess.run(["make", "install_sw"], check=True, cwd=source, env=build_env)
+
+    boost = ENGINE_OUTPUT / f"boost-{BOOST_VERSION}"
+    if not (boost / "boost/version.hpp").exists():
+        archive = BUILD / f"boost-{BOOST_VERSION}-b2-nodocs.tar.xz"
+        fetch_pinned(f"https://github.com/boostorg/boost/releases/download/boost-{BOOST_VERSION}/boost-{BOOST_VERSION}-b2-nodocs.tar.xz",
+            BOOST_SHA, archive)
+        # Headers only: libtorrent needs no compiled Boost library.
+        run("tar", "-xJf", archive, "-C", ENGINE_OUTPUT, f"boost-{BOOST_VERSION}/boost")
+
+    if not (prefix / "lib/libtorrent-rasterbar.a").exists():
+        archive = BUILD / f"libtorrent-rasterbar-{LIBTORRENT_VERSION}.tar.gz"
+        fetch_pinned(f"https://github.com/arvidn/libtorrent/releases/download/v{LIBTORRENT_VERSION}/libtorrent-rasterbar-{LIBTORRENT_VERSION}.tar.gz",
+            LIBTORRENT_SHA, archive)
+        source = ENGINE_OUTPUT / f"libtorrent-rasterbar-{LIBTORRENT_VERSION}"
+        shutil.rmtree(source, ignore_errors=True)
+        run("tar", "-xzf", archive, "-C", ENGINE_OUTPUT)
+        cmake_build = ENGINE_OUTPUT / "libtorrent-build"
+        shutil.rmtree(cmake_build, ignore_errors=True)
+        run("cmake", "-S", source, "-B", cmake_build, "-G", "Unix Makefiles",
+            f"-DCMAKE_TOOLCHAIN_FILE={ndk / 'build/cmake/android.toolchain.cmake'}",
+            "-DANDROID_ABI=arm64-v8a", "-DANDROID_PLATFORM=android-28", "-DANDROID_STL=c++_static",
+            "-DCMAKE_BUILD_TYPE=Release", "-DBUILD_SHARED_LIBS=OFF", "-DCMAKE_CXX_STANDARD=17",
+            "-Dwebtorrent=OFF", "-Dbuild_tests=OFF", "-Dbuild_examples=OFF", "-Dbuild_tools=OFF",
+            "-Dpython-bindings=OFF", f"-DOPENSSL_ROOT_DIR={prefix}", "-DOPENSSL_USE_STATIC_LIBS=ON",
+            f"-DBoost_INCLUDE_DIR={boost}", f"-DCMAKE_FIND_ROOT_PATH={prefix};{boost}",
+            f"-DCMAKE_INSTALL_PREFIX={prefix}", env=build_env)
+        run("cmake", "--build", cmake_build, "--parallel", jobs, env=build_env)
+        run("cmake", "--install", cmake_build, env=build_env)
+
+    toolchain_bin = Path(subprocess.run([rustup, "which", "--toolchain", toolchain, "rustc"],
+        capture_output=True, check=True, text=True).stdout.strip()).parent
+    compiler = str(llvm / "aarch64-linux-android28-clang")
+    resource_dir = subprocess.run([llvm / "clang", "--print-resource-dir"], capture_output=True,
+        check=True, text=True).stdout.strip()
+    cargo_env = {**build_env, "RUSTUP_TOOLCHAIN": toolchain, "RUSTC": str(toolchain_bin / "rustc"),
+        "CARGO_TARGET_DIR": str(ENGINE_OUTPUT / "target"),
+        "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER": compiler,
+        "CC_aarch64_linux_android": compiler, "CXX_aarch64_linux_android": compiler + "++",
+        "AR_aarch64_linux_android": str(llvm / "llvm-ar"), "RANLIB_aarch64_linux_android": str(llvm / "llvm-ranlib"),
+        # One static C++ runtime for libtorrent, the cxx bridge and the archive readers.
+        "CXXSTDLIB_aarch64_linux_android": "c++_static",
+        "CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS": "-C link-arg=-lc++_static -C link-arg=-lc++abi",
+        "CXXFLAGS_aarch64_linux_android": f"-I{boost}",
+        "PKG_CONFIG_ALLOW_CROSS": "1", "PKG_CONFIG_PATH": str(prefix / "lib/pkgconfig"),
+        "PKG_CONFIG_LIBDIR": str(prefix / "lib/pkgconfig"), "LIBTORRENT_STATIC": "1",
+        "OPENSSL_DIR": str(prefix), "OPENSSL_STATIC": "1",
+        # The archive readers' bindings come from bindgen. The host's libclang lacks builtin
+        # headers matching the NDK's sysroot on Linux, so bindgen uses the NDK's own libclang.
+        "LIBCLANG_PATH": str(llvm.parent / "lib"),
+        "BINDGEN_EXTRA_CLANG_ARGS_aarch64_linux_android": f"--sysroot={llvm.parent / 'sysroot'} --target=aarch64-linux-android28 -resource-dir={resource_dir}",
+    }
+    run(toolchain_bin / "cargo", "build", "--locked", "--release", "--target", "aarch64-linux-android",
+        "--manifest-path", engine / "Cargo.toml", env=cargo_env)
+    library.parent.mkdir(parents=True, exist_ok=True)
+    run(llvm / "llvm-strip", "--strip-unneeded", "-o", library,
+        ENGINE_OUTPUT / "target/aarch64-linux-android/release/kino-stream-engine")
+    stamp.write_text(state)
+
+
 def main():
     env = os.environ.copy()
     if "JAVA_HOME" not in env and platform.system() == "Darwin":
@@ -210,13 +322,18 @@ def main():
     run(toolchain_bin / "cargo", "build", "--locked", "--release", "--target", "aarch64-linux-android",
         "--manifest-path", VENDOR / "Cargo.toml", "-p", "stremio-core-kotlin", env=env)
     build_ffmpeg_decoders(env, ndk, llvm, host)
+    build_stream_engine(env, ndk, llvm, host)
     library = output / "jniLibs/arm64-v8a/libstremio_core_kotlin.so"
     library.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(BUILD / "android-core-target/aarch64-linux-android/release/libstremio_core_kotlin.so", library)
     run(llvm / "llvm-strip", "--strip-unneeded", library)
     # The APK's license index, collected from the Cargo graph just compiled and the reviewed
     # record in third_party/notices; Gradle packages it as assets/licenses.
-    run("node", ROOT / "scripts/android-notices.mjs", "generate", "--cargo", toolchain_bin / "cargo", env=env)
+    engine_toolchain = re.search(r'^channel = "([^"]+)"', (ROOT / "apps/stream-engine/rust-toolchain.toml").read_text(), re.M).group(1)
+    engine_cargo = Path(subprocess.run([rustup, "which", "--toolchain", engine_toolchain, "cargo"],
+        capture_output=True, check=True, text=True).stdout.strip())
+    run("node", ROOT / "scripts/android-notices.mjs", "generate", "--cargo", toolchain_bin / "cargo",
+        "--engine-cargo", engine_cargo, env=env)
     fixture_symbols = [b"Java_app_kino_tv_PlaybackProbeActivity_requestPersistenceFixture", b"Java_app_kino_tv_PlaybackProbeActivity_configureCoreFixture"]
     exported = subprocess.run([llvm / "llvm-nm", "--dynamic", "--defined-only", library], capture_output=True, check=True).stdout
     if any(symbol in exported for symbol in fixture_symbols):

@@ -118,6 +118,8 @@ android {
     sourceSets["main"].jniLibs.srcDirs(
         // Media3's FFmpeg audio renderer, built by scripts/build-android.py.
         "../../../build/android-ffmpeg/jniLibs",
+        // The torrent engine, an executable the app runs; built by scripts/build-android.py.
+        "../../../build/android-engine/jniLibs",
     )
     sourceSets["main"].java.srcDirs(generatedTokens, "../../../build/android-ffmpeg/java")
     // The license index scripts/android-notices.mjs collects, packaged as assets/licenses.
@@ -129,6 +131,9 @@ android {
     sourceSets["benchmark"].java.srcDir("src/debug/java")
     sourceSets["benchmark"].manifest.srcFile("src/debug/AndroidManifest.xml")
     packaging {
+        // Android only extracts native libraries to disk when asked, and the torrent engine has to
+        // exist there to be executed.
+        jniLibs.useLegacyPackaging = true
         resources.merges +=
             setOf("META-INF/AL2.0", "META-INF/LGPL2.1", "META-INF/LICENSE", "META-INF/NOTICE")
     }
@@ -160,8 +165,20 @@ val requireLicenseNotices by
         }
     }
 
+// Without the engine every torrent source would fail at play time instead of at build time.
+val requireStreamEngine by
+    tasks.registering {
+        val engine = file("../../../build/android-engine/jniLibs/arm64-v8a/libkino_stream_engine.so")
+        doLast {
+            check(engine.exists()) {
+                "Missing $engine. Run `pnpm android:build`, which builds the torrent engine " +
+                    "before Gradle."
+            }
+        }
+    }
+
 tasks.named("preBuild") {
-    dependsOn(generateDesignTokens, requireFfmpegRenderer, requireLicenseNotices)
+    dependsOn(generateDesignTokens, requireFfmpegRenderer, requireLicenseNotices, requireStreamEngine)
 }
 
 dependencies {

@@ -106,6 +106,7 @@ private val ScopeLabels =
         "Application" to R.string.licenses_scope_application,
         "Playback and Core" to R.string.licenses_scope_playback,
         "Stremio Core" to R.string.licenses_scope_core,
+        "Torrent engine" to R.string.licenses_scope_engine,
         "Android libraries" to R.string.licenses_scope_android,
         "Fonts and icons" to R.string.licenses_scope_fonts,
     )

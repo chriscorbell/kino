@@ -35,6 +35,8 @@ class ShieldTestApplication : KinoApplication() {
     override val artworkProfile
         get() = fixtureProfile
 
+    override val engine by lazy { TvStreamEngine(this, fixtureProfile) }
+
     // Screens under test must never reach GitHub, or raise a notice for a real release. UpdateTest
     // builds its own updater against a feed it answers itself.
     override val updates by lazy {

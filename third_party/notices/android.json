@@ -608,5 +608,29 @@
         }
       ]
     }
+  ],
+  "engineCrates": [
+    {
+      "name": "rustls-platform-verifier-android",
+      "version": "0.1.1",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rustls/rustls-platform-verifier",
+      "revision": "da3d9c36f48fb9f8f97e94f132fdab67ab0fc75b",
+      "notes": "The crate archive omits its license. Recovered the workspace root licenses at the commit that released 0.1.1, which match the rustls-platform-verifier crate's own copies byte for byte.",
+      "files": [
+        {
+          "name": "LICENSE-MIT",
+          "path": "texts/1c7cf76689c837a68ed8d704994e52a0f2940c087958f860d17f3186afbdcc0c.txt",
+          "source": "https://raw.githubusercontent.com/rustls/rustls-platform-verifier/da3d9c36f48fb9f8f97e94f132fdab67ab0fc75b/LICENSE-MIT",
+          "sha256": "1c7cf76689c837a68ed8d704994e52a0f2940c087958f860d17f3186afbdcc0c"
+        },
+        {
+          "name": "LICENSE-APACHE",
+          "path": "texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
+          "source": "https://raw.githubusercontent.com/rustls/rustls-platform-verifier/da3d9c36f48fb9f8f97e94f132fdab67ab0fc75b/LICENSE-APACHE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ]
+    }
   ]
 }

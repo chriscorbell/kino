@@ -18,6 +18,10 @@ open class KinoApplication : Application(), SingletonImageLoader.Factory {
 
     internal open val updates by lazy { TvUpdates(this, settings) }
 
+    internal open val engine by lazy {
+        TvStreamEngine(this, if (accountProcess) "account" else "guest")
+    }
+
     protected open val artworkProfile
         get() = if (accountProcess) "account" else "guest"
 
