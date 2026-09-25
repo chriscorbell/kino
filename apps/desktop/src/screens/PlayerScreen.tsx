@@ -2,10 +2,8 @@ import {
   ArrowLeft,
   ArrowsIn,
   ArrowsOut,
-  Minus,
   Pause,
   Play,
-  Plus,
   SkipForward,
   SpeakerHigh,
   SpeakerSlash,
@@ -15,6 +13,7 @@ import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } fro
 
 import styles from '../App.module.css';
 import { AudioTrackPicker } from '../components/AudioTrackPicker';
+import { SubtitlePanel } from '../components/SubtitlePanel';
 import { parseAudioTracks, type AudioTrack } from '../player/audio';
 import {
   describeAddonSubtitle,
@@ -30,107 +29,23 @@ import { useCore } from '../core/context';
 import type { CoreTransport } from '../core/transport';
 import type { CoreVideo } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
-import {
-  lookupCommunityIntro,
-  markerFromChapterCues,
-  type ChapterCue,
-  type IntroMarker,
-} from '../intro/markers';
 import { t as enUS } from '../locales';
 import { connectNativePlayer, nativeShellPresent, type NativePlayer } from '../native/player';
+import { formatTime, nativeChapterCues, nativeErrorMessage } from '../player/nativeEvents';
 import {
   addonSubtitleLabel,
-  labelAddonSubtitles,
   parseSubtitleTracks,
   preferredSubtitleTrack,
-  labelSubtitleTracks,
   type AddonSubtitle,
   type SubtitleTrack,
 } from '../player/subtitles';
-import {
-  resolveFileIndex,
-  torrentCreateRequest,
-  torrentMediaUrl,
-  type TorrentSource,
-  type TorrentStats,
-} from '../player/torrent';
 import { subtitlePositionRange, subtitleSizeRange, type KinoSettings } from '../settings';
 import { videoParams } from '../player/videoParams';
 import { useFullscreen } from '../player/useFullscreen';
 import { useIdleControls } from '../player/useIdleControls';
-
-function formatTime(milliseconds: number) {
-  const seconds = Math.max(0, Math.floor(milliseconds / 1000));
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const remainder = seconds % 60;
-  const padded = (value: number) => String(value).padStart(2, '0');
-  return hours > 0
-    ? `${hours}:${padded(minutes)}:${padded(remainder)}`
-    : `${minutes}:${padded(remainder)}`;
-}
-
-function introIdentity(selection: PlaybackSelection, durationMs: number) {
-  const imdbId = /^tt\d+$/.test(selection.meta.id) ? selection.meta.id : null;
-  const { episode = null, season = null } = selection.video ?? {};
-  return {
-    durationMs,
-    ...(episode === null ? {} : { episode }),
-    ...(imdbId === null ? {} : { imdbId }),
-    ...(season === null ? {} : { season }),
-  };
-}
-
-function nativeErrorMessage(code: unknown) {
-  if (code === 'hardware-decoding-unavailable') {
-    return enUS.player.hardwareDecodingFailed;
-  }
-  if (code === 'render-context-unavailable') {
-    return enUS.player.rendererFailed;
-  }
-  if (code === 'player-unavailable') {
-    return enUS.player.playerUnavailable;
-  }
-  return enUS.player.nativePlaybackFailed;
-}
-
-function nativeChapterCues(value: unknown): ChapterCue[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((candidate): ChapterCue[] => {
-    if (!candidate || typeof candidate !== 'object') return [];
-    const { startMs, title } = candidate as Record<string, unknown>;
-    return typeof startMs === 'number' && Number.isFinite(startMs) && typeof title === 'string'
-      ? [{ startMs, title }]
-      : [];
-  });
-}
-
-function AdjustRow({
-  label,
-  onDecrease,
-  onIncrease,
-  value,
-}: {
-  label: string;
-  onDecrease: () => void;
-  onIncrease: () => void;
-  value: string;
-}) {
-  return (
-    <div className={styles.subtitleAdjustRow}>
-      <span>{label}</span>
-      <span className={styles.subtitleAdjustControls}>
-        <button aria-label={enUS.player.decrease(label)} onClick={onDecrease} type="button">
-          <Minus aria-hidden size={14} />
-        </button>
-        <span className={styles.subtitleAdjustValue}>{value}</span>
-        <button aria-label={enUS.player.increase(label)} onClick={onIncrease} type="button">
-          <Plus aria-hidden size={14} />
-        </button>
-      </span>
-    </div>
-  );
-}
+import { useIntroSkip } from '../player/useIntroSkip';
+import { usePlayerKeyboard } from '../player/usePlayerKeyboard';
+import { useTorrentStream } from '../player/useTorrentStream';
 
 export function PlayerScreen({
   onBack,
@@ -162,7 +77,6 @@ export function PlayerScreen({
   const [shutdownError, setShutdownError] = useState<string | null>(null);
   const lastProgressRef = useRef(0);
   const resumeAppliedRef = useRef(false);
-  const autoSkipSuppressedRef = useRef(false);
   const [duration, setDuration] = useState(0);
   const [time, setTime] = useState(0);
   const [paused, setPaused] = useState(true);
@@ -176,14 +90,6 @@ export function PlayerScreen({
     fullscreen,
     toggle: toggleFullscreen,
   } = useFullscreen(containerRef, nativePlayer);
-  const [chapterCues, setChapterCues] = useState<ChapterCue[]>([]);
-  const [communityLookup, setCommunityLookup] = useState<{
-    selection: PlaybackSelection;
-    duration: number;
-    marker: IntroMarker | null;
-  } | null>(null);
-  const [automaticSkipComplete, setAutomaticSkipComplete] = useState(false);
-  const [automaticNotice, setAutomaticNotice] = useState(false);
   const [audioTracks, setAudioTracks] = useState<AudioTrack[]>([]);
   const [audioMenuOpen, setAudioMenuOpen] = useState(false);
   const [subtitleTracks, setSubtitleTracks] = useState<SubtitleTrack[]>([]);
@@ -210,8 +116,6 @@ export function PlayerScreen({
   }));
   const videoParamsReportedRef = useRef(false);
   const [ended, setEnded] = useState(false);
-  const [torrentUrl, setTorrentUrl] = useState<string | null>(null);
-  const [engineUrl, setEngineUrl] = useState<string | null>(null);
   const result = useCoreModel(
     'player',
     loadPlayerAction(selection),
@@ -220,55 +124,19 @@ export function PlayerScreen({
   );
   const resolved = result.state?.stream?.type === 'Ready' ? result.state.stream.content : null;
   const resolvedTorrent = resolved?.source.kind === 'torrent' ? resolved.source : null;
-  // Every Player snapshot rebuilds the adapted stream, so a progress or subtitle
-  // update would hand the effects below a new object for the same torrent and
-  // restart the streaming engine mid-transfer. Hold it steady by its own value.
-  // The adapter already checked these fields and keeps each peer hint verbatim,
-  // so the key has to be lossless: a hint may contain any characters, and
-  // splitting one apart would invent a tracker the add-on never offered.
-  const torrentKey = resolvedTorrent === null ? null : JSON.stringify(resolvedTorrent);
-  const torrent = useMemo<TorrentSource | null>(
-    () => (torrentKey === null ? null : (JSON.parse(torrentKey) as TorrentSource)),
-    [torrentKey],
-  );
   // Core wraps direct streams with proxy headers in a URL for the account's
   // Stremio Service. The native backend can send those headers itself, using
   // the original source URL independently of that service's address.
   const chosen = selection.stream.source;
   const directUrl = chosen.kind === 'url' && chosen.url.startsWith('https://') ? chosen.url : null;
-  const streamUrl = resolved
-    ? torrent
-      ? torrentUrl
-      : (directUrl ?? (resolved.source.kind === 'url' ? resolved.source.url : null))
-    : null;
   const requestHeaders = useMemo(
     () => (directUrl ? (selection.stream.hints.proxyRequestHeaders ?? {}) : {}),
     [directUrl, selection.stream],
   );
   const resumeTime = result.state?.libraryItem?.timeOffset ?? 0;
   const nativeShell = nativeShellPresent();
-  const controlsVisible = useIdleControls(
-    topbarRef,
-    controlsRef,
-    paused ||
-      buffering ||
-      subtitleMenuOpen ||
-      audioMenuOpen ||
-      result.loading ||
-      !streamUrl ||
-      Boolean(shutdownError || fullscreenError),
-  );
   const addonSubtitles = useMemo(() => result.state?.subtitles ?? [], [result.state?.subtitles]);
   const selectedSubtitleId = subtitleTracks.find((track) => track.selected)?.id ?? null;
-  const chapterMarker = useMemo(
-    () => markerFromChapterCues(chapterCues, duration),
-    [chapterCues, duration],
-  );
-  const communityMarker =
-    communityLookup?.selection === selection && communityLookup.duration === duration
-      ? communityLookup.marker
-      : null;
-  const marker = chapterMarker ?? communityMarker;
   const nearEnd =
     Number.isFinite(duration) &&
     duration > 0 &&
@@ -401,6 +269,24 @@ export function PlayerScreen({
     [finishPlayback, onSourceFailure],
   );
 
+  const { torrent, torrentUrl } = useTorrentStream(resolvedTorrent, nativePlayer, reportFailure);
+  const streamUrl = resolved
+    ? torrent
+      ? torrentUrl
+      : (directUrl ?? (resolved.source.kind === 'url' ? resolved.source.url : null))
+    : null;
+  const controlsVisible = useIdleControls(
+    topbarRef,
+    controlsRef,
+    paused ||
+      buffering ||
+      subtitleMenuOpen ||
+      audioMenuOpen ||
+      result.loading ||
+      !streamUrl ||
+      Boolean(shutdownError || fullscreenError),
+  );
+
   const togglePlayback = useCallback(() => {
     if (closingRef.current) return;
     if (nativePlayer) {
@@ -468,6 +354,39 @@ export function PlayerScreen({
       videoRef.current.muted = nextMuted;
     }
   }, [muted, nativePlayer]);
+
+  const intro = useIntroSkip({
+    automatic: settings.automaticIntroSkipping,
+    duration,
+    nativePlayer,
+    reportProgress,
+    seekTo,
+    selection,
+    time,
+    videoRef,
+  });
+  const { marker, setChapterCues } = intro;
+
+  const currentTime = useCallback(
+    () => (nativePlayer ? playbackRef.current.time : (videoRef.current?.currentTime ?? 0) * 1000),
+    [nativePlayer],
+  );
+  const reportSeek = useCallback(() => reportProgress(true), [reportProgress]);
+  const hasPlayer = useCallback(() => Boolean(nativePlayer || videoRef.current), [nativePlayer]);
+  usePlayerKeyboard({
+    hasPlayer,
+    changeVolume,
+    currentTime,
+    exitFullscreen,
+    fullscreen,
+    menuOpen: subtitleMenuOpen || audioMenuOpen,
+    onSeek: reportSeek,
+    seekTo,
+    toggleFullscreen,
+    toggleMuted,
+    togglePlayback,
+    volume,
+  });
 
   const selectSubtitleTrack = (id: number | null) => {
     if (!nativePlayer) return;
@@ -584,49 +503,6 @@ export function PlayerScreen({
       window.removeEventListener('keydown', onKeyDown);
     };
   }, [subtitleMenuOpen]);
-
-  useEffect(() => {
-    if (!torrent || !nativePlayer) return;
-    const onEngine = (url: string, error: string) => {
-      if (error) {
-        reportFailure(error);
-      } else if (url) {
-        setEngineUrl(url);
-      }
-    };
-    nativePlayer.streamingEngineChanged.connect(onEngine);
-    nativePlayer.startStreamingEngine();
-    return () => nativePlayer.streamingEngineChanged.disconnect(onEngine);
-  }, [nativePlayer, reportFailure, torrent]);
-
-  useEffect(() => {
-    if (!torrent || !engineUrl || torrentUrl) return;
-    const controller = new AbortController();
-    const request = torrentCreateRequest(engineUrl, torrent);
-
-    void fetch(request.createUrl, {
-      body: JSON.stringify(request.body),
-      headers: { 'Content-Type': 'application/json' },
-      method: 'POST',
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`Engine returned ${response.status}.`);
-        const stats = (await response.json()) as TorrentStats;
-        const fileIndex = resolveFileIndex(torrent, stats);
-        if (fileIndex === null) {
-          throw new Error('The engine could not identify a playable file.');
-        }
-        setTorrentUrl(torrentMediaUrl(engineUrl, torrent, fileIndex));
-      })
-      .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === 'AbortError') return;
-        reportFailure(enUS.player.torrentFailed, {
-          code: error instanceof Error ? error.message : 'UnknownError',
-        });
-      });
-    return () => controller.abort();
-  }, [engineUrl, reportFailure, torrent, torrentUrl]);
 
   useEffect(() => {
     if (!nativePlayer || !streamUrl) return;
@@ -764,6 +640,7 @@ export function PlayerScreen({
     reportMediaReady,
     reportProgress,
     requestHeaders,
+    setChapterCues,
     settings.audioOutput,
     preferredAudioLanguage,
     selection.meta.id,
@@ -808,140 +685,6 @@ export function PlayerScreen({
     }, 0);
     return () => window.clearTimeout(timeout);
   }, [duration, resumeTime, seekTo]);
-
-  useEffect(() => {
-    if (!duration || chapterMarker) return;
-
-    const controller = new AbortController();
-    void lookupCommunityIntro(introIdentity(selection, duration), controller.signal)
-      .then((communityMarker) => {
-        if (controller.signal.aborted) return;
-        setCommunityLookup({ selection, duration, marker: communityMarker });
-        console.info(
-          communityMarker
-            ? '[kino:intro] trusted community marker'
-            : '[kino:intro] no trusted community marker',
-          communityMarker ?? '',
-        );
-      })
-      .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === 'AbortError') return;
-        console.info(
-          '[kino:intro] community lookup failed',
-          error instanceof Error ? error.message : error,
-        );
-      });
-    return () => controller.abort();
-  }, [chapterMarker, duration, selection]);
-
-  useEffect(() => {
-    if (
-      !marker ||
-      !settings.automaticIntroSkipping ||
-      automaticSkipComplete ||
-      autoSkipSuppressedRef.current
-    )
-      return;
-    if (time < marker.startMs || time >= marker.endMs) return;
-    if (!nativePlayer && !videoRef.current) return;
-    seekTo(marker.endMs);
-    setAutomaticSkipComplete(true);
-    setAutomaticNotice(true);
-    reportProgress(true);
-  }, [
-    automaticSkipComplete,
-    marker,
-    nativePlayer,
-    reportProgress,
-    seekTo,
-    settings.automaticIntroSkipping,
-    time,
-  ]);
-
-  useEffect(() => {
-    if (!automaticNotice) return;
-    const timeout = window.setTimeout(() => setAutomaticNotice(false), 8_000);
-    return () => window.clearTimeout(timeout);
-  }, [automaticNotice]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (
-        event.defaultPrevented ||
-        event.repeat ||
-        event.isComposing ||
-        event.altKey ||
-        event.ctrlKey ||
-        event.metaKey ||
-        event.shiftKey
-      )
-        return;
-      if (event.key === 'Escape') {
-        if (!subtitleMenuOpen && !audioMenuOpen && fullscreen) {
-          event.preventDefault();
-          exitFullscreen();
-        }
-        return;
-      }
-      // Focused controls own Space, arrows, and text entry. In particular the
-      // timeline's native arrow step must not become a global ten-second seek.
-      if (
-        event.target instanceof Element &&
-        event.target.closest(
-          'button, input, textarea, select, summary, a[href], [contenteditable], ' +
-            '[role="menu"], [role="menubar"], [role="menuitem"], [role="listbox"], ' +
-            '[role="option"], [role="combobox"], [role="textbox"], [role="slider"], [role="button"]',
-        )
-      )
-        return;
-      const video = videoRef.current;
-      if (!nativePlayer && !video) return;
-      if (event.code === 'Space' || event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        togglePlayback();
-      } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-        event.preventDefault();
-        const currentTime = nativePlayer
-          ? playbackRef.current.time
-          : (video?.currentTime ?? 0) * 1000;
-        seekTo(Math.max(0, currentTime + (event.key === 'ArrowRight' ? 10_000 : -10_000)));
-        reportProgress(true);
-      } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-        event.preventDefault();
-        changeVolume(volume + (event.key === 'ArrowUp' ? 5 : -5));
-      } else if (event.key.toLowerCase() === 'm') {
-        event.preventDefault();
-        toggleMuted();
-      } else if (event.key.toLowerCase() === 'f') {
-        event.preventDefault();
-        toggleFullscreen();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [
-    changeVolume,
-    volume,
-    exitFullscreen,
-    fullscreen,
-    nativePlayer,
-    reportProgress,
-    seekTo,
-    subtitleMenuOpen,
-    audioMenuOpen,
-    toggleFullscreen,
-    toggleMuted,
-    togglePlayback,
-  ]);
-
-  const insideIntro = Boolean(marker && time >= marker.startMs && time < marker.endMs);
-  const markerStyle = useMemo(() => {
-    if (!marker || duration <= 0) return undefined;
-    return {
-      left: `${(marker.startMs / duration) * 100}%`,
-      width: `${((marker.endMs - marker.startMs) / duration) * 100}%`,
-    };
-  }, [duration, marker]);
 
   return (
     <div
@@ -1048,17 +791,9 @@ export function PlayerScreen({
       </div>
 
       {settings.skipIntroButton &&
-      insideIntro &&
-      (!settings.automaticIntroSkipping || automaticSkipComplete) ? (
-        <button
-          className={styles.skipIntro}
-          onClick={() => {
-            if (!marker) return;
-            seekTo(marker.endMs);
-            reportProgress(true);
-          }}
-          type="button"
-        >
+      intro.insideIntro &&
+      (!settings.automaticIntroSkipping || intro.automaticSkipComplete) ? (
+        <button className={styles.skipIntro} onClick={intro.skip} type="button">
           {enUS.player.skipIntro}
           <SkipForward aria-hidden size={16} weight="fill" />
         </button>
@@ -1082,18 +817,10 @@ export function PlayerScreen({
         </div>
       ) : null}
 
-      {automaticNotice && marker ? (
+      {intro.automaticNotice && marker ? (
         <div className={styles.skipNotice} role="status">
           <span>{enUS.player.introSkipped}</span>
-          <button
-            onClick={() => {
-              autoSkipSuppressedRef.current = true;
-              seekTo(marker.startMs);
-              setAutomaticNotice(false);
-              reportProgress(true);
-            }}
-            type="button"
-          >
+          <button onClick={intro.undoAutomaticSkip} type="button">
             {enUS.player.undo}
           </button>
         </div>
@@ -1102,66 +829,22 @@ export function PlayerScreen({
       {streamUrl ? (
         <div className={styles.playerControls} ref={controlsRef}>
           {subtitleMenuOpen && nativePlayer ? (
-            <div
-              aria-label={enUS.player.subtitles}
-              className={styles.subtitlePanel}
-              ref={subtitleMenuRef}
-            >
-              <div className={styles.subtitleTrackList}>
-                <button
-                  aria-pressed={selectedSubtitleId === null}
-                  onClick={() => selectSubtitleTrack(null)}
-                  type="button"
-                >
-                  {enUS.player.subtitlesOff}
-                </button>
-                {labelSubtitleTracks(subtitleTracks).map(({ label, track }) => (
-                  <button
-                    aria-pressed={track.id === selectedSubtitleId}
-                    key={track.id}
-                    onClick={() => selectSubtitleTrack(track.id)}
-                    type="button"
-                  >
-                    {label}
-                  </button>
-                ))}
-                {addonSubtitles.some((subtitle) => !addedSubtitleUrls.has(subtitle.url)) ? (
-                  <span className={styles.subtitleGroupLabel}>{enUS.player.subtitlesAddons}</span>
-                ) : null}
-                {labelAddonSubtitles(
-                  addonSubtitles.filter((subtitle) => !addedSubtitleUrls.has(subtitle.url)),
-                ).map(({ label, subtitle }) => (
-                  <button
-                    aria-pressed={false}
-                    key={subtitle.id}
-                    onClick={() => addAddonSubtitle(subtitle)}
-                    type="button"
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <div className={styles.subtitleAdjust}>
-                <AdjustRow
-                  label={enUS.player.subtitleDelay}
-                  onDecrease={() => changeSubtitleDelay(-500)}
-                  onIncrease={() => changeSubtitleDelay(500)}
-                  value={enUS.player.subtitleDelayValue(subtitleDelayMs)}
-                />
-                <AdjustRow
-                  label={enUS.player.subtitleSize}
-                  onDecrease={() => changeSubtitleSize(-10)}
-                  onIncrease={() => changeSubtitleSize(10)}
-                  value={enUS.format.percent(settings.subtitleSize)}
-                />
-                <AdjustRow
-                  label={enUS.player.subtitlePosition}
-                  onDecrease={() => changeSubtitlePosition(-5)}
-                  onIncrease={() => changeSubtitlePosition(5)}
-                  value={enUS.format.percent(settings.subtitlePosition)}
-                />
-              </div>
-            </div>
+            <SubtitlePanel
+              addonSubtitles={addonSubtitles.filter(
+                (subtitle) => !addedSubtitleUrls.has(subtitle.url),
+              )}
+              delayMs={subtitleDelayMs}
+              onAddAddon={addAddonSubtitle}
+              onDelay={changeSubtitleDelay}
+              onPosition={changeSubtitlePosition}
+              onSelect={selectSubtitleTrack}
+              onSize={changeSubtitleSize}
+              panelRef={subtitleMenuRef}
+              position={settings.subtitlePosition}
+              selectedId={selectedSubtitleId}
+              size={settings.subtitleSize}
+              tracks={subtitleTracks}
+            />
           ) : null}
           {fullscreenError ? (
             <div className={styles.fullscreenError} role="alert">
@@ -1169,7 +852,9 @@ export function PlayerScreen({
             </div>
           ) : null}
           <div className={styles.timeline}>
-            {markerStyle ? <span className={styles.introRange} style={markerStyle} /> : null}
+            {intro.markerStyle ? (
+              <span className={styles.introRange} style={intro.markerStyle} />
+            ) : null}
             <input
               aria-label={enUS.player.playbackPosition}
               max={duration || 1}
