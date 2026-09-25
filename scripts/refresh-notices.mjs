@@ -6,9 +6,12 @@
 //
 //   node scripts/refresh-notices.mjs <formula> [<formula>...]
 //   node scripts/refresh-notices.mjs --accept <formula>   after reviewing the changed texts
+//   node scripts/refresh-notices.mjs --release <formula>  for the release Homebrew ships now
 //
-// The new version is the installed keg's, the same one packaging reads. Nothing is trusted from a
-// cache: each archive is downloaded again and its SHA256 recorded.
+// The new version is the installed keg's, the same one packaging reads. CI installs whatever
+// Homebrew ships, so a formula can move there before it moves on this machine; --release reads the
+// current formula from homebrew-core instead of the local keg, which it leaves alone. Nothing is
+// trusted from a cache: each archive is downloaded again and its SHA256 recorded.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -20,6 +23,24 @@ const noticesDir = join(root, 'third_party', 'notices');
 const reviewedPath = join(noticesDir, 'reviewed.json');
 const cache = join(root, 'build', 'notices-cache');
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
+
+/** The version and Ruby source Homebrew ships now, read without updating or installing anything. */
+async function releasedFormula(formula) {
+  const response = await fetch(`https://formulae.brew.sh/api/formula/${formula}.json`);
+  assert.ok(response.ok, `Homebrew has no formula ${formula}`);
+  const info = await response.json();
+  const version = info.versions.stable + (info.revision ? `_${info.revision}` : '');
+  const source = await fetch(
+    `https://raw.githubusercontent.com/Homebrew/homebrew-core/HEAD/${info.ruby_source_path}`,
+  );
+  assert.ok(source.ok, `Cannot read the ${formula} formula`);
+  const ruby = await source.text();
+  assert.ok(
+    ruby.includes(info.versions.stable),
+    `The ${formula} formula no longer describes ${info.versions.stable}`,
+  );
+  return { version, ruby };
+}
 
 function installedVersion(formula) {
   const info = JSON.parse(
@@ -34,10 +55,11 @@ function installedVersion(formula) {
  * Revisions the formula's stable build vendors as resources, by GitHub repository. A release can
  * move them without its own URL changing, so pinned-commit texts follow these, not the old pins.
  */
-function resourceRevisions(formula) {
-  const stable = execFileSync('brew', ['cat', formula], { encoding: 'utf8' }).split(
-    /^\s*head do/m,
-  )[0];
+function resourceRevisions(
+  formula,
+  ruby = execFileSync('brew', ['cat', formula], { encoding: 'utf8' }),
+) {
+  const stable = ruby.split(/^\s*head do/m)[0];
   const revisions = new Map();
   for (const match of stable.matchAll(
     /url\s+"https:\/\/github\.com\/([^/"]+\/[^/".]+)(?:\.git)?",\s*revision:\s*"([0-9a-f]{40})"/g,
@@ -92,18 +114,20 @@ async function fetchText(source) {
 
 const reviewed = JSON.parse(readFileSync(reviewedPath, 'utf8'));
 const accept = process.argv.includes('--accept');
+const release = process.argv.includes('--release');
 let failed = false;
-for (const formula of process.argv.slice(2).filter((argument) => argument !== '--accept')) {
+for (const formula of process.argv.slice(2).filter((argument) => !argument.startsWith('--'))) {
   const entry = reviewed.homebrew.find((item) => item.name === formula);
   assert.ok(entry, `No reviewed supplement for ${formula}`);
-  const version = installedVersion(formula);
+  const released = release ? await releasedFormula(formula) : null;
+  const version = released?.version ?? installedVersion(formula);
   if (entry.version === version) {
     console.log(`${formula} ${version} is already reviewed.`);
     continue;
   }
   const from = entry.sourceVersion ?? sourceVersion(entry.version);
   const to = sourceVersion(version);
-  const revisions = resourceRevisions(formula);
+  const revisions = resourceRevisions(formula, released?.ruby);
   const changed = [];
   const statements = [];
   const files = [];

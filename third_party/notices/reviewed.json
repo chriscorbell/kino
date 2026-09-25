@@ -10133,67 +10133,67 @@
     },
     {
       "name": "libtorrent-rasterbar",
-      "version": "2.1.1_1",
+      "version": "2.1.2",
       "license": "BSD-3-Clause",
       "repository": "https://github.com/arvidn/libtorrent",
       "files": [
         {
           "path": "texts/f4b492afbde73d2f4e051050a619622876a13b77e7b8b6ea3ec2868a6929b31b.txt",
-          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.1/libtorrent-rasterbar-2.1.1.tar.gz#libtorrent-rasterbar-2.1.1/COPYING",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.2/libtorrent-rasterbar-2.1.2.tar.gz#libtorrent-rasterbar-2.1.2/COPYING",
           "sha256": "f4b492afbde73d2f4e051050a619622876a13b77e7b8b6ea3ec2868a6929b31b",
           "name": "COPYING"
         },
         {
           "path": "texts/77d319baf9b855d3f41e7a8a05ce90d407be1396b16a362bea2351bff7e3ce46.txt",
-          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.1/libtorrent-rasterbar-2.1.1.tar.gz#libtorrent-rasterbar-2.1.1/LICENSE",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.2/libtorrent-rasterbar-2.1.2.tar.gz#libtorrent-rasterbar-2.1.2/LICENSE",
           "sha256": "77d319baf9b855d3f41e7a8a05ce90d407be1396b16a362bea2351bff7e3ce46",
           "name": "LICENSE"
         },
         {
           "path": "texts/fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85.txt",
-          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.1/libtorrent-rasterbar-2.1.1.tar.gz#libtorrent-rasterbar-2.1.1/deps/libdatachannel/LICENSE",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.2/libtorrent-rasterbar-2.1.2.tar.gz#libtorrent-rasterbar-2.1.2/deps/libdatachannel/LICENSE",
           "sha256": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85",
           "name": "LICENSE"
         },
         {
           "path": "texts/fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85.txt",
-          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.1/libtorrent-rasterbar-2.1.1.tar.gz#libtorrent-rasterbar-2.1.1/deps/libdatachannel/deps/libjuice/LICENSE",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.2/libtorrent-rasterbar-2.1.2.tar.gz#libtorrent-rasterbar-2.1.2/deps/libdatachannel/deps/libjuice/LICENSE",
           "sha256": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85",
           "name": "LICENSE"
         },
         {
           "path": "texts/e4d01796524cbc13b1571a1f0914823c6a23b316ba039e7014f47a4eef7fd4c3.txt",
-          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.1/libtorrent-rasterbar-2.1.1.tar.gz#libtorrent-rasterbar-2.1.1/deps/libdatachannel/deps/plog/LICENSE",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.2/libtorrent-rasterbar-2.1.2.tar.gz#libtorrent-rasterbar-2.1.2/deps/libdatachannel/deps/plog/LICENSE",
           "sha256": "e4d01796524cbc13b1571a1f0914823c6a23b316ba039e7014f47a4eef7fd4c3",
           "name": "LICENSE"
         },
         {
           "path": "texts/fa53711b25af4b9a9b8dadfea3cb38166ec4b96760c8d62b284055554537d9ef.txt",
-          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.1/libtorrent-rasterbar-2.1.1.tar.gz#libtorrent-rasterbar-2.1.1/deps/libdatachannel/deps/usrsctp/LICENSE.md",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.2/libtorrent-rasterbar-2.1.2.tar.gz#libtorrent-rasterbar-2.1.2/deps/libdatachannel/deps/usrsctp/LICENSE.md",
           "sha256": "fa53711b25af4b9a9b8dadfea3cb38166ec4b96760c8d62b284055554537d9ef",
           "name": "LICENSE.md"
         },
         {
           "path": "texts/18a7c1435a7a7ebc120a181c7309d0d7dfcbec76be4950ff23c9aa37f9c93725.txt",
-          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.1/libtorrent-rasterbar-2.1.1.tar.gz#libtorrent-rasterbar-2.1.1/deps/try_signal/LICENSE",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.2/libtorrent-rasterbar-2.1.2.tar.gz#libtorrent-rasterbar-2.1.2/deps/try_signal/LICENSE",
           "sha256": "18a7c1435a7a7ebc120a181c7309d0d7dfcbec76be4950ff23c9aa37f9c93725",
           "name": "LICENSE"
         },
         {
           "path": "texts/7a8be3114e2ebd39c83fe8a95ef2b97f4abe1ea85a56d3a75a0b9e54852424e5.txt",
-          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.1/libtorrent-rasterbar-2.1.1.tar.gz#libtorrent-rasterbar-2.1.1/include/libtorrent/aux_/puff.hpp",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.2/libtorrent-rasterbar-2.1.2.tar.gz#libtorrent-rasterbar-2.1.2/include/libtorrent/aux_/puff.hpp",
           "sha256": "7a8be3114e2ebd39c83fe8a95ef2b97f4abe1ea85a56d3a75a0b9e54852424e5",
           "name": "puff.hpp"
         },
         {
           "path": "texts/3a32fc91cdb7ea12d0acc468072ae4e9de163939872ff277391032d8d4fc8929.txt",
-          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.1/libtorrent-rasterbar-2.1.1.tar.gz#libtorrent-rasterbar-2.1.1/include/libtorrent/aux_/route.h",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.2/libtorrent-rasterbar-2.1.2.tar.gz#libtorrent-rasterbar-2.1.2/include/libtorrent/aux_/route.h",
           "sha256": "3a32fc91cdb7ea12d0acc468072ae4e9de163939872ff277391032d8d4fc8929",
           "name": "route.h"
         },
         {
           "path": "texts/74390004d59f722f396bbc961e509a31f2aca8e01942c7b2f9fce14aab4e3803.txt",
-          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.1/libtorrent-rasterbar-2.1.1.tar.gz#libtorrent-rasterbar-2.1.1/src/ed25519/LICENSE",
+          "source": "https://github.com/arvidn/libtorrent/releases/download/v2.1.2/libtorrent-rasterbar-2.1.2.tar.gz#libtorrent-rasterbar-2.1.2/src/ed25519/LICENSE",
           "sha256": "74390004d59f722f396bbc961e509a31f2aca8e01942c7b2f9fce14aab4e3803",
           "name": "LICENSE"
         },
