@@ -56,11 +56,23 @@ internal class TvRemote(private val instrumentation: Instrumentation) {
     fun focused(node: AccessibilityNodeInfo): Boolean {
         var target: AccessibilityNodeInfo? = node
         while (target != null) {
-            if (target.isFocused) return true
+            if (target.fresh().isFocused) return true
             target = target.parent
         }
         return false
     }
+
+    /**
+     * The window's current focus. Node reads come from UiAutomation's cache, which a test that
+     * follows another in the same process can find stale: the card on screen holds focus while its
+     * cached node still says it does not. Asking the window for its input focus reads it afresh.
+     */
+    private fun focusedNode(): AccessibilityNodeInfo? =
+        instrumentation.uiAutomation.rootInActiveWindow
+            ?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+            ?.fresh()
+
+    private fun AccessibilityNodeInfo.fresh() = apply { refresh() }
 
     /**
      * Whether focus is on the control labelled [text], whichever node carries the label: the
@@ -69,18 +81,19 @@ internal class TvRemote(private val instrumentation: Instrumentation) {
     fun focusedOn(text: String): Boolean {
         fun labelled(node: AccessibilityNodeInfo): Boolean =
             node.text?.contains(text) == true || node.contentDescription?.contains(text) == true
+        // A focusable descendant is a control of its own. Without this, a focused container, such
+        // as the whole Compose view, would count as focused on every label inside it.
         fun inside(node: AccessibilityNodeInfo): Boolean =
-            labelled(node) || (0 until node.childCount).any { node.getChild(it)?.let(::inside) == true }
-        val focusedNode = visible().firstOrNull { it.isFocused } ?: return false
+            labelled(node) ||
+                (0 until node.childCount).any { index ->
+                    node.getChild(index)?.takeUnless { it.isFocusable }?.let(::inside) == true
+                }
+        val focusedNode = focusedNode() ?: return false
         return inside(focusedNode) || node(text)?.let(::focused) == true
     }
 
     fun focusedLabel(): String =
-        visible()
-            .firstOrNull { it.isFocused }
-            ?.let { it.contentDescription ?: it.text ?: "" }
-            ?.toString()
-            .orEmpty()
+        focusedNode()?.let { it.contentDescription ?: it.text ?: "" }?.toString().orEmpty()
 
     /** Whether the control whose own label is exactly [text] holds focus. */
     fun focusedExact(text: String): Boolean {
@@ -89,7 +102,7 @@ internal class TvRemote(private val instrumentation: Instrumentation) {
                 it.text?.toString() == text || it.contentDescription?.toString() == text
             } ?: return false
         while (!target.isFocusable && target.parent != null) target = target.parent
-        return target.isFocused
+        return target.fresh().isFocused
     }
 
     /** Focuses the control whose own label is exactly [text], for labels that others contain. */
@@ -129,7 +142,9 @@ internal class TvRemote(private val instrumentation: Instrumentation) {
         }
         fail(
             reason +
-                " Visible nodes: " +
+                " Focused: " +
+                focusedLabel().ifEmpty { "nothing" } +
+                ". Visible nodes: " +
                 visible().mapNotNull { it.text ?: it.contentDescription }.joinToString(" | ")
         )
     }

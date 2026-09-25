@@ -167,12 +167,11 @@ class TvBrowseTest {
             )
             val seeAll = context.getString(R.string.see_all_title, "Kino popular Movies")
             remote.focus("Fixture 1")
-            // Twelve titles, then See all as the row's last stop.
-            remote.pressUntil(KeyEvent.KEYCODE_DPAD_RIGHT, "See all ends the row", limit = 20) {
-                remote.node(seeAll) != null
-            }
-            remote.focus(seeAll)
-            remote.waitUntil("See all takes focus") { remote.focusedOn(seeAll) }
+            // Twelve titles, then See all as the row's last stop. The presses are counted rather
+            // than watched: after an earlier test in the same process, accessibility can report
+            // the whole view as focused instead of the card, so what opens is the proof.
+            repeat(12) { remote.key(KeyEvent.KEYCODE_DPAD_RIGHT) }
+            remote.waitFor(seeAll)
             remote.key(KeyEvent.KEYCODE_DPAD_CENTER)
             remote.waitUntil("See all opens the row's own catalog") {
                 opened.get() == fixture.catalogRequest
