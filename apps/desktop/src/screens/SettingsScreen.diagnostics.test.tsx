@@ -5,6 +5,7 @@ import { defaultSettings } from '../settings';
 import { SettingsScreen } from './SettingsScreen';
 
 const fixture = vi.hoisted(() => ({
+  refreshMatching: true,
   connectPlayer: vi.fn().mockResolvedValue(null),
   diagnostics: {
     cacheBytes: vi.fn().mockResolvedValue(0),
@@ -18,10 +19,23 @@ vi.mock('../native/player', () => ({
   nativeShellPresent: () => true,
   connectNativeDiagnostics: async () => fixture.diagnostics,
   connectNativePlayer: fixture.connectPlayer,
+  refreshMatchingAvailable: () => fixture.refreshMatching,
 }));
 vi.mock('../core/context', () => ({ useCore: () => ({ transport: null }) }));
 vi.mock('../core/useCoreModel', () => ({ useCoreModel: () => ({ state: null }) }));
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  fixture.refreshMatching = true;
+});
+
+it('offers Match refresh rate only where the shell can switch the display', () => {
+  const { unmount } = render(<SettingsScreen settings={defaultSettings} onChange={vi.fn()} />);
+  expect(screen.getByRole('switch', { name: /Match refresh rate/ })).toBeInTheDocument();
+  unmount();
+  fixture.refreshMatching = false;
+  render(<SettingsScreen settings={defaultSettings} onChange={vi.fn()} />);
+  expect(screen.queryByRole('switch', { name: /Match refresh rate/ })).not.toBeInTheDocument();
+});
 
 it('offers storage controls without torrent configuration or starting the engine', async () => {
   render(<SettingsScreen settings={defaultSettings} onChange={vi.fn()} />);
