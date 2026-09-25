@@ -404,6 +404,13 @@ const fixtures = [
     expect: { outcome: 'played', externalSubtitle: true, outlinedSubtitles: true },
   },
   { file: 'chapters-intro.mkv', expect: { outcome: 'played', minChapters: 2 } },
+  {
+    file: 'h264-sdr-aac.mp4',
+    label: 'system-sleep',
+    note: 'a will-sleep notification pauses playback',
+    env: { KINO_PLAYBACK_PROBE_SLEEP: '1' },
+    expect: { outcome: 'paused-for-sleep' },
+  },
   { file: 'corrupt.mp4', expect: { outcome: 'failed' } },
   { file: 'missing.mkv', missing: true, expect: { outcome: 'failed' } },
 ];
@@ -412,6 +419,7 @@ function runProbe(fixture) {
   const mediaPath = join(fixturesDir, fixture.file);
   const env = { ...process.env, KINO_PLAYBACK_PROBE: mediaPath };
   if (fixture.subtitles) env.KINO_PLAYBACK_PROBE_SUBS = join(fixturesDir, fixture.subtitles);
+  Object.assign(env, fixture.env);
   const run = spawnSync(appBinary, [], { encoding: 'utf8', env, timeout: 60_000 });
   const line = (run.stdout ?? '')
     .split('\n')

@@ -1,6 +1,7 @@
 #include "playbackprobe.h"
 
 #include "mpvitem.h"
+#include "sleepobserver.h"
 
 #include <QCoreApplication>
 #include <QJsonDocument>
@@ -21,7 +22,8 @@ constexpr int kTimeoutMs = 30'000;
 
 PlaybackProbe::PlaybackProbe(MpvItem *player, const QString &mediaPath,
                              const QString &subtitlesPath, QObject *parent)
-    : QObject(parent), player_(player), mediaPath_(mediaPath), subtitlesPath_(subtitlesPath) {
+    : QObject(parent), sleepCheck_(qEnvironmentVariableIsSet("KINO_PLAYBACK_PROBE_SLEEP")),
+      player_(player), mediaPath_(mediaPath), subtitlesPath_(subtitlesPath) {
     timeout_.setInterval(kTimeoutMs);
     timeout_.setSingleShot(true);
     connect(&timeout_, &QTimer::timeout, this, [this]() { finish(QStringLiteral("timeout")); });
@@ -71,6 +73,10 @@ void PlaybackProbe::onPlayerEvent(const QString &name, const QVariantMap &payloa
             player_->addSubtitles(subtitlesPath_, QStringLiteral("Probe subtitles"),
                                   QStringLiteral("en"));
         }
+    } else if (name == QLatin1String("paused") && sleepPosted_ &&
+               payload.value(QStringLiteral("paused")).toBool()) {
+        finish(QStringLiteral("paused-for-sleep"));
+        return;
     } else if (name == QLatin1String("ended")) {
         finish(QStringLiteral("ended"));
         return;
@@ -79,6 +85,13 @@ void PlaybackProbe::onPlayerEvent(const QString &name, const QVariantMap &payloa
 }
 
 void PlaybackProbe::evaluate() {
+    if (sleepCheck_) {
+        if (hardwareDecoding_ && timeMs_ >= 1'000 && !sleepPosted_) {
+            sleepPosted_ = true;
+            postWillSleepForProbe();
+        }
+        return;
+    }
     if (hardwareDecoding_ && timeMs_ >= kRequiredPlaybackMs) {
         finish(QStringLiteral("played"));
     }

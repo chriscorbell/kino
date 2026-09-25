@@ -214,7 +214,12 @@ private:
 
 MpvItem::MpvItem(QQuickItem *parent)
     : QQuickFramebufferObject(parent), context_(std::make_shared<MpvContext>(this)),
-      handle_(context_->handle) {
+      handle_(context_->handle), sleepObserver_([this]() {
+          // Audio would otherwise start again by itself when the Mac wakes.
+          if (!active_ || paused_) return;
+          qInfo("[kino:mpv] paused for system sleep");
+          setPaused(true);
+      }) {
     if (!handle_) {
         throw std::runtime_error("could not create the mpv context");
     }
