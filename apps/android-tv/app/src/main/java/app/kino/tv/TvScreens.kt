@@ -603,8 +603,22 @@ internal fun PosterCard(
         media.year?.take(4)?.takeIf { it.all(Char::isDigit) }
             ?: stringResource(if (media.type == "movie") R.string.movie else R.string.series)
     // The card announces both lines. Its sibling captions must not repeat them as separate stops.
+    val episode =
+        if (resume && media.type == "series") episodeFromVideoId(media.id, media.videoId) else null
+    val episodeShort =
+        episode?.let { (season, number) ->
+            if (season == 0) stringResource(R.string.special_number, number)
+            else stringResource(R.string.episode_short, season, number)
+        }
+    val episodeLong =
+        episode?.let { (season, number) ->
+            if (season == 0) stringResource(R.string.special_number, number)
+            else stringResource(R.string.season_episode, season, number)
+        }
     val accessibilityLabel =
-        if (resume) stringResource(R.string.resume_title, media.title)
+        if (resume)
+            listOfNotNull(stringResource(R.string.resume_title, media.title), episodeLong)
+                .joinToString(", ")
         else listOf(media.title, caption).joinToString(", ")
     var artworkFailed by remember(media.poster) { mutableStateOf(false) }
     DisposableEffect(focusKey) {
@@ -689,9 +703,9 @@ internal fun PosterCard(
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
         )
-        if (!resume)
+        if (!resume || episodeShort != null)
             Text(
-                caption,
+                if (resume) episodeShort!! else caption,
                 Modifier.padding(top = 3.dp).clearAndSetSemantics {},
                 fontSize = 12.sp,
                 lineHeight = 16.sp,

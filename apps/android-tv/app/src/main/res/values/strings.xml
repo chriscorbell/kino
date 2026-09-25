@@ -89,6 +89,8 @@
     <string name="library_empty">Titles you save will appear here.</string>
     <string name="continue_watching">Continue Watching</string>
     <string name="resume_title">Resume %1$s</string>
+    <string name="episode_short">S%1$d E%2$d</string>
+    <string name="special_number">Special %1$d</string>
     <string name="continue_remove">Remove from Continue Watching</string>
     <string name="see_all">See all</string>
     <string name="signing_out">Signing out…</string>

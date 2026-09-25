@@ -28,3 +28,13 @@ internal fun initialSeason(videos: List<Video>): Int {
     val finale = episodes.all { it.seriesInfo != null } && episodes.lastOrNull()?.id == previous.id
     return if (finale) regular.firstOrNull { it > season } ?: season else season
 }
+
+/**
+ * Stremio series video ids follow `<title id>:<season>:<episode>`, which is all a saved library
+ * item keeps of its episode. Any other scheme stays unnamed rather than guessed.
+ */
+internal fun episodeFromVideoId(titleId: String, videoId: String?): Pair<Int, Int>? {
+    if (videoId == null || !videoId.startsWith("$titleId:")) return null
+    val match = Regex("""^(\d{1,4}):(\d{1,5})$""").find(videoId.removePrefix("$titleId:"))
+    return match?.let { it.groupValues[1].toInt() to it.groupValues[2].toInt() }
+}
