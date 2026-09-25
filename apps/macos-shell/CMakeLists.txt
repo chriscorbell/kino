@@ -24,6 +24,7 @@ find_package(
 # libmpv 2.4 (mpv 0.40) renamed the subtitle outline options Kino pins for
 # its caption style. An older library would reject them at startup.
 pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv>=2.4)
+find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
 find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
 find_library(IOKIT_FRAMEWORK IOKit REQUIRED)
 find_library(MEDIAPLAYER_FRAMEWORK MediaPlayer REQUIRED)
@@ -60,6 +61,7 @@ qt_add_executable(
   src/playbackprobe.cpp
   src/powerguard.cpp
   src/securestore.cpp
+  src/sleepobserver.mm
   src/streamengine.cpp
 )
 
@@ -103,6 +105,7 @@ target_link_libraries(
   Kino
   PRIVATE
     PkgConfig::MPV
+    ${APPKIT_FRAMEWORK}
     ${FOUNDATION_FRAMEWORK}
     ${IOKIT_FRAMEWORK}
     ${MEDIAPLAYER_FRAMEWORK}
@@ -180,11 +183,12 @@ if(BUILD_TESTING)
     tests/mpvitem_test.cpp
     src/mpvitem.cpp
     src/powerguard.cpp
+    src/sleepobserver.mm
   )
   target_include_directories(kino_mpvitem_test PRIVATE src)
   target_link_libraries(
     kino_mpvitem_test
-    PRIVATE PkgConfig::MPV ${IOKIT_FRAMEWORK} Qt6::Quick Qt6::Test
+    PRIVATE PkgConfig::MPV ${APPKIT_FRAMEWORK} ${IOKIT_FRAMEWORK} Qt6::Quick Qt6::Test
   )
   add_test(NAME mpvitem_properties COMMAND kino_mpvitem_test)
   set_tests_properties(mpvitem_properties PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
@@ -198,11 +202,12 @@ if(BUILD_TESTING)
     tests/render_lifetime_test.cpp
     src/mpvitem.cpp
     src/powerguard.cpp
+    src/sleepobserver.mm
   )
   target_include_directories(kino_render_lifetime_test PRIVATE src)
   target_link_libraries(
     kino_render_lifetime_test
-    PRIVATE kino_render_lifetime_guard PkgConfig::MPV ${IOKIT_FRAMEWORK} Qt6::Quick Qt6::Test
+    PRIVATE kino_render_lifetime_guard PkgConfig::MPV ${APPKIT_FRAMEWORK} ${IOKIT_FRAMEWORK} Qt6::Quick Qt6::Test
   )
   add_test(NAME render_lifetime COMMAND kino_render_lifetime_test)
   set_tests_properties(
@@ -224,9 +229,10 @@ if(BUILD_TESTING)
 
   qt_add_executable(kino_diagnostics_test
     tests/diagnostics_test.cpp src/diagnostics.cpp src/mpvitem.cpp src/powerguard.cpp
+    src/sleepobserver.mm
     src/streamengine.cpp src/logging.cpp)
   target_include_directories(kino_diagnostics_test PRIVATE src "${CMAKE_CURRENT_BINARY_DIR}/generated")
-  target_link_libraries(kino_diagnostics_test PRIVATE PkgConfig::MPV ${IOKIT_FRAMEWORK}
+  target_link_libraries(kino_diagnostics_test PRIVATE PkgConfig::MPV ${APPKIT_FRAMEWORK} ${IOKIT_FRAMEWORK}
     Qt6::Concurrent Qt6::Quick Qt6::WebEngineCore Qt6::Test)
   add_test(NAME diagnostic_summary COMMAND kino_diagnostics_test)
   set_tests_properties(diagnostic_summary PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")

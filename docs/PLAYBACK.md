@@ -65,7 +65,7 @@ PGS and other bitmap subtitles are images. Any background they contain is part o
 
 ## Controls and lifecycle
 
-Desktop provides Space or K for play/pause, arrow-key seeking, M for mute, and F for fullscreen. System media keys and the operating system Now Playing surface expose play, pause, seek, and metadata. Kino prevents display and system sleep only while video is actively playing.
+Desktop provides Space or K for play/pause, arrow-key seeking, M for mute, and F for fullscreen. System media keys and the operating system Now Playing surface expose play, pause, seek, and metadata. Kino prevents display and system sleep only while video is actively playing. If the Mac goes to sleep anyway, Kino pauses first, so playback does not start again by itself when it wakes; the `system-sleep` case in `pnpm macos:check-playback` delivers a will-sleep notification to the running player and expects it to pause.
 
 TV playback is always fullscreen. A directional key or OK reveals hidden controls without activating anything behind them, and the playback surface keeps remote focus for the whole session, including each time the controls hide again. Back first closes the active menu or hides controls; when neither is open, it stops playback, saves progress, and returns to the media details screen.
 

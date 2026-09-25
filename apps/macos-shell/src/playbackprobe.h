@@ -26,6 +26,10 @@ private:
     void finish(const QString &outcome, const QString &errorCode = QString());
 
     bool finished_ = false;
+    // KINO_PLAYBACK_PROBE_SLEEP: after a second of playback, deliver a system
+    // will-sleep notification and expect the player to pause.
+    bool sleepCheck_ = false;
+    bool sleepPosted_ = false;
     bool hardwareDecoding_ = false;
     bool subtitlesAdded_ = false;
     bool subtitleSelected_ = false;

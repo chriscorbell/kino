@@ -11,6 +11,7 @@
 #include <memory>
 
 #include "powerguard.h"
+#include "sleepobserver.h"
 
 class MpvRenderer;
 struct MpvContext;
@@ -76,6 +77,7 @@ private:
     std::shared_ptr<MpvContext> context_;
     mpv_handle *handle_ = nullptr;
     PowerGuard powerGuard_;
+    SleepObserver sleepObserver_;
     QTimer hardwareDecoderTimer_;
     // The first loadfile waits for the renderer's context. vo_libmpv fails
     // permanently for a file whose video starts before one exists.
