@@ -70,4 +70,17 @@ jobs:
             exit 1
           fi
           grep -E "native shell started|packaged UI loaded" "$log"
+          # A second launch, a sandbox of its own, finds the first and exits.
+          second=$(mktemp)
+          timeout 30 xvfb-run -a flatpak run --user --env=KINO_INSTANCE_NAME=ci-smoke \
+            com.chriscorbell.Kino >"$second" 2>&1 || true
+          for _ in $(seq 1 10); do
+            grep -q "brought forward by a second launch" "$log" && break
+            sleep 1
+          done
+          if ! grep -q "asked it to come forward" "$second" || ! grep -q "brought forward by a second launch" "$log"; then
+            sed -n '1,40p' "$second"
+            echo "A second launch did not reach the running Flatpak."
+            exit 1
+          fi
           pkill -f com.chriscorbell.Kino || true
