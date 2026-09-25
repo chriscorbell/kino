@@ -34,6 +34,9 @@ data class Media(
     val progress: Double? = null,
     val videoId: String? = null,
     val resume: Boolean = false,
+    /** Library state: marked watched, and episodes released since it was last watched. */
+    val watched: Boolean = false,
+    val newVideos: Int = 0,
 )
 
 internal fun Media.entryVideoId() =
@@ -660,6 +663,8 @@ class TvCore(
                 progress = it.progress / 100.0,
                 videoId = it.state.videoId,
                 resume = resume,
+                watched = it.watched,
+                newVideos = it.notifications.coerceIn(0, Int.MAX_VALUE.toLong()).toInt(),
             )
         }
 

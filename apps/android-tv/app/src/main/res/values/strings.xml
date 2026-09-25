@@ -49,6 +49,13 @@
     <string name="episodes">Episodes</string>
     <string name="add_library">Add to Library</string>
     <string name="remove_library">Remove from Library</string>
+    <string name="watched_badge">Watched</string>
+    <string name="new_episodes_badge">%1$d new</string>
+    <plurals name="new_episodes">
+        <item quantity="one">%1$d new episode</item>
+        <item quantity="other">%1$d new episodes</item>
+    </plurals>
+    <string name="progress_watched">%1$d%% watched</string>
     <string name="mark_watched">Mark as Watched</string>
     <string name="mark_unwatched">Mark as Unwatched</string>
     <string name="mark_season_watched">Mark Season Watched</string>
