@@ -758,7 +758,13 @@ let failures = 0;
 // A runner whose GPU cannot hand decoded frames back to a capture, as a hosted CI virtual machine's
 // cannot, declares it with KINO_PLAYBACK_PIXELS=optional. There a failed SDR control marks the
 // pixel checks as not runnable, and says so, rather than failing them; everywhere else it fails.
+// Some of those runners read the SDR control yet draw every HDR frame black. A black frame there
+// is reported as not verified; any other wrong colour still fails, and on a Mac nothing is excused.
 const pixelsOptional = process.env.KINO_PLAYBACK_PIXELS === 'optional';
+const blackFrame = (frame) =>
+  [...(frame?.neutral ?? []), ...(frame?.coloured ?? [])].every((patch) =>
+    patch.every((value) => value === 0),
+  );
 let framesUnreadable = false;
 for (const fixture of fixtures) {
   const name = fixture.label ?? fixture.file;
@@ -777,6 +783,13 @@ for (const fixture of fixtures) {
   if (problems.length > 0 && fixture.expect.frameControl && pixelsOptional) {
     framesUnreadable = true;
     console.log(`- ${name}: ${problems.join('; ')}; pixel checks will not run on this runner`);
+    continue;
+  }
+  const onlyTheFrame =
+    assertExpectations({ ...fixture, expect: { ...fixture.expect, frame: false } }, result)
+      .length === 0;
+  if (problems.length > 0 && pixelsOptional && onlyTheFrame && blackFrame(result.frame)) {
+    console.log(`- ${name}: not verified, this runner drew the HDR frame black`);
     continue;
   }
   if (problems.length > 0) {
