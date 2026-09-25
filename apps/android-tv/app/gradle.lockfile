@@ -235,6 +235,7 @@ io.grpc:grpc-services:1.57.2=_internal-unified-test-platform-core
 io.grpc:grpc-stub:1.57.2=_internal-unified-test-platform-core
 io.grpc:grpc-stub:1.69.1=_internal-unified-test-platform-android-test-plugin-host-emulator-control,_internal-unified-test-platform-android-test-plugin-result-listener-gradle
 io.grpc:grpc-util:1.69.1=_internal-unified-test-platform-android-test-plugin-host-emulator-control,_internal-unified-test-platform-android-test-plugin-result-listener-gradle
+io.nayuki:qrcodegen:1.8.0=benchmarkAndroidTestCompileClasspath,benchmarkCompileClasspath,benchmarkRuntimeClasspath,benchmarkUnitTestCompileClasspath,benchmarkUnitTestRuntimeClasspath,debugCompileClasspath,debugRuntimeClasspath,debugUnitTestCompileClasspath,debugUnitTestRuntimeClasspath,implementationDependenciesMetadata,releaseCompileClasspath,releaseRuntimeClasspath,releaseUnitTestCompileClasspath,releaseUnitTestRuntimeClasspath
 io.netty:netty-buffer:4.1.110.Final=_internal-unified-test-platform-android-test-plugin-host-emulator-control,_internal-unified-test-platform-android-test-plugin-result-listener-gradle
 io.netty:netty-buffer:4.1.93.Final=_internal-unified-test-platform-core
 io.netty:netty-codec-http2:4.1.110.Final=_internal-unified-test-platform-android-test-plugin-host-emulator-control,_internal-unified-test-platform-android-test-plugin-result-listener-gradle

@@ -8,6 +8,7 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.Border
 import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.MaterialTheme
@@ -24,6 +25,10 @@ internal val PosterWidth = 112.dp
 internal val PosterHeight = 168.dp
 internal val PageGutter = 32.dp
 internal val RailWidth = 72.dp
+
+// A dialog window takes the platform's default width, about 440 dp on the Shield, and squeezes
+// any wider panel inside it. Kino's wider dialogs size themselves instead.
+internal val WideDialog = DialogProperties(usePlatformDefaultWidth = false)
 
 @Composable
 internal fun kinoOutlinedBorder() =

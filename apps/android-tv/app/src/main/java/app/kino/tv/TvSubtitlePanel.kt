@@ -84,7 +84,7 @@ internal fun SubtitlePanel(
             addonSubtitles
                 .sortedBy { languageName(it.language) ?: it.language }
                 .map { SubtitleChoice.Addon(it) }
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = onDismiss, properties = WideDialog) {
         Row(
             Modifier.width(820.dp)
                 .heightIn(max = 520.dp)
