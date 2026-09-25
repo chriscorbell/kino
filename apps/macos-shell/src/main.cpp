@@ -18,7 +18,9 @@
 #include <QtWebEngineQuick/qtwebenginequickglobal.h>
 
 #include <clocale>
+#include <csignal>
 #include <cstdio>
+#include <memory>
 
 namespace {
 
@@ -119,10 +121,31 @@ int main(int argc, char *argv[]) {
     if (!closeProbe.isEmpty() && !engine.rootObjects().isEmpty()) {
         auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
         auto *lifecycle = window ? window->findChild<CloseCoordinator *>() : nullptr;
-        if (!lifecycle || (closeProbe != "window" && closeProbe != "quit")) return 1;
+        if (!lifecycle || (closeProbe != "window" && closeProbe != "quit" &&
+                           closeProbe != "interface-lost")) {
+            return 1;
+        }
         if (qEnvironmentVariableIsSet("KINO_SCALE_PROBE")) window->resize(window->minimumSize());
+        // interface-lost kills the web process once the page reports ready,
+        // then quits as soon as the shell has noticed, the way a user would
+        // after the window goes blank.
+        auto interfaceKilled = std::make_shared<bool>(false);
         QObject::connect(lifecycle, &CloseCoordinator::readyChanged, &app,
-                         [window, lifecycle, closeProbe]() {
+                         [window, lifecycle, closeProbe, interfaceKilled]() {
+            if (closeProbe == "interface-lost") {
+                if (lifecycle->ready() && !*interfaceKilled) {
+                    auto *view = window->findChild<QObject *>(QStringLiteral("webView"));
+                    const qint64 pid = view ? view->property("renderProcessPid").toLongLong() : 0;
+                    if (pid <= 0 || ::kill(static_cast<pid_t>(pid), SIGKILL) != 0) {
+                        QCoreApplication::exit(1);
+                        return;
+                    }
+                    *interfaceKilled = true;
+                } else if (!lifecycle->ready() && *interfaceKilled) {
+                    QTimer::singleShot(0, window, []() { QCoreApplication::quit(); });
+                }
+                return;
+            }
             if (!lifecycle->ready()) return;
             QTimer::singleShot(0, window, [window, closeProbe]() {
                 if (closeProbe == "quit") QCoreApplication::quit();

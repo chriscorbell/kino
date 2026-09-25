@@ -14,6 +14,7 @@ public:
     Q_INVOKABLE void setReady(bool ready);
     Q_INVOKABLE bool requestClose();
     Q_INVOKABLE void acknowledgeClose(int requestId, bool saved);
+    Q_INVOKABLE void interfaceLost();
 
 signals:
     void readyChanged();
@@ -27,6 +28,7 @@ private:
     bool ready_ = false;
     bool pending_ = false;
     bool approved_ = false;
+    bool unanswered_ = false;
     int requestId_ = 0;
     QTimer timeout_;
 };

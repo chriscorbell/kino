@@ -188,6 +188,7 @@ jobs:
           pnpm macos:check-track-choices
           pnpm macos:check-web-console
           pnpm macos:check-navigation
+          pnpm macos:check-interface-recovery
 
       # Packaging is a release-artifact check, not a correctness check, and it
       # is the slowest step in this job. Pull requests run it only when the
