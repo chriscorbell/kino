@@ -8,34 +8,28 @@ Source: Chris's instruction of 2026-09-25 to plan and implement a full-featured,
 
 ## Continuation facts
 
-- Work runs in milestone order: desktop stability and CI, releases and updates, Android TV daily driver, feature completeness, then Linux and Windows. Each chunk is its own pull request, squash-merged once CI passes.
+- Work runs in milestone order; Milestones 1, 3 and 4 are done, and Milestone 5 (Linux and Windows) is what remains. Each chunk is its own pull request, squash-merged once CI passes.
 - The `kardboard` ruleset requires one approving review with an admin bypass. Interactive work merges with `gh pr merge --squash --delete-branch --admin`, as `AGENTS.md` Shipping describes.
 - The development Shield answers at `10.0.0.191:5555`. If `adb connect` reports "No route to host" while `nc -z 10.0.0.191 5555` succeeds, restart the adb server (`adb kill-server`) and connect again.
 - The running desktop app can be driven without taking over the screen: launch `build/macos/Kino.app/Contents/MacOS/Kino` with `QTWEBENGINE_REMOTE_DEBUGGING=127.0.0.1:<port>` and use the DevTools protocol. Accessibility clicks do not reach WebEngine content.
-- The TV feature branches are stacked on the one-version change (#191) in this order: `feat/tv-hdr10-tone-mapping`, `feat/tv-discover-paging`, `feat/tv-subtitles`, `feat/tv-mark-watched`. Each passed its Shield tests when committed. After #191 merges, replay them with `git rebase --onto origin/main <#191's pre-merge commit>` and open one pull request per branch in that order. `build/release-workflow` also sits on #191.
 - After a Homebrew upgrade of mpv or its dependencies, CMake fails with "includes non-existent path". Delete `build/macos/CMakeCache.txt` and build again.
-- Windows (`gaming-pc`, PowerShell over SSH) and Linux with an AMD GPU (`minicore`) are reachable for Milestone 5 hardware checks.
+- Windows (`gaming-pc`, PowerShell over SSH) and Linux with an AMD GPU (`minicore`) exist for hardware checks, but a GUI started over SSH on Windows has no desktop, and minicore is a production server: installing packages there needs Chris's yes. Hardware playback checks are his.
+- Windows moves to Qt 6.11.2 (#247), the release macOS and the Flatpak use, so one Qt notices review covers all three. aqtinstall reads Qt 6.11's repository only from an unreleased commit; the Windows job runs it directly, with 7-Zip extracting one archive at a time.
+- Windows libmpv is moving to a Linux cross-build from pinned sources (`scripts/build-windows-mpv.sh` on `build/windows-libmpv`, sharing the Flatpak's pins). The SourceForge (shinchiro) build it replaces bundles about fifty libraries from moving git heads and records none of their revisions, so its notices could not be made exact.
+- The Windows engine's vcpkg baseline moves to a current vcpkg commit (patch 0009 in #243), which builds the reviewed Boost 1.92.0 and libtorrent 2.1.2; upstream's baseline builds Boost 1.89.0.
 
 ## Traps found on 2026-09-25
 
 - `cmake --build --parallel` with no count runs `make` unbounded and ignores `CMAKE_BUILD_PARALLEL_LEVEL`; on the three-core macOS runner that thrashed a two-minute compile into twenty-five (#229). Keep an explicit job count.
-- GitHub runs every stacked branch's workflows on each restack. Restacking the TV chain queues about eighteen runs; cancel superseded ones (`gh run cancel`) to free the account's runners.
-- `git rebase --onto origin/main <old base> <top branch> --update-refs` restacks a whole chain in one pass.
+- Every change to `.github/workflows/ci.yml` wakes the macOS native job and its packaging, and the account's macOS runners are the queue everything waits in. Iterate on Linux- or Windows-only CI in its own workflow file, or on a pushed branch without a pull request: `ci.yml` runs only for pull requests and `main`.
+- A pull request's CI tests its merge with the base at that moment. Merging the base into a stacked branch, rather than rebasing it, restacks without a force push.
+- The Flatpak CI image (`flatpak-github-actions:kde-6.11`) has neither `dnf` nor `apt-get`, and its Xvfb has no GLX. Chromium's GPU process then aborts ("GLOzone not found"), so the smoke run passes `--disable-gpu`; Qt itself draws through Mesa's EGL.
+- libmpv built without Lua has no `osc` option; the shell tolerates that one missing option.
+- GitHub's Windows runners have no OpenGL driver. The interface probes run a copy of the portable build with Mesa's llvmpipe beside `Kino.exe`.
+- Cargo's selected graph differs per target: the engine's Linux graph carried GTK, Wayland and X11 bindings for upstream's tray until patch 0008 left the tray out (#246). Review each target's graph, not the Mac's.
 - The Shield sleeps between sessions, and Media3 then renders no frames: every playback test fails with decoder timeouts. Send `KEYCODE_WAKEUP` before running instrumentation by hand (`pnpm android:check` already does).
 - Media3 1.9 buffers `file:` URIs as local playback with a one-second target; buffering gates must stream over HTTP.
 - TV dialogs need `WideDialog` (`usePlatformDefaultWidth = false`); the platform default is about 440 dp on the Shield.
-- `refactor/split-desktop-styles` exists locally only. After the desktop stack lands, rebase it by rerunning `build/tools/split-desktop-styles.mjs` on main rather than resolving conflicts, and compare with `build/tools/compare-desktop-css.mjs` against a build of main.
-
-## Milestone 5 inventory (2026-09-25)
-
-- The shell has no conditional compilation at all: every macOS dependency is compiled unconditionally.
-- Already behind neutral headers: `nowplaying.h` (MediaPlayer in `.mm`), `sleepobserver.h` (AppKit in `.mm`), `displaymode.h`. `powerguard.h` leaks IOKit types in its header.
-- Hard-coded: `hwdec=videotoolbox` and the `hwdec-current == "videotoolbox"` check in `mpvitem.cpp`; the `.app` paths `../Resources/ui` (`main.cpp`) and `../Resources/licenses` (`diagnostics.cpp`); the engine name without `.exe` (`streamengine.cpp`, `cmake/PackageEngine.cmake`); `::kill(SIGKILL)` in `main.cpp`; `architecture=arm64` in logs; "VideoToolbox required" in diagnostics.
-- Portable already: `tlsroots`, `streamengine` (QProcess), `securestore` (0600 file, ADR 0016), `logging`, `externalnavigation`, `addonnetwork`, `closecoordinator`.
-- macOS-only tests: `mpv_failure.cpp` and `render_lifetime_guard.cpp` use dyld interposition; `streamengine_test.cpp` uses `kill` and a Homebrew path.
-- Client: `en-US.ts` says "macOS secure store" and "hardware-decoded on this Mac"; `PlayerScreen.tsx` sends `device: 'kino-macos'`.
-- Probes run `build/macos/Kino.app/Contents/MacOS/Kino` unless `KINO_APP_BINARY` is set; most only assume that path.
-- minicore is a production Ubuntu Server running Chris's Docker stacks: installing build packages there needs his yes. Linux work runs in CI containers instead.
 
 ## Waiting on Chris
 
