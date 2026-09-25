@@ -257,9 +257,85 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: ctest --test-dir build/linux --output-on-failure --timeout 30
 
+  windows:
+    name: Windows shell build
+    needs: changes
+    if: needs.changes.outputs.native == 'true'
+    runs-on: windows-2025
+    timeout-minutes: 45
+    env:
+      # The newest Qt aqtinstall can install: from 6.11 the Qt repository is
+      # laid out per compiler, which aqtinstall 3.3 cannot read yet.
+      KINO_QT_VERSION: 6.10.3
+      # SourceForge keeps every libmpv build; the GitHub releases rotate out.
+      KINO_MPV_ARCHIVE: mpv-dev-x86_64-20260920-git-e76a35ec95.7z
+      KINO_MPV_SHA256: 60f9102db46aea8cef9bfb4345ee6a106f34fdbd1df9587e38f0660688039341
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+      - uses: jurplel/install-qt-action@a9c63c7c123f3069cff414e7e482d95dfa9d8125 # v4.4.1
+        with:
+          version: ${{ env.KINO_QT_VERSION }}
+          arch: win64_msvc2022_64
+          modules: qtwebengine qtwebchannel qtpositioning
+          cache: true
+      - name: Fetch libmpv and make its MSVC import library
+        shell: pwsh
+        run: |
+          $archive = "build/$env:KINO_MPV_ARCHIVE"
+          New-Item -ItemType Directory -Force build/mpv | Out-Null
+          # SourceForge answers some clients with a download page instead of
+          # the file; curl follows its redirects to the mirror.
+          curl.exe -fsSL -o $archive "https://downloads.sourceforge.net/project/mpv-player-windows/libmpv/$env:KINO_MPV_ARCHIVE"
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash -ne $env:KINO_MPV_SHA256) { throw 'libmpv archive checksum mismatch' }
+          7z x $archive -obuild/mpv -y | Out-Null
+          # The archive carries a MinGW import library only. MSVC gets one of
+          # its own, built from the DLL's export table.
+          $names = dumpbin /nologo /exports build/mpv/libmpv-2.dll |
+            Select-String '^\s+\d+\s+[0-9A-F]+\s+[0-9A-F]{8}\s+(\S+)' |
+            ForEach-Object { $_.Matches[0].Groups[1].Value }
+          if ($names.Count -lt 50) { throw 'libmpv exports could not be read' }
+          @('LIBRARY libmpv-2', 'EXPORTS') + $names | Set-Content build/mpv/mpv.def
+          lib /nologo /machine:x64 /def:build/mpv/mpv.def /out:build/mpv/mpv.lib
+          "$PWD\build\mpv" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+      - name: Compile the shell
+        shell: pwsh
+        run: |
+          cmake -S apps/macos-shell -B build/windows -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo `
+            -DBUILD_TESTING=ON "-DKINO_MPV_DIR=$PWD/build/mpv"
+          cmake --build build/windows --parallel $env:NUMBER_OF_PROCESSORS
+      - name: Run native unit tests
+        timeout-minutes: 5
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: ctest --test-dir build/windows --output-on-failure --timeout 30
+      # A portable folder: the shell, its interface, libmpv, and the Qt
+      # libraries and QML modules windeployqt finds it using.
+      - name: Package a portable build
+        shell: pwsh
+        run: |
+          $out = 'build/windows-package/Kino'
+          New-Item -ItemType Directory -Force $out | Out-Null
+          Copy-Item build/windows/Kino.exe $out
+          Copy-Item -Recurse build/windows/ui "$out/ui"
+          Copy-Item build/mpv/libmpv-2.dll $out
+          windeployqt --release --qmldir apps/macos-shell/qml --no-translations "$out/Kino.exe"
+          Compress-Archive -Path $out -DestinationPath build/windows-package/Kino-windows-x64.zip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Kino-windows-x64
+          path: build/windows-package/Kino-windows-x64.zip
+          retention-days: 7
+
   validate:
     name: Validate
-    needs: [changes, web, native, linux]
+    needs: [changes, web, native, linux, windows]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -270,6 +346,7 @@ jobs:
           KINO_WEB_RESULT: ${{ needs.web.result }}
           KINO_NATIVE_RESULT: ${{ needs.native.result }}
           KINO_LINUX_RESULT: ${{ needs.linux.result }}
+          KINO_WINDOWS_RESULT: ${{ needs.windows.result }}
           KINO_NATIVE_REQUIRED: ${{ needs.changes.outputs.native }}
         run: |
           test "$KINO_CHANGES_RESULT" = success
@@ -277,7 +354,9 @@ jobs:
           if test "$KINO_NATIVE_REQUIRED" = true; then
             test "$KINO_NATIVE_RESULT" = success
             test "$KINO_LINUX_RESULT" = success
+            test "$KINO_WINDOWS_RESULT" = success
           else
             test "$KINO_NATIVE_RESULT" = skipped
             test "$KINO_LINUX_RESULT" = skipped
+            test "$KINO_WINDOWS_RESULT" = skipped
           fi

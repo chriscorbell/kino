@@ -6,6 +6,7 @@
 #include <QFile>
 #include <QStandardPaths>
 #include <QTemporaryDir>
+#include <QThread>
 #include <QTimer>
 #include <QUuid>
 
@@ -24,9 +25,25 @@ QByteArray read(const QString &path) {
     require(file.open(QIODevice::ReadOnly), "could not read test log");
     return file.readAll();
 }
+
+// The fake engine: this test binary, started again by the shell with
+// KINO_LOGGING_HELPER set, so the fixture runs wherever the shell does.
+int runHelper() {
+    std::fputs("KINO_ENGINE_LOG WAR", stderr);
+    std::fflush(stderr);
+    QThread::msleep(30);
+    std::fputs("N engine:12 message=warning-detail\n", stderr);
+    std::fputs("KINO_ENGINE_LOG ERROR engine:13 message=failure-detail\n", stderr);
+    std::fputs("Authorization: Bearer SENTINEL_RAW\n", stderr);
+    std::fputs((QByteArray(20000, 'x') + "SENTINEL_LONG\n").constData(), stderr);
+    std::fputs("KINO_ENGINE_LOG INFO engine:14 message=last-detail", stderr);
+    std::fflush(stderr);
+    return 0;
+}
 } // namespace
 
 int main(int argc, char **argv) {
+    if (qEnvironmentVariableIsSet("KINO_LOGGING_HELPER")) return runHelper();
     QCoreApplication app(argc, argv);
     QStandardPaths::setTestModeEnabled(true);
     app.setApplicationName("KinoLoggingTest-" + QUuid::createUuid().toString(QUuid::WithoutBraces));
@@ -42,22 +59,8 @@ int main(int argc, char **argv) {
 
         // Exercise the actual QProcess pipe forwarding, including split writes,
         // levels, a trailing partial record, and unstructured sensitive output.
-        QFile helper(directory.filePath("helper.sh"));
-        require(helper.open(QIODevice::WriteOnly), "could not create helper fixture");
-        helper.write("#!/bin/sh\n"
-                     "printf 'KINO_ENGINE_LOG WAR' >&2\n"
-                     "/bin/sleep 0.03\n"
-                     "printf 'N engine:12 message=warning-detail\\n' >&2\n"
-                     "printf 'KINO_ENGINE_LOG ERROR engine:13 message=failure-detail\\n' >&2\n"
-                     "printf 'Authorization: Bearer SENTINEL_RAW\\n' >&2\n"
-                     "printf '");
-        helper.write(QByteArray(20000, 'x'));
-        helper.write("SENTINEL_LONG\\n' >&2\n"
-                     "printf 'KINO_ENGINE_LOG INFO engine:14 message=last-detail' >&2\n");
-        helper.close();
-        require(helper.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner |
-                                      QFileDevice::ExeOwner), "could not make helper executable");
-        qputenv("KINO_ENGINE_BINARY", helper.fileName().toUtf8());
+        qputenv("KINO_LOGGING_HELPER", "1");
+        qputenv("KINO_ENGINE_BINARY", QCoreApplication::applicationFilePath().toUtf8());
         {
             StreamEngine engine;
             QObject::connect(&engine, &StreamEngine::changed, &app, [&]() {
@@ -67,6 +70,7 @@ int main(int argc, char **argv) {
             engine.start();
             app.exec();
         }
+        qunsetenv("KINO_LOGGING_HELPER");
         const QByteArray forwarded = read(logs + "/kino.log");
         require(forwarded.contains("[WARN]") && forwarded.contains("warning-detail"),
                 "split warning did not reach the log");

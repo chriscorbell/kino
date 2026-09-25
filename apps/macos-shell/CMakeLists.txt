@@ -19,8 +19,14 @@ if(APPLE)
   set(CMAKE_OSX_DEPLOYMENT_TARGET 26.0 CACHE STRING "Minimum macOS version")
 endif()
 set(CMAKE_AUTOMOC ON)
+if(MSVC)
+  add_compile_options(/utf-8)
+endif()
+if(WIN32)
+  # windows.h would otherwise define min and max over the standard library's.
+  add_compile_definitions(NOMINMAX WIN32_LEAN_AND_MEAN)
+endif()
 
-find_package(PkgConfig REQUIRED)
 find_package(
   Qt6 6.8
   REQUIRED COMPONENTS
@@ -36,7 +42,26 @@ find_package(
 )
 # libmpv 2.4 (mpv 0.40) renamed the subtitle outline options Kino pins for
 # its caption style. An older library would reject them at startup.
-pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv>=2.4)
+add_library(kino_mpv INTERFACE)
+if(WIN32)
+  # Windows has no pkg-config. KINO_MPV_DIR holds libmpv's include directory
+  # and an MSVC import library, which CI generates from the DLL's exports.
+  set(KINO_MPV_DIR "" CACHE PATH "libmpv development files for Windows")
+  find_path(KINO_MPV_INCLUDE_DIR mpv/client.h HINTS "${KINO_MPV_DIR}/include" REQUIRED)
+  find_library(KINO_MPV_LIBRARY NAMES mpv libmpv HINTS "${KINO_MPV_DIR}" REQUIRED)
+  file(STRINGS "${KINO_MPV_INCLUDE_DIR}/mpv/client.h" KINO_MPV_API_LINE
+    REGEX "#define MPV_CLIENT_API_VERSION MPV_MAKE_VERSION")
+  string(REGEX MATCH "\\(([0-9]+), *([0-9]+)\\)" KINO_MPV_API "${KINO_MPV_API_LINE}")
+  if(CMAKE_MATCH_1 LESS 2 OR (CMAKE_MATCH_1 EQUAL 2 AND CMAKE_MATCH_2 LESS 4))
+    message(FATAL_ERROR "Kino needs libmpv client API 2.4 or newer")
+  endif()
+  target_include_directories(kino_mpv INTERFACE "${KINO_MPV_INCLUDE_DIR}")
+  target_link_libraries(kino_mpv INTERFACE "${KINO_MPV_LIBRARY}")
+else()
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv>=2.4)
+  target_link_libraries(kino_mpv INTERFACE PkgConfig::MPV)
+endif()
 
 # Each system supplies Now Playing, the sleep notice, the power guard and
 # display modes in files of its own behind the same headers. KINO_PLAYER_*
@@ -67,7 +92,7 @@ else()
 endif()
 set(KINO_PLAYER_SOURCES src/displaymode.cpp src/mpvitem.cpp src/platform.cpp src/tlsroots.cpp
   ${KINO_PLAYER_PLATFORM_SOURCES})
-set(KINO_PLAYER_LIBRARIES PkgConfig::MPV Qt6::Concurrent Qt6::Network Qt6::Quick
+set(KINO_PLAYER_LIBRARIES kino_mpv Qt6::Concurrent Qt6::Network Qt6::Quick
   ${KINO_PLAYER_PLATFORM_LIBRARIES})
 
 qt_standard_project_setup(REQUIRES 6.8)
@@ -173,11 +198,12 @@ set_target_properties(
     MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/Info.plist.in
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
     OUTPUT_NAME Kino
+    WIN32_EXECUTABLE TRUE
 )
 
 set(KINO_REPOSITORY_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 set(KINO_WEB_DIST ${KINO_REPOSITORY_ROOT}/apps/desktop/dist)
-find_program(PNPM_EXECUTABLE pnpm REQUIRED)
+find_program(PNPM_EXECUTABLE NAMES pnpm pnpm.cmd REQUIRED)
 
 add_custom_target(
   kino_web_ui
@@ -246,7 +272,7 @@ if(BUILD_TESTING)
   if(APPLE)
     # Interpose libmpv so startup fails the way a broken install would.
     add_library(kino_mpv_failure SHARED tests/mpv_failure.cpp)
-    target_link_libraries(kino_mpv_failure PRIVATE PkgConfig::MPV)
+    target_link_libraries(kino_mpv_failure PRIVATE kino_mpv)
     qt_add_executable(kino_mpvitem_unavailable_test tests/mpvitem_unavailable_test.cpp
       ${KINO_PLAYER_SOURCES})
     target_include_directories(kino_mpvitem_unavailable_test PRIVATE src)
@@ -262,7 +288,7 @@ if(BUILD_TESTING)
 
     # Interpose the real libmpv calls so wrong-context cleanup fails before UB.
     add_library(kino_render_lifetime_guard SHARED tests/render_lifetime_guard.cpp)
-    target_link_libraries(kino_render_lifetime_guard PRIVATE PkgConfig::MPV "-framework OpenGL")
+    target_link_libraries(kino_render_lifetime_guard PRIVATE kino_mpv "-framework OpenGL")
     target_compile_options(kino_render_lifetime_guard PRIVATE -Wno-deprecated-declarations)
     qt_add_executable(kino_render_lifetime_test tests/render_lifetime_test.cpp ${KINO_PLAYER_SOURCES})
     target_include_directories(kino_render_lifetime_test PRIVATE src)
