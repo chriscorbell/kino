@@ -57,6 +57,10 @@ fi
 # patch edit or removal, a hand edit, a stray file, and a failed attempt all
 # reconstruct; only a byte-identical tree is reused.
 kino_vendor_stamp="${kino_vendor_dir}.stamp"
+# Git Bash on Windows has sha256sum but not shasum.
+kino_sha256() {
+  if command -v shasum >/dev/null; then shasum -a 256; else sha256sum; fi
+}
 kino_vendor_state() {
   {
     printf '%s\n' "${KINO_ENGINE_REVISION}"
@@ -64,7 +68,7 @@ kino_vendor_state() {
     git -C "${kino_vendor_dir}" rev-parse HEAD 2>/dev/null || true
     git -C "${kino_vendor_dir}" status --porcelain 2>/dev/null || true
     git -C "${kino_vendor_dir}" diff 2>/dev/null || true
-  } | shasum -a 256 | awk '{print $1}'
+  } | kino_sha256 | awk '{print $1}'
 }
 
 if [[ -f "${kino_vendor_stamp}" && "$(cat "${kino_vendor_stamp}")" == "$(kino_vendor_state)" ]]; then
