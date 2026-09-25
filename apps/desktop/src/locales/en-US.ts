@@ -77,6 +77,8 @@ export const enUS = {
     movies: 'Movies',
     series: 'Series',
     catalogs: 'Catalogs',
+    seeAll: 'See all',
+    seeAllTitle: (row: string) => `See all ${row}`,
     loadingCatalogs: 'Loading catalogs…',
     catalogsEmpty: 'No catalogs are available from the installed add-ons.',
     catalogsUnavailable: 'Installed add-ons are present, but their catalogs returned no items.',

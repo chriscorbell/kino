@@ -16,7 +16,7 @@ pnpm install
 pnpm dev
 ```
 
-The client browses, searches, and resolves sources through the real Stremio Core. Library and Discover provide Load more controls. Failed later pages retain the visible titles and offer Retry. `pnpm core:check-pagination`, included in `pnpm check`, exercises the pinned WASM with 125 saved titles, duplicate catalog entries, delayed responses, failed-page retries and filter changes.
+The client browses, searches, and resolves sources through the real Stremio Core. Home gives each installed movie and series catalog its own row, named by its add-on, and See all opens that catalog in Discover. Library and Discover provide Load more controls. Failed later pages retain the visible titles and offer Retry. `pnpm core:check-pagination`, included in `pnpm check`, exercises the pinned WASM with 125 saved titles, duplicate catalog entries, delayed responses, failed-page retries and filter changes.
 
 Series show one season at a time in numeric episode order. The season selector only changes the list; choosing an episode opens its sources page. Back restores the selected season, scroll position, and focused episode, including after playback. `pnpm core:check-seasons` verifies initial season selection against Core's saved progress and watched state. `pnpm macos:check-seasons` drives the production interface in Qt WebEngine through season changes, delayed sources, playback return, and profile changes.
 

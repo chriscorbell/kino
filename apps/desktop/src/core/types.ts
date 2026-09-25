@@ -142,6 +142,8 @@ export interface CoreCatalog {
   content: Loadable<CoreMetaPreview[]> | null;
   id: string;
   name: string;
+  /** Opens this catalog in Discover. */
+  request: CatalogRequest | null;
   type: string;
 }
 

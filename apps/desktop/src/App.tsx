@@ -276,6 +276,15 @@ export function App() {
       case 'home':
         return (
           <HomeScreen
+            onDiscover={(request) => {
+              setEntry({
+                screen: 'discover',
+                state: { ...initialBrowseState(), discover: request },
+                scrollTop: 0,
+                focus: null,
+              });
+              setScreen('discover');
+            }}
             onOpen={openDetail}
             onResume={(item) => {
               openDetail(savedTitlePreview(item), item.videoId);

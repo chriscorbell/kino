@@ -36,6 +36,7 @@ function setup() {
             addon: { manifest: { id, name: id } },
             id,
             name: id,
+            request: null,
             type: 'movie',
             content: null,
           })),
@@ -77,6 +78,7 @@ function setup() {
             addon: { manifest: { id: 'one', name: 'one' } },
             id: 'one',
             name: 'one',
+            request: null,
             type: 'movie',
             content: {
               type: 'Ready',
@@ -150,6 +152,7 @@ it('keeps pending resources distinct from empty and retains successful results w
   const catalog = (id: string, content: BoardState['catalogs'][number]['content']) => ({
     id,
     name: id,
+    request: null,
     type: 'movie',
     addon: { manifest: { id, name: id } },
     content,

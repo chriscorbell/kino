@@ -205,6 +205,37 @@
   letter-spacing: -0.01em;
 }
 
+.homeSectionHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.homeSectionHeading h2 > span {
+  color: var(--kino-text-faint);
+  font-weight: 500;
+}
+
+.seeAll {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+  border: 0;
+  color: var(--kino-text-faint);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color var(--kino-duration-fast) ease;
+}
+
+.seeAll:hover {
+  color: var(--kino-text);
+}
+
 .detailSectionHeading {
   display: flex;
   align-items: baseline;
@@ -2059,6 +2090,7 @@
   .logoButton,
   .episodeWatched,
   .seasonWatched,
+  .seeAll,
   .navButton,
   .addonRemove,
   .secondaryButton,
