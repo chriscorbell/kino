@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
-import styles from '../App.module.css';
+import styles from '../styles/shared.module.css';
+import detailsStyles from '../styles/details.module.css';
 import { t } from '../locales';
 import { openExternalUrl } from '../native/externalNavigation';
 import { nativeShellPresent } from '../native/player';
@@ -31,7 +32,7 @@ export function ExternalSourceDialog({ url, onClose }: { url: URL; onClose: () =
     <dialog
       aria-labelledby="external-source-title"
       aria-describedby="external-source-description external-source-url"
-      className={`${styles.accountDialog} ${styles.externalDialog}`}
+      className={`${styles.accountDialog} ${detailsStyles.externalDialog}`}
       ref={dialogRef}
       onCancel={(event) => {
         event.preventDefault();
@@ -65,8 +66,8 @@ export function ExternalSourceDialog({ url, onClose }: { url: URL; onClose: () =
     >
       <h2 id="external-source-title">{t.details.externalConfirm}</h2>
       <p id="external-source-description">{t.details.externalDescription}</p>
-      <strong className={styles.externalHost}>{url.host}</strong>
-      <p className={styles.externalUrl} id="external-source-url" tabIndex={0}>
+      <strong className={detailsStyles.externalHost}>{url.host}</strong>
+      <p className={detailsStyles.externalUrl} id="external-source-url" tabIndex={0}>
         {url.href}
       </p>
       {failed ? (
@@ -74,7 +75,7 @@ export function ExternalSourceDialog({ url, onClose }: { url: URL; onClose: () =
           {t.details.externalFailed}
         </p>
       ) : null}
-      <div className={styles.externalActions}>
+      <div className={detailsStyles.externalActions}>
         <button
           className={styles.secondaryAction}
           disabled={pending}

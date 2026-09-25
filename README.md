@@ -51,7 +51,7 @@ The shell loads the packaged Kino UI, keeps Stremio authentication material in a
 pnpm macos:check-launch
 ```
 
-The shell also builds on Linux against Qt 6.8 and libmpv 2.4 or newer, and CI compiles it and runs its unit tests in an Ubuntu 26.04 container. Each operating system supplies its own media controls, sleep notice, display-sleep guard, and display modes behind the same headers: MediaPlayer, AppKit, IOKit, and CoreGraphics on macOS; MPRIS, logind, and the desktop portal on Linux, which cannot switch display modes; and on Windows the thread execution state, the suspend broadcast, and the display settings API, with no media session yet. Hardware decoding stays mandatory everywhere: VideoToolbox on macOS, VA-API or NVDEC on Linux, and Direct3D 11 on Windows. Linux and Windows are not packaged or validated on hardware yet.
+The shell also builds on Linux against Qt 6.8 and libmpv 2.4 or newer, and CI compiles it and runs its unit tests in an Ubuntu 26.04 container. Each operating system supplies its own media controls, sleep notice, display-sleep guard, and display modes behind the same headers: MediaPlayer, AppKit, IOKit, and CoreGraphics on macOS; MPRIS, logind, and the desktop portal on Linux, which cannot switch display modes; and on Windows the System Media Transport Controls, the thread execution state, the suspend broadcast, and the display settings API. Hardware decoding stays mandatory everywhere: VideoToolbox on macOS, VA-API or NVDEC on Linux, and Direct3D 11 on Windows. One Kino runs per profile: a second launch brings the first window forward and exits, so two processes never write the same profile; `pnpm macos:check-launch` checks the hand-over. Linux and Windows are not packaged or validated on hardware yet.
 
 Settings can copy a diagnostic summary with the application version and build kind, macOS, Qt, Core, player, and engine versions, and playback capabilities. The summary excludes account data, media URLs, paths, and log contents. External engine overrides report an unknown version. The `diagnostic_summary` CTest suite uses an offscreen clipboard contained within the test process.
 
@@ -86,6 +86,22 @@ KINO_LIFETIME_MEDIA="$PWD/build/fixtures/h264-sdr-aac.mp4" \
 Direct media uses the add-on's original HTTPS URL and required request headers in libmpv, independent of any Stremio Service URL saved in the account. TLS certificate verification is required, against the macOS system trust anchors: the bundled FFmpeg and libtorrent use Homebrew's OpenSSL, whose own certificate directory exists only on a Mac with Homebrew, so the shell exports the system roots at launch and hands that bundle to libmpv and the streaming engine. `pnpm macos:check-tls` plays HTTPS media with OpenSSL's certificate locations emptied and checks that an unknown authority is still rejected. The native header check drives the production WebChannel and player through a protected media request, external subtitles, and a second source. It verifies literal header values, prevents headers from carrying into subtitles or later sources, rejects header injection and untrusted certificates, and checks diagnostic output for synthetic credentials. It uses `openssl` for the untrusted certificate and generates a short H.264 fixture with `ffmpeg`, or uses `KINO_PLAYBACK_FIXTURE` when provided.
 
 Community intro markers require an exact known runtime. `pnpm intro:check` exercises the bundled client against HTTP fixtures, `pnpm macos:check-intro` repeats the match and cancellation checks in Qt WebEngine, and `pnpm android:check` drives the real Media3 player and remote on the Shield.
+
+### Linux and Windows shells
+
+The same shell builds on Linux and Windows; neither is packaged for release or checked on hardware yet. On Ubuntu 26.04, which is where Qt 6.8 and libmpv 2.4 first meet, install the build dependencies, then build and run the shell from the repository root:
+
+```sh
+sudo apt install build-essential cmake ninja-build pkg-config libmpv-dev qt6-base-dev qt6-declarative-dev qt6-webengine-dev qt6-webchannel-dev qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-window qml6-module-qtwebchannel qml6-module-qtwebengine
+pnpm install
+cmake -S apps/macos-shell -B build/linux -G Ninja
+cmake --build build/linux
+build/linux/Kino
+```
+
+CI's Linux job builds the same way in an Ubuntu 26.04 container, runs the unit tests, and runs the launch, navigation, focus and scale probes against the build on a virtual display.
+
+Windows builds with MSVC against Qt 6.10 with Qt WebEngine and a libmpv development archive. CMake takes the directory holding libmpv's `include` folder and an MSVC `mpv.lib` as `-DKINO_MPV_DIR`; the archive ships only a MinGW import library, so CI makes `mpv.lib` from the DLL's exports. The Windows job in `.github/workflows/ci.yml` is the exact recipe. It runs the unit tests and uploads a portable `Kino-windows-x64` zip, with the Qt libraries and `libmpv-2.dll` beside `Kino.exe`, that runs from any folder.
 
 ### Brand assets
 

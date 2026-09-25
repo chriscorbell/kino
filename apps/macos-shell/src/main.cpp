@@ -4,6 +4,7 @@
 #include "mpvitem.h"
 #include "platform.h"
 #include "playbackprobe.h"
+#include "singleinstance.h"
 #include "streamengine.h"
 #include "tlsroots.h"
 
@@ -102,6 +103,17 @@ int main(int argc, char *argv[]) {
         return app.exec();
     }
 
+    // Probes and development interfaces run beside a normal Kino; everything
+    // else hands over to the Kino already running for this profile. The launch
+    // probe names an instance of its own to check the hand-over.
+    const QString instanceName = qEnvironmentVariable("KINO_INSTANCE_NAME");
+    SingleInstance instance(instanceName);
+    const bool sharesProfile = qEnvironmentVariableIsEmpty("KINO_UI_URL") &&
+                               qEnvironmentVariableIsEmpty("KINO_CLOSE_PROBE") &&
+                               qEnvironmentVariableIsEmpty("KINO_SCALE_PROBE") &&
+                               qEnvironmentVariableIsEmpty("QTWEBENGINE_REMOTE_DEBUGGING");
+    if ((sharesProfile || !instanceName.isEmpty()) && !instance.claim()) return 0;
+
     QQmlApplicationEngine engine;
     auto *webProfile = new QQuickWebEngineProfile(QStringLiteral("kino"), &engine);
     webProfile->setHttpCacheType(QQuickWebEngineProfile::NoCache);
@@ -117,6 +129,15 @@ int main(int argc, char *argv[]) {
         QObject *root = engine.rootObjects().first();
         if (auto *diagnostics = root->findChild<Diagnostics *>()) {
             diagnostics->setSources(root->findChild<MpvItem *>(), root->findChild<StreamEngine *>());
+        }
+        if (auto *window = qobject_cast<QQuickWindow *>(root)) {
+            QObject::connect(&instance, &SingleInstance::activationRequested, window, [window]() {
+                qInfo("[kino:shell] brought forward by a second launch");
+                if (window->visibility() == QWindow::Minimized) window->showNormal();
+                else window->show();
+                window->raise();
+                window->requestActivate();
+            });
         }
     }
 

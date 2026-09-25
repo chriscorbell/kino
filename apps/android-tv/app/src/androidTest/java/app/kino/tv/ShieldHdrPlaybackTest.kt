@@ -217,8 +217,12 @@ class ShieldHdrPlaybackTest {
             )
         } finally {
             instrumentation.runOnMainSync { player.release() }
-            reader.close()
+            // Closing the reader invalidates the image a frame callback may still be copying,
+            // which crashed the test process; stop its thread first.
+            reader.setOnImageAvailableListener(null, null)
             readerThread.quitSafely()
+            readerThread.join(5_000)
+            reader.close()
             file.delete()
         }
     }

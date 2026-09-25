@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 
-import styles from '../App.module.css';
+import sharedStyles from '../styles/shared.module.css';
+import styles from '../styles/browse.module.css';
 import { ResourceFailures } from '../components/ResourceFailures';
 import { useResourceStates } from '../core/useResourceStates';
 import { MediaCard } from '../components/MediaCard';
@@ -70,8 +71,8 @@ export function SearchScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => vo
   const searching = pending || (!result.error && resources.pending);
 
   return (
-    <div className={styles.page}>
-      <h1 className={styles.visuallyHidden}>{enUS.search.title}</h1>
+    <div className={sharedStyles.page}>
+      <h1 className={sharedStyles.visuallyHidden}>{enUS.search.title}</h1>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -79,7 +80,7 @@ export function SearchScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => vo
         }}
         role="search"
       >
-        <label className={styles.visuallyHidden} htmlFor="catalog-search">
+        <label className={sharedStyles.visuallyHidden} htmlFor="catalog-search">
           {enUS.search.placeholder}
         </label>
         <input

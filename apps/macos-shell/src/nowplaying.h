@@ -26,8 +26,8 @@ signals:
     void toggleRequested();
 
 private:
-    // Hands the state to the system's media controls: MediaPlayer on macOS
-    // and MPRIS on Linux. Windows has no media session yet.
+    // Hands the state to the system's media controls: MediaPlayer on macOS,
+    // MPRIS on Linux, and the System Media Transport Controls on Windows.
     void publish();
     // Records what publish() just handed over, so setPosition republishes
     // only when the real position drifts from the system's projection.

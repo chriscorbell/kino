@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef } from 'react';
 
-import styles from '../App.module.css';
+import styles from '../styles/details.module.css';
 import { t } from '../locales';
 
 export function ResumeCover({ onCancel }: { onCancel: () => void }) {

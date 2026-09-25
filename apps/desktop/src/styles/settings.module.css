@@ -1,0 +1,151 @@
+.dialogClose {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: var(--kino-control-radius);
+  color: var(--kino-text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.dialogClose:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.accountCreate {
+  justify-self: center;
+  margin-top: 20px;
+  color: var(--kino-text-muted);
+  font-size: 13px;
+  text-underline-offset: 4px;
+}
+
+.settingsPage {
+  max-width: 704px;
+}
+
+.settingsGroup h2 {
+  margin: 0 0 12px;
+  color: var(--kino-text);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.settingsGroup {
+  margin-top: 34px;
+}
+
+.settingLabel {
+  display: block;
+  color: var(--kino-text);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.settingDescription {
+  display: block;
+  margin-top: 4px;
+  color: var(--kino-text-faint);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.switch {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--kino-pill-radius);
+  background: var(--kino-border);
+  cursor: pointer;
+  transition: background-color var(--kino-duration-fast) ease;
+}
+
+.switch span {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--kino-text-faint);
+  transition:
+    transform var(--kino-duration-fast) var(--kino-ease-out),
+    background-color var(--kino-duration-fast) ease;
+}
+
+.switchChecked {
+  background: var(--kino-accent);
+}
+
+.switchChecked span {
+  transform: translateX(16px);
+  background: var(--kino-on-accent);
+}
+
+.select {
+  min-width: 112px;
+  min-height: 36px;
+  padding: 0 30px 0 12px;
+  border: 1px solid var(--kino-border);
+  border-radius: var(--kino-control-radius);
+  color: var(--kino-text);
+  background: var(--kino-surface);
+  font: inherit;
+  font-size: 13px;
+}
+
+.activeValue {
+  color: var(--kino-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switch,
+  .switch span {
+    transition: none;
+  }
+}
+
+.updateActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.scaleRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 14px 0;
+}
+
+.scaleRow > label {
+  flex: 1 1 220px;
+}
+
+.scaleActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.scaleActions :disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.scaleError p {
+  color: var(--kino-danger);
+  font-size: 13px;
+}

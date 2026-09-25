@@ -100,5 +100,6 @@ new QWebChannel(qt.webChannelTransport, function(channel) {
 } finally {
   server.closeAllConnections();
   server.close();
-  rmSync(root, { recursive: true, force: true });
+  // The engine can still be finishing a write into its cache as Kino exits.
+  rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
 }

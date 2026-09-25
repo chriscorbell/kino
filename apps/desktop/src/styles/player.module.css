@@ -1,0 +1,431 @@
+.player {
+  position: fixed;
+  z-index: var(--kino-layer-dialog);
+  inset: 0;
+  overflow: hidden;
+  color: var(--kino-text);
+  background: #000;
+}
+
+.nativePlayer {
+  background: transparent;
+}
+
+.playerSurface {
+  position: absolute;
+  inset: 0;
+}
+
+.player video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.playerTopbar,
+.playerControls {
+  opacity: 1;
+  transition: opacity var(--kino-duration-fast) ease;
+}
+
+.player.controlsHidden,
+.player.controlsHidden * {
+  cursor: none;
+}
+
+.controlsHidden .playerTopbar,
+.controlsHidden .playerControls {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.playerTopbar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 24px 30px 70px;
+  background: linear-gradient(to bottom, rgb(0 0 0 / 78%), transparent);
+}
+
+.playerTopbar button,
+.controlRow button,
+.skipNotice button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--kino-control-radius);
+  color: var(--kino-text);
+  background: rgb(20 20 23 / 76%);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.playerTopbar > div {
+  display: grid;
+  gap: 3px;
+}
+
+.playerTopbar strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.playerTopbar span {
+  color: var(--kino-text-muted);
+  font-size: 12px;
+}
+
+.playerStatus {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  gap: 6px;
+  color: var(--kino-text-muted);
+  font-size: 13px;
+  text-align: center;
+  transform: translate(-50%, -50%);
+}
+
+.playerStatus strong {
+  color: var(--kino-text);
+  font-size: 16px;
+}
+
+.fullscreenError {
+  margin-bottom: 8px;
+  color: var(--kino-text);
+  font-size: 13px;
+  text-align: center;
+}
+
+.skipIntro {
+  position: absolute;
+  right: 36px;
+  bottom: 120px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 22px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--kino-on-accent);
+  background: var(--kino-accent);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  animation: enter var(--kino-duration-standard) var(--kino-ease-out);
+}
+
+.upNext {
+  position: absolute;
+  right: 36px;
+  bottom: 120px;
+  z-index: 2;
+  display: grid;
+  gap: 4px;
+  padding: 16px 18px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: var(--kino-panel-radius);
+  background: rgb(10 10 11 / 92%);
+  backdrop-filter: blur(12px);
+  animation: enter var(--kino-duration-standard) var(--kino-ease-out);
+}
+
+.upNextLabel {
+  color: var(--kino-text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.upNext strong {
+  max-width: 280px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.upNext button {
+  justify-self: start;
+  min-height: 32px;
+  margin-top: 8px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--kino-control-radius);
+  color: var(--kino-on-accent);
+  background: var(--kino-accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.skipNotice {
+  position: absolute;
+  right: 36px;
+  bottom: 120px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 8px 8px 16px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: var(--kino-control-radius);
+  background: rgb(10 10 11 / 88%);
+  font-size: 13px;
+}
+
+.skipNotice button {
+  min-height: 30px;
+  color: var(--kino-on-accent);
+  background: var(--kino-accent);
+}
+
+.playerControls {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 68px 30px 24px;
+  background: linear-gradient(to top, rgb(0 0 0 / 86%), transparent);
+}
+
+.timeline {
+  position: relative;
+  height: 18px;
+}
+
+.timelineHover {
+  position: absolute;
+  z-index: 3;
+  bottom: 22px;
+  padding: 3px 7px;
+  border-radius: var(--kino-control-radius);
+  color: var(--kino-text);
+  background: rgb(10 10 11 / 86%);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.timeline input {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  margin: 0;
+  accent-color: var(--kino-accent);
+  cursor: pointer;
+}
+
+/* How far the player has read ahead, drawn like the intro range beneath the
+   slider, which paints the played part over it. */
+.bufferedRange {
+  position: absolute;
+  z-index: 1;
+  top: 7px;
+  left: 0;
+  height: 4px;
+  border-radius: var(--kino-pill-radius);
+  background: rgb(255 255 255 / 24%);
+  pointer-events: none;
+}
+
+.introRange {
+  position: absolute;
+  z-index: 1;
+  top: 7px;
+  height: 4px;
+  border-radius: var(--kino-pill-radius);
+  background: #c9a96b;
+}
+
+.controlRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.controlRow button {
+  width: 40px;
+  flex-shrink: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.volumeSlider {
+  width: 88px;
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: var(--kino-accent);
+  cursor: pointer;
+}
+
+.timeLabel {
+  margin-right: auto;
+  color: var(--kino-text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.controlActive {
+  color: var(--kino-accent);
+}
+
+.subtitlePanel {
+  position: absolute;
+  right: 30px;
+  bottom: calc(100% - 44px);
+  display: grid;
+  overflow: hidden;
+  width: 264px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: var(--kino-panel-radius);
+  background: rgb(10 10 11 / 92%);
+  backdrop-filter: blur(14px);
+  animation: enter var(--kino-duration-standard) var(--kino-ease-out);
+}
+
+.subtitleTrackList {
+  display: grid;
+  overflow-y: auto;
+  max-height: 240px;
+  padding: 8px;
+}
+
+.subtitleTrackList button,
+.subtitleAdjustControls button {
+  display: flex;
+  align-items: center;
+  border: 0;
+  border-radius: var(--kino-control-radius);
+  color: var(--kino-text);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.subtitleTrackList button {
+  min-height: 34px;
+  justify-content: flex-start;
+  padding: 0 10px;
+  text-align: left;
+}
+
+.audioPanel .subtitleTrackList {
+  max-height: min(240px, 45dvh);
+}
+
+.audioPanel button {
+  width: 100%;
+}
+
+.subtitleTrackList button[aria-pressed='true'] {
+  color: var(--kino-accent);
+  background: rgb(255 255 255 / 7%);
+}
+
+.subtitleGroupLabel {
+  padding: 10px 10px 4px;
+  color: var(--kino-text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.subtitleAdjust {
+  display: grid;
+  gap: 2px;
+  padding: 10px;
+  border-top: 1px solid rgb(255 255 255 / 8%);
+}
+
+.subtitleAdjustRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.subtitleAdjustRow > span:first-child {
+  color: var(--kino-text-muted);
+}
+
+.subtitleAdjustControls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.subtitleAdjustControls button {
+  width: 28px;
+  min-height: 28px;
+  justify-content: center;
+  padding: 0;
+}
+
+.subtitleAdjustValue {
+  min-width: 48px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+  .playerControls {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .controlRow {
+    flex-wrap: wrap;
+  }
+
+  .volumeSlider {
+    width: 64px;
+  }
+
+  .timeLabel {
+    order: 1;
+    flex-basis: 100%;
+    margin: 4px 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skipIntro,
+  .subtitlePanel,
+  .upNext {
+    animation: none;
+  }
+
+  .playerTopbar,
+  .playerControls {
+    transition: none;
+  }
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

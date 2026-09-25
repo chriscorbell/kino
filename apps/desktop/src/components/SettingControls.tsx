@@ -1,4 +1,5 @@
-import styles from '../App.module.css';
+import sharedStyles from '../styles/shared.module.css';
+import styles from '../styles/settings.module.css';
 
 interface SettingSwitchProps {
   checked: boolean;
@@ -16,7 +17,7 @@ export function SettingSwitch({
   onChange,
 }: SettingSwitchProps) {
   return (
-    <div className={styles.settingRow}>
+    <div className={sharedStyles.settingRow}>
       <div>
         <div className={styles.settingLabel}>{label}</div>
         <div className={styles.settingDescription}>{description}</div>
@@ -54,7 +55,7 @@ export function SettingSelect({
   value: string;
 }) {
   return (
-    <label className={styles.settingRow} htmlFor={id}>
+    <label className={sharedStyles.settingRow} htmlFor={id}>
       <span>
         <span className={styles.settingLabel}>{label}</span>
         <span className={styles.settingDescription}>{description}</span>

@@ -1,7 +1,8 @@
 import { Trash } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 
-import styles from '../App.module.css';
+import sharedStyles from '../styles/shared.module.css';
+import styles from '../styles/addons.module.css';
 import { uninstallAddonAction } from '../core/actions';
 import { addonFromManifest, CoreContractError } from '../core/adapters';
 import {
@@ -157,7 +158,7 @@ export function AddonsScreen() {
     return url ? (
       <a
         aria-label={enUS.addons.configureTitle(addon.manifest.name)}
-        className={styles.secondaryButton}
+        className={sharedStyles.secondaryButton}
         href={url}
         onClick={(event) => {
           void configure(event, url);
@@ -179,12 +180,12 @@ export function AddonsScreen() {
   };
 
   return (
-    <div className={`${styles.page} ${styles.narrowPage}`}>
+    <div className={`${sharedStyles.page} ${styles.narrowPage}`}>
       <h1>{enUS.addons.title}</h1>
       <p className={styles.lede}>{enUS.addons.description}</p>
 
       <form className={styles.addonForm} onSubmit={install}>
-        <label className={styles.visuallyHidden} htmlFor="addon-url">
+        <label className={sharedStyles.visuallyHidden} htmlFor="addon-url">
           {enUS.addons.manifestLabel}
         </label>
         <input
@@ -213,7 +214,7 @@ export function AddonsScreen() {
           ) : null}
           <div className={styles.addonActions}>
             <button
-              className={styles.secondaryButton}
+              className={sharedStyles.secondaryButton}
               disabled={busy || pendingInstall.previous.some((addon) => addon.flags.protected)}
               onClick={() => {
                 void completeInstall(pendingInstall.addon, pendingInstall.previous);
@@ -223,7 +224,7 @@ export function AddonsScreen() {
               {enUS.addons.replaceExisting}
             </button>
             <button
-              className={styles.secondaryButton}
+              className={sharedStyles.secondaryButton}
               disabled={busy}
               onClick={() => {
                 void completeInstall(pendingInstall.addon);
@@ -233,7 +234,7 @@ export function AddonsScreen() {
               {enUS.addons.keepBoth}
             </button>
             <button
-              className={styles.secondaryButton}
+              className={sharedStyles.secondaryButton}
               disabled={busy}
               onClick={() => setPendingInstall(null)}
               type="button"
@@ -248,18 +249,18 @@ export function AddonsScreen() {
       ) : null}
       <div aria-live="polite">
         {message ? (
-          <p className={styles.inlineEmpty} role="status">
+          <p className={sharedStyles.inlineEmpty} role="status">
             {message}
           </p>
         ) : null}
         {error ? (
-          <p className={styles.loadError} role="alert">
+          <p className={sharedStyles.loadError} role="alert">
             {error}
           </p>
         ) : null}
-        {profile.loading ? <p className={styles.inlineEmpty}>{enUS.addons.loading}</p> : null}
+        {profile.loading ? <p className={sharedStyles.inlineEmpty}>{enUS.addons.loading}</p> : null}
         {!profile.loading && addons.length === 0 ? (
-          <p className={styles.inlineEmpty}>{enUS.addons.empty}</p>
+          <p className={sharedStyles.inlineEmpty}>{enUS.addons.empty}</p>
         ) : null}
       </div>
 

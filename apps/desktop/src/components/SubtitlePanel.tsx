@@ -1,7 +1,7 @@
 import { Minus, Plus } from '@phosphor-icons/react';
 import type { RefObject } from 'react';
 
-import styles from '../App.module.css';
+import styles from '../styles/player.module.css';
 import { t as enUS } from '../locales';
 import {
   labelAddonSubtitles,
