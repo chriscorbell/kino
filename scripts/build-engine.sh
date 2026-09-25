@@ -14,8 +14,18 @@ kino_target_dir="${kino_repo_root}/build/engine-target"
 # shellcheck source=/dev/null
 source "${kino_engine_dir}/engine.lock"
 
-if ! command -v cargo >/dev/null; then
-  echo "Rust is required to build the streaming engine: brew install rust" >&2
+# The engine is built with the Rust release pinned in rust-toolchain.toml, not
+# whatever compiler is first on PATH: packaging embeds its runtime and checks
+# that runtime's notices by compiler revision. KINO_CARGO overrides the command
+# for fixtures.
+kino_rust_channel="$(sed -n 's/^channel = "\(.*\)"$/\1/p' "${kino_engine_dir}/rust-toolchain.toml")"
+if [[ -n "${KINO_CARGO:-}" ]]; then
+  read -r -a kino_cargo <<< "${KINO_CARGO}"
+elif command -v rustup >/dev/null; then
+  rustup toolchain install "${kino_rust_channel}" --profile minimal --no-self-update >/dev/null
+  kino_cargo=(rustup run "${kino_rust_channel}" cargo)
+else
+  echo "rustup is required to build the streaming engine with Rust ${kino_rust_channel}: brew install rustup" >&2
   exit 1
 fi
 if ! pkg-config --exists libtorrent-rasterbar; then
@@ -67,10 +77,10 @@ else
 fi
 
 # Offline packaging reads locked package metadata, including inactive optional manifests.
-cargo fetch --locked --target aarch64-apple-darwin --manifest-path "${kino_engine_dir}/Cargo.toml"
+"${kino_cargo[@]}" fetch --locked --target aarch64-apple-darwin --manifest-path "${kino_engine_dir}/Cargo.toml"
 
 CXXFLAGS="${CXXFLAGS:-} -I$(brew --prefix)/include" \
   CARGO_TARGET_DIR="${kino_target_dir}" \
-  cargo build --locked --release --manifest-path "${kino_engine_dir}/Cargo.toml"
+  "${kino_cargo[@]}" build --locked --release --manifest-path "${kino_engine_dir}/Cargo.toml"
 
 echo "Built ${kino_target_dir}/release/kino-stream-engine"

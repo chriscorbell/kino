@@ -98,7 +98,7 @@ The launcher banner is not, because Google asks for one raster per density bucke
 Torrent sources play through a pinned build of the open [stream-server](https://github.com/stremio-native/stream-server) engine, which the shell starts on demand and binds to loopback. It is optional: without it Kino runs normally and reports torrent sources as unavailable. Build and bundle it with:
 
 ```sh
-brew install rust libtorrent-rasterbar boost
+brew install rustup libtorrent-rasterbar boost
 pnpm engine:build
 pnpm engine:check-profile
 pnpm engine:check-trackers
@@ -107,7 +107,7 @@ pnpm macos:check-engine
 pnpm macos:check-engine-ui
 ```
 
-Each engine build reconstructs `build/vendor/stream-server` from the pinned revision and current patches, then enforces Cargo's lockfile. Keep upstream changes in `apps/stream-engine/patches`; edits inside the generated vendor directory are discarded. `pnpm engine:check-vendor` checks patch changes and failed retries without requiring the native toolchain.
+Each engine build reconstructs `build/vendor/stream-server` from the pinned revision and current patches, then enforces Cargo's lockfile. It compiles with the Rust release pinned in `apps/stream-engine/rust-toolchain.toml`, through rustup, because packaging embeds that release's runtime and checks its notices by compiler revision. Keep upstream changes in `apps/stream-engine/patches`; edits inside the generated vendor directory are discarded. `pnpm engine:check-vendor` checks patch changes and failed retries without requiring the native toolchain.
 
 Audio and subtitle picker choices are saved on the current device per movie or show. A later episode inherits its show's choice; a replacement source matches by language, codec, and track variant. An absent remembered track falls back to the Settings language preference, and subtitle Off is remembered too. Desktop add-on subtitles use a fresh URL from Core's current response. `pnpm macos:check-track-choices` drives the React pickers and real libmpv through movie/show reopening, replacement and missing-track sources, Off, and add-on subtitles. `pnpm macos:check-audio` separately checks the native language preference and manual-switch bridge. The Shield suite exercises the same embedded-track behavior through Media3, including choosing Auto again.
 

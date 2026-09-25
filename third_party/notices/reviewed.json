@@ -4793,7 +4793,7 @@
           "name": "LICENSE"
         }
       ],
-      "authors": ["sarah qui\u00f1ones <sarah@veganb.tw>"],
+      "authors": ["sarah quiñones <sarah@veganb.tw>"],
       "status": "upstream-license-text",
       "declaration": {
         "path": "build/license-research/engine/evidence/pulp-wasm-simd-flag-0.1.1/Cargo.toml.orig",
@@ -9899,85 +9899,85 @@
   "homebrew": [
     {
       "name": "glib",
-      "version": "2.88.3",
+      "version": "2.90.0",
       "license": "LGPL-2.1-or-later",
       "repository": "https://gitlab.gnome.org/GNOME/glib",
       "files": [
         {
           "path": "texts/7ecc7db84298adb05d2cf10339c63a5315a1c5c270a68d97d7d40a53b508ccde.txt",
-          "source": "https://download.gnome.org/sources/glib/2.88/glib-2.88.3.tar.xz#glib-2.88.3/LICENSES/AFL-2.0.txt",
+          "source": "https://download.gnome.org/sources/glib/2.90/glib-2.90.0.tar.xz#glib-2.90.0/LICENSES/AFL-2.0.txt",
           "sha256": "7ecc7db84298adb05d2cf10339c63a5315a1c5c270a68d97d7d40a53b508ccde",
           "name": "AFL-2.0.txt"
         },
         {
           "path": "texts/074e6e32c86a4c0ef8b3ed25b721ca23aca83df277cd88106ef7177c354615ff.txt",
-          "source": "https://download.gnome.org/sources/glib/2.88/glib-2.88.3.tar.xz#glib-2.88.3/LICENSES/Apache-2.0.txt",
+          "source": "https://download.gnome.org/sources/glib/2.90/glib-2.90.0.tar.xz#glib-2.90.0/LICENSES/Apache-2.0.txt",
           "sha256": "074e6e32c86a4c0ef8b3ed25b721ca23aca83df277cd88106ef7177c354615ff",
           "name": "Apache-2.0.txt"
         },
         {
           "path": "texts/3f941b3b89cf7b8370ceb83cc76d2120d471b58735d8ca60238a751a48d7f72f.txt",
-          "source": "https://download.gnome.org/sources/glib/2.88/glib-2.88.3.tar.xz#glib-2.88.3/LICENSES/CC-BY-SA-3.0.txt",
+          "source": "https://download.gnome.org/sources/glib/2.90/glib-2.90.0.tar.xz#glib-2.90.0/LICENSES/CC-BY-SA-3.0.txt",
           "sha256": "3f941b3b89cf7b8370ceb83cc76d2120d471b58735d8ca60238a751a48d7f72f",
           "name": "CC-BY-SA-3.0.txt"
         },
         {
           "path": "texts/a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499.txt",
-          "source": "https://download.gnome.org/sources/glib/2.88/glib-2.88.3.tar.xz#glib-2.88.3/LICENSES/CC0-1.0.txt",
+          "source": "https://download.gnome.org/sources/glib/2.90/glib-2.90.0.tar.xz#glib-2.90.0/LICENSES/CC0-1.0.txt",
           "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
           "name": "CC0-1.0.txt"
         },
         {
           "path": "texts/aaf135472f81c5b4a0dca9367e5bb5e9750032b5bebe5442b36e4c0a47430df3.txt",
-          "source": "https://download.gnome.org/sources/glib/2.88/glib-2.88.3.tar.xz#glib-2.88.3/LICENSES/GPL-2.0-or-later.txt",
+          "source": "https://download.gnome.org/sources/glib/2.90/glib-2.90.0.tar.xz#glib-2.90.0/LICENSES/GPL-2.0-or-later.txt",
           "sha256": "aaf135472f81c5b4a0dca9367e5bb5e9750032b5bebe5442b36e4c0a47430df3",
           "name": "GPL-2.0-or-later.txt"
         },
         {
           "path": "texts/fa6f36630bb1e0c571d34b2bbdf188d08495c9dbf58f28cac112f303fc1f58fb.txt",
-          "source": "https://download.gnome.org/sources/glib/2.88/glib-2.88.3.tar.xz#glib-2.88.3/LICENSES/LGPL-2.1-only.txt",
+          "source": "https://download.gnome.org/sources/glib/2.90/glib-2.90.0.tar.xz#glib-2.90.0/LICENSES/LGPL-2.1-only.txt",
           "sha256": "fa6f36630bb1e0c571d34b2bbdf188d08495c9dbf58f28cac112f303fc1f58fb",
           "name": "LGPL-2.1-only.txt"
         },
         {
           "path": "texts/fa6f36630bb1e0c571d34b2bbdf188d08495c9dbf58f28cac112f303fc1f58fb.txt",
-          "source": "https://download.gnome.org/sources/glib/2.88/glib-2.88.3.tar.xz#glib-2.88.3/LICENSES/LGPL-2.1-or-later.txt",
+          "source": "https://download.gnome.org/sources/glib/2.90/glib-2.90.0.tar.xz#glib-2.90.0/LICENSES/LGPL-2.1-or-later.txt",
           "sha256": "fa6f36630bb1e0c571d34b2bbdf188d08495c9dbf58f28cac112f303fc1f58fb",
           "name": "LGPL-2.1-or-later.txt"
         },
         {
           "path": "texts/e34c58338bd89d43e709e226610d8f32b3e3c47f4ad9a99a8dc1d4ac7842488e.txt",
-          "source": "https://download.gnome.org/sources/glib/2.88/glib-2.88.3.tar.xz#glib-2.88.3/LICENSES/LLVM-exception.txt",
+          "source": "https://download.gnome.org/sources/glib/2.90/glib-2.90.0.tar.xz#glib-2.90.0/LICENSES/LLVM-exception.txt",
           "sha256": "e34c58338bd89d43e709e226610d8f32b3e3c47f4ad9a99a8dc1d4ac7842488e",
           "name": "LLVM-exception.txt"
         },
         {
           "path": "texts/fb261b2d5dbe76c4850f90da763210bc385e52428df6bbfd7b06295ac8a32914.txt",
-          "source": "https://download.gnome.org/sources/glib/2.88/glib-2.88.3.tar.xz#glib-2.88.3/LICENSES/LicenseRef-old-glib-tests.txt",
+          "source": "https://download.gnome.org/sources/glib/2.90/glib-2.90.0.tar.xz#glib-2.90.0/LICENSES/LicenseRef-old-glib-tests.txt",
           "sha256": "fb261b2d5dbe76c4850f90da763210bc385e52428df6bbfd7b06295ac8a32914",
           "name": "LicenseRef-old-glib-tests.txt"
         },
         {
           "path": "texts/b85dcd3e453d05982552c52b5fc9e0bdd6d23c6f8e844b984a88af32570b0cc0.txt",
-          "source": "https://download.gnome.org/sources/glib/2.88/glib-2.88.3.tar.xz#glib-2.88.3/LICENSES/MIT.txt",
+          "source": "https://download.gnome.org/sources/glib/2.90/glib-2.90.0.tar.xz#glib-2.90.0/LICENSES/MIT.txt",
           "sha256": "b85dcd3e453d05982552c52b5fc9e0bdd6d23c6f8e844b984a88af32570b0cc0",
           "name": "MIT.txt"
         },
         {
           "path": "texts/6214f8b1300bb9f37b16ebc146f8f61af0187e0025042ff95c8b3030744a8795.txt",
-          "source": "https://download.gnome.org/sources/glib/2.88/glib-2.88.3.tar.xz#glib-2.88.3/LICENSES/MPL-1.1.txt",
+          "source": "https://download.gnome.org/sources/glib/2.90/glib-2.90.0.tar.xz#glib-2.90.0/LICENSES/MPL-1.1.txt",
           "sha256": "6214f8b1300bb9f37b16ebc146f8f61af0187e0025042ff95c8b3030744a8795",
           "name": "MPL-1.1.txt"
         },
         {
           "path": "texts/b1ec1d0e5947f81e815d8771f7d4d90671a94bb10a42dc687fb566de461a57aa.txt",
-          "source": "https://download.gnome.org/sources/glib/2.88/glib-2.88.3.tar.xz#glib-2.88.3/docs/reference/COPYING",
+          "source": "https://download.gnome.org/sources/glib/2.90/glib-2.90.0.tar.xz#glib-2.90.0/docs/reference/COPYING",
           "sha256": "b1ec1d0e5947f81e815d8771f7d4d90671a94bb10a42dc687fb566de461a57aa",
           "name": "COPYING"
         },
         {
           "path": "texts/bdbcdaa7858872393e9d6b216bbdc8a23e99d98dd6cdb7cda19458025b9e19fc.txt",
-          "source": "https://download.gnome.org/sources/glib/2.88/glib-2.88.3.tar.xz#glib-2.88.3/subprojects/gvdb/COPYING",
+          "source": "https://download.gnome.org/sources/glib/2.90/glib-2.90.0.tar.xz#glib-2.90.0/subprojects/gvdb/COPYING",
           "sha256": "bdbcdaa7858872393e9d6b216bbdc8a23e99d98dd6cdb7cda19458025b9e19fc",
           "name": "COPYING"
         }
@@ -10207,91 +10207,91 @@
     },
     {
       "name": "shaderc",
-      "version": "2026.3",
+      "version": "2026.4",
       "license": "Apache-2.0",
       "repository": "https://github.com/google/shaderc",
       "files": [
         {
           "path": "texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
-          "source": "https://github.com/google/shaderc/archive/refs/tags/v2026.3.tar.gz#shaderc-2026.3/LICENSE",
+          "source": "https://github.com/google/shaderc/archive/refs/tags/v2026.4.tar.gz#shaderc-2026.4/LICENSE",
           "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
           "name": "LICENSE"
         },
         {
           "path": "texts/17e70c676e1521ff3e4686f04a2053d93a7e28a33be8de7ec37ab0ff72feb677.txt",
-          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/168d452a4f460d24b588fed08477a81c44ee27a1/LICENSE.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/e1b562a8bed273a02f30b59b66a5d499793cede5/LICENSE.txt",
           "sha256": "17e70c676e1521ff3e4686f04a2053d93a7e28a33be8de7ec37ab0ff72feb677",
           "name": "LICENSE.txt"
         },
         {
           "path": "texts/cc8ea571129dbee2997e52a54d1f715f8b0159a22f28f985a9b2b31708a48620.txt",
-          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/168d452a4f460d24b588fed08477a81c44ee27a1/LICENSES/AML-glslang.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/e1b562a8bed273a02f30b59b66a5d499793cede5/LICENSES/AML-glslang.txt",
           "sha256": "cc8ea571129dbee2997e52a54d1f715f8b0159a22f28f985a9b2b31708a48620",
           "name": "AML-glslang.txt"
         },
         {
           "path": "texts/b22c5c23f3d598370ef51d7e539d5d5074207344fd86e41433f413e116f6a4f7.txt",
-          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/168d452a4f460d24b588fed08477a81c44ee27a1/LICENSES/Apache-2.0.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/e1b562a8bed273a02f30b59b66a5d499793cede5/LICENSES/Apache-2.0.txt",
           "sha256": "b22c5c23f3d598370ef51d7e539d5d5074207344fd86e41433f413e116f6a4f7",
           "name": "Apache-2.0.txt"
         },
         {
           "path": "texts/789daa57a2ebb49cfc3e67cd1a1f994d5dc221138a8c3cd1934b2ed47b86d356.txt",
-          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/168d452a4f460d24b588fed08477a81c44ee27a1/LICENSES/BSD-2-Clause.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/e1b562a8bed273a02f30b59b66a5d499793cede5/LICENSES/BSD-2-Clause.txt",
           "sha256": "789daa57a2ebb49cfc3e67cd1a1f994d5dc221138a8c3cd1934b2ed47b86d356",
           "name": "BSD-2-Clause.txt"
         },
         {
           "path": "texts/5a93d5831e1297ab10fe643e1a631e83be392896da14ee2951285a79012df69d.txt",
-          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/168d452a4f460d24b588fed08477a81c44ee27a1/LICENSES/BSD-3-Clause.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/e1b562a8bed273a02f30b59b66a5d499793cede5/LICENSES/BSD-3-Clause.txt",
           "sha256": "5a93d5831e1297ab10fe643e1a631e83be392896da14ee2951285a79012df69d",
           "name": "BSD-3-Clause.txt"
         },
         {
           "path": "texts/218a0cdacd4059d01e2ccff5b31d3e968a6a9c8ee7e4e0fc231c47d7fbf422c3.txt",
-          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/168d452a4f460d24b588fed08477a81c44ee27a1/LICENSES/Bison-exception-2.2.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/e1b562a8bed273a02f30b59b66a5d499793cede5/LICENSES/Bison-exception-2.2.txt",
           "sha256": "218a0cdacd4059d01e2ccff5b31d3e968a6a9c8ee7e4e0fc231c47d7fbf422c3",
           "name": "Bison-exception-2.2.txt"
         },
         {
           "path": "texts/3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986.txt",
-          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/168d452a4f460d24b588fed08477a81c44ee27a1/LICENSES/GPL-3.0-or-later.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/e1b562a8bed273a02f30b59b66a5d499793cede5/LICENSES/GPL-3.0-or-later.txt",
           "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
           "name": "GPL-3.0-or-later.txt"
         },
         {
           "path": "texts/fbeaca472f4f70e276dd1106ca5097435967a22ad6c1d8200aef7ad9f70aaf3f.txt",
-          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/168d452a4f460d24b588fed08477a81c44ee27a1/LICENSES/MIT-Khronos-old.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/e1b562a8bed273a02f30b59b66a5d499793cede5/LICENSES/MIT-Khronos-old.txt",
           "sha256": "fbeaca472f4f70e276dd1106ca5097435967a22ad6c1d8200aef7ad9f70aaf3f",
           "name": "MIT-Khronos-old.txt"
         },
         {
           "path": "texts/b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5.txt",
-          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/168d452a4f460d24b588fed08477a81c44ee27a1/LICENSES/MIT.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/glslang/e1b562a8bed273a02f30b59b66a5d499793cede5/LICENSES/MIT.txt",
           "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
           "name": "MIT.txt"
         },
         {
           "path": "texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
-          "source": "https://raw.githubusercontent.com/KhronosGroup/SPIRV-Tools/b707790a898e44038547df54580022fc1cf89c3d/LICENSE",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/SPIRV-Tools/ef96ed763b43b59b33b31b362f09a02b729fa1c9/LICENSE",
           "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
           "name": "LICENSE"
         },
         {
           "path": "texts/ea43b1de38a6f90c488800d66dec1ed671e68cda530266bc96951fb5b6307613.txt",
-          "source": "https://raw.githubusercontent.com/KhronosGroup/SPIRV-Headers/29981f65241605e08b0ede4cfeb999fe3b723c6a/LICENSE",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/SPIRV-Headers/04fd3caa1e8267e4d95c806cad901181728e1006/LICENSE",
           "sha256": "ea43b1de38a6f90c488800d66dec1ed671e68cda530266bc96951fb5b6307613",
           "name": "LICENSE"
         },
         {
-          "path": "texts/d557539df68e771cc1eedcc91d13f70fca930e508d11eedcafa4b15db49e3744.txt",
-          "source": "https://raw.githubusercontent.com/KhronosGroup/SPIRV-Headers/29981f65241605e08b0ede4cfeb999fe3b723c6a/LICENSES/CC-BY-4.0.txt",
-          "sha256": "d557539df68e771cc1eedcc91d13f70fca930e508d11eedcafa4b15db49e3744",
+          "path": "texts/9e5f1b3c610b9c2da5c313bf81d577a7d1acec686bdb0384edefa6df0f90cd94.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/SPIRV-Headers/04fd3caa1e8267e4d95c806cad901181728e1006/LICENSES/CC-BY-4.0.txt",
+          "sha256": "9e5f1b3c610b9c2da5c313bf81d577a7d1acec686bdb0384edefa6df0f90cd94",
           "name": "CC-BY-4.0.txt"
         },
         {
           "path": "texts/6d7c9e9d7d12c8d3753bdb24417b84819ba4d6c2f025c37948113d86dc81eef9.txt",
-          "source": "https://raw.githubusercontent.com/KhronosGroup/SPIRV-Headers/29981f65241605e08b0ede4cfeb999fe3b723c6a/LICENSES/MIT.txt",
+          "source": "https://raw.githubusercontent.com/KhronosGroup/SPIRV-Headers/04fd3caa1e8267e4d95c806cad901181728e1006/LICENSES/MIT.txt",
           "sha256": "6d7c9e9d7d12c8d3753bdb24417b84819ba4d6c2f025c37948113d86dc81eef9",
           "name": "MIT.txt"
         },
@@ -10317,70 +10317,70 @@
     },
     {
       "name": "ffmpeg",
-      "version": "9.0.1_1",
-      "sourceVersion": "9.0.1",
+      "version": "9.0.2",
+      "sourceVersion": "9.0.2",
       "license": "GPL-3.0-or-later; IJG notices retained for libjpeg-derived code",
       "repository": "https://git.ffmpeg.org/ffmpeg.git",
-      "sourceArchive": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz",
-      "sourceArchiveSha256": "cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635",
+      "sourceArchive": "https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz",
+      "sourceArchiveSha256": "8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e",
       "scope": "Root license alternatives and explicitly required IJG attribution supplement for installed FFmpeg libraries",
       "notes": "Installed formula enables --enable-gpl and --enable-version3. Root LICENSE.md explicitly names three IJG-derived implementation files, whose complete leading comment blocks are retained, plus the executable-distribution credit. The root reference to tests/reference.pnm concerns a test image that is not shipped; it is excluded. Enabled external codec libraries were checked in otool dependencies and are dynamically linked; their independent package notices belong to the Homebrew library inventory.",
       "files": [
         {
           "path": "texts/2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af.txt",
-          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/LICENSE.md",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz#ffmpeg-9.0.2/LICENSE.md",
           "sha256": "2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af",
           "name": "LICENSE.md"
         },
         {
           "path": "texts/8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643.txt",
-          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/COPYING.GPLv2",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz#ffmpeg-9.0.2/COPYING.GPLv2",
           "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
           "name": "COPYING.GPLv2"
         },
         {
           "path": "texts/8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903.txt",
-          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/COPYING.GPLv3",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz#ffmpeg-9.0.2/COPYING.GPLv3",
           "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
           "name": "COPYING.GPLv3"
         },
         {
           "path": "texts/246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30.txt",
-          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/COPYING.LGPLv2.1",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz#ffmpeg-9.0.2/COPYING.LGPLv2.1",
           "sha256": "246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30",
           "name": "COPYING.LGPLv2.1"
         },
         {
           "path": "texts/da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768.txt",
-          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/COPYING.LGPLv3",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz#ffmpeg-9.0.2/COPYING.LGPLv3",
           "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768",
           "name": "COPYING.LGPLv3"
         },
         {
           "path": "texts/9608a1781393c906ac6254ee965f19a599608428eaf84efdd8c7ba198f14e877.txt",
-          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/libavcodec/jfdctfst.c",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz#ffmpeg-9.0.2/libavcodec/jfdctfst.c",
           "sha256": "9608a1781393c906ac6254ee965f19a599608428eaf84efdd8c7ba198f14e877",
           "extraction": "Complete initial C comment block copied without editing, including copyright, license, and implementation notes.",
           "name": "jfdctfst.c-NOTICE.txt"
         },
         {
           "path": "texts/7469382cb23a47a033113c2c00d8e02e5071d76cb420d804f078527a906da679.txt",
-          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/libavcodec/jfdctint_template.c",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz#ffmpeg-9.0.2/libavcodec/jfdctint_template.c",
           "sha256": "7469382cb23a47a033113c2c00d8e02e5071d76cb420d804f078527a906da679",
           "extraction": "Complete initial C comment block copied without editing, including copyright, license, and implementation notes.",
           "name": "jfdctint_template.c-NOTICE.txt"
         },
         {
           "path": "texts/c5d96aa8ff9e78b9214a1bec3d2dd5d65e3196eae08fa7c6ba7466a5a793ba0f.txt",
-          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/libavcodec/jrevdct.c",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz#ffmpeg-9.0.2/libavcodec/jrevdct.c",
           "sha256": "c5d96aa8ff9e78b9214a1bec3d2dd5d65e3196eae08fa7c6ba7466a5a793ba0f",
           "extraction": "Complete initial C comment block copied without editing, including copyright, license, and implementation notes.",
           "name": "jrevdct.c-NOTICE.txt"
         },
         {
-          "path": "texts/58cf51ca723ab35616dd0ff357ddf09703364de32c49dcc94bf9b602c747ab19.txt",
-          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/libavcodec/jfdctfst.c",
-          "sha256": "58cf51ca723ab35616dd0ff357ddf09703364de32c49dcc94bf9b602c747ab19",
+          "path": "texts/ee930b152ab174bffe9051054dcfd85322e5dc432ef20220c1638c7516fb5933.txt",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz#ffmpeg-9.0.2/libavcodec/jfdctfst.c",
+          "sha256": "ee930b152ab174bffe9051054dcfd85322e5dc432ef20220c1638c7516fb5933",
           "extraction": "Required IJG executable-distribution credit, plus factual Kino/Homebrew source-change statement based on the inspected installed formula.",
           "name": "IJG-ACKNOWLEDGEMENT.txt"
         }
@@ -10971,19 +10971,19 @@
     },
     {
       "name": "harfbuzz",
-      "version": "14.4.0",
-      "sourceVersion": "14.4.0",
+      "version": "14.5.0",
+      "sourceVersion": "14.5.0",
       "license": "MIT",
       "repository": "https://github.com/harfbuzz/harfbuzz",
       "archive": {
-        "url": "https://github.com/harfbuzz/harfbuzz/releases/download/14.4.0/harfbuzz-14.4.0.tar.xz",
-        "path": "build/license-research/homebrew-more/archives/harfbuzz-14.4.0.tar.xz",
-        "sha256": "2357ed966c6ced7bfa720b0640c0231065af01158fbea215093ffa15aed44371"
+        "url": "https://github.com/harfbuzz/harfbuzz/releases/download/14.5.0/harfbuzz-14.5.0.tar.xz",
+        "path": "build/license-research/homebrew-more/archives/harfbuzz-14.5.0.tar.xz",
+        "sha256": "b7132e148358a45185c9feafd049dbaf243649d3c44414b3534d9c95d18592b9"
       },
       "files": [
         {
           "path": "texts/ba8f810f2455c2f08e2d56bb49b72f37fcf68f1f4fade38977cfd7372050ad64.txt",
-          "source": "https://github.com/harfbuzz/harfbuzz/blob/14.4.0/COPYING",
+          "source": "https://github.com/harfbuzz/harfbuzz/blob/14.5.0/COPYING",
           "sha256": "ba8f810f2455c2f08e2d56bb49b72f37fcf68f1f4fade38977cfd7372050ad64",
           "archivePath": "harfbuzz-14.4.0/COPYING",
           "kind": "upstream-license-file",
@@ -10991,7 +10991,7 @@
         },
         {
           "path": "texts/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383.txt",
-          "source": "https://github.com/harfbuzz/harfbuzz/blob/14.4.0/src/ms-use/COPYING",
+          "source": "https://github.com/harfbuzz/harfbuzz/blob/14.5.0/src/ms-use/COPYING",
           "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
           "archivePath": "harfbuzz-14.4.0/src/ms-use/COPYING",
           "kind": "upstream-license-file",

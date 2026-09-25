@@ -116,9 +116,14 @@ jobs:
       - name: Install native dependencies
         run: |
           brew update
-          brew install cmake qt mpv pkgconf rust libtorrent-rasterbar boost
+          brew install cmake qt mpv pkgconf libtorrent-rasterbar boost
           pkg-config --print-errors --atleast-version=2.1.1 libtorrent-rasterbar
-          echo "$(brew --prefix rust)/bin" >> "$GITHUB_PATH"
+      # Homebrew's rust follows upstream releases, and the packaged engine's
+      # runtime notices are reviewed for one release. rustup installs exactly
+      # the release apps/stream-engine/rust-toolchain.toml pins.
+      - name: Install the pinned Rust toolchain
+        working-directory: apps/stream-engine
+        run: rustup toolchain install "$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)" --profile minimal
       - name: Save Homebrew downloads
         if: steps.brew-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
@@ -129,7 +134,7 @@ jobs:
       - name: Identify the engine toolchain
         id: toolchain
         run: |
-          kino_toolchain="$(rustc --version)-$(pkg-config --modversion libtorrent-rasterbar)-$(brew list --versions boost)"
+          kino_toolchain="$(cd apps/stream-engine && rustc --version)-$(pkg-config --modversion libtorrent-rasterbar)-$(brew list --versions boost)"
           echo "key=$(printf '%s' "$kino_toolchain" | shasum -a 256 | awk '{print $1}')" >> "$GITHUB_OUTPUT"
       - name: Restore Cargo dependencies and build outputs
         id: engine-cache
@@ -148,7 +153,7 @@ jobs:
       - name: Test the locked engine and embedded profile
         timeout-minutes: 5
         run: |
-          CXXFLAGS="-I$(brew --prefix)/include" cargo test --locked --release --manifest-path apps/stream-engine/Cargo.toml
+          (cd apps/stream-engine && CXXFLAGS="-I$(brew --prefix)/include" cargo test --locked --release)
           pnpm engine:check-profile
           pnpm engine:check-trackers
       - name: Save Cargo dependencies and build outputs
@@ -188,7 +193,9 @@ jobs:
       # bundle or its notices change; every push to main runs it.
       - name: Package and verify bundled dependency notices
         if: github.event_name == 'push' || needs.changes.outputs.packaging == 'true'
-        timeout-minutes: 15
+        # Bundling and re-signing every Qt framework takes 10 to 15 minutes on the hosted
+        # runner, so a 15-minute limit failed runs that were only slow.
+        timeout-minutes: 30
         run: pnpm macos:package --no-dmg
 
   validate:

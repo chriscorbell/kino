@@ -1,0 +1,6 @@
+[toolchain]
+# The packaged engine embeds this Rust runtime, and its notices are reviewed for
+# exactly this release (third_party/notices/reviewed.json). Updating it is a
+# deliberate change to both, as ADR 0008 requires.
+channel = "1.98.0"
+profile = "minimal"

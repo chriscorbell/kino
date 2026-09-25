@@ -24,6 +24,7 @@ const engine = join(project, 'apps/stream-engine');
 const vendor = join(project, 'build/vendor/stream-server');
 const bin = join(root, 'bin');
 const cargoArgs = join(root, 'cargo-args');
+const rustupArgs = join(root, 'rustup-args');
 const patchFile = join(engine, 'patches/0001-change.patch');
 const quote = (value) => `'${value.replaceAll("'", "'\\''")}'`;
 
@@ -50,7 +51,12 @@ function build() {
   rmSync(cargoArgs, { force: true });
   return spawnSync('bash', [join(project, 'scripts/build-engine.sh')], {
     encoding: 'utf8',
-    env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, KINO_VENDOR_PROBE_ARGS: cargoArgs },
+    env: {
+      ...process.env,
+      PATH: `${bin}:${process.env.PATH}`,
+      KINO_VENDOR_PROBE_ARGS: cargoArgs,
+      KINO_VENDOR_PROBE_RUSTUP: rustupArgs,
+    },
   });
 }
 
@@ -64,9 +70,11 @@ try {
   for (const directory of [upstream, join(project, 'scripts'), join(engine, 'patches'), bin]) {
     mkdirSync(directory, { recursive: true });
   }
+  const scripts = dirname(fileURLToPath(import.meta.url));
+  copyFileSync(join(scripts, 'build-engine.sh'), join(project, 'scripts/build-engine.sh'));
   copyFileSync(
-    join(dirname(fileURLToPath(import.meta.url)), 'build-engine.sh'),
-    join(project, 'scripts/build-engine.sh'),
+    join(scripts, '../apps/stream-engine/rust-toolchain.toml'),
+    join(engine, 'rust-toolchain.toml'),
   );
   git(['init', '--quiet']);
   writeFileSync(join(upstream, 'value.txt'), 'original\n');
@@ -91,6 +99,9 @@ try {
   );
   for (const [name, body] of Object.entries({
     cargo: 'printf "%s\\n" "$@" > "$KINO_VENDOR_PROBE_ARGS"',
+    // Records the toolchain the build asks for, then runs the command it names.
+    rustup:
+      'printf "%s\\n" "$@" >> "$KINO_VENDOR_PROBE_RUSTUP"\n[ "$1" = run ] && shift 2 && exec "$@"\nexit 0',
     'pkg-config': 'exit 0',
     brew: 'printf "/unused\\n"',
   })) {
@@ -125,6 +136,16 @@ try {
   expectValue('original');
   assert.ok(readFileSync(cargoArgs, 'utf8').split('\n').includes('--locked'));
   console.log('Removed patches disappear, and Cargo uses the recorded lockfile.');
+
+  const channel = /^channel = "(.*)"$/m.exec(
+    readFileSync(join(engine, 'rust-toolchain.toml'), 'utf8'),
+  )[1];
+  const rustup = readFileSync(rustupArgs, 'utf8').split('\n');
+  assert.ok(
+    rustup.includes('run') && rustup.includes(channel),
+    `Cargo must run under the pinned Rust ${channel}, whose runtime notices are reviewed.`,
+  );
+  console.log(`The engine builds with the pinned Rust ${channel}.`);
 } finally {
   rmSync(root, { recursive: true, force: true });
 }
