@@ -313,6 +313,23 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: ctest --test-dir build/windows --output-on-failure --timeout 30
+      # A portable folder: the shell, its interface, libmpv, and the Qt
+      # libraries and QML modules windeployqt finds it using.
+      - name: Package a portable build
+        shell: pwsh
+        run: |
+          $out = 'build/windows-package/Kino'
+          New-Item -ItemType Directory -Force $out | Out-Null
+          Copy-Item build/windows/Kino.exe $out
+          Copy-Item -Recurse build/windows/ui "$out/ui"
+          Copy-Item build/mpv/libmpv-2.dll $out
+          windeployqt --release --qmldir apps/macos-shell/qml --no-translations "$out/Kino.exe"
+          Compress-Archive -Path $out -DestinationPath build/windows-package/Kino-windows-x64.zip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Kino-windows-x64
+          path: build/windows-package/Kino-windows-x64.zip
+          retention-days: 7
 
   validate:
     name: Validate
