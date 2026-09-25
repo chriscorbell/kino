@@ -8,6 +8,7 @@ import com.stremio.core.Core
 import com.stremio.core.Field
 import com.stremio.core.models.*
 import com.stremio.core.runtime.msg.*
+import com.stremio.core.types.addon.AddonDescriptor
 import com.stremio.core.types.addon.ExtraValue
 import com.stremio.core.types.addon.ResourcePath
 import com.stremio.core.types.addon.ResourceRequest
@@ -100,6 +101,13 @@ data class Library(
 )
 
 /** A subtitle file an add-on offers for the current source. */
+data class AddonPreview(
+    val transportUrl: String,
+    val descriptor: AddonDescriptor? = null,
+    val loading: Boolean = true,
+    val failed: Boolean = false,
+)
+
 data class AddonSubtitle(
     val id: String,
     val language: String,
@@ -121,7 +129,10 @@ data class TvState(
     val signedIn: Boolean = false,
     val audioLanguage: String? = null,
     val subtitleLanguage: String? = null,
-    val addons: List<String> = emptyList(),
+    /** Installed add-ons in Core's order, with the flags that decide whether one can be removed. */
+    val addons: List<AddonDescriptor> = emptyList(),
+    /** The add-on a pasted address resolved to, awaiting confirmation. */
+    val addonPreview: AddonPreview? = null,
     val link: String? = null,
     val qrCode: String? = null,
     val linkFailed: Boolean = false,
@@ -434,6 +445,40 @@ class TvCore(
         logoutDone = null
         Log.i("KinoCore", "Sign-out finished session=${end.name.lowercase()}")
         done(end)
+    }
+
+    private var previewUrl: String? = null
+
+    /**
+     * Asks Core to fetch the manifest behind [input], an HTTPS manifest address or a
+     * `stremio://` link, under the same request policy as every other add-on request.
+     * Returns false for an address that could never be an add-on.
+     */
+    fun previewAddon(input: String): Boolean {
+        val url = addonManifestUrl(input) ?: return false
+        previewUrl = url
+        mutable.value = mutable.value.copy(addonPreview = AddonPreview(url))
+        load(ActionLoad.Args.AddonDetails(AddonDetails.Selected(url)), Field.ADDON_DETAILS)
+        return true
+    }
+
+    fun cancelAddonPreview() {
+        previewUrl = null
+        mutable.value = mutable.value.copy(addonPreview = null)
+    }
+
+    /** Installs the previewed add-on; Core rejects a manifest it cannot use. */
+    fun installPreviewedAddon(): Boolean {
+        val descriptor = mutable.value.addonPreview?.descriptor ?: return false
+        ctx(ActionCtx.Args.InstallAddon(descriptor))
+        cancelAddonPreview()
+        return true
+    }
+
+    /** Protected add-ons, such as Cinemeta, stay installed. */
+    fun uninstallAddon(addon: AddonDescriptor) {
+        if (addon.flags.protected) return
+        ctx(ActionCtx.Args.UninstallAddon(addon))
     }
 
     fun beginLink() {
@@ -798,8 +843,22 @@ class TvCore(
                                 ?.items
                                 .orEmpty()
                                 .filter { it.manifest.id != "org.stremio.local" }
-                                .map { it.manifest.name }
                         else previous.addons,
+                    addonPreview =
+                        if (!reads(Field.ADDON_DETAILS)) previous.addonPreview
+                        else
+                            previewUrl?.let { url ->
+                                val remote =
+                                    Core.getState<AddonDetails>(Field.ADDON_DETAILS)
+                                        .remoteAddon
+                                        ?.takeIf { it.transportUrl == url }
+                                AddonPreview(
+                                    url,
+                                    remote?.ready,
+                                    loading = remote == null || remote.loading != null,
+                                    failed = remote?.error != null,
+                                )
+                            },
                     details = detailState,
                     link = if (auth != null) auth.code?.ready?.link else previous.link,
                     qrCode = if (auth != null) auth.code?.ready?.qrcode else previous.qrCode,

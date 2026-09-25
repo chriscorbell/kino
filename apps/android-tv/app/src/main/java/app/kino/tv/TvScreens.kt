@@ -305,7 +305,7 @@ fun KinoApp(
                                                 core::selectLibrary,
                                                 core::loadMoreLibrary,
                                             )
-                                        "addons" -> AddonsScreen(state.addons)
+                                        "addons" -> AddonsScreen(state, core)
                                         else ->
                                             SettingsScreen(core, state, onSignIn, onSignOut) {
                                                 navigate("addons")
@@ -1405,49 +1405,6 @@ internal fun PageTitle(title: Int) {
     )
 }
 
-@Composable
-private fun AddonsScreen(addons: List<String>) {
-    val navigation = LocalNavigationFocus.current
-    LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 28.dp, bottom = 40.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item { PageTitle(R.string.addons) }
-        items(addons) { name ->
-            var focused by remember { mutableStateOf(false) }
-            Column(Modifier.padding(horizontal = PageGutter)) {
-                Row(
-                    Modifier.fillMaxWidth()
-                        .onFocusChanged { focused = it.isFocused }
-                        .focusProperties { left = navigation }
-                        .focusable()
-                        .background(
-                            if (focused) SurfaceColor else Background,
-                            RoundedCornerShape(8.dp),
-                        )
-                        .border(
-                            2.dp,
-                            if (focused) KinoColors.TextStrong else Color.Transparent,
-                            RoundedCornerShape(8.dp),
-                        )
-                        .padding(18.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Icon(
-                        painterResource(R.drawable.ic_blocks),
-                        null,
-                        Modifier.size(22.dp),
-                        tint = Muted,
-                    )
-                    Text(name, fontSize = 18.sp, fontWeight = FontWeight.Medium)
-                }
-                Box(Modifier.fillMaxWidth().height(1.dp).background(KinoColors.BorderSubtle))
-            }
-        }
-    }
-}
 
 @Composable
 private fun LinkScreen(state: TvState, onRetry: () -> Unit) {
@@ -1501,17 +1458,17 @@ internal fun RetryRow(onRetry: () -> Unit) {
     }
 }
 
-private val RowShape = RoundedCornerShape(8.dp)
+internal val RowShape = RoundedCornerShape(8.dp)
 
 @Composable
-private fun rowColors() =
+internal fun rowColors() =
     ClickableSurfaceDefaults.colors(
         containerColor = Background,
         focusedContainerColor = SurfaceColor,
     )
 
 @Composable
-private fun rowBorder() =
+internal fun rowBorder() =
     ClickableSurfaceDefaults.border(
         focusedBorder =
             Border(

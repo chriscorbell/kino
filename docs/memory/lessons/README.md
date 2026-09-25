@@ -8,3 +8,4 @@ Threshold: 12 entries. Past it, the bounded review in [maintenance](../maintenan
 
 - [A sleeping Shield empties every remote-driven test](2026-09-25-shield-asleep-empty-nodes-p3w.md): "Missing visible text" with an empty node list on the Shield.
 - [TV Material reads a long press from key repeat](2026-09-25-tv-material-long-press-repeat-m8d.md): a held select in a test never reaches `onLongClick`.
+- [A button swapped into an open TV dialog can miss its first press](2026-09-25-tv-dialog-content-swap-loses-press-r2k.md): a dialog button that ignores some remote presses.
