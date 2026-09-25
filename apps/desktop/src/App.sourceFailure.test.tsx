@@ -116,7 +116,7 @@ function mountApp() {
 it('marks only the failed torrent file and keeps another episode independent', async () => {
   mountApp();
   fireEvent.click(screen.getByRole('button', { name: 'Open test series' }));
-  fireEvent.click(await screen.findByRole('button', { name: /Episode one/ }));
+  fireEvent.click(await screen.findByRole('button', { name: /^\d.*Episode one/ }));
   const first = await screen.findByRole('button', { name: /Pack file 0/ });
   await waitFor(() => expect(first).toBeEnabled());
   fireEvent.click(first);
@@ -131,7 +131,7 @@ it('marks only the failed torrent file and keeps another episode independent', a
   ).not.toBeInTheDocument();
 
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-  fireEvent.click(screen.getByRole('button', { name: /Episode two/ }));
+  fireEvent.click(screen.getByRole('button', { name: /^\d.*Episode two/ }));
   await waitFor(() => expect(screen.getByRole('button', { name: /Pack file 0/ })).toBeEnabled());
   expect(screen.queryByText('Failed')).not.toBeInTheDocument();
   expect(screen.queryByText('Synthetic source failure')).not.toBeInTheDocument();
@@ -146,7 +146,7 @@ it.each(['Back from playback', 'Fail playback', 'Up Next'])(
       target: { value: '2' },
     });
     expect(screen.queryByRole('button', { name: /Pack file 0/ })).not.toBeInTheDocument();
-    const episode = screen.getByRole('button', { name: /Season two episode five/ });
+    const episode = screen.getByRole('button', { name: /^\d.*Season two episode five/ });
     episode.focus();
     screen.getByRole('main', { name: 'Test series' }).scrollTop = 325;
     fireEvent.click(episode);
@@ -168,7 +168,7 @@ it.each(['Back from playback', 'Fail playback', 'Up Next'])(
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.getByRole('combobox', { name: 'Season' })).toHaveValue('2');
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: new RegExp(title) })).toHaveFocus(),
+      expect(screen.getByRole('button', { name: new RegExp(`^\\d.*${title}`) })).toHaveFocus(),
     );
     expect(screen.getByRole('main', { name: 'Test series' }).scrollTop).toBe(325);
   },

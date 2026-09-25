@@ -229,3 +229,29 @@ export function removeFromLibraryAction(id: string): CoreAction {
 export function playerAction(action: string, args?: unknown): CoreAction {
   return { action: 'Player', args: { action, ...(args === undefined ? {} : { args }) } };
 }
+
+/**
+ * Marks the open title watched or unwatched. Core records it on the title's library item, which
+ * it creates for a title outside the library, so this works from any details page.
+ */
+export function markWatchedAction(watched: boolean): CoreAction {
+  return { action: 'MetaDetails', args: { action: 'MarkAsWatched', args: watched } };
+}
+
+/** Core reads only the episode's id, and its release date to order the library's last watched. */
+export function markVideoWatchedAction(video: CoreVideo, watched: boolean): CoreAction {
+  return {
+    action: 'MetaDetails',
+    args: {
+      action: 'MarkVideoAsWatched',
+      args: [{ id: video.id, title: video.title, released: video.released }, watched],
+    },
+  };
+}
+
+export function markSeasonWatchedAction(season: number, watched: boolean): CoreAction {
+  return {
+    action: 'MetaDetails',
+    args: { action: 'MarkSeasonAsWatched', args: [season, watched] },
+  };
+}

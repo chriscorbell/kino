@@ -106,17 +106,17 @@ describe('episode source identity', () => {
 
   it('opens a dedicated episode source page and returns to the episode list', async () => {
     const { publish } = mountDetails(details('ep1'), meta, null);
-    const episode = await screen.findByRole('button', { name: /Episode two/ });
+    const episode = await screen.findByRole('button', { name: /^\d.*Episode two/ });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /ep1 source/ })).not.toBeInTheDocument();
     fireEvent.click(episode);
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Episode two');
-    expect(screen.queryByRole('button', { name: /Episode three/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^\d.*Episode three/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     await publish(details('ep2'));
     expect(screen.getByRole('button', { name: /ep2 source/ })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-    expect(screen.getByRole('button', { name: /Episode two/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^\d.*Episode two/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /ep2 source/ })).not.toBeInTheDocument();
   });
 
@@ -133,15 +133,15 @@ describe('episode source identity', () => {
     });
     mountDetails(details('only', seasonless), seasonless, null);
 
-    expect(await screen.findByRole('button', { name: /Sole episode/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Second episode/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^\d.*Sole episode/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^\d.*Second episode/ })).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'Season' })).toHaveValue('none');
   });
 
   it('lists only the selected season when Core numbered the episodes', async () => {
     mountDetails(details('ep1'), meta, null);
     expect(await screen.findByRole('combobox', { name: 'Season' })).toHaveValue('1');
-    expect(screen.getAllByRole('button', { name: /Episode/ })).toHaveLength(3);
+    expect(screen.getAllByRole('button', { name: /^\d.*Episode/ })).toHaveLength(3);
   });
 
   it('prevents playing a retained source while the new Load is pending or still returns old state', async () => {
@@ -157,12 +157,12 @@ describe('episode source identity', () => {
       action.action === 'Load' ? pending : Promise.resolve(),
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /Episode two/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^\d.*Episode two/ }));
     const retained = screen.getByRole('button', { name: /ep1 source/ });
     fireEvent.click(retained);
     expect(onPlay).not.toHaveBeenCalled();
     expect(retained).toBeDisabled();
-    expect(screen.queryByRole('button', { name: /Episode three/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^\d.*Episode three/ })).not.toBeInTheDocument();
 
     await act(async () => {
       finishLoad();
@@ -187,9 +187,9 @@ describe('episode source identity', () => {
     const { onPlay, publish } = mountDetails();
     await screen.findByRole('button', { name: /ep1 source/ });
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-    fireEvent.click(screen.getByRole('button', { name: /Episode two/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^\d.*Episode two/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-    fireEvent.click(screen.getByRole('button', { name: /Episode three/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^\d.*Episode three/ }));
 
     await publish(details('ep2'));
     fireEvent.click(screen.getByRole('button', { name: /ep2 source/ }));
@@ -428,4 +428,108 @@ it('identifies metadata provider failure and offers retry without an empty-sourc
   expect(screen.getByRole('button', { name: 'Retry add-ons' })).toBeEnabled();
   expect(screen.queryByText('No sources were returned for this title.')).not.toBeInTheDocument();
   expect(screen.queryByText('Refreshing sources…')).not.toBeInTheDocument();
+});
+
+describe('watched state', () => {
+  const watchedSeries = (ids: string[]) => ({
+    ...meta,
+    videos: meta.videos.map((entry) => ({ ...entry, watched: ids.includes(entry.id) })),
+  });
+
+  it('marks an episode watched and holds the change until Core agrees', async () => {
+    const { dispatch, publish } = mountDetails(details('ep1'), meta, null);
+    const toggle = await screen.findByRole('button', { name: 'Mark Episode two as watched' });
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(toggle);
+    expect(dispatch).toHaveBeenCalledWith(
+      {
+        action: 'MetaDetails',
+        args: {
+          action: 'MarkVideoAsWatched',
+          args: [{ id: 'ep2', title: 'Episode two', released: null }, true],
+        },
+      },
+      'meta_details',
+    );
+    expect(await screen.findByRole('status')).toHaveTextContent('Marked as watched.');
+    // A snapshot read before the change landed must not flip the control back.
+    await publish(details('ep1'));
+    const pressed = screen.getByRole('button', { name: 'Mark Episode two as unwatched' });
+    expect(pressed).toHaveAttribute('aria-pressed', 'true');
+    await publish(details('ep1', watchedSeries(['ep2'])));
+    // Once Core agrees, its later changes show through again.
+    await publish(details('ep1'));
+    expect(screen.getByRole('button', { name: 'Mark Episode two as watched' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+  });
+
+  it('marks the selected season, and unmarks it once every episode is watched', async () => {
+    const { dispatch, publish } = mountDetails(details('ep1'), meta, null);
+    fireEvent.click(await screen.findByRole('button', { name: 'Mark Season Watched' }));
+    expect(dispatch).toHaveBeenCalledWith(
+      { action: 'MetaDetails', args: { action: 'MarkSeasonAsWatched', args: [1, true] } },
+      'meta_details',
+    );
+    await publish(details('ep1', watchedSeries(['ep1', 'ep2', 'ep3'])));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Mark Season Unwatched' })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Mark Season Unwatched' }));
+    expect(dispatch).toHaveBeenLastCalledWith(
+      { action: 'MetaDetails', args: { action: 'MarkSeasonAsWatched', args: [1, false] } },
+      'meta_details',
+    );
+  });
+
+  it('offers no season action for episodes Core could not number', async () => {
+    const seasonless = metaItem({
+      id: 'show',
+      name: 'Test series',
+      type: 'series',
+      videos: [video({ id: 'only', title: 'Sole episode', episode: 1 })],
+    });
+    mountDetails(details('only', seasonless), seasonless, null);
+    expect(await screen.findByRole('button', { name: /^\d.*Sole episode/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Mark Season/ })).not.toBeInTheDocument();
+  });
+
+  it('marks a movie watched and unwatched from the title', async () => {
+    const movie = { ...meta, id: 'movie', type: 'movie', videos: [] };
+    const { dispatch, publish } = mountDetails(details('movie', movie), movie, null);
+    fireEvent.click(await screen.findByRole('button', { name: 'Mark as Watched' }));
+    expect(dispatch).toHaveBeenCalledWith(
+      { action: 'MetaDetails', args: { action: 'MarkAsWatched', args: true } },
+      'meta_details',
+    );
+    await publish(details('movie', { ...movie, watched: true }));
+    const watched = await screen.findByRole('button', { name: 'Watched' });
+    await waitFor(() => expect(watched).toBeEnabled());
+    fireEvent.click(watched);
+    expect(dispatch).toHaveBeenLastCalledWith(
+      { action: 'MetaDetails', args: { action: 'MarkAsWatched', args: false } },
+      'meta_details',
+    );
+  });
+
+  it('restores the control and offers a retry when Core refuses the change', async () => {
+    const { dispatch } = mountDetails(details('ep1'), meta, null);
+    const toggle = await screen.findByRole('button', { name: 'Mark Episode two as watched' });
+    dispatch.mockRejectedValueOnce(new Error('refused'));
+    fireEvent.click(toggle);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The watched state could not be saved. Try again.',
+    );
+    expect(screen.getByRole('button', { name: 'Mark Episode two as watched' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() =>
+      expect(
+        dispatch.mock.calls.filter(([action]) => action.action === 'MetaDetails'),
+      ).toHaveLength(2),
+    );
+  });
 });
