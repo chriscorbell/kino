@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.chriscorbell.Kino</id>
+  <name>Kino</name>
+  <summary>Browse and play your Stremio library and add-ons</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+  <developer id="com.chriscorbell">
+    <name>Chris Corbell</name>
+  </developer>
+  <url type="homepage">https://github.com/chriscorbell/kino</url>
+  <description>
+    <p>Kino is a Stremio-compatible media client with an interface of its own. It uses your Stremio account, add-ons, library and progress, lists every source an add-on offers, and plays the one you choose with hardware decoding.</p>
+  </description>
+  <launchable type="desktop-id">com.chriscorbell.Kino.desktop</launchable>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="@KINO_VERSION@" date="@KINO_DATE@"/>
+  </releases>
+</component>

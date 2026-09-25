@@ -411,9 +411,128 @@ jobs:
           path: build/windows-package/Kino-windows-x64.zip
           retention-days: 7
 
+  # The torrent engine on Windows, with libtorrent and OpenSSL from vcpkg as
+  # the pinned stream-server release builds them. vcpkg's first build takes
+  # most of the job's time; the installed tree is cached after it.
+  windows-engine:
+    name: Windows engine build
+    needs: changes
+    if: needs.changes.outputs.native == 'true'
+    runs-on: windows-2025
+    timeout-minutes: 120
+    env:
+      VCPKG_INSTALLED_DIR: ${{ github.workspace }}/build/vcpkg-installed
+      VCPKG_DEFAULT_TRIPLET: x64-windows-v3-static-md-release
+      VCPKGRS_TRIPLET: x64-windows-v3-static-md-release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Vendor the patched stream-server
+        shell: bash
+        run: bash scripts/build-engine.sh --vendor-only
+      - name: Restore the vcpkg installation
+        id: vcpkg-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: build/vcpkg-installed
+          key: vcpkg-windows-${{ hashFiles('apps/stream-engine/engine.lock', 'apps/stream-engine/patches/**') }}
+      - name: Build libtorrent and OpenSSL with vcpkg
+        if: steps.vcpkg-cache.outputs.cache-hit != 'true'
+        uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2 # v11.6
+        env:
+          VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/build/vendor/stream-server/triplets
+          VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/build/vendor/stream-server/vcpkg-overlays
+        with:
+          vcpkgDirectory: ${{ github.workspace }}/build/vcpkg
+          vcpkgGitCommitId: 617ef1c0c422737d117eda00a471ea1be5bad088
+          vcpkgJsonGlob: build/vendor/stream-server/vcpkg.json
+          runVcpkgInstall: true
+      - name: Save the vcpkg installation
+        if: steps.vcpkg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: build/vcpkg-installed
+          key: ${{ steps.vcpkg-cache.outputs.cache-primary-key }}
+      # The engine links libtorrent and Boost statically, and their notices
+      # are reviewed for one release each (third_party/notices/reviewed.json).
+      - name: Check the libtorrent and Boost releases
+        shell: bash
+        run: |
+          reviewed() { node -p "require('./third_party/notices/reviewed.json').homebrew.find((f) => f.name === '$1').version"; }
+          include="build/vcpkg-installed/${VCPKG_DEFAULT_TRIPLET}/include"
+          libtorrent=$(reviewed libtorrent-rasterbar)
+          boost=$(reviewed boost)
+          grep -q "LIBTORRENT_VERSION \"${libtorrent}" "$include/libtorrent/version.hpp" || {
+            grep LIBTORRENT_VERSION "$include/libtorrent/version.hpp"
+            echo "vcpkg built a libtorrent other than the reviewed ${libtorrent}."
+            exit 1
+          }
+          grep -q "BOOST_LIB_VERSION \"$(echo "${boost}" | sed -E 's/^([0-9]+)\.([0-9]+)\.0$/\1_\2/')\"" "$include/boost/version.hpp" || {
+            grep BOOST_LIB_VERSION "$include/boost/version.hpp"
+            echo "vcpkg built a Boost other than the reviewed ${boost}."
+            exit 1
+          }
+      - name: Build the engine
+        shell: bash
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/build/vcpkg
+          CARGO_TARGET_DIR: ${{ github.workspace }}/build/engine-target
+        run: |
+          channel=$(sed -n 's/^channel = "\(.*\)"$/\1/p' apps/stream-engine/rust-toolchain.toml)
+          rustup toolchain install "$channel" --profile minimal
+          rustup run "$channel" cargo build --locked --release --manifest-path apps/stream-engine/Cargo.toml
+      - name: Check the engine
+        timeout-minutes: 10
+        shell: bash
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/build/engine-target
+          KINO_ENGINE_BINARY: ${{ github.workspace }}/build/engine-target/release/kino-stream-engine.exe
+        run: |
+          channel=$(sed -n 's/^channel = "\(.*\)"$/\1/p' apps/stream-engine/rust-toolchain.toml)
+          (cd apps/stream-engine && rustup run "$channel" cargo test --locked --release)
+          pnpm engine:check-profile
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: kino-stream-engine-windows-x64
+          path: build/engine-target/release/kino-stream-engine.exe
+          retention-days: 7
+
+  # The portable build with the engine beside the shell, where the shell
+  # looks for it.
+  windows-package:
+    name: Windows package
+    needs: [windows, windows-engine]
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: Kino-windows-x64
+          path: build/shell
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: kino-stream-engine-windows-x64
+          path: build/engine
+      - name: Add the engine to the portable build
+        shell: pwsh
+        run: |
+          Expand-Archive build/shell/Kino-windows-x64.zip -DestinationPath build/package
+          Copy-Item build/engine/kino-stream-engine.exe build/package/Kino/
+          Compress-Archive -Path build/package/Kino -DestinationPath build/Kino-windows-x64.zip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Kino-windows-x64-with-engine
+          path: build/Kino-windows-x64.zip
+          retention-days: 7
+
   validate:
     name: Validate
-    needs: [changes, web, native, linux, windows]
+    needs: [changes, web, native, linux, windows, windows-engine, windows-package]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -425,6 +544,8 @@ jobs:
           KINO_NATIVE_RESULT: ${{ needs.native.result }}
           KINO_LINUX_RESULT: ${{ needs.linux.result }}
           KINO_WINDOWS_RESULT: ${{ needs.windows.result }}
+          KINO_WINDOWS_ENGINE_RESULT: ${{ needs.windows-engine.result }}
+          KINO_WINDOWS_PACKAGE_RESULT: ${{ needs.windows-package.result }}
           KINO_NATIVE_REQUIRED: ${{ needs.changes.outputs.native }}
         run: |
           test "$KINO_CHANGES_RESULT" = success
@@ -433,8 +554,12 @@ jobs:
             test "$KINO_NATIVE_RESULT" = success
             test "$KINO_LINUX_RESULT" = success
             test "$KINO_WINDOWS_RESULT" = success
+            test "$KINO_WINDOWS_ENGINE_RESULT" = success
+            test "$KINO_WINDOWS_PACKAGE_RESULT" = success
           else
             test "$KINO_NATIVE_RESULT" = skipped
             test "$KINO_LINUX_RESULT" = skipped
             test "$KINO_WINDOWS_RESULT" = skipped
+            test "$KINO_WINDOWS_ENGINE_RESULT" = skipped
+            test "$KINO_WINDOWS_PACKAGE_RESULT" = skipped
           fi

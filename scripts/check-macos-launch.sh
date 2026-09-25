@@ -16,7 +16,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
-"${kino_app_binary}" >"${kino_probe_log}" 2>&1 &
+# An instance name of the probe's own keeps a Kino already open for this
+# profile from taking over the launch.
+kino_instance_name="kino-launch-probe-$$"
+KINO_INSTANCE_NAME="${kino_instance_name}" "${kino_app_binary}" >"${kino_probe_log}" 2>&1 &
 kino_probe_pid=$!
 sleep 2
 
@@ -31,3 +34,33 @@ if ! kill -0 "${kino_probe_pid}" 2>/dev/null; then
 fi
 
 echo "Kino remained healthy through the launch probe."
+
+# A second launch for the same profile hands over to the first and exits.
+set +e
+KINO_INSTANCE_NAME="${kino_instance_name}" "${kino_app_binary}" >/dev/null 2>&1 &
+kino_second_pid=$!
+for _ in $(seq 1 50); do
+  kill -0 "${kino_second_pid}" 2>/dev/null || break
+  sleep 0.1
+done
+if kill -0 "${kino_second_pid}" 2>/dev/null; then
+  kill "${kino_second_pid}"
+  echo "A second launch kept running beside the first."
+  exit 1
+fi
+wait "${kino_second_pid}"
+kino_second_exit=$?
+set -e
+if [[ "${kino_second_exit}" -ne 0 ]]; then
+  echo "A second launch exited with code ${kino_second_exit} instead of handing over."
+  exit 1
+fi
+for _ in $(seq 1 20); do
+  grep -q "brought forward by a second launch" "${kino_probe_log}" && break
+  sleep 0.1
+done
+if ! grep -q "brought forward by a second launch" "${kino_probe_log}" || ! kill -0 "${kino_probe_pid}" 2>/dev/null; then
+  echo "The first Kino was not brought forward by the second launch."
+  exit 1
+fi
+echo "A second launch brought the first Kino forward and exited."

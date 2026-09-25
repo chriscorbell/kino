@@ -1,0 +1,43 @@
+diff --git a/vcpkg-overlays/libtorrent/portfile.cmake b/vcpkg-overlays/libtorrent/portfile.cmake
+index 1ff1b97..8a7f2bd 100644
+--- a/vcpkg-overlays/libtorrent/portfile.cmake
++++ b/vcpkg-overlays/libtorrent/portfile.cmake
+@@ -35,7 +35,7 @@ vcpkg_from_github(
+     OUT_SOURCE_PATH SOURCE_PATH
+     REPO arvidn/libtorrent
+     REF "v${VERSION}"
+-    SHA512 5563939466e4240849fd24b1eec394b56f39f71ebae9a26fd858e638e819c78c856afb6146963e998e2e1355eaed56b74f27228980ceed1c53ad189cf3fc2b80
++    SHA512 682109ebee80a3a64ba362809be50a9985de40088d6811a286ae8a3b1062b070805491e636a02cde185366eea2245ae2c0cbb3c95e28b058c6f667e09676bcea
+     HEAD_REF RC_2_1
+     PATCHES
+         use-system-libdatachannel.patch
+diff --git a/vcpkg-overlays/libtorrent/vcpkg.json b/vcpkg-overlays/libtorrent/vcpkg.json
+index 638d754..cb55896 100644
+--- a/vcpkg-overlays/libtorrent/vcpkg.json
++++ b/vcpkg-overlays/libtorrent/vcpkg.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "libtorrent",
+-  "version": "2.1.1",
++  "version": "2.1.2",
+   "maintainers": "Arvid Norberg <arvid.norberg@gmail.com>",
+   "description": "An efficient feature complete C++ BitTorrent implementation",
+   "homepage": "https://libtorrent.org",
+diff --git a/vcpkg.json b/vcpkg.json
+index b204026..939d5e7 100644
+--- a/vcpkg.json
++++ b/vcpkg.json
+@@ -8,11 +8,11 @@
+         },
+         "openssl"
+     ],
+-    "builtin-baseline": "84bab45d415d22042bd0b9081aea57f362da3f35",
++    "builtin-baseline": "617ef1c0c422737d117eda00a471ea1be5bad088",
+     "overrides": [
+         {
+             "name": "libtorrent",
+-            "version": "2.1.1"
++            "version": "2.1.2"
+         }
+     ]
+ }
