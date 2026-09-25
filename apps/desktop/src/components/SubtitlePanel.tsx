@@ -67,7 +67,12 @@ export function SubtitlePanel({
   tracks: SubtitleTrack[];
 }) {
   return (
-    <div aria-label={enUS.player.subtitles} className={styles.subtitlePanel} ref={panelRef}>
+    <div
+      aria-label={enUS.player.subtitles}
+      className={styles.subtitlePanel}
+      ref={panelRef}
+      role="dialog"
+    >
       <div className={styles.subtitleTrackList}>
         <button aria-pressed={selectedId === null} onClick={() => onSelect(null)} type="button">
           {enUS.player.subtitlesOff}

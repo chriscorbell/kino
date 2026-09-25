@@ -997,6 +997,11 @@
   background: transparent;
 }
 
+.playerSurface {
+  position: absolute;
+  inset: 0;
+}
+
 .player video {
   width: 100%;
   height: 100%;
@@ -1184,6 +1189,21 @@
 .timeline {
   position: relative;
   height: 18px;
+}
+
+.timelineHover {
+  position: absolute;
+  z-index: 3;
+  bottom: 22px;
+  padding: 3px 7px;
+  border-radius: var(--kino-control-radius);
+  color: var(--kino-text);
+  background: rgb(10 10 11 / 86%);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  transform: translateX(-50%);
+  white-space: nowrap;
 }
 
 .timeline input {

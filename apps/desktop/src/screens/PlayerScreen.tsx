@@ -95,6 +95,7 @@ export function PlayerScreen({
   const [subtitleTracks, setSubtitleTracks] = useState<SubtitleTrack[]>([]);
   const [subtitleMenuOpen, setSubtitleMenuOpen] = useState(false);
   const subtitleMenuRef = useRef<HTMLDivElement>(null);
+  const subtitleButtonRef = useRef<HTMLButtonElement>(null);
   const changeAudioMenu = useCallback((open: boolean) => {
     setAudioMenuOpen(open);
     if (open) setSubtitleMenuOpen(false);
@@ -243,14 +244,18 @@ export function PlayerScreen({
   }
 
   const unloadPlayer = result.unload;
+  const [saving, setSaving] = useState(false);
+  const [hoverRatio, setHoverRatio] = useState<number | null>(null);
   const finishPlayback = useCallback(
     (navigate: () => void) => {
       if (navigationPendingRef.current) return;
       navigationPendingRef.current = true;
+      setSaving(true);
       void unloadPlayer()
         .then(navigate)
         .catch(() => {
           navigationPendingRef.current = false;
+          setSaving(false);
           setShutdownError(enUS.player.saveFailed);
         });
     },
@@ -498,9 +503,21 @@ export function PlayerScreen({
     };
     window.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('keydown', onKeyDown);
+    // Opening moves focus to the current choice, so the keyboard lands inside
+    // the panel. Closing returns it to the button when it was inside.
+    const panel = subtitleMenuRef.current;
+    const toggle = subtitleButtonRef.current;
+    const current =
+      panel?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]') ??
+      panel?.querySelector<HTMLButtonElement>('button');
+    current?.focus();
     return () => {
       window.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('keydown', onKeyDown);
+      const active = document.activeElement;
+      if (!active || active === document.body || panel?.contains(active)) {
+        toggle?.focus();
+      }
     };
   }, [subtitleMenuOpen]);
 
@@ -757,6 +774,17 @@ export function PlayerScreen({
         />
       ) : null}
 
+      {streamUrl ? (
+        // A click on the picture plays or pauses, and a double click toggles
+        // fullscreen. Its two clicks cancel out, as in other players.
+        <div
+          aria-hidden
+          className={styles.playerSurface}
+          onClick={togglePlayback}
+          onDoubleClick={toggleFullscreen}
+        />
+      ) : null}
+
       <div className={styles.playerTopbar} ref={topbarRef}>
         <button onClick={() => finishPlayback(onBack)} type="button">
           <ArrowLeft aria-hidden size={18} />
@@ -775,6 +803,8 @@ export function PlayerScreen({
           <div className={styles.playerStatus} role="alert">
             {shutdownError}
           </div>
+        ) : saving ? (
+          <div className={styles.playerStatus}>{enUS.player.savingProgress}</div>
         ) : null}
         {result.loading ? (
           <div className={styles.playerStatus}>{enUS.player.preparingSource}</div>
@@ -851,7 +881,24 @@ export function PlayerScreen({
               {fullscreenError}
             </div>
           ) : null}
-          <div className={styles.timeline}>
+          <div
+            className={styles.timeline}
+            onPointerLeave={() => setHoverRatio(null)}
+            onPointerMove={(event) => {
+              const bounds = event.currentTarget.getBoundingClientRect();
+              if (bounds.width <= 0 || duration <= 0) return;
+              setHoverRatio(Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width)));
+            }}
+          >
+            {hoverRatio !== null && duration > 0 ? (
+              <span
+                aria-hidden
+                className={styles.timelineHover}
+                style={{ left: `${hoverRatio * 100}%` }}
+              >
+                {formatTime(hoverRatio * duration)}
+              </span>
+            ) : null}
             {intro.markerStyle ? (
               <span className={styles.introRange} style={intro.markerStyle} />
             ) : null}
@@ -925,6 +972,7 @@ export function PlayerScreen({
               <button
                 aria-expanded={subtitleMenuOpen}
                 aria-label={enUS.player.subtitles}
+                ref={subtitleButtonRef}
                 className={subtitleMenuOpen ? styles.controlActive : undefined}
                 onClick={() => {
                   setAudioMenuOpen(false);
