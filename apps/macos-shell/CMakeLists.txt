@@ -1,6 +1,15 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(Kino VERSION 0.1.0 LANGUAGES CXX OBJCXX)
+# Kino's version lives in the root package.json, shared with the TV app and the
+# web client. CMake's project version takes only its numeric part; a
+# pre-release suffix such as -beta.1 stays in KINO_RELEASE_VERSION below.
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../../package.json" KINO_ROOT_PACKAGE)
+string(JSON KINO_PACKAGE_VERSION GET "${KINO_ROOT_PACKAGE}" version)
+string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" KINO_NUMERIC_VERSION "${KINO_PACKAGE_VERSION}")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+  "${CMAKE_CURRENT_SOURCE_DIR}/../../package.json")
+
+project(Kino VERSION ${KINO_NUMERIC_VERSION} LANGUAGES CXX OBJCXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -104,7 +113,7 @@ qt_add_qml_module(
 )
 
 if(NOT DEFINED KINO_RELEASE_VERSION)
-  set(KINO_RELEASE_VERSION "${PROJECT_VERSION}")
+  set(KINO_RELEASE_VERSION "${KINO_PACKAGE_VERSION}")
 endif()
 target_compile_definitions(Kino PRIVATE KINO_VERSION="${KINO_RELEASE_VERSION}")
 target_include_directories(Kino PRIVATE src "${CMAKE_CURRENT_BINARY_DIR}/generated")

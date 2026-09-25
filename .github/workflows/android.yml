@@ -79,6 +79,8 @@ jobs:
 
       - name: Build Core, compile instrumentation, and lint
         run: python3 scripts/build-android.py :app:assembleBenchmark :app:assembleBenchmarkAndroidTest :app:lintRelease
+      - name: Check the APK carries Kino's version
+        run: node scripts/check-version.mjs --apk build/android/Kino-TV.apk
 
       - name: Save the vendored Core and its Cargo dependencies
         if: steps.core-cache.outputs.cache-hit != 'true'
