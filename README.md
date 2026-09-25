@@ -101,7 +101,7 @@ build/linux/Kino
 
 CI's Linux job builds the same way in an Ubuntu 26.04 container, runs the unit tests, and runs the launch, navigation, focus and scale probes against the build on a virtual display.
 
-Windows builds with MSVC against Qt 6.10 with Qt WebEngine and a libmpv development archive. CMake takes the directory holding libmpv's `include` folder and an MSVC `mpv.lib` as `-DKINO_MPV_DIR`; the archive ships only a MinGW import library, so CI makes `mpv.lib` from the DLL's exports. The Windows job in `.github/workflows/ci.yml` is the exact recipe. It runs the unit tests and uploads a portable `Kino-windows-x64` zip, with the Qt libraries and `libmpv-2.dll` beside `Kino.exe`, that runs from any folder.
+Windows builds with MSVC against Qt 6.11 with Qt WebEngine and a libmpv development archive. CMake takes the directory holding libmpv's `include` folder and an MSVC `mpv.lib` as `-DKINO_MPV_DIR`; the archive ships only a MinGW import library, so CI makes `mpv.lib` from the DLL's exports. The Windows job in `.github/workflows/ci.yml` is the exact recipe. It runs the unit tests and uploads a portable `Kino-windows-x64` zip, with the Qt libraries and `libmpv-2.dll` beside `Kino.exe`, that runs from any folder.
 
 ### Brand assets
 

@@ -280,9 +280,9 @@ jobs:
     runs-on: windows-2025
     timeout-minutes: 45
     env:
-      # The newest Qt aqtinstall can install: from 6.11 the Qt repository is
-      # laid out per compiler, which aqtinstall 3.3 cannot read yet.
-      KINO_QT_VERSION: 6.10.3
+      # The Qt release the macOS and Linux builds use, so one notices review
+      # covers all three.
+      KINO_QT_VERSION: 6.11.2
       # SourceForge keeps every libmpv build; the GitHub releases rotate out.
       KINO_MPV_ARCHIVE: mpv-dev-x86_64-20260920-git-e76a35ec95.7z
       KINO_MPV_SHA256: 60f9102db46aea8cef9bfb4345ee6a106f34fdbd1df9587e38f0660688039341
@@ -301,6 +301,9 @@ jobs:
           arch: win64_msvc2022_64
           modules: qtwebengine qtwebchannel qtpositioning
           cache: true
+          # Qt 6.11 lays its repository out per compiler, which aqtinstall
+          # reads only since a change that is merged but not yet released.
+          aqtsource: git+https://github.com/miurahr/aqtinstall.git@076e1659807d0b362a3ed684d54c2e9c775eb9c7
       - name: Fetch libmpv and make its MSVC import library
         shell: pwsh
         run: |
@@ -331,8 +334,11 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: ctest --test-dir build/windows --output-on-failure --timeout 30
-      # A portable folder: the shell, its interface, libmpv, and the Qt
-      # libraries and QML modules windeployqt finds it using.
+      # A portable folder: the shell, its interface, libmpv, the Qt libraries
+      # and QML modules windeployqt finds it using, and the C++ runtime beside
+      # them rather than as an installer to run first. Qt Quick draws with
+      # OpenGL, so the Direct3D shader compilers stay out; Qt's software
+      # OpenGL stays for machines without a GPU driver.
       - name: Package a portable build
         shell: pwsh
         run: |
@@ -341,7 +347,16 @@ jobs:
           Copy-Item build/windows/Kino.exe $out
           Copy-Item -Recurse build/windows/ui "$out/ui"
           Copy-Item build/mpv/libmpv-2.dll $out
-          windeployqt --release --qmldir apps/macos-shell/qml --no-translations "$out/Kino.exe"
+          windeployqt --release --qmldir apps/macos-shell/qml --no-translations `
+            --skip-plugin-types qmltooling --no-system-d3d-compiler --no-system-dxc-compiler `
+            --no-compiler-runtime "$out/Kino.exe"
+          Copy-Item "$env:VCToolsRedistDir/x64/Microsoft.VC143.CRT/*.dll" $out
+          foreach ($required in 'Kino.exe', 'libmpv-2.dll', 'Qt6WebEngineCore.dll', 'QtWebEngineProcess.exe', 'vcruntime140.dll', 'msvcp140.dll', 'opengl32sw.dll', 'ui/index.html') {
+            if (-not (Test-Path "$out/$required")) { throw "The portable build lacks $required" }
+          }
+          foreach ($unwanted in 'vc_redist.x64.exe', 'd3dcompiler_47.dll', 'dxcompiler.dll', 'dxil.dll', 'qmltooling') {
+            if (Test-Path "$out/$unwanted") { throw "The portable build carries $unwanted" }
+          }
           Compress-Archive -Path $out -DestinationPath build/windows-package/Kino-windows-x64.zip
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
