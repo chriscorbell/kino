@@ -148,6 +148,7 @@ public:
         if (renderContext_) {
             mpv_render_context_set_update_callback(renderContext_, nullptr, nullptr);
             mpv_render_context_free(renderContext_);
+            notifyRenderContext(false);
         }
     }
 
@@ -171,6 +172,7 @@ public:
             } else {
                 mpv_render_context_set_update_callback(renderContext_,
                                                        MpvItem::onRenderUpdate, context_.get());
+                notifyRenderContext(true);
             }
         }
         return Renderer::createFramebufferObject(size);
@@ -196,6 +198,16 @@ public:
     }
 
 private:
+    // Runs on the render thread. The item lives on the GUI thread, so the
+    // change is queued there and dropped if the item is already gone.
+    void notifyRenderContext(bool ready) {
+        std::lock_guard lock(context_->callbackMutex);
+        if (auto *item = context_->item) {
+            QMetaObject::invokeMethod(item, [item, ready]() { item->setRenderContextReady(ready); },
+                                      Qt::QueuedConnection);
+        }
+    }
+
     std::shared_ptr<MpvContext> context_;
     mpv_render_context *renderContext_ = nullptr;
 };
@@ -217,6 +229,11 @@ MpvItem::MpvItem(QQuickItem *parent)
         emitError(QStringLiteral("hardware-decoding-unavailable"));
         const char *command[] = {"stop", nullptr};
         mpv_command_async(handle_, 0, command);
+    });
+    renderContextTimer_.setInterval(5'000);
+    renderContextTimer_.setSingleShot(true);
+    connect(&renderContextTimer_, &QTimer::timeout, this, [this]() {
+        if (pendingLoad_) emitError(QStringLiteral("render-context-unavailable"));
     });
     initialize();
 }
@@ -404,46 +421,56 @@ void MpvItem::load(const QString &url, bool forceStereo, const QVariantMap &head
     mpv_set_property_async(handle_, 0, "sub-delay", MPV_FORMAT_DOUBLE, &subtitleDelay);
     int unpaused = 0;
     mpv_set_property_async(handle_, 0, "pause", MPV_FORMAT_FLAG, &unpaused);
-    QByteArray encodedUrl = url.toUtf8();
-    char loadfile[] = "loadfile";
-    char replace[] = "replace";
-    char headerOption[] = "http-header-fields";
-    char audioLanguageOption[] = "alang";
-    char audioTrackOption[] = "aid";
-    QByteArray preferredLanguage = audioLanguage.trimmed().toUtf8();
-    char automaticAudio[] = "auto";
-    char *optionNames[] = {headerOption, audioLanguageOption, audioTrackOption};
-    mpv_node optionValues[3]{};
-    for (auto &value : optionValues) value.format = MPV_FORMAT_STRING;
-    optionValues[0].u.string = headerFields.data();
-    optionValues[1].u.string = preferredLanguage.data();
-    optionValues[2].u.string = automaticAudio;
-    // Per-file options apply before track selection and reset a previous
-    // file's manual choice without changing the user's language preference.
-    mpv_node_list options{3, optionValues, optionNames};
-    mpv_node arguments[5]{};
-    for (int index = 0; index < 3; ++index) {
-        arguments[index].format = MPV_FORMAT_STRING;
-    }
-    arguments[0].u.string = loadfile;
-    arguments[1].u.string = encodedUrl.data();
-    arguments[2].u.string = replace;
-    arguments[3].format = MPV_FORMAT_INT64;
-    arguments[3].u.int64 = -1;
-    arguments[4].format = MPV_FORMAT_NODE_MAP;
-    arguments[4].u.list = &options;
-    mpv_node_list commandArguments{5, arguments, nullptr};
-    mpv_node command{};
-    command.format = MPV_FORMAT_NODE_ARRAY;
-    command.u.list = &commandArguments;
-    const int result = mpv_command_node_async(handle_, 0, &command);
-    if (result < 0) {
-        emitError(QStringLiteral("source-load-failed"));
-        return;
-    }
+    // The captured buffers own every string the command node points at.
+    auto issueLoad = [this, encodedUrl = url.toUtf8(), headerFields,
+                      preferredLanguage = audioLanguage.trimmed().toUtf8()]() mutable {
+        char loadfile[] = "loadfile";
+        char replace[] = "replace";
+        char headerOption[] = "http-header-fields";
+        char audioLanguageOption[] = "alang";
+        char audioTrackOption[] = "aid";
+        char automaticAudio[] = "auto";
+        char *optionNames[] = {headerOption, audioLanguageOption, audioTrackOption};
+        mpv_node optionValues[3]{};
+        for (auto &value : optionValues) value.format = MPV_FORMAT_STRING;
+        optionValues[0].u.string = headerFields.data();
+        optionValues[1].u.string = preferredLanguage.data();
+        optionValues[2].u.string = automaticAudio;
+        // Per-file options apply before track selection and reset a previous
+        // file's manual choice without changing the user's language preference.
+        mpv_node_list options{3, optionValues, optionNames};
+        mpv_node arguments[5]{};
+        for (int index = 0; index < 3; ++index) {
+            arguments[index].format = MPV_FORMAT_STRING;
+        }
+        arguments[0].u.string = loadfile;
+        arguments[1].u.string = encodedUrl.data();
+        arguments[2].u.string = replace;
+        arguments[3].format = MPV_FORMAT_INT64;
+        arguments[3].u.int64 = -1;
+        arguments[4].format = MPV_FORMAT_NODE_MAP;
+        arguments[4].u.list = &options;
+        mpv_node_list commandArguments{5, arguments, nullptr};
+        mpv_node command{};
+        command.format = MPV_FORMAT_NODE_ARRAY;
+        command.u.list = &commandArguments;
+        if (mpv_command_node_async(handle_, 0, &command) < 0) {
+            emitError(QStringLiteral("source-load-failed"));
+            return;
+        }
+        qInfo("[kino:mpv] source load requested");
+    };
     emit playerEvent(QStringLiteral("buffering"), {{QStringLiteral("active"), true}});
     emit playerEvent(QStringLiteral("paused"), {{QStringLiteral("paused"), false}});
-    qInfo("[kino:mpv] source load requested");
+    if (renderContextReady_) {
+        pendingLoad_ = nullptr;
+        issueLoad();
+        return;
+    }
+    // setActive(true) above made the item visible; the scene graph creates the
+    // renderer and its context on the next frame and releases this load.
+    pendingLoad_ = std::move(issueLoad);
+    renderContextTimer_.start();
 }
 
 void MpvItem::addSubtitles(const QString &url, const QString &title, const QString &lang) {
@@ -528,6 +555,8 @@ void MpvItem::setAudioTrack(int id) {
 }
 
 void MpvItem::stop() {
+    pendingLoad_ = nullptr;
+    renderContextTimer_.stop();
     hardwareDecoderTimer_.stop();
     const char *command[] = {"stop", nullptr};
     mpv_command_async(handle_, 0, command);
@@ -677,6 +706,8 @@ void MpvItem::handleEvent(mpv_event *event) {
 
 void MpvItem::emitError(const QString &code) {
     failed_ = true;
+    pendingLoad_ = nullptr;
+    renderContextTimer_.stop();
     hardwareDecoderTimer_.stop();
     setActive(false);
     qCritical("[kino:mpv] playback failed code=%s", qPrintable(code));
@@ -693,6 +724,15 @@ void MpvItem::setActive(bool active) {
     if (active_) {
         update();
     }
+}
+
+void MpvItem::setRenderContextReady(bool ready) {
+    renderContextReady_ = ready;
+    if (!ready || !pendingLoad_) return;
+    renderContextTimer_.stop();
+    auto issueLoad = std::move(pendingLoad_);
+    pendingLoad_ = nullptr;
+    issueLoad();
 }
 
 void MpvItem::updatePowerGuard() {

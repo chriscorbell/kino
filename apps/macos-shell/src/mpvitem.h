@@ -7,6 +7,7 @@
 
 #include <mpv/client.h>
 #include <mpv/render_gl.h>
+#include <functional>
 #include <memory>
 
 #include "powerguard.h"
@@ -62,16 +63,22 @@ private:
     void handleEvent(mpv_event *event);
     void initialize();
     void setActive(bool active);
+    void setRenderContextReady(bool ready);
     void updatePowerGuard();
 
     bool active_ = false;
     bool failed_ = false;
     bool hardwareDecoderActive_ = false;
     bool paused_ = true;
+    bool renderContextReady_ = false;
     bool suppressMpvLogDetails_ = false;
     bool videoPresent_ = false;
     std::shared_ptr<MpvContext> context_;
     mpv_handle *handle_ = nullptr;
     PowerGuard powerGuard_;
     QTimer hardwareDecoderTimer_;
+    // The first loadfile waits for the renderer's context. vo_libmpv fails
+    // permanently for a file whose video starts before one exists.
+    std::function<void()> pendingLoad_;
+    QTimer renderContextTimer_;
 };

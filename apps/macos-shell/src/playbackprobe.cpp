@@ -9,7 +9,6 @@
 #include <QVariantList>
 
 #include <cstdio>
-#include <memory>
 
 namespace {
 
@@ -31,19 +30,7 @@ PlaybackProbe::PlaybackProbe(MpvItem *player, const QString &mediaPath,
 
 void PlaybackProbe::start() {
     timeout_.start();
-    QQuickWindow *window = player_->window();
-    if (!window) {
-        player_->load(mediaPath_, false);
-        return;
-    }
-    // mpv's render context is created on the scene graph's first frame; loading
-    // before that leaves the player without a video output.
-    auto connection = std::make_shared<QMetaObject::Connection>();
-    *connection = connect(window, &QQuickWindow::frameSwapped, this,
-                          [this, connection]() {
-                              QObject::disconnect(*connection);
-                              player_->load(mediaPath_, false);
-                          });
+    player_->load(mediaPath_, false);
 }
 
 void PlaybackProbe::onPlayerEvent(const QString &name, const QVariantMap &payload) {
