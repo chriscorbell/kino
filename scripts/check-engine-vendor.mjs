@@ -146,6 +146,24 @@ try {
     `Cargo must run under the pinned Rust ${channel}, whose runtime notices are reviewed.`,
   );
   console.log(`The engine builds with the pinned Rust ${channel}.`);
+
+  // The engine runs under Kino's interface, so upstream's tray icon and settings window, and the
+  // GTK, Slint, and windowing crates they need, stay out of the lock it builds from.
+  const locked = new Set(
+    [
+      ...readFileSync(
+        join(dirname(fileURLToPath(import.meta.url)), '../apps/stream-engine/Cargo.lock'),
+        'utf8',
+      ).matchAll(/^name = "([^"]+)"$/gm),
+    ].map((m) => m[1]),
+  );
+  const interfaceCrates = ['settings-gui', 'tray-icon', 'tao', 'slint', 'gtk', 'winit', 'muda'];
+  assert.deepEqual(
+    interfaceCrates.filter((name) => locked.has(name)),
+    [],
+    "The engine's lock carries upstream's desktop interface crates.",
+  );
+  console.log("The engine's lock carries no tray, settings window, or windowing crates.");
 } finally {
   rmSync(root, { recursive: true, force: true });
 }
