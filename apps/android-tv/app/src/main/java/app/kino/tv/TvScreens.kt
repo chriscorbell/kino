@@ -58,6 +58,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -76,6 +77,7 @@ import androidx.tv.material3.*
 import com.stremio.core.types.addon.ResourceRequest
 import com.stremio.core.types.resource.Video
 import coil3.compose.AsyncImage
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 
 private class PosterFocusRegistry {
@@ -615,11 +617,41 @@ internal fun PosterCard(
             if (season == 0) stringResource(R.string.special_number, number)
             else stringResource(R.string.season_episode, season, number)
         }
+    // Library cards carry Core's state: partial progress, and a badge for new episodes or a title
+    // marked watched. Continue Watching draws its own progress with the resume affordance.
+    val partial = !resume && (media.progress ?: 0.0).let { it > 0.0 && it < 1.0 }
+    val badge =
+        when {
+            resume -> null
+            media.newVideos > 0 -> stringResource(R.string.new_episodes_badge, media.newVideos)
+            media.watched -> stringResource(R.string.watched_badge)
+            else -> null
+        }
+    val badgeLabel =
+        when {
+            resume -> null
+            media.newVideos > 0 ->
+                pluralStringResource(R.plurals.new_episodes, media.newVideos, media.newVideos)
+            media.watched -> stringResource(R.string.watched_badge)
+            else -> null
+        }
     val accessibilityLabel =
         if (resume)
             listOfNotNull(stringResource(R.string.resume_title, media.title), episodeLong)
                 .joinToString(", ")
-        else listOf(media.title, caption).joinToString(", ")
+        else
+            listOfNotNull(
+                    media.title,
+                    caption,
+                    badgeLabel,
+                    if (partial)
+                        stringResource(
+                            R.string.progress_watched,
+                            ((media.progress ?: 0.0) * 100).roundToInt().coerceIn(1, 99),
+                        )
+                    else null,
+                )
+                .joinToString(", ")
     var artworkFailed by remember(media.poster) { mutableStateOf(false) }
     DisposableEffect(focusKey) {
         registry.requesters[focusKey] = focus
@@ -668,6 +700,24 @@ internal fun PosterCard(
                     contentScale = ContentScale.Crop,
                     onError = { artworkFailed = true },
                 )
+                badge?.let {
+                    Text(
+                        it.uppercase(),
+                        Modifier.align(Alignment.TopEnd)
+                            .padding(8.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(Color.Black.copy(alpha = .76f))
+                            .border(1.dp, Color.White.copy(alpha = .14f), RoundedCornerShape(50))
+                            .padding(horizontal = 7.dp, vertical = 3.dp)
+                            .clearAndSetSemantics {},
+                        fontSize = 10.sp,
+                        lineHeight = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = .5.sp,
+                        color = KinoColors.Text,
+                    )
+                }
+                if (partial) ProgressTrack(media.progress ?: 0.0, Modifier.align(Alignment.BottomStart))
                 if (resume) {
                     Box(
                         Modifier.align(Alignment.Center)
@@ -678,20 +728,7 @@ internal fun PosterCard(
                     ) {
                         Image(painterResource(R.drawable.play), null, Modifier.size(24.dp))
                     }
-                    Box(
-                        Modifier.align(Alignment.BottomStart)
-                            .fillMaxWidth()
-                            .height(3.dp)
-                            .background(Color.White.copy(alpha = .2f))
-                    ) {
-                        Box(
-                            Modifier.fillMaxWidth(
-                                    (media.progress ?: 0.0).toFloat().coerceIn(0f, 1f)
-                                )
-                                .fillMaxHeight()
-                                .background(KinoColors.TextStrong)
-                        )
-                    }
+                    ProgressTrack(media.progress ?: 0.0, Modifier.align(Alignment.BottomStart))
                 }
             }
         }
@@ -711,6 +748,17 @@ internal fun PosterCard(
                 lineHeight = 16.sp,
                 color = KinoColors.TextFaint,
             )
+    }
+}
+
+@Composable
+private fun ProgressTrack(progress: Double, modifier: Modifier) {
+    Box(modifier.fillMaxWidth().height(3.dp).background(Color.White.copy(alpha = .2f))) {
+        Box(
+            Modifier.fillMaxWidth(progress.toFloat().coerceIn(0f, 1f))
+                .fillMaxHeight()
+                .background(KinoColors.TextStrong)
+        )
     }
 }
 
