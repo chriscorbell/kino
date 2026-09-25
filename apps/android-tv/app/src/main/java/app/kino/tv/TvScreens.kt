@@ -107,6 +107,7 @@ fun KinoApp(
     var videoId by remember(core) { mutableStateOf<String?>(null) }
     var playing by remember(core) { mutableStateOf<Source?>(null) }
     var playbackError by remember { mutableStateOf<Int?>(null) }
+    var failedSource by remember { mutableStateOf<FailedSource?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
     val navigationFocus = remember { TvDestinations.associate { it.route to FocusRequester() } }
     val contentFocus = remember { FocusRequester() }
@@ -208,6 +209,7 @@ fun KinoApp(
                         playing!!,
                         onFailure = {
                             core.stopPlayer()
+                            failedSource = FailedSource(videoId, playing?.stream?.source)
                             playing = null
                             playbackError = R.string.torrent_failed
                         },
@@ -218,6 +220,7 @@ fun KinoApp(
                             core,
                             onExit = { playing = null },
                             onFailure = { error ->
+                                failedSource = FailedSource(videoId, playing?.stream?.source)
                                 playing = null
                                 playbackError = error
                             },
@@ -283,6 +286,7 @@ fun KinoApp(
                                         onWatched = core::markWatched,
                                         onEpisodeWatched = core::markVideoWatched,
                                         onSeasonWatched = core::markSeasonWatched,
+                                        failedSource = failedSource,
                                     )
                                 }
                             } else {
@@ -345,6 +349,9 @@ fun KinoApp(
         }
     }
 }
+
+/** The source that last failed to play, and the title or episode it failed for. */
+internal data class FailedSource(val videoId: String?, val stream: Any?)
 
 /**
  * Opens a torrent in the engine before the player starts, and passes any other source straight
@@ -825,6 +832,7 @@ internal fun DetailScreen(
     onWatched: (Boolean) -> Unit = {},
     onEpisodeWatched: (Video, Boolean) -> Unit = { _, _ -> },
     onSeasonWatched: (Int, Boolean) -> Unit = { _, _ -> },
+    failedSource: FailedSource? = null,
 ) {
     val meta = details.meta?.takeIf { it.id == media.id && it.type == media.type }
     val focus = remember { FocusRequester() }
@@ -898,7 +906,7 @@ internal fun DetailScreen(
                     }
                 }
             }
-            sourceItems(media, videoId, details, error, onRetry, onSource)
+            sourceItems(media, videoId, details, error, onRetry, onSource, failedSource)
         }
         return
     }
@@ -1251,7 +1259,7 @@ internal fun DetailScreen(
             }
         }
         if (media.type == "movie" && videoId != null)
-            sourceItems(media, videoId, details, error, onRetry, onSource)
+            sourceItems(media, videoId, details, error, onRetry, onSource, failedSource)
     }
 }
 
@@ -1286,6 +1294,7 @@ private fun LazyListScope.sourceItems(
     error: Int?,
     onRetry: () -> Unit,
     onSource: (Source) -> Unit,
+    failed: FailedSource? = null,
 ) {
     val sources =
         details.sources.filter {
@@ -1316,7 +1325,12 @@ private fun LazyListScope.sourceItems(
     if (!details.loading && !details.sourcesLoading && sources.isEmpty())
         item { StatusText(R.string.empty_sources) }
     items(sources) { source ->
-        SourceRow(source, details.meta?.runtime, onSelect = { onSource(source) })
+        SourceRow(
+            source,
+            details.meta?.runtime,
+            failed = failed?.videoId == videoId && failed.stream == source.stream.source,
+            onSelect = { onSource(source) },
+        )
     }
 }
 
@@ -1579,7 +1593,12 @@ internal fun rowBorder() =
  * complete add-on text and the rarer fields in place, and never starts playback.
  */
 @Composable
-private fun SourceRow(source: Source, runtime: String?, onSelect: () -> Unit) {
+private fun SourceRow(
+    source: Source,
+    runtime: String?,
+    failed: Boolean = false,
+    onSelect: () -> Unit,
+) {
     val unnamed = stringResource(R.string.source_unnamed)
     val fields = remember(source) { sourceFields(source.stream, unnamed) }
     var expanded by remember(source) { mutableStateOf(false) }
@@ -1628,6 +1647,14 @@ private fun SourceRow(source: Source, runtime: String?, onSelect: () -> Unit) {
                                 ),
                                 fontSize = 13.sp,
                                 color = Muted,
+                            )
+                        // The source that just failed stays marked, so the next choice is another.
+                        if (failed)
+                            Text(
+                                stringResource(R.string.source_failed),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = KinoColors.Danger,
                             )
                     }
                     // Figures sit in their own column so rows line up for comparison.

@@ -41,6 +41,7 @@ import androidx.media3.common.util.CodecSpecificDataUtil
 import androidx.media3.common.util.Util
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.Renderer
@@ -53,6 +54,8 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
+import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import androidx.media3.exoplayer.video.MediaCodecVideoRenderer
 import androidx.media3.exoplayer.video.VideoRendererEventListener
 import androidx.media3.extractor.ExtractorsFactory
@@ -454,7 +457,11 @@ fun createTvPlayer(
             (extractorsFactory?.let { DefaultMediaSourceFactory(context, it) }
                     ?: DefaultMediaSourceFactory(context))
                 .setDataSourceFactory(DefaultDataSource.Factory(context, http))
+                .setLoadErrorHandlingPolicy(KinoLoadErrorPolicy())
         )
+        // Holds the Wi-Fi and CPU awake while playing, so a Shield on Wi-Fi does not drop the
+        // stream when its radio would otherwise sleep.
+        .setWakeMode(C.WAKE_MODE_NETWORK)
         .setAudioAttributes(
             AudioAttributes.Builder()
                 .setUsage(C.USAGE_MEDIA)
@@ -464,6 +471,44 @@ fun createTvPlayer(
         )
         .setHandleAudioBecomingNoisy(true)
         .build()
+}
+
+/**
+ * Retries what can pass: a dropped connection, a timeout, a server error. The default policy's
+ * backoff grows by a second per attempt up to five, so six attempts ride out about fifteen seconds
+ * of trouble. A refusal or a missing file will not change on a retry, so it fails at once and the
+ * viewer can choose another source.
+ */
+internal class KinoLoadErrorPolicy : DefaultLoadErrorHandlingPolicy(6) {
+    override fun getRetryDelayMsFor(
+        loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo
+    ): Long {
+        val status =
+            (loadErrorInfo.exception as? HttpDataSource.InvalidResponseCodeException)?.responseCode
+        if (status != null && status in 400..499 && status != 408 && status != 429)
+            return C.TIME_UNSET
+        return super.getRetryDelayMsFor(loadErrorInfo)
+    }
+}
+
+/** What the details page says about a source that failed, by what went wrong. */
+internal fun playbackFailureReason(error: PlaybackException, unsupported: Int): Int {
+    var cause: Throwable? = error.cause
+    while (cause != null && cause !is HttpDataSource.InvalidResponseCodeException)
+        cause = cause.cause
+    val status = (cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode
+    return when {
+        status == 401 || status == 403 -> R.string.playback_refused
+        status == 404 || status == 410 -> R.string.playback_gone
+        status != null && status >= 500 -> R.string.playback_server_failed
+        error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
+            error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ->
+            R.string.playback_network
+        error.errorCode in 3000..3999 -> R.string.playback_damaged
+        error.errorCode in 4000..4999 -> unsupported
+        error.errorCode in 5000..5999 -> R.string.playback_audio_output
+        else -> R.string.playback_error
+    }
 }
 
 /**
@@ -940,10 +985,7 @@ fun FullscreenPlayer(
 
                 override fun onPlayerError(error: PlaybackException) {
                     Log.e("KinoPlayer", "Playback failed code=${error.errorCode}")
-                    close(
-                        if (error.errorCode in 4000..4999) renderers.unsupportedReason
-                        else R.string.playback_error
-                    )
+                    close(playbackFailureReason(error, renderers.unsupportedReason))
                 }
             }
         val analytics =

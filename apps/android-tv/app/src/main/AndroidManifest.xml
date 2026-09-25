@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Media3's network wake mode keeps Wi-Fi awake while a stream plays. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Hands a verified release to Android's installer, which asks the viewer to confirm. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-feature android:name="android.software.leanback" android:required="true" />
