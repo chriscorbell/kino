@@ -81,7 +81,8 @@ elseif(WIN32)
     src/sleepobserver_windows.cpp)
   set(KINO_PLAYER_PLATFORM_LIBRARIES user32)
   set(KINO_SHELL_PLATFORM_SOURCES src/nowplaying_windows.cpp)
-  set(KINO_SHELL_PLATFORM_LIBRARIES)
+  # C++/WinRT, for the System Media Transport Controls.
+  set(KINO_SHELL_PLATFORM_LIBRARIES windowsapp)
 else()
   find_package(Qt6 REQUIRED COMPONENTS DBus)
   set(KINO_PLAYER_PLATFORM_SOURCES src/displaymode_none.cpp src/powerguard_linux.cpp
