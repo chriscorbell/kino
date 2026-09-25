@@ -128,6 +128,10 @@ ApplicationWindow {
             player.addSubtitles(url, title, lang)
         }
 
+        function setMatchFrameRate(enabled) {
+            player.matchFrameRate = enabled
+        }
+
         function load(url, forceStereo, headers) {
             player.load(url, forceStereo, headers || {}, "")
         }

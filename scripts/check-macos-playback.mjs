@@ -561,6 +561,15 @@ const fixtures = [
     file: 'dv-p5-probe.mkv',
     expect: { outcome: 'failed', errorCode: 'dolby-vision-unsupported' },
   },
+  // Match refresh rate: the display moves to the multiple of 24 Hz nearest its current rate, or
+  // stays where it is when it offers none or already is one, and returns when playback ends.
+  {
+    file: 'h264-sdr-aac.mp4',
+    label: 'refresh-h264-sdr-aac.mp4',
+    note: 'Match refresh rate moves the display for 24 fps and back',
+    env: { KINO_PLAYBACK_PROBE_MATCH: '1' },
+    expect: { outcome: 'played', refresh: 24 },
+  },
   { file: 'corrupt.mp4', expect: { outcome: 'failed' } },
   { file: 'missing.mkv', missing: true, expect: { outcome: 'failed' } },
 ];
@@ -654,6 +663,31 @@ function frameProblems(frame) {
   return problems;
 }
 
+function refreshProblems(refresh, frameRate) {
+  if (!refresh || !Array.isArray(refresh.offered)) return ['no refresh-rate report'];
+  const multiple = (rate) => {
+    const ratio = rate / frameRate;
+    const whole = Math.round(ratio);
+    return whole >= 1 && Math.abs(ratio - whole) < 0.0004 * ratio;
+  };
+  const distance = (rate) => Math.abs(rate - refresh.before);
+  let expected = refresh.before;
+  if (!multiple(refresh.before))
+    for (const rate of refresh.offered.filter(multiple))
+      if (
+        expected === refresh.before ||
+        distance(rate) < distance(expected) ||
+        (distance(rate) === distance(expected) && rate > expected)
+      )
+        expected = rate;
+  const problems = [];
+  if (Math.abs(refresh.during - expected) > 0.01)
+    problems.push(`played at ${refresh.during} Hz, expected ${expected} Hz`);
+  if (Math.abs(refresh.after - refresh.before) > 0.01)
+    problems.push(`left the display at ${refresh.after} Hz after starting at ${refresh.before} Hz`);
+  return problems;
+}
+
 function assertExpectations(fixture, result) {
   const problems = [];
   const { expect } = fixture;
@@ -695,6 +729,7 @@ function assertExpectations(fixture, result) {
       problems.push(`gain ${loudness.gainDb} dB, expected ${expect.loudness.gainDb.toFixed(2)}`);
   }
   if (expect.frame) problems.push(...frameProblems(result.frame));
+  if (expect.refresh) problems.push(...refreshProblems(result.refresh, expect.refresh));
   if (expect.frameControl) {
     const ramp = (result.frame?.neutral ?? []).map((pixel) => Math.max(...pixel));
     const rising = ramp.every((value, index) => index === 0 || value > ramp[index - 1] - 0.01);

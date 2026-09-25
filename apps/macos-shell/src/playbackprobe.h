@@ -35,6 +35,11 @@ private:
     bool stereoCheck_ = false;
     // The HDR gate pauses on a frame of the probe fixture and samples its patches.
     bool frameCheck_ = false;
+    // KINO_PLAYBACK_PROBE_MATCH: play with Match frame rate on and record the display's refresh
+    // rate before, during and after.
+    bool matchCheck_ = false;
+    double refreshBefore_ = 0;
+    double refreshDuring_ = 0;
     bool framePaused_ = false;
     QJsonObject frame_;
     bool sleepPosted_ = false;

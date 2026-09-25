@@ -638,6 +638,7 @@ export function PlayerScreen({
     };
 
     nativePlayer.playerEvent.connect(onEvent);
+    nativePlayer.setMatchFrameRate?.(settings.matchRefreshRate);
     if (nativePlayer.loadWithAudioLanguage) {
       nativePlayer.loadWithAudioLanguage(
         streamUrl,

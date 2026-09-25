@@ -10,6 +10,7 @@
 #include <functional>
 #include <memory>
 
+#include "displaymode.h"
 #include "powerguard.h"
 #include "sleepobserver.h"
 
@@ -20,11 +21,15 @@ class MpvItem : public QQuickFramebufferObject {
     Q_OBJECT
     QML_ELEMENT
     Q_PROPERTY(bool active READ active NOTIFY activeChanged)
+    // Switch the display to the video's frame rate while it plays. Off unless the viewer asks.
+    Q_PROPERTY(bool matchFrameRate READ matchFrameRate WRITE setMatchFrameRate)
 public:
     explicit MpvItem(QQuickItem *parent = nullptr);
     ~MpvItem() override;
 
     bool active() const;
+    bool matchFrameRate() const { return matchFrameRate_; }
+    void setMatchFrameRate(bool enabled) { matchFrameRate_ = enabled; }
     double playbackSpeed() const;
     QVariantMap subtitleStyle() const;
     /** The Stereo path's integrated loudness and applied gain, for the probe and diagnostics. */
@@ -70,7 +75,12 @@ private:
     void setRenderContextReady(bool ready);
     void updatePowerGuard();
 
+    void matchDisplayTo(double frameRate);
+
     bool active_ = false;
+    bool matchFrameRate_ = false;
+    bool frameRateMatched_ = false;
+    DisplayModeMatcher displayMode_;
     bool failed_ = false;
     bool hardwareDecoderActive_ = false;
     bool paused_ = true;

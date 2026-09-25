@@ -1,9 +1,12 @@
 #include "playbackprobe.h"
 
+#include "displaymode.h"
 #include "mpvitem.h"
 #include "sleepobserver.h"
 
 #include <QCoreApplication>
+#include <QGuiApplication>
+#include <QScreen>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QQuickWindow>
@@ -31,6 +34,7 @@ PlaybackProbe::PlaybackProbe(MpvItem *player, const QString &mediaPath,
     : QObject(parent), sleepCheck_(qEnvironmentVariableIsSet("KINO_PLAYBACK_PROBE_SLEEP")),
       stereoCheck_(qEnvironmentVariableIsSet("KINO_PLAYBACK_PROBE_STEREO")),
       frameCheck_(qEnvironmentVariableIsSet("KINO_PLAYBACK_PROBE_FRAME")),
+      matchCheck_(qEnvironmentVariableIsSet("KINO_PLAYBACK_PROBE_MATCH")),
       player_(player), mediaPath_(mediaPath), subtitlesPath_(subtitlesPath) {
     timeout_.setInterval(kTimeoutMs);
     timeout_.setSingleShot(true);
@@ -40,6 +44,17 @@ PlaybackProbe::PlaybackProbe(MpvItem *player, const QString &mediaPath,
 
 void PlaybackProbe::start() {
     timeout_.start();
+    if (matchCheck_) {
+        // On a Mac with several displays the window could open on any of them; the primary one
+        // is the same display on every run.
+        if (QQuickWindow *window = player_->window()) {
+            window->setScreen(QGuiApplication::primaryScreen());
+            window->setPosition(QGuiApplication::primaryScreen()->availableGeometry().topLeft() +
+                                QPoint(40, 40));
+        }
+        refreshBefore_ = DisplayModeMatcher::refreshRate(player_->window());
+        player_->setMatchFrameRate(true);
+    }
     player_->load(mediaPath_, stereoCheck_);
 }
 
@@ -161,6 +176,7 @@ void PlaybackProbe::finish(const QString &outcome, const QString &errorCode) {
     // Read the caption style from the live player before it stops, so the
     // fixture gate sees what libmpv actually held during playback.
     const double playbackSpeed = player_->playbackSpeed();
+    if (matchCheck_) refreshDuring_ = DisplayModeMatcher::refreshRate(player_->window());
     const QVariantMap loudness = player_->loudness();
     QJsonObject subtitleStyle;
     const QVariantMap style = player_->subtitleStyle();
@@ -169,7 +185,17 @@ void PlaybackProbe::finish(const QString &outcome, const QString &errorCode) {
     }
     player_->stop();
 
+    QJsonObject refresh;
+    if (matchCheck_) {
+        // Every rate the display offers at its current size, so the gate can tell a display
+        // that has no match from a player that did not ask for it.
+        refresh = QJsonObject{{QStringLiteral("before"), refreshBefore_},
+                              {QStringLiteral("during"), refreshDuring_},
+                              {QStringLiteral("after"), DisplayModeMatcher::refreshRate(player_->window())},
+                              {QStringLiteral("offered"), QJsonArray::fromVariantList(DisplayModeMatcher::offeredRates(player_->window()))}};
+    }
     QJsonObject result{
+        {QStringLiteral("refresh"), refresh},
         {QStringLiteral("chapters"), chapterCount_},
         {QStringLiteral("loudness"), QJsonObject::fromVariantMap(loudness)},
         {QStringLiteral("frame"), frame_},

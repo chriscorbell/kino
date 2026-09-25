@@ -216,6 +216,14 @@ export function SettingsScreen({
           ]}
           value={settings.audioOutput}
         />
+        {nativeShell ? (
+          <SettingSwitch
+            checked={settings.matchRefreshRate}
+            description={enUS.settings.matchRefreshRateDescription}
+            label={enUS.settings.matchRefreshRate}
+            onChange={(checked) => update('matchRefreshRate', checked)}
+          />
+        ) : null}
       </section>
 
       <section className={styles.settingsGroup} aria-labelledby="language-settings-title">
