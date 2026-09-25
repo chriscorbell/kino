@@ -396,6 +396,18 @@ jobs:
         with:
           path: build/vcpkg-installed
           key: ${{ steps.vcpkg-cache.outputs.cache-primary-key }}
+      # The engine links libtorrent statically, and its notices are reviewed
+      # for one release (third_party/notices/reviewed.json).
+      - name: Check the libtorrent release
+        shell: bash
+        run: |
+          reviewed=$(node -p "require('./third_party/notices/reviewed.json').homebrew.find((f) => f.name === 'libtorrent-rasterbar').version")
+          header="build/vcpkg-installed/${VCPKG_DEFAULT_TRIPLET}/include/libtorrent/version.hpp"
+          grep -q "LIBTORRENT_VERSION \"${reviewed}" "$header" || {
+            grep LIBTORRENT_VERSION "$header"
+            echo "vcpkg built a libtorrent other than the reviewed ${reviewed}."
+            exit 1
+          }
       - name: Build the engine
         shell: bash
         env:
