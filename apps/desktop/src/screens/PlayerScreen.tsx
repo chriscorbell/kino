@@ -246,6 +246,7 @@ export function PlayerScreen({
   const unloadPlayer = result.unload;
   const [saving, setSaving] = useState(false);
   const [hoverRatio, setHoverRatio] = useState<number | null>(null);
+  const [bufferedTime, setBufferedTime] = useState(0);
   const finishPlayback = useCallback(
     (navigate: () => void) => {
       if (navigationPendingRef.current) return;
@@ -579,6 +580,8 @@ export function PlayerScreen({
         }
       } else if (name === 'duration' && typeof payload.milliseconds === 'number') {
         updateDuration(payload.milliseconds);
+      } else if (name === 'buffered' && typeof payload.milliseconds === 'number') {
+        setBufferedTime(payload.milliseconds);
       } else if (name === 'paused' && typeof payload.paused === 'boolean') {
         setPaused(payload.paused);
         if (!payload.paused) setEnded(false);
@@ -749,6 +752,17 @@ export function PlayerScreen({
             dispatchPlayer('PausedChanged', { paused: false });
           }}
           onPlaying={() => setBuffering(false)}
+          onProgress={(event) => {
+            const video = event.currentTarget;
+            for (let index = 0; index < video.buffered.length; index += 1) {
+              if (
+                video.buffered.start(index) <= video.currentTime &&
+                video.currentTime <= video.buffered.end(index)
+              ) {
+                setBufferedTime(video.buffered.end(index) * 1000);
+              }
+            }
+          }}
           onSeeking={(event) => {
             setEnded(false);
             updateTime(event.currentTarget.currentTime * 1000);
@@ -898,6 +912,13 @@ export function PlayerScreen({
               >
                 {formatTime(hoverRatio * duration)}
               </span>
+            ) : null}
+            {duration > 0 && bufferedTime > time ? (
+              <span
+                aria-hidden
+                className={styles.bufferedRange}
+                style={{ width: `${Math.min(100, (bufferedTime / duration) * 100)}%` }}
+              />
             ) : null}
             {intro.markerStyle ? (
               <span className={styles.introRange} style={intro.markerStyle} />

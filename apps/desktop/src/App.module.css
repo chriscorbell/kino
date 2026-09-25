@@ -1238,6 +1238,19 @@
   cursor: pointer;
 }
 
+/* How far the player has read ahead, drawn like the intro range beneath the
+   slider, which paints the played part over it. */
+.bufferedRange {
+  position: absolute;
+  z-index: 1;
+  top: 7px;
+  left: 0;
+  height: 4px;
+  border-radius: var(--kino-pill-radius);
+  background: rgb(255 255 255 / 24%);
+  pointer-events: none;
+}
+
 .introRange {
   position: absolute;
   z-index: 1;

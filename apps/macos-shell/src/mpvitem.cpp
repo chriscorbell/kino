@@ -379,6 +379,7 @@ bool MpvItem::initialize() {
     mpv_observe_property(handle_, 8, "chapter-list", MPV_FORMAT_NODE);
     mpv_observe_property(handle_, 9, "track-list", MPV_FORMAT_NODE);
     mpv_observe_property(handle_, 10, "volume", MPV_FORMAT_DOUBLE);
+    mpv_observe_property(handle_, 11, "demuxer-cache-time", MPV_FORMAT_DOUBLE);
     return true;
 }
 
@@ -434,6 +435,7 @@ void MpvItem::load(const QString &url, bool forceStereo, const QVariantMap &head
         mpv_set_property_string(handle_, "tls-ca-file", roots.constData());
     }
     failed_ = false;
+    bufferedMs_ = -1;
     hardwareDecoderActive_ = false;
     hardwareDecoderTimer_.stop();
     paused_ = false;
@@ -687,6 +689,17 @@ void MpvItem::handleEvent(mpv_event *event) {
             emit playerEvent(name == "time-pos" ? QStringLiteral("time")
                                                 : QStringLiteral("duration"),
                              millisecondsPayload(seconds));
+        } else if (name == "demuxer-cache-time" && property->format == MPV_FORMAT_DOUBLE) {
+            const double seconds = *static_cast<double *>(property->data);
+            if (!std::isfinite(seconds) || seconds < 0) break;
+            const long long milliseconds = std::llround(seconds * 1000.0);
+            if (bufferedMs_ >= 0 && milliseconds >= bufferedMs_ &&
+                milliseconds - bufferedMs_ < 1000) {
+                break;
+            }
+            bufferedMs_ = milliseconds;
+            emit playerEvent(QStringLiteral("buffered"),
+                             {{QStringLiteral("milliseconds"), milliseconds}});
         } else if (name == "pause" && property->format == MPV_FORMAT_FLAG) {
             paused_ = *static_cast<int *>(property->data) != 0;
             updatePowerGuard();
