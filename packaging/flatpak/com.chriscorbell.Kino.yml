@@ -96,6 +96,22 @@ modules:
         tag: v7.360.1
         commit: cee9b076f2c63104ccfd497fa79c39a867293ec4
 
+  # mpv's DRM support, which VA-API reaches the GPU's render node through,
+  # reads monitor data with libdisplay-info.
+  - name: hwdata
+    buildsystem: autotools
+    sources:
+      - type: archive
+        url: https://github.com/vcrhonek/hwdata/archive/refs/tags/v0.394.tar.gz
+        sha256: b7c3fd7214a3b7c49d2661db127a712dc11cffd1799f793947aa1cb20aaf3298
+
+  - name: libdisplay-info
+    buildsystem: meson
+    sources:
+      - type: archive
+        url: https://gitlab.freedesktop.org/emersion/libdisplay-info/-/archive/0.2.0/libdisplay-info-0.2.0.tar.gz
+        sha256: f7331fcaf5527251b84c8fb84238d06cd2f458422ce950c80e86c72927aa8c2b
+
   - name: mpv
     buildsystem: meson
     config-opts:
