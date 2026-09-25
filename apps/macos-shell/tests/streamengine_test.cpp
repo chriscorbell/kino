@@ -10,9 +10,26 @@
 
 #include <cstdio>
 #include <iostream>
+
+#if defined(Q_OS_WIN)
+#include <windows.h>
+#else
 #include <signal.h>
+#endif
 
 namespace {
+bool processAlive(qint64 pid) {
+#if defined(Q_OS_WIN)
+    HANDLE process = OpenProcess(SYNCHRONIZE, FALSE, static_cast<DWORD>(pid));
+    if (!process) return false;
+    const bool running = WaitForSingleObject(process, 0) == WAIT_TIMEOUT;
+    CloseHandle(process);
+    return running;
+#else
+    return ::kill(static_cast<pid_t>(pid), 0) == 0;
+#endif
+}
+
 constexpr auto kReady = "KINO_ENGINE_READY http://127.0.0.1:12345/kino/"
                         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n";
 
@@ -89,7 +106,7 @@ private slots:
         QVERIFY(engine.url().isEmpty());
         const auto pid = helperPid();
         QVERIFY(pid > 0);
-        QTRY_VERIFY_WITH_TIMEOUT(::kill(pid, 0) == -1, 1500);
+        QTRY_VERIFY_WITH_TIMEOUT(!processAlive(pid), 1500);
     }
 
     void prematureExitFails() {
@@ -121,7 +138,7 @@ private slots:
         engine.start();
         QTRY_VERIFY_WITH_TIMEOUT(stopped.isFinished(), 1500);
         QVERIFY(stopped.result());
-        QVERIFY(::kill(pid, 0) == -1);
+        QVERIFY(!processAlive(pid));
         QVERIFY(engine.url().isEmpty());
         QVERIFY(engine.error().isEmpty());
         engine.finishCacheClear();
@@ -187,10 +204,10 @@ private slots:
     }
 
 private:
-    pid_t helperPid() {
+    qint64 helperPid() {
         QFile file(directory_.filePath("pid"));
         if (!file.open(QIODevice::ReadOnly)) return -1;
-        return static_cast<pid_t>(file.readAll().toLongLong());
+        return file.readAll().toLongLong();
     }
     QTemporaryDir directory_;
 };
