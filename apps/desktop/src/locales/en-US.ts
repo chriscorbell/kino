@@ -355,6 +355,7 @@ export const enUS = {
   player: {
     hardwareDecodingFailed: 'This source could not be hardware-decoded on this Mac.',
     rendererFailed: 'Kino could not start the native video renderer.',
+    playerUnavailable: 'Kino could not start the native player. Quit and reopen Kino to try again.',
     nativePlaybackFailed: 'The native player could not decode or load this source.',
     startFailed: 'Playback could not start with this source.',
     connectionFailed: 'Kino could not connect to the native player.',

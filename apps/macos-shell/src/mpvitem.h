@@ -62,7 +62,8 @@ private:
 
     void emitError(const QString &code);
     void handleEvent(mpv_event *event);
-    void initialize();
+    bool available() const;
+    bool initialize();
     void setActive(bool active);
     void setRenderContextReady(bool ready);
     void updatePowerGuard();

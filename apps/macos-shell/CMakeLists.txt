@@ -209,6 +209,30 @@ if(BUILD_TESTING)
   add_test(NAME mpvitem_properties COMMAND kino_mpvitem_test)
   set_tests_properties(mpvitem_properties PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+  # Interpose libmpv so startup fails the way a broken install would.
+  add_library(kino_mpv_failure SHARED tests/mpv_failure.cpp)
+  target_link_libraries(kino_mpv_failure PRIVATE PkgConfig::MPV)
+  qt_add_executable(
+    kino_mpvitem_unavailable_test
+    tests/mpvitem_unavailable_test.cpp
+    src/mpvitem.cpp
+    src/powerguard.cpp
+    src/sleepobserver.mm
+  )
+  target_include_directories(kino_mpvitem_unavailable_test PRIVATE src)
+  target_link_libraries(
+    kino_mpvitem_unavailable_test
+    PRIVATE kino_mpv_failure PkgConfig::MPV ${APPKIT_FRAMEWORK} ${IOKIT_FRAMEWORK} Qt6::Quick
+            Qt6::Test
+  )
+  foreach(stage create initialize)
+    add_test(NAME mpv_unavailable_${stage} COMMAND kino_mpvitem_unavailable_test)
+    set_tests_properties(
+      mpv_unavailable_${stage}
+      PROPERTIES ENVIRONMENT "KINO_TEST_MPV_FAILURE=${stage}"
+    )
+  endforeach()
+
   # Interpose the real libmpv calls so wrong-context cleanup fails before UB.
   add_library(kino_render_lifetime_guard SHARED tests/render_lifetime_guard.cpp)
   target_link_libraries(kino_render_lifetime_guard PRIVATE PkgConfig::MPV "-framework OpenGL")

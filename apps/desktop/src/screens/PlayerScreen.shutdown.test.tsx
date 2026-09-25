@@ -211,6 +211,18 @@ describe('ordered playback shutdown', () => {
   );
 });
 
+it('tells the viewer when the native player could not start', async () => {
+  const player = await mountPlayer();
+  await player.emit('error', { code: 'player-unavailable' });
+  await waitFor(() => expect(player.calls).toContain('TimeChanged:34567'));
+  await act(async () => player.finishFlush());
+  await waitFor(() =>
+    expect(player.onSourceFailure).toHaveBeenCalledExactlyOnceWith(
+      'Kino could not start the native player. Quit and reopen Kino to try again.',
+    ),
+  );
+});
+
 describe('near-end Up Next', () => {
   it.each([
     { duration: 1_800_000, start: 1_680_000 },

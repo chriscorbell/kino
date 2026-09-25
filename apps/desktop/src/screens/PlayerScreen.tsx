@@ -88,6 +88,9 @@ function nativeErrorMessage(code: unknown) {
   if (code === 'render-context-unavailable') {
     return enUS.player.rendererFailed;
   }
+  if (code === 'player-unavailable') {
+    return enUS.player.playerUnavailable;
+  }
   return enUS.player.nativePlaybackFailed;
 }
 
