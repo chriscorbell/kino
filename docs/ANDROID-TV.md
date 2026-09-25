@@ -67,7 +67,7 @@ The patch disables analytics and upstream diagnostic payloads, limits responses 
 
 `TvCore` converts Core's protobuf models into presentation data and owns its actions. Catalog ranges are explicitly requested. Backward seeks use Core's `SeekAction`, since its ordinary `TimeChanged` action only advances progress.
 
-Guest and account sessions use separate Android processes and private preference files. Each process owns one native Core runtime. Signing in leaves the guest runtime and storage intact; signing out clears the account's local credentials and returns to the guest process. Android backup and device transfer are disabled for app data.
+Guest and account sessions use separate Android processes and private preference files. Each process owns one native Core runtime. Signing in leaves the guest runtime and storage intact. Signing out first asks Stremio through Core to delete the session, so the key stops working everywhere, then clears the account's local credentials and returns to the guest process. Settings shows Signing out… while it waits; after ten seconds without an answer, as on a TV that is offline, it signs out locally anyway. `LogoutTest` stores a session Stremio never issued, restarts into it, signs out, and requires Stremio's answer rather than the timeout. Android backup and device transfer are disabled for app data.
 
 Startup routes to the saved account process before composing the guest interface. Loading, sign-in, and browsing derive from the same Core state, so a restored signed-in profile does not briefly render the device-link screen.
 

@@ -24,24 +24,29 @@ open class MainActivity : ComponentActivity() {
                     },
                     onCancelAccount = { finish() },
                     onSignOut = {
-                        java.io.File(filesDir, "active-account").delete()
-                        getSharedPreferences("stremio-core-account", MODE_PRIVATE)
-                            .edit()
-                            .clear()
-                            .commit()
-                        startActivity(
-                            Intent(this, MainActivity::class.java)
-                                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                        )
-                        finish()
-                        // Only the account process exits. The guest Core and its storage remain
-                        // intact.
-                        Process.killProcess(Process.myPid())
+                        // Stremio ends the session first; the local account data goes after.
+                        app.core.logout { signOutLocally() }
                     },
                 )
                 PendingPlaybackSaveDialog(app.core)
             }
         }
+    }
+
+    private fun signOutLocally() {
+        java.io.File(filesDir, "active-account").delete()
+        getSharedPreferences("stremio-core-account", MODE_PRIVATE)
+            .edit()
+            .clear()
+            .commit()
+        startActivity(
+            Intent(this, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        )
+        finish()
+        // Only the account process exits. The guest Core and its storage remain
+        // intact.
+        Process.killProcess(Process.myPid())
     }
 
     override fun onResume() {
