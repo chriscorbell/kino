@@ -96,6 +96,16 @@ modules:
         tag: v7.360.1
         commit: cee9b076f2c63104ccfd497fa79c39a867293ec4
 
+  # mpv's X11 support, which VA-API over an X11 display needs, presents
+  # through the Present extension.
+  - name: libXpresent
+    buildsystem: autotools
+    sources:
+      - type: git
+        url: https://gitlab.freedesktop.org/xorg/lib/libxpresent.git
+        tag: libXpresent-1.0.2
+        commit: 4d92149372461bf575e8a09b1064a2884c38c3aa
+
   # mpv's DRM support, which VA-API reaches the GPU's render node through,
   # reads monitor data with libdisplay-info.
   - name: hwdata
