@@ -3,7 +3,7 @@
 // Probe a fresh engine through a blocking HTTP proxy. Tracker-list refreshes
 // are data fetches; release downloads and executable tools are forbidden.
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import { createServer as createHttpServer, request as httpRequest } from 'node:http';
@@ -323,6 +323,23 @@ try {
   }
   assert.equal((await fetch(`${address}/${infoHash}`, { method: 'DELETE' })).status, 200);
   console.log('Private torrent creation, authenticated byte ranges, and removal passed.');
+
+  // The engine never asks the router to open ports and never announces what
+  // it streams to the local network. libtorrent's UPnP client listens on the
+  // SSDP port and its local service discovery on 6771, so neither socket may
+  // exist while the helper runs with a torrent loaded.
+  const helperUdpPorts = execFileSync(
+    'lsof',
+    ['-nP', '-a', '-p', String(child.pid), '-iUDP', '-Fn'],
+    { encoding: 'utf8' },
+  )
+    .split('\n')
+    .filter((line) => line.startsWith('n'))
+    .map((line) => Number(line.split(':').at(-1)));
+  assert.ok(helperUdpPorts.length > 0, 'The BitTorrent session must hold its own UDP sockets.');
+  assert.ok(!helperUdpPorts.includes(1900), 'The engine must not run a UPnP port-mapping client.');
+  assert.ok(!helperUdpPorts.includes(6771), 'The engine must not run local service discovery.');
+  console.log('The engine runs no UPnP client and no local service discovery.');
 } finally {
   child.stdin.end();
   await exited;
