@@ -57,9 +57,14 @@ data class Shelf(
 )
 
 data class Source(val provider: String, val stream: Stream, val request: ResourceRequest) {
+    /** A torrent the engine can open: Core's torrent source with a well-formed info hash. */
+    val torrent: Stream.Tramvai?
+        get() = stream.tramvai?.takeIf { it.infoHash.matches(Regex("[0-9a-fA-F]{40}")) }
+
     val playable: Boolean
         get() =
-            secureUrl(stream.url?.url) &&
+            torrent != null ||
+                secureUrl(stream.url?.url) &&
                 stream.behaviorHints.proxyHeaders?.request.orEmpty().all { (key, value) ->
                     key != null &&
                         value != null &&

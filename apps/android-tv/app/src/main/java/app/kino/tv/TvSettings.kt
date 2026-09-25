@@ -73,6 +73,17 @@ internal enum class TvLanguage(val code: String, val label: Int) {
 internal suspend fun artworkCacheSize(context: Context): Long =
     withContext(Dispatchers.IO) { SingletonImageLoader.get(context).diskCache?.size ?: 0L }
 
+/** Torrent downloads the engine keeps for this profile. */
+internal suspend fun engineCacheSize(context: Context): Long =
+    withContext(Dispatchers.IO) {
+        (context.applicationContext as KinoApplication)
+            .engine
+            .cacheDirectory
+            .walkTopDown()
+            .filter { it.isFile }
+            .sumOf { it.length() }
+    }
+
 internal suspend fun clearArtworkCache(context: Context): Boolean =
     withContext(Dispatchers.IO) {
         val loader = SingletonImageLoader.get(context)
@@ -192,7 +203,7 @@ internal fun SettingsScreen(
 
     LaunchedEffect(Unit) {
         try {
-            cacheBytes = artworkCacheSize(context)
+            cacheBytes = artworkCacheSize(context) + engineCacheSize(context)
         } catch (_: java.io.IOException) {
             /* Shown as unavailable. */
         }
@@ -374,9 +385,19 @@ internal fun SettingsScreen(
                     scope.launch {
                         try {
                             cacheStatus =
-                                if (clearArtworkCache(context)) R.string.cache_cleared
+                                // Both run, so a failure in one does not leave the other full.
+                                if (
+                                    listOf(
+                                            clearArtworkCache(context),
+                                            (context.applicationContext as KinoApplication)
+                                                .engine
+                                                .clearCache(),
+                                        )
+                                        .all { it }
+                                )
+                                    R.string.cache_cleared
                                 else R.string.cache_clear_failed
-                            cacheBytes = artworkCacheSize(context)
+                            cacheBytes = artworkCacheSize(context) + engineCacheSize(context)
                         } catch (cancelled: CancellationException) {
                             throw cancelled
                         } catch (_: Exception) {

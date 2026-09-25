@@ -97,7 +97,7 @@ The launcher banner is not, because Google asks for one raster per density bucke
 
 ### Streaming engine
 
-Torrent sources play through a pinned build of the open [stream-server](https://github.com/stremio-native/stream-server) engine, which the shell starts on demand and binds to loopback. It is optional: without it Kino runs normally and reports torrent sources as unavailable. Build and bundle it with:
+Torrent sources play through a pinned build of the open [stream-server](https://github.com/stremio-native/stream-server) engine, which the shell starts on demand and binds to loopback. The TV app runs the same engine, cross-compiled by `pnpm android:build`; [Android TV development](docs/ANDROID-TV.md) describes it. It is optional: without it Kino runs normally and reports torrent sources as unavailable. Build and bundle it with:
 
 ```sh
 brew install rustup libtorrent-rasterbar boost

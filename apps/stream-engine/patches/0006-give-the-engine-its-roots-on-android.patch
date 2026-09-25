@@ -1,0 +1,64 @@
+diff --git a/enginefs/src/http_client.rs b/enginefs/src/http_client.rs
+new file mode 100644
+index 0000000..dd442ae
+--- /dev/null
++++ b/enginefs/src/http_client.rs
+@@ -0,0 +1,20 @@
++//! HTTP clients for the engine's own requests: the tracker list and tracker probes.
++//!
++//! reqwest verifies certificates through rustls-platform-verifier, which on Android calls the
++//! platform's trust manager through a JVM. Kino runs the engine as its own process there, with no
++//! JVM, so it passes the system's roots in the file named by SSL_CERT_FILE instead, the same file
++//! libtorrent's OpenSSL reads.
++
++pub fn builder() -> reqwest::ClientBuilder {
++    let builder = reqwest::Client::builder();
++    #[cfg(target_os = "android")]
++    let builder = match std::env::var_os("SSL_CERT_FILE")
++        .and_then(|path| std::fs::read(path).ok())
++        .and_then(|pem| reqwest::Certificate::from_pem_bundle(&pem).ok())
++    {
++        Some(roots) if !roots.is_empty() => builder.tls_certs_only(roots),
++        // Without roots every HTTPS request fails closed rather than trusting anything.
++        _ => builder.tls_certs_only(Vec::new()),
++    };
++    builder
++}
+diff --git a/enginefs/src/lib.rs b/enginefs/src/lib.rs
+index 1a5da51..8577326 100644
+--- a/enginefs/src/lib.rs
++++ b/enginefs/src/lib.rs
+@@ -14,6 +14,7 @@ pub mod disk_cache;
+ pub mod engine;
+ pub mod files;
+ pub mod hls;
++pub mod http_client;
+ pub mod hwaccel;
+ pub mod metadata_cache;
+ pub mod metadata_pins;
+diff --git a/enginefs/src/tracker_prober.rs b/enginefs/src/tracker_prober.rs
+index cb03120..64a951e 100644
+--- a/enginefs/src/tracker_prober.rs
++++ b/enginefs/src/tracker_prober.rs
+@@ -51,7 +51,7 @@ impl TrackerProber {
+     }
+ 
+     async fn probe_http(url: &Url) -> Option<Duration> {
+-        let client = reqwest::Client::builder()
++        let client = crate::http_client::builder()
+             .timeout(HTTP_CONNECT_TIMEOUT)
+             .build()
+             .ok()?;
+diff --git a/enginefs/src/trackers.rs b/enginefs/src/trackers.rs
+index 12f1639..27f35fd 100644
+--- a/enginefs/src/trackers.rs
++++ b/enginefs/src/trackers.rs
+@@ -196,7 +196,7 @@ impl TrackerManager {
+ 
+     /// Fetch trackers from URL
+     async fn fetch_trackers(&self, url: &str) -> anyhow::Result<Vec<String>> {
+-        let response = reqwest::get(url).await?;
++        let response = crate::http_client::builder().build()?.get(url).send().await?;
+         let text = response.text().await?;
+ 
+         let mut trackers = Vec::new();

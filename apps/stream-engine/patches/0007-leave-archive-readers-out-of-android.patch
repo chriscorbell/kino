@@ -1,0 +1,118 @@
+diff --git a/server/Cargo.toml b/server/Cargo.toml
+index 82713a7..6489fe1 100644
+--- a/server/Cargo.toml
++++ b/server/Cargo.toml
+@@ -42,7 +42,6 @@ base64 = "0.22.1"
+ walkdir = "2.5.0"
+ url = "2.5.7"
+ mime_guess = "2.0.5"
+-async-rar = { path = "../bindings/async-rar" }
+ lz-str = "0.2.1"
+ tempfile = "3.23.0"
+ mimalloc = { version = "0.1.48", default-features = false }
+@@ -74,7 +73,6 @@ open = "5.3.3"
+ image = "0.25.9"
+ ico = "0.5.0"
+ zip = "8.6.0"
+-async-sevenz = { path = "../bindings/async-sevenz" }
+ chrono = "0.4.42"
+ sysinfo = "0.39.5"
+ 
+@@ -131,3 +129,9 @@ eula = false
+ [build-dependencies]
+ winres = "0.1"
+ chrono = "0.4.42"
++
++# RAR and 7z come from C++ sources bound with autocxx, whose bindgen step cannot parse Android's
++# sysroot on a Linux host. Kino never serves archives, so its Android engine leaves them out.
++[target.'cfg(not(target_os = "android"))'.dependencies]
++async-rar = { path = "../bindings/async-rar" }
++async-sevenz = { path = "../bindings/async-sevenz" }
+diff --git a/server/src/archives/mod.rs b/server/src/archives/mod.rs
+index 96fd346..a343223 100644
+--- a/server/src/archives/mod.rs
++++ b/server/src/archives/mod.rs
+@@ -6,7 +6,9 @@ use tokio::io::{AsyncRead, AsyncSeek};
+ pub mod bridge;
+ pub mod cache;
+ pub mod nzb;
++#[cfg(not(target_os = "android"))]
+ pub mod rar;
++#[cfg(not(target_os = "android"))]
+ pub mod sevenz;
+ pub mod tar;
+ pub mod tgz;
+@@ -122,20 +124,14 @@ pub async fn get_archive_reader_with_config(
+             path,
+             cache_config.cache_dir
+         );
+-        Ok(Box::new(rar::RarHandler::new_with_config(
+-            path.to_path_buf(),
+-            cache_config,
+-        )))
++        rar_reader(path, cache_config)
+     } else if path_str.ends_with(".7z") {
+         tracing::info!(
+             "Archive detected: 7z at {:?}, cache_dir={:?}",
+             path,
+             cache_config.cache_dir
+         );
+-        Ok(Box::new(sevenz::SevenZHandler::new_with_config(
+-            path.to_path_buf(),
+-            cache_config,
+-        )))
++        sevenz_reader(path, cache_config)
+     } else if path_str.ends_with(".tar") {
+         tracing::info!("Archive detected: TAR at {:?}", path);
+         Ok(Box::new(tar::TarHandler::new(path.to_path_buf()))) // TODO: Async Tar
+@@ -162,7 +158,7 @@ pub fn get_archive_reader_from_stream(
+     if ext == "zip" {
+         Ok(Box::new(zip::ZipHandler::new_with_reader(reader)))
+     } else if ext == "7z" {
+-        Ok(Box::new(sevenz::SevenZHandler::new_with_reader(reader)))
++        sevenz_stream_reader(reader)
+     } else {
+         Err(anyhow::anyhow!(
+             "Unsupported archive type for streaming: .{}",
+@@ -170,3 +166,41 @@ pub fn get_archive_reader_from_stream(
+         ))
+     }
+ }
++
++#[cfg(not(target_os = "android"))]
++fn rar_reader(path: &Path, cache_config: CacheConfig) -> Result<Box<dyn ArchiveReader>> {
++    Ok(Box::new(rar::RarHandler::new_with_config(
++        path.to_path_buf(),
++        cache_config,
++    )))
++}
++
++#[cfg(not(target_os = "android"))]
++fn sevenz_reader(path: &Path, cache_config: CacheConfig) -> Result<Box<dyn ArchiveReader>> {
++    Ok(Box::new(sevenz::SevenZHandler::new_with_config(
++        path.to_path_buf(),
++        cache_config,
++    )))
++}
++
++#[cfg(not(target_os = "android"))]
++fn sevenz_stream_reader(reader: Box<dyn AsyncSeekableReader>) -> Result<Box<dyn ArchiveReader>> {
++    Ok(Box::new(sevenz::SevenZHandler::new_with_reader(reader)))
++}
++
++// RAR and 7z are C++ bound with autocxx, which cannot parse Android's sysroot from a Linux host.
++// Kino never serves archives, so its Android engine is built without them.
++#[cfg(target_os = "android")]
++fn rar_reader(_path: &Path, _cache_config: CacheConfig) -> Result<Box<dyn ArchiveReader>> {
++    Err(anyhow::anyhow!("RAR archives are not available in this build"))
++}
++
++#[cfg(target_os = "android")]
++fn sevenz_reader(_path: &Path, _cache_config: CacheConfig) -> Result<Box<dyn ArchiveReader>> {
++    Err(anyhow::anyhow!("7z archives are not available in this build"))
++}
++
++#[cfg(target_os = "android")]
++fn sevenz_stream_reader(_reader: Box<dyn AsyncSeekableReader>) -> Result<Box<dyn ArchiveReader>> {
++    Err(anyhow::anyhow!("7z archives are not available in this build"))
++}
