@@ -139,8 +139,8 @@ class NavigationPerformanceTest {
             }
         val shelves =
             listOf(
-                Shelf("movies", "Movies", movies, false, false),
-                Shelf("series", "Series", series, false, false),
+                Shelf("movies", "Movies", movies, false, false, name = "Popular", type = "movie"),
+                Shelf("series", "Series", series, false, false, name = "Popular", type = "series"),
             )
         val videos =
             (1..40).map {

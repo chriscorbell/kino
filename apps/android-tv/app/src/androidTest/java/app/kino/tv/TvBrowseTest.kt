@@ -19,6 +19,7 @@ import com.stremio.core.Field
 import com.stremio.core.models.LibraryWithFilters
 import com.stremio.core.runtime.msg.Action
 import com.stremio.core.runtime.msg.ActionCtx
+import com.stremio.core.types.addon.ResourceRequest
 import com.stremio.core.types.resource.MetaItemBehaviorHints
 import com.stremio.core.types.resource.MetaItemDeepLinks
 import com.stremio.core.types.resource.MetaItemPreview
@@ -124,6 +125,58 @@ class TvBrowseTest {
                 core.state.value.discover.items.all { it.title.startsWith("Action ") },
             )
             assertEquals("A genre starts from its own first page", 20, core.state.value.discover.items.size)
+        } finally {
+            instrumentation.runOnMainSync {
+                fixture.uninstall()
+                activity.finish()
+            }
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun homeGivesEachCatalogItsOwnRowThatOpensInDiscover() {
+        val activity = activity()
+        val fixture = CoreCatalogFixture(activity)
+        val opened = java.util.concurrent.atomic.AtomicReference<ResourceRequest>()
+        try {
+            instrumentation.runOnMainSync {
+                core.initialize()
+                fixture.install()
+                core.home()
+                activity.setContent {
+                    KinoTheme {
+                        val state by core.state.collectAsState()
+                        HomeScreen(state, {}, core::home, onSeeAll = { opened.set(it) })
+                    }
+                }
+            }
+            // The default add-ons' rows come first; the fixture's catalog follows them.
+            remote.waitFor("Popular")
+            remote.pressUntil(KeyEvent.KEYCODE_DPAD_DOWN, "The fixture's row comes into view") {
+                remote.node("Kino popular") != null && remote.node("Fixture 1") != null
+            }
+            // The row names its type, since the catalog's name does not.
+            val row = remote.node("Kino popular")!!
+            assertTrue(
+                "The row names its type beside the catalog name",
+                remote.visible().any {
+                    it.text?.toString() == context.getString(R.string.movies) &&
+                        it.parent == row.parent
+                },
+            )
+            val seeAll = context.getString(R.string.see_all_title, "Kino popular Movies")
+            remote.focus("Fixture 1")
+            // Twelve titles, then See all as the row's last stop.
+            remote.pressUntil(KeyEvent.KEYCODE_DPAD_RIGHT, "See all ends the row", limit = 20) {
+                remote.node(seeAll) != null
+            }
+            remote.focus(seeAll)
+            remote.waitUntil("See all takes focus") { remote.focusedOn(seeAll) }
+            remote.key(KeyEvent.KEYCODE_DPAD_CENTER)
+            remote.waitUntil("See all opens the row's own catalog") {
+                opened.get() == fixture.catalogRequest
+            }
         } finally {
             instrumentation.runOnMainSync {
                 fixture.uninstall()
