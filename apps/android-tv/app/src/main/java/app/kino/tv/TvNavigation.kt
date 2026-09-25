@@ -32,6 +32,7 @@ internal val TvDestinations =
     listOf(
         TvDestination("home", R.string.home, R.drawable.ic_house),
         TvDestination("search", R.string.search, R.drawable.ic_search),
+        TvDestination("discover", R.string.discover, R.drawable.ic_compass),
         TvDestination("library", R.string.library, R.drawable.ic_library),
         TvDestination("addons", R.string.addons, R.drawable.ic_blocks),
         TvDestination("settings", R.string.settings, R.drawable.ic_sliders_horizontal),

@@ -23,7 +23,6 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.layout.LazyLayoutCacheWindow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -273,7 +272,24 @@ fun KinoApp(
                                         "home" -> HomeScreen(state, open, core::home)
                                         "search" ->
                                             SearchScreen(query, { query = it }, state.search, open)
-                                        "library" -> LibraryScreen(state.library, open)
+                                        "discover" -> {
+                                            LaunchedEffect(Unit) {
+                                                if (state.discover.types.isEmpty()) core.discover()
+                                            }
+                                            DiscoverScreen(
+                                                state.discover,
+                                                open,
+                                                core::discover,
+                                                core::loadMoreDiscover,
+                                            )
+                                        }
+                                        "library" ->
+                                            LibraryScreen(
+                                                state.libraryPages,
+                                                open,
+                                                core::selectLibrary,
+                                                core::loadMoreLibrary,
+                                            )
                                         "addons" -> AddonsScreen(state.addons)
                                         else ->
                                             SettingsScreen(core, state, onSignIn, onSignOut) {
@@ -425,7 +441,7 @@ private fun MediaShelf(
 }
 
 @Composable
-private fun PosterCard(
+internal fun PosterCard(
     media: Media,
     resume: Boolean,
     focusKey: String,
@@ -1054,96 +1070,6 @@ internal fun PageTitle(title: Int) {
     )
 }
 
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-@Composable
-internal fun LibraryScreen(media: List<Media>, onOpen: (Media) -> Unit) {
-    var selectedType by rememberSaveable { mutableStateOf<String?>(null) }
-    val navigation = LocalNavigationFocus.current
-    val filtered =
-        remember(media, selectedType) {
-            media.filter { selectedType == null || it.type == selectedType }
-        }
-    Column(
-        Modifier.fillMaxSize().padding(top = 28.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
-    ) {
-        PageTitle(R.string.library)
-        Row(
-            Modifier.padding(horizontal = PageGutter),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            listOf(null to R.string.all, "movie" to R.string.movies, "series" to R.string.series)
-                .forEachIndexed { index, (type, label) ->
-                    Button(
-                        { selectedType = type },
-                        Modifier.focusProperties { if (index == 0) left = navigation },
-                        shape = ButtonDefaults.shape(RoundedCornerShape(8.dp)),
-                        scale = ButtonDefaults.scale(focusedScale = 1.03f),
-                        colors =
-                            ButtonDefaults.colors(
-                                containerColor =
-                                    if (type == selectedType) KinoColors.SurfaceActive
-                                    else Background
-                            ),
-                    ) {
-                        Text(stringResource(label), fontSize = 15.sp)
-                    }
-                }
-        }
-        if (filtered.isEmpty()) StatusText(R.string.library_empty)
-        else
-            BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
-                val columns =
-                    ((maxWidth - PageGutter * 2 + 16.dp) / (PosterWidth + 16.dp))
-                        .toInt()
-                        .coerceAtLeast(1)
-                // A vertical focus move brings in a whole row. Composing that row together
-                // avoids the grid's repeated per-cell work on the Shield.
-                val rows = remember(filtered, columns) { filtered.chunked(columns) }
-                LazyColumn(
-                    Modifier.fillMaxSize(),
-                    state =
-                        rememberLazyListState(
-                            cacheWindow =
-                                remember {
-                                    LazyLayoutCacheWindow(aheadFraction = 1f, behindFraction = 1f)
-                                }
-                        ),
-                    contentPadding =
-                        PaddingValues(
-                            start = PageGutter,
-                            end = PageGutter,
-                            top = 8.dp,
-                            bottom = 40.dp,
-                        ),
-                    verticalArrangement = Arrangement.spacedBy(24.dp),
-                ) {
-                    items(rows, key = { "${it.first().type}:${it.first().id}" }) { row ->
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            repeat(columns) { column ->
-                                Box(Modifier.weight(1f), contentAlignment = Alignment.TopCenter) {
-                                    row.getOrNull(column)?.let { item ->
-                                        PosterCard(
-                                            item,
-                                            false,
-                                            "library:${item.type}:${item.id}",
-                                            column == 0,
-                                        ) {
-                                            onOpen(item)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-    }
-}
-
 @Composable
 private fun AddonsScreen(addons: List<String>) {
     val navigation = LocalNavigationFocus.current
@@ -1225,7 +1151,7 @@ private fun CenterMessage(message: Int, retry: (() -> Unit)? = null) {
 }
 
 @Composable
-private fun StatusText(message: Int) {
+internal fun StatusText(message: Int) {
     Text(
         stringResource(message),
         Modifier.padding(horizontal = PageGutter, vertical = 12.dp),
@@ -1234,7 +1160,7 @@ private fun StatusText(message: Int) {
 }
 
 @Composable
-private fun RetryRow(onRetry: () -> Unit) {
+internal fun RetryRow(onRetry: () -> Unit) {
     Button(onRetry, Modifier.padding(horizontal = PageGutter, vertical = 12.dp)) {
         Text(stringResource(R.string.retry))
     }
