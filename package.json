@@ -53,6 +53,7 @@
     "typecheck": "pnpm --filter @kino/desktop typecheck",
     "core:check-pagination": "node scripts/check-core-pagination.mjs",
     "notices:check": "node scripts/check-license-notices.mjs",
+    "notices:refresh": "node scripts/refresh-notices.mjs",
     "android:build": "python3 scripts/build-android.py",
     "android:run": "python3 scripts/run-android.py",
     "android:banner": "swift scripts/build-tv-banner.swift",
