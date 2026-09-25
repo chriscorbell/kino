@@ -49,6 +49,12 @@
     <string name="episodes">Episodes</string>
     <string name="add_library">Add to Library</string>
     <string name="remove_library">Remove from Library</string>
+    <string name="mark_watched">Mark as Watched</string>
+    <string name="mark_unwatched">Mark as Unwatched</string>
+    <string name="mark_season_watched">Mark Season Watched</string>
+    <string name="mark_season_unwatched">Mark Season Unwatched</string>
+    <string name="mark_episode_watched">Mark %1$s as watched</string>
+    <string name="mark_episode_unwatched">Mark %1$s as unwatched</string>
     <string name="empty_sources">No sources found. Install add-ons in Stremio, then sign in to sync them here.</string>
     <string name="source_unsupported">This source is not supported on this TV yet.</string>
     <string name="audio_output">Audio output</string>

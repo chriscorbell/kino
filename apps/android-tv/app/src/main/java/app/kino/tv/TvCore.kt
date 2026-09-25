@@ -351,6 +351,30 @@ class TvCore(
         loadLibrary()
     }
 
+    private fun metaDetails(args: ActionMetaDetails.Args<*>) =
+        Core.dispatch(
+            Action(Action.Type.MetaDetails(ActionMetaDetails(args))),
+            Field.META_DETAILS,
+        )
+
+    /**
+     * Marks the open title. Core records it on the title's library item, which it creates for a
+     * title outside the library, so these work from any details page without adding the title.
+     */
+    fun markWatched(watched: Boolean) = metaDetails(ActionMetaDetails.Args.MarkAsWatched(watched))
+
+    fun markVideoWatched(video: Video, watched: Boolean) =
+        metaDetails(
+            ActionMetaDetails.Args.MarkVideoAsWatched(ActionMetaDetails.VideoState(video, watched))
+        )
+
+    fun markSeasonWatched(season: Int, watched: Boolean) =
+        metaDetails(
+            ActionMetaDetails.Args.MarkSeasonAsWatched(
+                ActionMetaDetails.MarkSeasonAsWatchedArgs(season, watched)
+            )
+        )
+
     fun beginLink() {
         linking = true
         authenticating = false
