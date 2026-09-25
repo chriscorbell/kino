@@ -8,6 +8,7 @@ namespace {
 
 constexpr int kTimeoutMs = 1'000;
 const QByteArray kActivate = QByteArrayLiteral("activate\n");
+const QByteArray kAcknowledged = QByteArrayLiteral("ok\n");
 
 QString defaultName() {
     // The socket name is visible system-wide on Unix, so it carries a hash
@@ -26,7 +27,10 @@ SingleInstance::SingleInstance(QString name, QObject *parent)
         while (QLocalSocket *client = server_.nextPendingConnection()) {
             connect(client, &QLocalSocket::disconnected, client, &QObject::deleteLater);
             connect(client, &QLocalSocket::readyRead, this, [this, client]() {
-                if (client->readAll().contains(kActivate.trimmed())) emit activationRequested();
+                if (!client->readAll().contains(kActivate.trimmed())) return;
+                emit activationRequested();
+                client->write(kAcknowledged);
+                client->flush();
             });
         }
     });
@@ -38,6 +42,9 @@ bool SingleInstance::claim() {
     if (other.waitForConnected(kTimeoutMs)) {
         other.write(kActivate);
         other.waitForBytesWritten(kTimeoutMs);
+        // Wait for the first Kino to acknowledge before leaving: Windows drops
+        // what a pipe's reader has not read yet when the writer disconnects.
+        other.waitForReadyRead(kTimeoutMs);
         other.disconnectFromServer();
         qInfo("[kino:shell] another Kino is running; asked it to come forward");
         return false;
