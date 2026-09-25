@@ -16,6 +16,8 @@ open class KinoApplication : Application(), SingletonImageLoader.Factory {
 
     internal open val settings: KinoSettingsStore by lazy { SharedKinoSettings(this) }
 
+    internal open val updates by lazy { TvUpdates(this, settings) }
+
     protected open val artworkProfile
         get() = if (accountProcess) "account" else "guest"
 

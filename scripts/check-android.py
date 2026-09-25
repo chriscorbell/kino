@@ -18,9 +18,29 @@ subprocess.run(["node", "scripts/test-support/hdr-probe-fixture.mjs", str(root /
 subprocess.run(["node", "scripts/test-support/loudness-reference.mjs", str(root / "build/android-fixtures")], cwd=root, check=True)
 subprocess.run([sys.executable, "scripts/build-android.py", ":app:assembleBenchmark", ":app:assembleBenchmarkAndroidTest"], cwd=root, check=True)
 adb = ["adb", "-s", device]
+# UpdateTest needs this build signed by someone else, which the update check must refuse. A
+# throwaway key re-signs it on the host; the test reads it from the device's temporary directory.
+benchmark = root / "apps/android-tv/app/build/outputs/apk/benchmark/app-benchmark.apk"
+other_key = root / "build/android-other-key"
+other_key.mkdir(parents=True, exist_ok=True)
+keystore = other_key / "other.jks"
+java_home = os.environ.get("JAVA_HOME", "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home")
+if not keystore.exists():
+    subprocess.run([f"{java_home}/bin/keytool", "-genkeypair", "-keystore", str(keystore), "-storepass", "kino-other",
+        "-keypass", "kino-other", "-alias", "other", "-keyalg", "RSA", "-keysize", "2048", "-validity", "2",
+        "-dname", "CN=Not Kino"], check=True, capture_output=True)
+sdk = Path(os.environ.get("ANDROID_HOME", "/opt/homebrew/share/android-commandlinetools"))
+apksigner = sorted((sdk / "build-tools").glob("*/apksigner"))[-1]
+subprocess.run([str(apksigner), "sign", "--ks", str(keystore), "--ks-pass", "pass:kino-other",
+    "--out", str(other_key / "kino-other-key.apk"), str(benchmark)], check=True)
 try:
+    subprocess.run([*adb, "push", str(other_key / "kino-other-key.apk"), "/data/local/tmp/kino-other-key.apk"],
+        check=True, capture_output=True)
     for path in ["benchmark/app-benchmark.apk", "androidTest/benchmark/app-benchmark-androidTest.apk"]:
         subprocess.run([*adb, "install", "-r", str(root / "apps/android-tv/app/build/outputs/apk" / path)], check=True)
+    # UpdateTest hands a build to Android's installer. Android ends the app's process whenever this
+    # permission changes, so it is granted here, before any test is running in that process.
+    subprocess.run([*adb, "shell", "appops", "set", "app.kino.tv", "REQUEST_INSTALL_PACKAGES", "allow"], check=True)
     subprocess.run([*adb, "shell", "input", "keyevent", "KEYCODE_WAKEUP"], check=True)
     def instrument(*arguments):
         result = subprocess.run([*adb, "shell", "am", "instrument", "-w", "-r", *arguments,
