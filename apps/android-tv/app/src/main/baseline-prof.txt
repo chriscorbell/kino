@@ -1,0 +1,6 @@
+# Kino's own code, all of it. The TV app is small and every screen sits on the remote's path, so a
+# first visit should not run interpreted: the Library's first scroll missed its frame budget about
+# half the time until this code was compiled ahead of time (issue 178). Compose, TV Material, Media3
+# and Coil ship their own profiles, which the build merges with this one.
+HSPLapp/kino/tv/**->**(**)**
+Lapp/kino/tv/**;

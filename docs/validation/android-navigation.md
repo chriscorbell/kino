@@ -49,3 +49,9 @@ The final distributed APK was also checked against the saved account. Movie deta
 The original unpaced 14-key shell burst sends every key without a pause. In the final APK, three warm repeats measured 37.0 / 35.8 / 37.7 ms at the 90th percentile, down from the original debug baseline of 56.3 ms. The shorter focus animation also produces fewer frames per burst, so the sample counts differ from the original build comparisons.
 
 A second measurement spaces the same 14 keys by 80 ms in one shell process, matching the repeated-input component gate. Its three warm repeats were 16.6 / 16.2 / 17.1 ms at the 90th percentile. Respectively, 9 of 87, 8 of 90, and 10 of 89 frames exceeded 16.68 ms. The first sequence after launch was slower at 48.3 ms, with 53 of 81 frames over budget; the next two were 20.5 and 24.8 ms before reaching the warm results. Cold startup work and occasional browsing deadlines remain visible in these measurements.
+
+## Compiled code
+
+Issue #178 found Library's first scroll, `library-loading`, over the 33.4 ms budget in about half of the runs, while every other screen kept 10 ms of headroom. Its extra time was `UNKNOWN_DELAY_DURATION`: the main thread was busy when the frame should have started. That fits the first, interpreted run of the Library's composition code. Compiling the whole app ahead of time (`cmd package compile -m speed`) brought four runs to 18.6–27.3 ms.
+
+Kino now ships a baseline profile, `app/src/main/baseline-prof.txt`, that marks all of its own code hot, alongside the profiles Compose, TV Material, Media3 and Coil ship. Android compiles an installed app's profile during idle maintenance. `pnpm android:check` does the same before the suite runs, through profileinstaller's install broadcast and `cmd package compile -m speed-profile`, so the gates measure the code people run. Six runs with the profile measured `library-loading` at 23.7–28.4 ms, all passing, against 26–36 ms and one failure in four without it.

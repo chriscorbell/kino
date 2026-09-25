@@ -38,6 +38,12 @@ try:
         check=True, capture_output=True)
     for path in ["benchmark/app-benchmark.apk", "androidTest/benchmark/app-benchmark-androidTest.apk"]:
         subprocess.run([*adb, "install", "-r", str(root / "apps/android-tv/app/build/outputs/apk" / path)], check=True)
+    # Apply the APK's baseline profile as a device does in idle maintenance after an install, so
+    # the frame gates measure the code people run rather than a first, interpreted pass.
+    subprocess.run([*adb, "shell", "am", "broadcast", "-a", "androidx.profileinstaller.action.INSTALL_PROFILE",
+        "app.kino.tv/androidx.profileinstaller.ProfileInstallReceiver"], check=True, capture_output=True)
+    subprocess.run([*adb, "shell", "cmd", "package", "compile", "-f", "-m", "speed-profile", "app.kino.tv"],
+        check=True, capture_output=True)
     # UpdateTest hands a build to Android's installer. Android ends the app's process whenever this
     # permission changes, so it is granted here, before any test is running in that process.
     subprocess.run([*adb, "shell", "appops", "set", "app.kino.tv", "REQUEST_INSTALL_PACKAGES", "allow"], check=True)
