@@ -26,7 +26,7 @@ export function record(name) {
 
 // A component can take its review from another record, as "reviewed.json#qt/qtbase" or
 // "linux.json#mpv", when the same release ships on both platforms. Its own fields add to that
-// review: the files it claims, its scope, and any notes about this platform.
+// review: the files it claims, its scope, and notes about this platform's build.
 function reused(item) {
   const [file, path] = item.reuse.split('#');
   const [group, name] = path.includes('/') ? path.split('/') : ['components', path];
@@ -35,11 +35,12 @@ function reused(item) {
   const version = found.sourceVersion ?? found.version.replace(/_\d+$/, '');
   if (version !== item.version)
     throw new Error(`${item.name} ${item.version} reuses ${item.reuse}, which reviews ${version}`);
-  const { binaries: _binaries, scope: _scope, notes, ...review } = found;
+  const { binaries: _binaries, scope: _scope, flatpakModule: _module, notes, ...review } = found;
   return {
     ...review,
     ...item,
-    notes: [notes, item.notes].filter(Boolean).join(' '),
+    // This platform's notes replace the review's, which describe that platform's build.
+    notes: item.notes ?? notes,
   };
 }
 
@@ -149,7 +150,7 @@ export function verifyPackage({ directory, prefix, licenses, isNative, skip = ()
       ].join('\n'),
     );
   const desktop = record('reviewed.json');
-  const wasm = everything.filter((f) => /\/ui\/.*\.wasm$/.test(f.packaged));
+  const wasm = everything.filter((f) => /(^|\/)ui\/.*\.wasm$/.test(f.packaged));
   if (!wasm.some((f) => hash(readFileSync(f.path)) === desktop.coreProvenance.wasm.sha256))
     throw new Error('The packaged Core WASM does not match its reviewed notices.');
   for (const required of [
