@@ -51,12 +51,14 @@ jobs:
       # sandbox, so this run alone turns it off.
       - name: Start the packaged app
         run: |
-          dnf install -y xorg-x11-server-Xvfb >/dev/null 2>&1 || apt-get install -y xvfb >/dev/null 2>&1 || true
+          # Xvfb offers GLX only with Mesa's drivers present and a 24-bit screen,
+          # and Chromium gives up without it.
+          dnf install -y xorg-x11-server-Xvfb xorg-x11-xauth mesa-dri-drivers >/dev/null
           flatpak install --user -y --noninteractive Kino.flatpak
           # Mesa's GL for the runtime, which a desktop installs with it.
           flatpak install --user -y --noninteractive flathub org.freedesktop.Platform.GL.default//25.08
           log=$(mktemp)
-          timeout 60 xvfb-run -a flatpak run --user --env=KINO_INSTANCE_NAME=ci-smoke \
+          timeout 60 xvfb-run -a -s "-screen 0 1920x1080x24" flatpak run --user --env=KINO_INSTANCE_NAME=ci-smoke \
             --env=QTWEBENGINE_DISABLE_SANDBOX=1 \
             com.chriscorbell.Kino >"$log" 2>&1 &
           for _ in $(seq 1 45); do
