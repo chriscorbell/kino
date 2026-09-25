@@ -86,9 +86,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.native == 'true'
     runs-on: macos-26
-    # The Debug shell build has slowed from about two minutes to over twenty on
-    # the hosted runner, which left a full run past the old 45-minute limit.
-    timeout-minutes: 90
+    timeout-minutes: 45
     env:
       CARGO_TARGET_DIR: ${{ github.workspace }}/build/engine-target
       HOMEBREW_NO_AUTO_UPDATE: '1'
@@ -174,19 +172,7 @@ jobs:
 
       - name: Compile and bundle the native shell
         run: |
-          # Sample the runner while the shell compiles, to find what makes it
-          # slow on the hosted runner when the same build takes seconds locally.
-          df -h "$GITHUB_WORKSPACE"
-          ( while true; do
-              echo "::group::runner sample $(date -u +%H:%M:%S)"
-              uptime; sysctl vm.swapusage; memory_pressure -Q 2>/dev/null | tail -1
-              ps -Ao pcpu,rss,etime,comm -r | head -8
-              echo "::endgroup::"
-              sleep 60
-            done ) &
-          sampler=$!
           pnpm macos:build
-          kill "$sampler"
           node scripts/check-version.mjs --app build/macos/Kino.app
       # The request-header, shutdown, and playback gates play these legal
       # fixtures, which ffmpeg generates rather than the repository storing.
