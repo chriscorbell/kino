@@ -44,3 +44,23 @@ jobs:
           bundle: Kino.flatpak
           cache-key: flatpak-builder-${{ hashFiles('packaging/flatpak/com.chriscorbell.Kino.yml') }}
           upload-artifact: true
+      # The packaged app must start and load the interface it carries, on a
+      # virtual display, with its own instance name so nothing else answers.
+      - name: Start the packaged app
+        run: |
+          dnf install -y xorg-x11-server-Xvfb >/dev/null 2>&1 || apt-get install -y xvfb >/dev/null 2>&1 || true
+          flatpak install --user -y --noninteractive Kino.flatpak
+          log=$(mktemp)
+          timeout 60 xvfb-run -a flatpak run --user --env=KINO_INSTANCE_NAME=ci-smoke \
+            com.chriscorbell.Kino >"$log" 2>&1 &
+          for _ in $(seq 1 45); do
+            grep -q "packaged UI loaded" "$log" && break
+            sleep 1
+          done
+          if ! grep -q "packaged UI loaded" "$log"; then
+            sed -n '1,120p' "$log"
+            echo "The Flatpak did not load its packaged interface."
+            exit 1
+          fi
+          grep -E "native shell started|packaged UI loaded" "$log"
+          pkill -f com.chriscorbell.Kino || true
