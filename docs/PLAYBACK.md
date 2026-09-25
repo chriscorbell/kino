@@ -38,7 +38,7 @@ Kino never falls back to a software video decoder. If hardware decoding or GPU H
 | AV1                              | Play only when hardware decoding is available          |
 | Other video codecs               | Best effort only with a hardware decoder               |
 
-MP4, Matroska, WebM, HLS, and DASH are first-class containers or transports. Other FFmpeg-supported inputs are best effort under the same hardware-video rule. Refresh-rate matching is available where supported but disabled by default on every platform.
+MP4, Matroska, WebM, HLS, and DASH are first-class containers or transports. Other FFmpeg-supported inputs are best effort under the same hardware-video rule. Refresh-rate matching is available where supported but disabled by default on every platform. On the TV, Settings → Match frame rate switches the display to the video's rate, or the smallest whole multiple of it at the current resolution, and leaves a mode that already is one. The rate comes from the container when it states one, and otherwise from the first three seconds of frame times, snapped to the standard rates; Matroska states none. Playback holds while the TV changes mode, for up to five seconds, and the system's mode returns when playback ends. `FrameRateTest` checks the choice and the measurement, and switches the Shield's TV to 24 Hz for a 24 fps fixture and back. macOS does not match yet.
 
 ## Audio
 
