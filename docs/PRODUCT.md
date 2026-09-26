@@ -8,12 +8,12 @@ The mockup is the visual contract, not production source. Kino will preserve its
 
 ## Platform order
 
-1. macOS 14 or newer, developed and validated first on Apple Silicon.
+1. macOS 26 or newer on Apple Silicon, developed and validated first.
 2. Android TV, validated on an NVIDIA Shield over network ADB.
 3. Windows and Linux.
 4. Apple TV after the earlier platforms are stable.
 
-The first public macOS package will be a signed and notarized universal build for Apple Silicon and Intel. Android TV will initially use a signed sideloadable APK. Windows and Linux packaging follow after the Mac and TV foundations are proven.
+The first public macOS package will be a signed and notarized universal build for Apple Silicon and Intel. Android TV will initially use a signed sideloadable APK. Windows ships as a portable zip and Linux as a Flatpak, published beside them in every release.
 
 ## Version-one experience
 
@@ -63,7 +63,7 @@ The notice shows the installed and available versions. "Remind me tomorrow" hide
 
 The TV has no browser to hand the page to. Its Install downloads the release's APK and `SHA256SUMS` from the release itself, at addresses built from the validated tag. Kino deletes an APK whose checksum does not match, that is not the Kino TV app, that is not newer than the installed one, or that is not signed with the installed app's certificate. Otherwise Kino hands it to Android's package installer, which asks the viewer to confirm; Kino never installs without that confirmation. [ADR 0023](adr/0023-install-tv-updates-through-androids-package-installer.md) records why. TV Settings shows the update state and offers Check for updates at any time.
 
-Kino has one version, the `version` in the root `package.json`, which the macOS shell, the TV app, and the web client all read. A pre-release version such as `0.2.0-beta.1` identifies the preview channel. macOS bundle version fields keep its numeric part, and the TV `versionCode` sorts every pre-release before its release, so a sideloaded update always installs over an older one. `pnpm version:check` validates the version, and the macOS and Android CI jobs check that the bundle and the APK they build carry it.
+Kino has one version, the `version` in the root `package.json`, which the macOS shell, the TV app, and the web client all read. A pre-release version such as `0.2.0-beta.1` identifies the preview channel. macOS bundle version fields keep its numeric part, and the TV `versionCode` sorts every pre-release before its release, so a sideloaded update always installs over an older one. `pnpm version:check` validates the version, and the macOS, Android, Windows and Flatpak builds check that the bundle, the APK, `Kino.exe` and the installed Flatpak carry it.
 
 The Kino name and logo identify official builds. The GPL source remains modifiable and distributable, but public redistributed builds must rebrand and preserve all upstream licenses and notices.
 

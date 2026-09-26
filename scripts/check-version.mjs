@@ -5,6 +5,7 @@
 //   node scripts/check-version.mjs --app Kino.app  the macOS bundle
 //   node scripts/check-version.mjs --apk Kino.apk  the TV APK (needs aapt2)
 //   node scripts/check-version.mjs --exe Kino.exe  the Windows executable
+//   node scripts/check-version.mjs --flatpak DIR   an installed Flatpak's files directory
 //   node scripts/check-version.mjs --tag v0.1.0    a release tag
 //
 // The APK's versionCode is recomputed here independently of the Gradle build,
@@ -79,6 +80,14 @@ if (flag === '--app') {
   assert.equal(info.strings.FileDescription, 'Kino');
   assert.equal(info.strings.ProductName, 'Kino');
   console.log(`The Windows executable is version ${info.strings.ProductVersion}.`);
+} else if (flag === '--flatpak') {
+  const metainfo = readFileSync(
+    join(target, 'share', 'metainfo', 'com.chriscorbell.Kino.metainfo.xml'),
+    'utf8',
+  );
+  const release = /<release version="([^"]*)"/.exec(metainfo)?.[1];
+  assert.equal(release, kinoVersion);
+  console.log(`The Flatpak is version ${release}.`);
 } else if (flag === '--tag') {
   assert.equal(target, `v${kinoVersion}`, 'The release tag must name the package.json version.');
   console.log(`Tag ${target} matches package.json.`);
