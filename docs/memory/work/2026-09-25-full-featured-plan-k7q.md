@@ -2,18 +2,18 @@
 
 Read when: continuing the multi-milestone push tracked in issue #182, or picking the next chunk of platform work.
 
-Status: blocked on Chris; every remaining #182 box needs his hardware, his keys, or his retest.
+Status: blocked on Chris; what remains of #182 is Linux hardware validation and the v0.1.0 retest.
 Plan: [issue #182](https://github.com/chriscorbell/kino/issues/182), checked off as each pull request merges.
 Source: Chris's instruction of 2026-09-25 to plan and implement a full-featured, stable Kino on all supported platforms, with full agency.
 
 ## Continuation facts
 
-- Milestones 1, 3 and 4 are done. Milestone 5's code, packaging and notices shipped (#232 to #252); what remains is hardware validation on Linux and Windows. Each chunk is its own pull request, squash-merged once CI passes.
+- Milestones 1, 3 and 4 are done. Milestone 5's code, packaging and notices shipped (#232 to #252), and Windows passed every probe and the playback gate on the gaming PC (#255). What remains is Linux hardware validation. Each chunk is its own pull request, squash-merged once CI passes.
 - The `kardboard` ruleset requires one approving review with an admin bypass. Interactive work merges with `gh pr merge --squash --delete-branch --admin`, as `AGENTS.md` Shipping describes.
 - The development Shield answers at `10.0.0.191:5555`. If `adb connect` reports "No route to host" while `nc -z 10.0.0.191 5555` succeeds, restart the adb server (`adb kill-server`) and connect again.
 - The running desktop app can be driven without taking over the screen: launch `build/macos/Kino.app/Contents/MacOS/Kino` with `QTWEBENGINE_REMOTE_DEBUGGING=127.0.0.1:<port>` and use the DevTools protocol. Accessibility clicks do not reach WebEngine content.
 - After a Homebrew upgrade of mpv or its dependencies, CMake fails with "includes non-existent path". Delete `build/macos/CMakeCache.txt` and build again.
-- Windows (`gaming-pc`, PowerShell over SSH) and Linux with an AMD GPU (`minicore`) exist for hardware checks, but a GUI started over SSH on Windows has no desktop, and minicore is a production server: installing packages there needs Chris's yes. Hardware playback checks are his.
+- Chris allows running and testing on his Windows and Linux machines. `gaming-pc` (PowerShell over SSH) runs the probes in his signed-in session through a scheduled task; `docs/validation/windows-hardware.md` says how, and `%USERPROFILE%\kino-validation` holds node, ffmpeg, a clone and the portable build. minicore and vllm are headless servers with no display; Chris is setting up an Ubuntu desktop laptop for the Linux checks.
 - Windows builds Qt 6.11.2 (#247), the release macOS and the Flatpak use, so one Qt notices review covers all three. aqtinstall reads Qt 6.11's repository only from an unreleased commit; the Windows job runs it directly, with 7-Zip extracting one archive at a time.
 - Windows libmpv is cross-built on Linux from pinned sources by `scripts/build-windows-mpv.sh`, sharing the Flatpak's pins, in `.github/workflows/windows.yml`. The SourceForge (shinchiro) build it replaced bundles about fifty libraries from moving git heads and records none of their revisions, so its notices could not be made exact.
 - The Windows engine's vcpkg baseline is a current vcpkg commit (patch 0009, #243), which builds the reviewed Boost 1.92.0 and libtorrent 2.1.2; upstream's baseline builds Boost 1.89.0.
@@ -37,9 +37,7 @@ Source: Chris's instruction of 2026-09-25 to plan and implement a full-featured,
 
 ## Waiting on Chris
 
-- Android release signing key: generating it and storing it as repository secrets needs his yes.
 - The v0.1.0 tag waits on his daily-driver retest, on a packaged build from after #250: from #232 until then the packaged Mac app opened a blank window.
-- Linux hardware validation: install the `Kino-x86_64.flatpak` artifact from the Linux Flatpak workflow on a machine with a VA-API GPU and play SDR, HDR10 and a torrent source.
-- Windows hardware validation: unzip `Kino-windows-x64-with-engine` from the Windows workflow and play the same sources with D3D11VA on the Windows PC.
+- Linux hardware validation, on the Ubuntu laptop he is setting up: install the `Kino-x86_64.flatpak` artifact with `org.freedesktop.Platform.GL.default//25.08`, then run the probes and the playback gate against it as on Windows.
 
 Close when: every box in #182 is checked or explicitly deferred there.
