@@ -481,6 +481,11 @@
         "/app/lib/libgssapi_krb5.so*",
         "/app/lib/libk5crypto.so*",
         "/app/lib/libcom_err.so*",
+        "/app/lib/libgssrpc.so*",
+        "/app/lib/libkadm5*.so*",
+        "/app/lib/libkdb5.so*",
+        "/app/lib/libkrad.so*",
+        "/app/lib/libverto.so*",
         "/app/lib/krb5/**",
         "/app/etc/krb5.conf"
       ],
@@ -488,7 +493,7 @@
         "baseAppRevision": "ab059370c5faf2f7579cfad6eebedad167024886",
         "module": "krb5/krb5.json"
       },
-      "notes": "Built into /app by the BaseApp for Chromium's Kerberos support (webengine_kerberos=ON). NOTICE is the release's complete copyright file: MIT's BSD-2-Clause terms, then separate notices for the crypto, AES, verto, libev, RPC, UTF-8, MD4/MD5, and other contributed code, plus a US export-control statement and the Creative Commons BY-SA 3.0 statement for documentation, which is not shipped. /bin, examples, and man pages are cleaned. /app/etc/krb5.conf comes from the BaseApp repository, which carries no license file.",
+      "notes": "Built into /app by the BaseApp for Chromium's Kerberos support (webengine_kerberos=ON). NOTICE is the release's complete copyright file: MIT's BSD-2-Clause terms, then separate notices for the crypto, AES, verto, libev, RPC, UTF-8, MD4/MD5, and other contributed code, plus a US export-control statement and the Creative Commons BY-SA 3.0 statement for documentation, which is not shipped. /bin, examples, and man pages are cleaned; the admin, database, RADIUS, and verto libraries the build also installs stay, covered by the same NOTICE. /app/etc/krb5.conf comes from the BaseApp repository, which carries no license file.",
       "files": [
         {
           "path": "texts/d37fcb886de2ad1c602f61c99c6893bcbd9a1949f54d9a6bb40d191204eb605e.txt",

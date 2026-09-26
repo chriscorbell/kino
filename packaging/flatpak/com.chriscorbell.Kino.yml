@@ -36,9 +36,10 @@ cleanup:
   - '*.a'
 cleanup-commands:
   - /app/cleanup-BaseApp.sh
-  # Kino has no spell checking and no use for Qt WebView, which the base app
-  # also carries.
+  # Kino has no spell checking and no use for Qt WebView or WebDriver, which
+  # the base app also carries.
   - rm -rf /app/qtwebengine_dictionaries /app/share/locale/*/qtwebengine_dictionaries
+  - rm -f /app/lib/libexec/webenginedriver
   - find /app \( -name 'libQt6WebView*' -o -name QtWebView -o -path '*/plugins/webview' \) -prune -exec rm -rf {} +
 modules:
   - name: uchardet

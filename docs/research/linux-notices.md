@@ -29,7 +29,7 @@ From Kino's manifest: uchardet, libass, FFmpeg, libplacebo, libXpresent, libdisp
 
 From `io.qt.qtwebengine.BaseApp//6.11`: Qt WebEngine and Qt PDF, and the krb5, libevent, minizip, pciutils, re2, and snappy libraries it builds for Chromium. The BaseApp builds Qt WebEngine at the same revision the macOS record reviews, so its NOTICES bundle is reused as is, including a preamble written for the macOS package.
 
-The manifest removes two things the base app adds and Kino never uses: the spell-check dictionaries, converted from the SDK's Hunspell set under many licenses, and Qt WebView.
+The manifest removes three things the base app adds and Kino never uses: the spell-check dictionaries, converted from the SDK's Hunspell set under many licenses, Qt WebView, and Qt WebEngine's WebDriver.
 
 ## Decisions and limits
 
