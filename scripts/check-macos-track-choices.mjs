@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 import { withWebEngine } from './test-support/webengine.mjs';
 import { generateTrackFixtures } from './test-support/track-fixtures.mjs';
 
-const { build } = await import(createRequire(resolve('apps/desktop/package.json')).resolve('vite'));
+const { build } = await import(
+  pathToFileURL(createRequire(resolve('apps/desktop/package.json')).resolve('vite')).href
+);
 const ui = resolve('build/desktop-tracks');
 await build({
   root: resolve('apps/desktop'),

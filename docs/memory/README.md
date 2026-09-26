@@ -25,6 +25,7 @@ Read this index and [the protocol](protocol.md) when starting or resuming a sess
 | Gates that decide whether a replaceable technical layer stays                  | [Validation gates](../RISKS.md)                                                                             |
 | Understanding an accepted architectural decision or proposing a replacement    | [Architecture decisions](../adr/)                                                                           |
 | Repeating Shield navigation and frame-time measurements                        | [Navigation validation record](../validation/android-navigation.md)                                         |
+| Repeating the probes and playback gate on Windows hardware                     | [Windows validation record](../validation/windows-hardware.md)                                              |
 | Prior investigations into dependency notices or Shield HDR tone mapping        | [Research records](../research/)                                                                            |
 | Updating packaged dependency notices and their retained source texts           | [Notice maintenance guide](../../third_party/notices/README.md)                                             |
 | Checking retained native shell provenance                                      | [Shell provenance](../../apps/macos-shell/UPSTREAM.md)                                                      |

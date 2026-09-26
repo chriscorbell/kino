@@ -106,16 +106,20 @@ try {
       15000,
     );
   });
-  child = spawn(resolve('build/macos/Kino.app/Contents/MacOS/Kino'), [], {
-    env: {
-      ...process.env,
-      KINO_UI_URL: document,
-      // Permit the synthetic TLS certificate in this disposable probe process.
-      // The production shell receives no certificate override.
-      QTWEBENGINE_CHROMIUM_FLAGS: `${process.env.QTWEBENGINE_CHROMIUM_FLAGS ?? ''} --ignore-certificate-errors`,
+  child = spawn(
+    resolve(process.env.KINO_APP_BINARY ?? 'build/macos/Kino.app/Contents/MacOS/Kino'),
+    [],
+    {
+      env: {
+        ...process.env,
+        KINO_UI_URL: document,
+        // Permit the synthetic TLS certificate in this disposable probe process.
+        // The production shell receives no certificate override.
+        QTWEBENGINE_CHROMIUM_FLAGS: `${process.env.QTWEBENGINE_CHROMIUM_FLAGS ?? ''} --ignore-certificate-errors`,
+      },
+      stdio: ['ignore', 'ignore', 'pipe'],
     },
-    stdio: ['ignore', 'ignore', 'pipe'],
-  });
+  );
   let diagnostics = '';
   child.stderr.on('data', (data) => {
     diagnostics += data;

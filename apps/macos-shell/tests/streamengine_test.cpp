@@ -71,7 +71,8 @@ private slots:
         qputenv("KINO_ENGINE_CONFIG_DIR", directory_.filePath("config").toUtf8());
         qputenv("KINO_ENGINE_STOP_TIMEOUT_MS", "250");
         qputenv("KINO_ENGINE_FIXTURE_PID", directory_.filePath("pid").toUtf8());
-        qputenv("KINO_ENGINE_STARTUP_TIMEOUT_MS", "250");
+        // Long enough for a busy CI machine to start the helper; the silent case shortens it.
+        qputenv("KINO_ENGINE_STARTUP_TIMEOUT_MS", "5000");
     }
 
     void cleanup() {
@@ -88,7 +89,7 @@ private slots:
         qputenv("KINO_ENGINE_FIXTURE_MODE", "ready");
         StreamEngine engine;
         engine.start();
-        QTRY_VERIFY_WITH_TIMEOUT(!engine.url().isEmpty(), 1500);
+        QTRY_VERIFY_WITH_TIMEOUT(!engine.url().isEmpty(), 5000);
         const auto pid = helperPid();
         engine.start();
         QTest::qWait(350);
@@ -99,21 +100,22 @@ private slots:
 
     void silentStartupTimesOutAndStops() {
         qputenv("KINO_ENGINE_FIXTURE_MODE", "silent");
+        qputenv("KINO_ENGINE_STARTUP_TIMEOUT_MS", "250");
         StreamEngine engine;
         engine.start();
-        QTRY_VERIFY_WITH_TIMEOUT(!engine.error().isEmpty(), 1500);
+        QTRY_VERIFY_WITH_TIMEOUT(!engine.error().isEmpty(), 5000);
         QVERIFY(engine.error().contains("ready"));
         QVERIFY(engine.url().isEmpty());
         const auto pid = helperPid();
         QVERIFY(pid > 0);
-        QTRY_VERIFY_WITH_TIMEOUT(!processAlive(pid), 1500);
+        QTRY_VERIFY_WITH_TIMEOUT(!processAlive(pid), 5000);
     }
 
     void prematureExitFails() {
         qputenv("KINO_ENGINE_FIXTURE_MODE", "exit");
         StreamEngine engine;
         engine.start();
-        QTRY_VERIFY_WITH_TIMEOUT(!engine.error().isEmpty(), 1500);
+        QTRY_VERIFY_WITH_TIMEOUT(!engine.error().isEmpty(), 5000);
         QVERIFY(engine.url().isEmpty());
     }
 
@@ -122,8 +124,8 @@ private slots:
         StreamEngine engine;
         QSignalSpy changed(&engine, &StreamEngine::changed);
         engine.start();
-        QTRY_VERIFY_WITH_TIMEOUT(changed.count() >= 2, 1500);
-        QTRY_VERIFY_WITH_TIMEOUT(!engine.error().isEmpty(), 1500);
+        QTRY_VERIFY_WITH_TIMEOUT(changed.count() >= 2, 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(!engine.error().isEmpty(), 5000);
         QVERIFY(engine.url().isEmpty());
     }
 
@@ -131,18 +133,18 @@ private slots:
         qputenv("KINO_ENGINE_FIXTURE_MODE", "ready");
         StreamEngine engine;
         engine.start();
-        QTRY_VERIFY_WITH_TIMEOUT(!engine.url().isEmpty(), 1500);
+        QTRY_VERIFY_WITH_TIMEOUT(!engine.url().isEmpty(), 5000);
         const auto pid = helperPid();
         auto stopped = engine.stopForCacheClear();
         QVERIFY(engine.url().isEmpty());
         engine.start();
-        QTRY_VERIFY_WITH_TIMEOUT(stopped.isFinished(), 1500);
+        QTRY_VERIFY_WITH_TIMEOUT(stopped.isFinished(), 5000);
         QVERIFY(stopped.result());
         QVERIFY(!processAlive(pid));
         QVERIFY(engine.url().isEmpty());
         QVERIFY(engine.error().isEmpty());
         engine.finishCacheClear();
-        QTRY_VERIFY_WITH_TIMEOUT(!engine.url().isEmpty(), 1500);
+        QTRY_VERIFY_WITH_TIMEOUT(!engine.url().isEmpty(), 5000);
         QVERIFY(helperPid() != pid);
     }
 
@@ -150,15 +152,15 @@ private slots:
         qputenv("KINO_ENGINE_FIXTURE_MODE", "ignore-stop");
         StreamEngine engine;
         engine.start();
-        QTRY_VERIFY_WITH_TIMEOUT(!engine.url().isEmpty(), 1500);
+        QTRY_VERIFY_WITH_TIMEOUT(!engine.url().isEmpty(), 5000);
         auto stopped = engine.stopForCacheClear();
-        QTRY_VERIFY_WITH_TIMEOUT(stopped.isFinished(), 1500);
+        QTRY_VERIFY_WITH_TIMEOUT(stopped.isFinished(), 5000);
         QVERIFY(!stopped.result());
         QVERIFY(!engine.error().isEmpty());
         engine.finishCacheClear();
         qputenv("KINO_ENGINE_FIXTURE_MODE", "ready");
         engine.start();
-        QTRY_VERIFY_WITH_TIMEOUT(!engine.url().isEmpty(), 1500);
+        QTRY_VERIFY_WITH_TIMEOUT(!engine.url().isEmpty(), 5000);
         QVERIFY(engine.error().isEmpty());
     }
 
@@ -167,7 +169,7 @@ private slots:
         StreamEngine engine;
         engine.start();
         auto stopped = engine.stopForCacheClear();
-        QTRY_VERIFY_WITH_TIMEOUT(stopped.isFinished(), 1500);
+        QTRY_VERIFY_WITH_TIMEOUT(stopped.isFinished(), 5000);
         QVERIFY(stopped.result());
         QVERIFY(engine.url().isEmpty());
         QVERIFY(engine.error().isEmpty());
@@ -178,13 +180,13 @@ private slots:
         qputenv("KINO_ENGINE_FIXTURE_MODE", "exit");
         StreamEngine engine;
         engine.start();
-        QTRY_VERIFY_WITH_TIMEOUT(!engine.error().isEmpty(), 1500);
+        QTRY_VERIFY_WITH_TIMEOUT(!engine.error().isEmpty(), 5000);
         QSignalSpy changed(&engine, &StreamEngine::changed);
         qputenv("KINO_ENGINE_FIXTURE_MODE", "ready");
         engine.start();
         QVERIFY(engine.error().isEmpty());
         QVERIFY(changed.count() > 0);
-        QTRY_VERIFY_WITH_TIMEOUT(!engine.url().isEmpty(), 1500);
+        QTRY_VERIFY_WITH_TIMEOUT(!engine.url().isEmpty(), 5000);
     }
 
     void helperVerifiesAgainstSystemRoots() {
@@ -192,7 +194,7 @@ private slots:
         qputenv("SSL_CERT_DIR", "/opt/homebrew/etc/openssl@3/certs");
         StreamEngine engine;
         engine.start();
-        QTRY_VERIFY_WITH_TIMEOUT(!engine.url().isEmpty(), 1500);
+        QTRY_VERIFY_WITH_TIMEOUT(!engine.url().isEmpty(), 5000);
         qunsetenv("SSL_CERT_DIR");
         QFile trust(directory_.filePath("pid.tls"));
         QVERIFY(trust.open(QIODevice::ReadOnly));

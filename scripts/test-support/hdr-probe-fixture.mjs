@@ -220,6 +220,26 @@ export function generateHdrProbe(fixturesDir) {
   return target;
 }
 
+const videoProfile = (path) =>
+  execFileSync(
+    'ffprobe',
+    [
+      '-v',
+      'error',
+      '-select_streams',
+      'v:0',
+      '-show_entries',
+      'stream=codec_name,profile',
+      '-of',
+      'default=noprint_wrappers=1:nokey=1',
+      path,
+    ],
+    { encoding: 'utf8' },
+  )
+    .trim()
+    .split(/\s+/)
+    .join(' ');
+
 /**
  * The SDR control for the pixel gate: band A's layout as an eight-bit BT.709 neutral ramp from
  * black to white, lossless. It asks nothing about tone mapping, only whether a drawn frame can be
@@ -227,7 +247,10 @@ export function generateHdrProbe(fixturesDir) {
  */
 export function generateSdrProbe(fixturesDir) {
   const target = join(fixturesDir, 'sdr-probe.mkv');
-  if (existsSync(target)) return target;
+  // Plain 4:2:0 H.264, which every hardware decoder takes. The ramp only has to read back in
+  // order, so it need not be lossless, and lossless H.264 is the High 4:4:4 Predictive profile,
+  // which VideoToolbox decodes but D3D11VA and NVDEC do not. An older lossless copy is made again.
+  if (existsSync(target) && /^h264 (?!High 4:4:4)/.test(videoProfile(target))) return target;
   mkdirSync(fixturesDir, { recursive: true });
   const luma = Buffer.alloc(WIDTH * HEIGHT, 126);
   const chroma = Buffer.alloc((WIDTH / 2) * (HEIGHT / 2) * 2, 128);
@@ -258,8 +281,8 @@ export function generateSdrProbe(fixturesDir) {
       raw,
       '-c:v',
       'libx264',
-      '-qp',
-      '0',
+      '-crf',
+      '12',
       '-preset',
       'ultrafast',
       '-color_primaries',
@@ -285,6 +308,10 @@ export function generateSdrProbe(fixturesDir) {
  * explicitly, as a real release's mux carries them. Requires dovi_tool and mkvmerge.
  */
 export function generateDolbyVisionProbes(fixturesDir) {
+  // Like the other fixtures, existing ones are reused, so a machine without the tools can run
+  // fixtures made elsewhere.
+  if (['dv-p8-probe.mkv', 'dv-p5-probe.mkv'].every((name) => existsSync(join(fixturesDir, name))))
+    return;
   const probe = join(fixturesDir, 'hdr-probe.mkv');
   const work = join(fixturesDir, 'dv-work');
   mkdirSync(work, { recursive: true });

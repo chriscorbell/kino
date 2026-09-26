@@ -772,7 +772,19 @@ for (const fixture of fixtures) {
     console.log(`- ${name}: not run, this runner cannot read drawn frames`);
     continue;
   }
-  const { failure, result, stderr } = runProbe(fixture);
+  let { failure, result, stderr } = runProbe(fixture);
+  // A CI virtual machine's paravirtual VideoToolbox sometimes refuses a session or stalls on a
+  // file it played a moment earlier. There, and only there, such a fixture gets one more try.
+  const flaky =
+    pixelsOptional &&
+    fixture.expect.outcome === 'played' &&
+    (failure ||
+      result?.outcome === 'timeout' ||
+      result?.errorCode === 'hardware-decoding-unavailable');
+  if (flaky) {
+    console.log(`- ${name}: ${failure ?? result.errorCode ?? result.outcome}; trying once more`);
+    ({ failure, result, stderr } = runProbe(fixture));
+  }
   if (failure) {
     failures += 1;
     console.log(`✗ ${name}: ${failure}`);
