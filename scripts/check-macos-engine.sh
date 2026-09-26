@@ -8,7 +8,10 @@ set -euo pipefail
 kino_repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 kino_app_binary="${KINO_APP_BINARY:-${kino_repo_root}/build/macos/Kino.app/Contents/MacOS/Kino}"
 
-if [[ ! -x "$(dirname "${kino_app_binary}")/kino-stream-engine" ]]; then
+# A Kino named by KINO_APP_BINARY, such as the Flatpak through its wrapper,
+# may keep its engine where this cannot look; the probe itself still has to
+# find it.
+if [[ -z "${KINO_APP_BINARY:-}" && ! -x "$(dirname "${kino_app_binary}")/kino-stream-engine" ]]; then
   echo "No streaming engine is bundled. Run \"pnpm engine:build\" then \"pnpm macos:build\"." >&2
   exit 1
 fi
