@@ -41,6 +41,7 @@ export async function withWebEngine(ui, entry, check, { native = false } = {}) {
       'focus: ' + (active ? active.tagName + ' ' + (active.getAttribute('aria-label') ?? active.textContent.trim().slice(0, 40)) : 'none'),
       'heading: ' + (heading ? heading.textContent.trim().slice(0, 40) : 'none'),
       'document focused: ' + document.hasFocus(),
+      'painted: ' + (performance.getEntriesByName('first-contentful-paint').length > 0),
       'location: ' + location.hash,
       'input: ' + (window.__kinoInput ?? []).join(', '),
     ].join('; ');
@@ -88,6 +89,14 @@ export async function withWebEngine(ui, entry, check, { native = false } = {}) {
     return result.result.value;
   }
   async function key(key, code, virtualKey, modifiers = 0) {
+    // Chromium can drop key and click input while it holds a page's first frames, and still
+    // acknowledges it, so a key pressed that early vanishes without an error. On a slow runner
+    // the page can take focus before that ends. A person cannot press a key on a page they
+    // cannot see either.
+    await until(
+      () => evaluate(`performance.getEntriesByName('first-contentful-paint').length > 0`),
+      'first contentful paint',
+    );
     // What the page receives, so a timeout can tell a key that never arrived from one that did
     // nothing. Kept to the last few events.
     await evaluate(`(() => {
