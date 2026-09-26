@@ -1,0 +1,5 @@
+This software is based in part on the work of the Independent JPEG Group.
+
+Kino includes the IJG-derived jfdctfst.c, jfdctint_template.c, and jrevdct.c code as part of FFmpeg 9.0.1, built into libmpv-2.dll by Kino's scripts/build-windows-mpv.sh from https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz. Kino has made no changes to those FFmpeg source files, and the build applies no source patches to FFmpeg.
+
+The accompanying source-header notices retain the original copyright, license, and upstream implementation comments. The complete FFmpeg source release is available at https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz.
