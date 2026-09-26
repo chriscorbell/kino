@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -21,6 +21,35 @@ async function freePort() {
   const { port } = server.address();
   await new Promise((done) => server.close(done));
   return port;
+}
+
+// DevTools numbers the interface process as Kino's own PID namespace sees it.
+// In the Flatpak that is not the host's number, and signalling it would reach
+// an unrelated process. Linux lists a process's number in every namespace it
+// belongs to, so find the one WebEngine process that carries this number.
+function hostProcess(id) {
+  if (process.platform !== 'linux') return id;
+  const matches = [];
+  for (const entry of readdirSync('/proc')) {
+    if (!/^\d+$/.test(entry)) continue;
+    try {
+      const numbers = /^NSpid:\s+(.*)$/m
+        .exec(readFileSync(`/proc/${entry}/status`, 'utf8'))[1]
+        .split(/\s+/)
+        .map(Number);
+      const command = readFileSync(`/proc/${entry}/cmdline`, 'utf8').replaceAll('\0', ' ');
+      if (numbers.includes(id) && command.includes('QtWebEngineProcess'))
+        matches.push(`${entry}: ${command.slice(0, 120)}`);
+    } catch {
+      // The process ended while being read.
+    }
+  }
+  assert.equal(
+    matches.length,
+    1,
+    `Expected one WebEngine process numbered ${id}, found:\n${matches.join('\n')}`,
+  );
+  return Number(matches[0].split(':')[0]);
 }
 
 async function until(read, description, timeoutMs = 15000) {
@@ -87,17 +116,23 @@ try {
     { QTWEBENGINE_REMOTE_DEBUGGING: `127.0.0.1:${debugPort}` },
     async ({ loads, diagnostics }) => {
       await until(() => loads() === 1, 'the first interface load');
-      const page = await until(async () => {
+      const browser = await until(async () => {
         try {
-          const targets = await (await fetch(`http://127.0.0.1:${debugPort}/json`)).json();
-          return targets.find((target) => target.type === 'page');
+          return await (await fetch(`http://127.0.0.1:${debugPort}/json/version`)).json();
         } catch {
           return null;
         }
       }, 'WebEngine debugging');
-      const socket = new WebSocket(page.webSocketDebuggerUrl);
+      // The interface process is killed from outside, as a crash or the
+      // system would end it. DevTools' Page.crash leaves it running on Linux.
+      const socket = new WebSocket(browser.webSocketDebuggerUrl);
       await once(socket, 'open');
-      socket.send(JSON.stringify({ id: 1, method: 'Page.crash' }));
+      const reply = once(socket, 'message');
+      socket.send(JSON.stringify({ id: 1, method: 'SystemInfo.getProcessInfo' }));
+      const { result } = JSON.parse((await reply)[0].data);
+      const renderer = result.processInfo.find((process) => process.type === 'renderer');
+      assert.ok(renderer, 'WebEngine reported no interface process.');
+      process.kill(hostProcess(renderer.id), 'SIGKILL');
       await until(() => loads() === 2, 'the interface to reload after its process crashed');
       assert.match(
         diagnostics(),
