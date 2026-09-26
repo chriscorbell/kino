@@ -260,8 +260,6 @@ jobs:
         run: ctest --test-dir build/linux --output-on-failure --timeout 30
       # The same probes the Mac runs, against the Linux build on a virtual
       # display. Chromium's sandbox cannot start as root inside the container.
-      # Interface recovery stays Mac-only for now: inside the container the
-      # renderer crash DevTools requests never reaches the shell.
       - name: Run the interface probes
         timeout-minutes: 10
         env:
@@ -272,6 +270,7 @@ jobs:
           xvfb-run -a -s "-screen 0 1920x1080x24" pnpm macos:check-navigation
           xvfb-run -a -s "-screen 0 1920x1080x24" pnpm macos:check-focus
           xvfb-run -a -s "-screen 0 1920x1080x24" pnpm macos:check-scale
+          xvfb-run -a -s "-screen 0 1920x1080x24" pnpm macos:check-interface-recovery
 
   validate:
     name: Validate
