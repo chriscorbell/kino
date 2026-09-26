@@ -34,6 +34,16 @@ export async function withWebEngine(ui, entry, check, { native = false } = {}) {
       response.writeHead(404).end();
     }
   });
+  const pageState = `(() => {
+    const active = document.activeElement;
+    const heading = [...document.querySelectorAll('h1')].find((h) => !h.closest('[hidden]'));
+    return [
+      'focus: ' + (active ? active.tagName + ' ' + (active.getAttribute('aria-label') ?? active.textContent.trim().slice(0, 40)) : 'none'),
+      'heading: ' + (heading ? heading.textContent.trim().slice(0, 40) : 'none'),
+      'document focused: ' + document.hasFocus(),
+      'location: ' + location.hash,
+    ].join('; ');
+  })()`;
   let child;
   let socket;
   let commandId = 0;
@@ -45,7 +55,16 @@ export async function withWebEngine(ui, entry, check, { native = false } = {}) {
       if (value) return value;
       await delay(50);
     }
-    throw new Error('Timed out waiting for ' + description);
+    // A timeout on a slow runner says little by itself; the page's state says what it did instead.
+    let state = '';
+    if (socket) {
+      try {
+        state = await evaluate(pageState);
+      } catch (error) {
+        state = `page state unavailable: ${error.message}`;
+      }
+    }
+    throw new Error(`Timed out waiting for ${description}${state ? `\n${state}` : ''}`);
   }
   function command(method, params = {}) {
     const id = ++commandId;
