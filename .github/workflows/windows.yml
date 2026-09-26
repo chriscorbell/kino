@@ -1,0 +1,370 @@
+name: Windows
+
+# The Windows build: libmpv cross-compiled on Linux, the shell and the torrent
+# engine built with MSVC, and the portable folder that carries them. Its own
+# workflow, so a Windows-only change leaves the macOS runners alone.
+on:
+  pull_request:
+    paths:
+      - .github/workflows/windows.yml
+      - apps/macos-shell/**
+      - apps/desktop/**
+      - apps/stream-engine/**
+      - scripts/build-engine.sh
+      - scripts/build-windows-mpv.sh
+      - scripts/license-notices.mjs
+      - scripts/record-notices.mjs
+      - scripts/windows-notices.mjs
+      - scripts/check-engine-profile.mjs
+      - scripts/check-macos-launch.sh
+      - scripts/check-macos-navigation.mjs
+      - scripts/check-macos-focus.mjs
+      - scripts/check-macos-scale.mjs
+      - scripts/test-support/**
+      - third_party/notices/**
+      - package.json
+      - pnpm-lock.yaml
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # libmpv and everything it links, from the pinned sources in the script,
+  # as one DLL. Cached by the script, which holds every pin.
+  libmpv:
+    name: Cross-compile libmpv
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Restore libmpv
+        id: libmpv-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: build/windows-mpv/dist
+          key: libmpv-windows-${{ hashFiles('scripts/build-windows-mpv.sh') }}
+      - name: Install the MinGW toolchain
+        if: steps.libmpv-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq mingw-w64 nasm meson ninja-build cmake pkg-config >/dev/null
+          # The POSIX thread model, whose C++ runtime every library here links.
+          sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+          sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+      - name: Build libmpv
+        if: steps.libmpv-cache.outputs.cache-hit != 'true'
+        run: bash scripts/build-windows-mpv.sh
+      # The MinGW-w64 runtime and GCC's runtime libraries are linked in from
+      # the cross-compiler itself, so it must be the toolchain their notices
+      # review.
+      - name: Check the toolchain against the notices
+        if: steps.libmpv-cache.outputs.cache-hit != 'true'
+        run: |
+          mingw=$(echo __MINGW64_VERSION_STR | x86_64-w64-mingw32-gcc -E -P -include _mingw.h - | tail -1 | tr -d '" ')
+          node scripts/windows-notices.mjs check-toolchain "$(x86_64-w64-mingw32-gcc -dumpfullversion)" "$mingw"
+      - name: Save libmpv
+        if: steps.libmpv-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: build/windows-mpv/dist
+          key: ${{ steps.libmpv-cache.outputs.cache-primary-key }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: libmpv-windows-x64
+          path: build/windows-mpv/dist
+          retention-days: 7
+
+  shell:
+    name: Windows shell build
+    needs: libmpv
+    runs-on: windows-2025
+    timeout-minutes: 45
+    env:
+      # The Qt release the macOS and Linux builds use, so one notices review
+      # covers all three.
+      KINO_QT_VERSION: 6.11.2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+      - name: Restore Qt
+        id: qt-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: build/qt
+          key: qt-windows-${{ env.KINO_QT_VERSION }}-webengine-webchannel-positioning
+      # Qt 6.11 lays its repository out per compiler, which aqtinstall reads
+      # only since a change that is merged but not yet released. Its Python
+      # 7z reader rejects a path in qtsvg's archive, and 7-Zip extracting
+      # several archives at once races on the directories they share, so
+      # 7-Zip extracts them one at a time.
+      - name: Install Qt
+        if: steps.qt-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          python -m pip install --quiet "git+https://github.com/miurahr/aqtinstall.git@076e1659807d0b362a3ed684d54c2e9c775eb9c7"
+          New-Item -ItemType Directory -Force build | Out-Null
+          "[aqt]`nconcurrency: 1" | Set-Content build/aqt.ini
+          python -m aqt -c build/aqt.ini install-qt windows desktop $env:KINO_QT_VERSION win64_msvc2022_64 `
+            --outputdir build/qt --modules qtwebengine qtwebchannel qtpositioning --external 7z
+      - name: Save Qt
+        if: steps.qt-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: build/qt
+          key: ${{ steps.qt-cache.outputs.cache-primary-key }}
+      - name: Put Qt on the path
+        shell: pwsh
+        run: |
+          $qt = "$PWD/build/qt/$env:KINO_QT_VERSION/msvc2022_64"
+          "$qt/bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+          "CMAKE_PREFIX_PATH=$qt" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: libmpv-windows-x64
+          path: build/mpv
+      # The MinGW build carries a MinGW import library only. MSVC gets one of
+      # its own, built from the DLL's export table.
+      - name: Make libmpv's MSVC import library
+        shell: pwsh
+        run: |
+          $names = dumpbin /nologo /exports build/mpv/libmpv-2.dll |
+            Select-String '^\s+\d+\s+[0-9A-F]+\s+[0-9A-F]{8}\s+(\S+)' |
+            ForEach-Object { $_.Matches[0].Groups[1].Value }
+          if ($names.Count -lt 50) { throw 'libmpv exports could not be read' }
+          @('LIBRARY libmpv-2', 'EXPORTS') + $names | Set-Content build/mpv/mpv.def
+          lib /nologo /machine:x64 /def:build/mpv/mpv.def /out:build/mpv/mpv.lib
+          "$PWD\build\mpv" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+      - name: Compile the shell
+        shell: pwsh
+        run: |
+          cmake -S apps/macos-shell -B build/windows -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo `
+            -DBUILD_TESTING=ON "-DKINO_MPV_DIR=$PWD/build/mpv"
+          cmake --build build/windows --parallel $env:NUMBER_OF_PROCESSORS
+      - name: Run native unit tests
+        timeout-minutes: 5
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: ctest --test-dir build/windows --output-on-failure --timeout 30
+      # A portable folder: the shell, its interface, libmpv, the Qt libraries
+      # and QML modules windeployqt finds it using, and the C++ runtime beside
+      # them rather than as an installer to run first. Qt Quick draws with
+      # OpenGL, so the Direct3D shader compilers stay out, and so does Qt's
+      # software OpenGL: a 2016 Mesa whose LLVM release nothing records.
+      - name: Package a portable build
+        shell: pwsh
+        run: |
+          $out = 'build/windows-package/Kino'
+          New-Item -ItemType Directory -Force $out | Out-Null
+          Copy-Item build/windows/Kino.exe $out
+          Copy-Item -Recurse build/windows/ui "$out/ui"
+          Copy-Item build/mpv/libmpv-2.dll $out
+          windeployqt --release --qmldir apps/macos-shell/qml --no-translations `
+            --skip-plugin-types qmltooling --no-system-d3d-compiler --no-system-dxc-compiler `
+            --no-compiler-runtime --no-opengl-sw "$out/Kino.exe"
+          # The folder is named for the toolset (VC143, VC145, ...).
+          Copy-Item "$env:VCToolsRedistDir/x64/Microsoft.VC*.CRT/*.dll" $out
+          foreach ($required in 'Kino.exe', 'libmpv-2.dll', 'Qt6WebEngineCore.dll', 'QtWebEngineProcess.exe', 'vcruntime140.dll', 'msvcp140.dll', 'ui/index.html') {
+            if (-not (Test-Path "$out/$required")) { throw "The portable build lacks $required" }
+          }
+          foreach ($unwanted in 'vc_redist.x64.exe', 'd3dcompiler_47.dll', 'dxcompiler.dll', 'dxil.dll', 'opengl32sw.dll', 'qmltooling') {
+            if (Test-Path "$out/$unwanted") { throw "The portable build carries $unwanted" }
+          }
+          Compress-Archive -Path $out -DestinationPath build/windows-package/Kino-windows-x64.zip
+      # The portable build, started as someone would start it. The runner's
+      # display has no OpenGL driver, so a copy of the build gets Mesa's
+      # software OpenGL beside Kino.exe, which Windows loads ahead of its own.
+      - name: Run the interface probes
+        timeout-minutes: 10
+        shell: bash
+        env:
+          KINO_APP_BINARY: ${{ github.workspace }}/build/windows-probe/Kino/Kino.exe
+          KINO_MESA_ARCHIVE: mesa3d-26.2.1-release-msvc.7z
+          KINO_MESA_SHA256: 78a0305844074535e73dfb6dcb5eb2a65f1d9dc445102e1f4c3c3e97dace19bf
+        run: |
+          mkdir -p build/windows-probe
+          cp -r build/windows-package/Kino build/windows-probe/
+          curl.exe -fsSL -o "build/$KINO_MESA_ARCHIVE" \
+            "https://github.com/pal1000/mesa-dist-win/releases/download/26.2.1/$KINO_MESA_ARCHIVE"
+          echo "$KINO_MESA_SHA256  build/$KINO_MESA_ARCHIVE" | sha256sum -c -
+          7z e "build/$KINO_MESA_ARCHIVE" -obuild/windows-probe/Kino x64/opengl32.dll x64/libgallium_wgl.dll -y >/dev/null
+          # pnpm would run these through cmd.exe, which cannot start a shell
+          # script, so they run directly.
+          bash scripts/check-macos-launch.sh
+          node scripts/check-macos-navigation.mjs
+          node scripts/check-macos-focus.mjs
+          node scripts/check-macos-scale.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Kino-windows-x64
+          path: build/windows-package/Kino-windows-x64.zip
+          retention-days: 7
+
+  # The torrent engine on Windows, with libtorrent and OpenSSL from vcpkg as
+  # the pinned stream-server release builds them. vcpkg's first build takes
+  # most of the job's time; the installed tree is cached after it.
+  engine:
+    name: Windows engine build
+    runs-on: windows-2025
+    timeout-minutes: 120
+    env:
+      VCPKG_INSTALLED_DIR: ${{ github.workspace }}/build/vcpkg-installed
+      VCPKG_DEFAULT_TRIPLET: x64-windows-v3-static-md-release
+      VCPKGRS_TRIPLET: x64-windows-v3-static-md-release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Vendor the patched stream-server
+        shell: bash
+        run: bash scripts/build-engine.sh --vendor-only
+      - name: Restore the vcpkg installation
+        id: vcpkg-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: build/vcpkg-installed
+          key: vcpkg-windows-${{ hashFiles('apps/stream-engine/engine.lock', 'apps/stream-engine/patches/**') }}
+      - name: Build libtorrent and OpenSSL with vcpkg
+        if: steps.vcpkg-cache.outputs.cache-hit != 'true'
+        uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2 # v11.6
+        env:
+          VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/build/vendor/stream-server/triplets
+          VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/build/vendor/stream-server/vcpkg-overlays
+        with:
+          vcpkgDirectory: ${{ github.workspace }}/build/vcpkg
+          vcpkgGitCommitId: 617ef1c0c422737d117eda00a471ea1be5bad088
+          vcpkgJsonGlob: build/vendor/stream-server/vcpkg.json
+          runVcpkgInstall: true
+      - name: Save the vcpkg installation
+        if: steps.vcpkg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: build/vcpkg-installed
+          key: ${{ steps.vcpkg-cache.outputs.cache-primary-key }}
+      # The engine links libtorrent and Boost statically, and their notices
+      # are reviewed for one release each (third_party/notices/reviewed.json).
+      - name: Check the libtorrent and Boost releases
+        shell: bash
+        run: |
+          reviewed() { node -p "require('./third_party/notices/reviewed.json').homebrew.find((f) => f.name === '$1').version"; }
+          include="build/vcpkg-installed/${VCPKG_DEFAULT_TRIPLET}/include"
+          libtorrent=$(reviewed libtorrent-rasterbar)
+          boost=$(reviewed boost)
+          grep -q "LIBTORRENT_VERSION \"${libtorrent}" "$include/libtorrent/version.hpp" || {
+            grep LIBTORRENT_VERSION "$include/libtorrent/version.hpp"
+            echo "vcpkg built a libtorrent other than the reviewed ${libtorrent}."
+            exit 1
+          }
+          grep -q "BOOST_LIB_VERSION \"$(echo "${boost}" | sed -E 's/^([0-9]+)\.([0-9]+)\.0$/\1_\2/')\"" "$include/boost/version.hpp" || {
+            grep BOOST_LIB_VERSION "$include/boost/version.hpp"
+            echo "vcpkg built a Boost other than the reviewed ${boost}."
+            exit 1
+          }
+      - name: Build the engine
+        shell: bash
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/build/vcpkg
+          CARGO_TARGET_DIR: ${{ github.workspace }}/build/engine-target
+        run: |
+          channel=$(sed -n 's/^channel = "\(.*\)"$/\1/p' apps/stream-engine/rust-toolchain.toml)
+          rustup toolchain install "$channel" --profile minimal
+          rustup run "$channel" cargo build --locked --release --manifest-path apps/stream-engine/Cargo.toml
+      - name: Check the engine
+        timeout-minutes: 10
+        shell: bash
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/build/engine-target
+          KINO_ENGINE_BINARY: ${{ github.workspace }}/build/engine-target/release/kino-stream-engine.exe
+        run: |
+          channel=$(sed -n 's/^channel = "\(.*\)"$/\1/p' apps/stream-engine/rust-toolchain.toml)
+          (cd apps/stream-engine && rustup run "$channel" cargo test --locked --release)
+          pnpm engine:check-profile
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: kino-stream-engine-windows-x64
+          path: build/engine-target/release/kino-stream-engine.exe
+          retention-days: 7
+
+  # The portable build with the engine beside the shell, where the shell
+  # looks for it.
+  # The license notices, collected on Linux where the npm packages and the
+  # engine's crates are at hand, for the package job to put beside Kino.exe.
+  notices:
+    name: Collect the Windows notices
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Vendor the patched stream-server and fetch its crates
+        run: |
+          bash scripts/build-engine.sh --vendor-only
+          cargo fetch --locked --manifest-path apps/stream-engine/Cargo.toml
+      - run: node scripts/windows-notices.mjs generate
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-notices
+          path: build/windows-notices
+          retention-days: 7
+
+  package:
+    name: Windows package
+    needs: [shell, engine, notices]
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: Kino-windows-x64
+          path: build/shell
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: kino-stream-engine-windows-x64
+          path: build/engine
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: windows-notices
+          path: build/notices
+      - name: Add the engine and the notices to the portable build
+        shell: pwsh
+        run: |
+          Expand-Archive build/shell/Kino-windows-x64.zip -DestinationPath build/package
+          Copy-Item build/engine/kino-stream-engine.exe build/package/Kino/
+          Copy-Item -Recurse build/notices/licenses build/package/Kino/licenses
+      # What people unzip, read back: every executable and library belongs to
+      # a reviewed component, and the notices page carries every text.
+      - name: Verify the notices
+        run: node scripts/windows-notices.mjs verify build/package/Kino
+      - name: Zip the portable build
+        shell: pwsh
+        run: Compress-Archive -Path build/package/Kino -DestinationPath build/Kino-windows-x64.zip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Kino-windows-x64-with-engine
+          path: build/Kino-windows-x64.zip
+          retention-days: 7

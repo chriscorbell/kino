@@ -1,0 +1,436 @@
+{
+  "schemaVersion": 1,
+  "scope": "Third-party code in the Windows portable build: Qt's Windows binaries and the Microsoft C++ runtime beside Kino.exe, the libraries scripts/build-windows-mpv.sh links into libmpv-2.dll, and what vcpkg and Rust link into kino-stream-engine.exe. The npm packages, Core, and the engine's Cargo graph come from the shared collectors.",
+  "pins": {
+    "qt": "6.11.2",
+    "architecture": "x86_64"
+  },
+  "components": [
+    {
+      "name": "qtbase",
+      "version": "6.11.2",
+      "scope": "Qt",
+      "reuse": "reviewed.json#qt/qtbase",
+      "binaries": [
+        "Qt6Core.dll",
+        "Qt6Gui.dll",
+        "Qt6Network.dll",
+        "Qt6OpenGL.dll",
+        "platforms/*.dll",
+        "imageformats/qgif.dll",
+        "imageformats/qico.dll",
+        "imageformats/qjpeg.dll",
+        "generic/*.dll",
+        "networkinformation/*.dll",
+        "tls/*.dll"
+      ],
+      "notes": "Qt's own Windows binaries, installed from the Qt 6.11.2 release by the CI workflow. They build in the third-party code Qt's attribution pages list for these modules."
+    },
+    {
+      "name": "qtdeclarative",
+      "version": "6.11.2",
+      "scope": "Qt",
+      "reuse": "reviewed.json#qt/qtdeclarative",
+      "binaries": [
+        "Qt6Qml*.dll",
+        "Qt6Quick*.dll",
+        "Qt6LabsFolderListModel.dll",
+        "qml/QtQml/**",
+        "qml/QtQuick/**",
+        "qml/Qt/labs/**"
+      ],
+      "notes": "Qt's own Windows binaries, installed from the Qt 6.11.2 release."
+    },
+    {
+      "name": "qtsvg",
+      "version": "6.11.2",
+      "scope": "Qt",
+      "reuse": "reviewed.json#qt/qtsvg",
+      "binaries": ["Qt6Svg.dll", "iconengines/qsvgicon.dll", "imageformats/qsvg.dll"],
+      "notes": "Qt's own Windows binaries, installed from the Qt 6.11.2 release."
+    },
+    {
+      "name": "qtpositioning",
+      "version": "6.11.2",
+      "scope": "Qt",
+      "reuse": "reviewed.json#qt/qtpositioning",
+      "binaries": ["Qt6Positioning.dll", "position/*.dll"],
+      "notes": "Qt's own Windows binaries, installed from the Qt 6.11.2 release. Qt WebEngine depends on it."
+    },
+    {
+      "name": "qtwebchannel",
+      "version": "6.11.2",
+      "scope": "Qt",
+      "reuse": "reviewed.json#qt/qtwebchannel",
+      "binaries": ["Qt6WebChannel*.dll", "qml/QtWebChannel/**"],
+      "notes": "Qt's own Windows binaries, installed from the Qt 6.11.2 release."
+    },
+    {
+      "name": "qtwebengine",
+      "version": "6.11.2",
+      "scope": "Qt",
+      "reuse": "reviewed.json#qt/qtwebengine",
+      "binaries": [
+        "Qt6WebEngine*.dll",
+        "QtWebEngineProcess.exe",
+        "qml/QtWebEngine/**",
+        "resources/**"
+      ],
+      "notes": "Qt's own Windows binaries, installed from the Qt 6.11.2 release, with Chromium and its bundled components built in; the bundle includes their notices."
+    },
+    {
+      "name": "Microsoft Visual C++ runtime",
+      "version": "14.x",
+      "scope": "Qt",
+      "license": "Microsoft Visual Studio license, Distributable Code",
+      "repository": "https://learn.microsoft.com/cpp/windows/redistributing-visual-cpp-files",
+      "binaries": ["vcruntime140*.dll", "msvcp140*.dll", "concrt140.dll", "vccorlib140.dll"],
+      "files": [
+        {
+          "path": "texts/7de58767addd2071dde61629e048061b74b254435cbc6f437c7b8600d0b8bd34.txt",
+          "source": "Kino source: third_party/notices/windows.json",
+          "sha256": "7de58767addd2071dde61629e048061b74b254435cbc6f437c7b8600d0b8bd34",
+          "name": "Microsoft Visual C++ runtime",
+          "extraction": "Kino-written: where the runtime files come from and the terms they ship under."
+        }
+      ]
+    },
+    {
+      "name": "mpv",
+      "version": "v0.41.0",
+      "scope": "Playback",
+      "reuse": "linux.json#mpv",
+      "sourceArchive": "https://github.com/mpv-player/mpv/archive/refs/tags/v0.41.0.tar.gz",
+      "sourceArchiveSha256": "ee21092a5ee427353392360929dc64645c54479aefdb5babc5cfbb5fad626209",
+      "binaries": ["libmpv-2.dll"],
+      "notes": "libmpv-2.dll, which scripts/build-windows-mpv.sh cross-compiles with every library below linked in. Built as libmpv only with the default -Dgpl=true, so the result is GPL-2.0-or-later, and with the GPL-3.0-or-later FFmpeg below the combination is distributed under GPL-3.0-or-later. Copyright says some files use BSD, MIT, or ISC terms; like FFmpeg, those per-file headers are not enumerated here. libmpv embeds sub/osd_font.otf, whose glyphs upstream says came from a freely licensed font such as Symbola; their original terms are not recorded upstream."
+    },
+    {
+      "name": "FFmpeg",
+      "version": "9.0.1",
+      "scope": "Playback",
+      "license": "GPL-3.0-or-later; IJG notices retained for libjpeg-derived code",
+      "repository": "https://github.com/FFmpeg/FFmpeg",
+      "sourceArchive": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz",
+      "sourceArchiveSha256": "cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635",
+      "binaries": ["libmpv-2.dll"],
+      "notes": "Linked statically into libmpv-2.dll, configured with --enable-gpl and --enable-version3, so per LICENSE.md the libraries as built are GPL version 3 or later. The LGPL and GPLv2 texts are kept because LICENSE.md names them as the underlying terms of individual files. Built with FFmpeg's own decoders, dav1d, D3D11VA, DXVA2, zlib, iconv, and Schannel, and nothing autodetected. The IJG-derived files named by LICENSE.md keep their complete initial comment blocks. Like the macOS and Linux reviews, this entry does not enumerate the other library files whose own headers carry MIT, BSD, ISC, or zlib terms.",
+      "files": [
+        {
+          "path": "texts/2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af.txt",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/LICENSE.md",
+          "sha256": "2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af",
+          "name": "LICENSE.md"
+        },
+        {
+          "path": "texts/8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643.txt",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/COPYING.GPLv2",
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+          "name": "COPYING.GPLv2"
+        },
+        {
+          "path": "texts/8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903.txt",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/COPYING.GPLv3",
+          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+          "name": "COPYING.GPLv3"
+        },
+        {
+          "path": "texts/246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30.txt",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/COPYING.LGPLv2.1",
+          "sha256": "246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30",
+          "name": "COPYING.LGPLv2.1"
+        },
+        {
+          "path": "texts/da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768.txt",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/COPYING.LGPLv3",
+          "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768",
+          "name": "COPYING.LGPLv3"
+        },
+        {
+          "path": "texts/9608a1781393c906ac6254ee965f19a599608428eaf84efdd8c7ba198f14e877.txt",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/libavcodec/jfdctfst.c",
+          "sha256": "9608a1781393c906ac6254ee965f19a599608428eaf84efdd8c7ba198f14e877",
+          "extraction": "First 62 lines, the file's license comment, copied without editing.",
+          "name": "jfdctfst.c (header)"
+        },
+        {
+          "path": "texts/7469382cb23a47a033113c2c00d8e02e5071d76cb420d804f078527a906da679.txt",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/libavcodec/jfdctint_template.c",
+          "sha256": "7469382cb23a47a033113c2c00d8e02e5071d76cb420d804f078527a906da679",
+          "extraction": "First 55 lines, the file's license comment, copied without editing.",
+          "name": "jfdctint_template.c (header)"
+        },
+        {
+          "path": "texts/c5d96aa8ff9e78b9214a1bec3d2dd5d65e3196eae08fa7c6ba7466a5a793ba0f.txt",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz#ffmpeg-9.0.1/libavcodec/jrevdct.c",
+          "sha256": "c5d96aa8ff9e78b9214a1bec3d2dd5d65e3196eae08fa7c6ba7466a5a793ba0f",
+          "extraction": "First 58 lines, the file's license comment, copied without editing.",
+          "name": "jrevdct.c (header)"
+        },
+        {
+          "path": "texts/e85eeab34c070e6a02cad2815656f5b805bdb51bc3098d5e07fef4c7aa05cb9a.txt",
+          "source": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz",
+          "sha256": "e85eeab34c070e6a02cad2815656f5b805bdb51bc3098d5e07fef4c7aa05cb9a",
+          "name": "IJG-ACKNOWLEDGEMENT.txt",
+          "extraction": "Kino-written: the IJG credit LICENSE.md requires for executables built from the IJG-derived files, for this build."
+        }
+      ]
+    },
+    {
+      "name": "libass",
+      "version": "0.17.5",
+      "scope": "Playback",
+      "reuse": "linux.json#libass",
+      "sourceArchive": "https://github.com/libass/libass/releases/download/0.17.5/libass-0.17.5.tar.xz",
+      "sourceArchiveSha256": "2dca25c0e0c837ddf00b52011b3f82cac1e4ddd3ad018227806b0c2288864acc",
+      "binaries": ["libmpv-2.dll"],
+      "notes": "Linked statically into libmpv-2.dll, with DirectWrite for fonts and its x86 assembly, which carries x264's ISC notice. libass/wyhash.h is released under the Unlicense and asks for no notice."
+    },
+    {
+      "name": "libplacebo",
+      "version": "v7.360.1",
+      "scope": "Playback",
+      "reuse": "linux.json#libplacebo",
+      "binaries": ["libmpv-2.dll"],
+      "notes": "Linked statically into libmpv-2.dll from the tag's commit with its submodules, for OpenGL only. Its OpenGL loader comes from glad, whose generated code is (WTFPL OR CC0-1.0) AND Apache-2.0 with Khronos header terms, and src/convert.cc includes fast_float, under Apache-2.0, BSL-1.0, or MIT. Its jinja and markupsafe submodules only run at build time."
+    },
+    {
+      "name": "uchardet",
+      "version": "0.0.8",
+      "scope": "Playback",
+      "reuse": "linux.json#uchardet",
+      "binaries": ["libmpv-2.dll"],
+      "notes": "Linked statically into libmpv-2.dll. COPYING holds all three license texts; the retained uchardet.cpp header carries the Netscape copyright line every library source shares."
+    },
+    {
+      "name": "freetype",
+      "version": "2.14.3",
+      "scope": "Playback",
+      "reuse": "reviewed.json#homebrew/freetype",
+      "license": "FTL OR GPL-2.0-only",
+      "repository": "https://freetype.org",
+      "sourceArchive": "https://download.savannah.gnu.org/releases/freetype/freetype-2.14.3.tar.xz",
+      "sourceArchiveSha256": "36bc4f1cc413335368ee656c42afca65c5a3987e8768cc28cf11ba775e785a5f",
+      "binaries": ["libmpv-2.dll"],
+      "notes": "Linked statically into libmpv-2.dll for libass, under the FreeType License. Portions of this software are copyright © 2026 The FreeType Project (https://freetype.org). All rights reserved. The build uses the zlib below rather than FreeType's bundled copy; the review's other secondary notices apply as retained."
+    },
+    {
+      "name": "harfbuzz",
+      "version": "14.5.0",
+      "scope": "Playback",
+      "reuse": "reviewed.json#homebrew/harfbuzz",
+      "license": "MIT-Modern-Variant",
+      "repository": "https://github.com/harfbuzz/harfbuzz",
+      "sourceArchive": "https://github.com/harfbuzz/harfbuzz/releases/download/14.5.0/harfbuzz-14.5.0.tar.xz",
+      "sourceArchiveSha256": "b7132e148358a45185c9feafd049dbaf243649d3c44414b3534d9c95d18592b9",
+      "binaries": ["libmpv-2.dll"],
+      "notes": "Linked statically into libmpv-2.dll for libass. Its generated Universal Shaping Engine table carries Microsoft's data notice and Unicode's data license, both retained."
+    },
+    {
+      "name": "fribidi",
+      "version": "1.0.17",
+      "scope": "Playback",
+      "license": "LGPL-2.1-or-later",
+      "repository": "https://github.com/fribidi/fribidi",
+      "sourceArchive": "https://github.com/fribidi/fribidi/releases/download/v1.0.17/fribidi-1.0.17.tar.xz",
+      "sourceArchiveSha256": "6949dcde27d41cebad1fd741fcafc36d55a1020d2d872d4a6eb3914caabbada2",
+      "binaries": ["libmpv-2.dll"],
+      "notes": "Linked statically into libmpv-2.dll for libass. Kino's source and scripts/build-windows-mpv.sh are the corresponding source and the means to relink against a modified FriBidi.",
+      "files": [
+        {
+          "path": "texts/20e50fe7aae3e56378ebf0417d9de904f55a0e61e4df315333e632a4d3555d95.txt",
+          "source": "https://github.com/fribidi/fribidi/releases/download/v1.0.17/fribidi-1.0.17.tar.xz#fribidi-1.0.17/COPYING",
+          "sha256": "20e50fe7aae3e56378ebf0417d9de904f55a0e61e4df315333e632a4d3555d95",
+          "name": "COPYING"
+        },
+        {
+          "path": "texts/cb173f55c9514c8f38f4647ac3fedd5f8611358d331e65ab955da931e826861c.txt",
+          "source": "https://github.com/fribidi/fribidi/releases/download/v1.0.17/fribidi-1.0.17.tar.xz#fribidi-1.0.17/AUTHORS",
+          "sha256": "cb173f55c9514c8f38f4647ac3fedd5f8611358d331e65ab955da931e826861c",
+          "name": "AUTHORS"
+        }
+      ]
+    },
+    {
+      "name": "dav1d",
+      "version": "1.5.4",
+      "scope": "Playback",
+      "license": "BSD-2-Clause AND ISC",
+      "repository": "https://code.videolan.org/videolan/dav1d",
+      "sourceArchive": "https://downloads.videolan.org/pub/videolan/dav1d/1.5.4/dav1d-1.5.4.tar.xz",
+      "sourceArchiveSha256": "686616b7c69eb88d44459391ab25cac13b6647a3b288835c5784e71c1514a5c5",
+      "binaries": ["libmpv-2.dll"],
+      "notes": "Linked statically into libmpv-2.dll for FFmpeg's AV1 decoding. Its x86 assembly is built on x264's x86inc.asm, whose ISC notice is retained.",
+      "files": [
+        {
+          "path": "texts/dd92c3c2247c5651606fc23a5e2d6a1ebc5ace9a3e49cbde0e12f05ad1cb1ee5.txt",
+          "source": "https://downloads.videolan.org/pub/videolan/dav1d/1.5.4/dav1d-1.5.4.tar.xz#dav1d-1.5.4/COPYING",
+          "sha256": "dd92c3c2247c5651606fc23a5e2d6a1ebc5ace9a3e49cbde0e12f05ad1cb1ee5",
+          "name": "COPYING"
+        },
+        {
+          "path": "texts/1c20545ce9b2407beccfcf88f33fd0588e8988afaeef31bed7acc30803d2204c.txt",
+          "source": "https://downloads.videolan.org/pub/videolan/dav1d/1.5.4/dav1d-1.5.4.tar.xz#dav1d-1.5.4/src/ext/x86/x86inc.asm",
+          "sha256": "1c20545ce9b2407beccfcf88f33fd0588e8988afaeef31bed7acc30803d2204c",
+          "name": "x86inc.asm (header)",
+          "extraction": "First 21 lines, the file's license comment, copied without editing."
+        }
+      ]
+    },
+    {
+      "name": "lcms2",
+      "version": "2.19.1",
+      "scope": "Playback",
+      "license": "MIT",
+      "repository": "https://github.com/mm2/Little-CMS",
+      "sourceArchive": "https://github.com/mm2/Little-CMS/releases/download/lcms2.19.1/lcms2-2.19.1.tar.gz",
+      "sourceArchiveSha256": "bfc54f7bab59fbc921012014a8032e4cba4abd46db47d46b76416a8c0b2815c8",
+      "binaries": ["libmpv-2.dll"],
+      "notes": "Linked statically into libmpv-2.dll for mpv's and libplacebo's colour management. The GPL-3.0 fast-float and threaded plugins are not built.",
+      "files": [
+        {
+          "path": "texts/6dbd60437f8ef91d8de1f08ad75882547fd4931bfcc3566a0735f28db1484d31.txt",
+          "source": "https://github.com/mm2/Little-CMS/releases/download/lcms2.19.1/lcms2-2.19.1.tar.gz#lcms2-2.19.1/LICENSE",
+          "sha256": "6dbd60437f8ef91d8de1f08ad75882547fd4931bfcc3566a0735f28db1484d31",
+          "name": "LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "zlib",
+      "version": "1.3.2",
+      "scope": "Playback",
+      "license": "Zlib",
+      "repository": "https://github.com/madler/zlib",
+      "sourceArchive": "https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.xz",
+      "sourceArchiveSha256": "d7a0654783a4da529d1bb793b7ad9c3318020af77667bcae35f95d0e42a792f3",
+      "binaries": ["libmpv-2.dll"],
+      "notes": "Linked statically into libmpv-2.dll for FFmpeg, FreeType, and mpv.",
+      "files": [
+        {
+          "path": "texts/e32ff4e00d9d94930537635291da39e7e612703334bf6fde8c7f1686fe8a45a2.txt",
+          "source": "https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.xz#zlib-1.3.2/LICENSE",
+          "sha256": "e32ff4e00d9d94930537635291da39e7e612703334bf6fde8c7f1686fe8a45a2",
+          "name": "LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "libiconv",
+      "version": "1.18",
+      "scope": "Playback",
+      "license": "LGPL-2.1-or-later",
+      "repository": "https://www.gnu.org/software/libiconv/",
+      "sourceArchive": "https://ftpmirror.gnu.org/gnu/libiconv/libiconv-1.18.tar.gz",
+      "sourceArchiveSha256": "3b08f5f4f9b4eb82f151a7040bfd6fe6c6fb922efe4b1659c66ea933276965e8",
+      "binaries": ["libmpv-2.dll"],
+      "notes": "The library, not the iconv program, linked statically into libmpv-2.dll for subtitle character sets. Kino's source and scripts/build-windows-mpv.sh are the corresponding source and the means to relink against a modified libiconv.",
+      "files": [
+        {
+          "path": "texts/20e50fe7aae3e56378ebf0417d9de904f55a0e61e4df315333e632a4d3555d95.txt",
+          "source": "https://ftpmirror.gnu.org/gnu/libiconv/libiconv-1.18.tar.gz#libiconv-1.18/COPYING.LIB",
+          "sha256": "20e50fe7aae3e56378ebf0417d9de904f55a0e61e4df315333e632a4d3555d95",
+          "name": "COPYING.LIB"
+        },
+        {
+          "path": "texts/ed10ef2a01effb12849006d43262ffde5cf72a7d5423bbc8aa66fc6959774c0c.txt",
+          "source": "https://ftpmirror.gnu.org/gnu/libiconv/libiconv-1.18.tar.gz#libiconv-1.18/AUTHORS",
+          "sha256": "ed10ef2a01effb12849006d43262ffde5cf72a7d5423bbc8aa66fc6959774c0c",
+          "name": "AUTHORS"
+        }
+      ]
+    },
+    {
+      "name": "MinGW-w64 runtime",
+      "version": "11.0.1",
+      "scope": "Playback",
+      "license": "ZPL-2.1 AND MIT AND BSD-3-Clause AND LicenseRef-Public-Domain",
+      "repository": "https://www.mingw-w64.org",
+      "sourceArchive": "https://sourceforge.net/projects/mingw-w64/files/mingw-w64/mingw-w64-release/mingw-w64-v11.0.1.tar.bz2",
+      "sourceArchiveSha256": "3f66bce069ee8bed7439a1a13da7cb91a5e67ea6170f21317ac7f5794625ee10",
+      "binaries": ["libmpv-2.dll"],
+      "notes": "The runtime startup code, support library, and winpthreads, which the Ubuntu MinGW-w64 toolchain links statically into libmpv-2.dll. COPYING.MinGW-w64-runtime.txt is the project's file for exactly this case: it gathers the notices a statically linked binary must carry.",
+      "files": [
+        {
+          "path": "texts/e9b2dc02451ea29092a1f25fa0f3c07207ed421f1807dffb0c4e6dce69dee7bd.txt",
+          "source": "https://sourceforge.net/projects/mingw-w64/files/mingw-w64/mingw-w64-release/mingw-w64-v11.0.1.tar.bz2#mingw-w64-v11.0.1/COPYING.MinGW-w64-runtime/COPYING.MinGW-w64-runtime.txt",
+          "sha256": "e9b2dc02451ea29092a1f25fa0f3c07207ed421f1807dffb0c4e6dce69dee7bd",
+          "name": "COPYING.MinGW-w64-runtime.txt"
+        },
+        {
+          "path": "texts/63263614cdd29f2f93cba85e992f041b31f9fc7b4033692f31269489a8a1b177.txt",
+          "source": "https://sourceforge.net/projects/mingw-w64/files/mingw-w64/mingw-w64-release/mingw-w64-v11.0.1.tar.bz2#mingw-w64-v11.0.1/mingw-w64-libraries/winpthreads/COPYING",
+          "sha256": "63263614cdd29f2f93cba85e992f041b31f9fc7b4033692f31269489a8a1b177",
+          "name": "winpthreads COPYING"
+        }
+      ],
+      "toolchain": "mingw-w64"
+    },
+    {
+      "name": "GCC runtime libraries",
+      "version": "13",
+      "scope": "Playback",
+      "license": "GPL-3.0-or-later WITH GCC-exception-3.1",
+      "repository": "https://gcc.gnu.org",
+      "binaries": ["libmpv-2.dll"],
+      "notes": "libgcc and libstdc++, linked statically into libmpv-2.dll by the Ubuntu MinGW-w64 GCC 13 toolchain. The GCC Runtime Library Exception lets the combined work be distributed under its own terms; the texts are included as a record.",
+      "files": [
+        {
+          "path": "texts/8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903.txt",
+          "source": "https://github.com/gcc-mirror/gcc/blob/releases/gcc-13.2.0/COPYING3",
+          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+          "name": "COPYING3"
+        },
+        {
+          "path": "texts/9d6b43ce4d8de0c878bf16b54d8e7a10d9bd42b75178153e3af6a815bdc90f74.txt",
+          "source": "https://github.com/gcc-mirror/gcc/blob/releases/gcc-13.2.0/COPYING.RUNTIME",
+          "sha256": "9d6b43ce4d8de0c878bf16b54d8e7a10d9bd42b75178153e3af6a815bdc90f74",
+          "name": "COPYING.RUNTIME"
+        }
+      ],
+      "toolchain": "gcc"
+    },
+    {
+      "name": "libtorrent-rasterbar",
+      "version": "2.1.2",
+      "scope": "Streaming engine",
+      "reuse": "linux.json#libtorrent-rasterbar",
+      "binaries": ["kino-stream-engine.exe"],
+      "notes": "Linked statically into the engine, built by vcpkg's libtorrent port as patch 0009 pins it, without WebTorrent. try_signal, puff, and ed25519 are compiled on Windows and kept; route.h is included only for iOS."
+    },
+    {
+      "name": "boost",
+      "version": "1.92.0",
+      "scope": "Streaming engine",
+      "reuse": "linux.json#boost",
+      "binaries": ["kino-stream-engine.exe"],
+      "notes": "Header code compiled into the engine through libtorrent, from vcpkg's Boost 1.92.0 ports. BOOST-HEADER-NOTICES.txt was assembled from preprocessing on macOS; Windows includes different platform headers, so the aggregate is approximate for this build."
+    },
+    {
+      "name": "openssl",
+      "version": "3.6.4",
+      "scope": "Streaming engine",
+      "license": "Apache-2.0",
+      "repository": "https://github.com/openssl/openssl",
+      "revision": "360ffdb6d82f298d8d22c838dc2b7bf61ece056d",
+      "binaries": ["kino-stream-engine.exe"],
+      "notes": "Linked statically into the engine for libtorrent's encrypted connections, built by vcpkg's openssl port at the baseline patch 0009 pins.",
+      "files": [
+        {
+          "path": "texts/7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a.txt",
+          "source": "https://github.com/openssl/openssl/blob/openssl-3.6.4/LICENSE.txt",
+          "sha256": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a",
+          "name": "LICENSE.txt"
+        }
+      ]
+    },
+    {
+      "name": "rust-standard-library",
+      "version": "1.98.0",
+      "scope": "Streaming engine",
+      "reuse": "reviewed.json#rust/rust-standard-library",
+      "binaries": ["kino-stream-engine.exe"],
+      "notes": "The engine is built with the Rust release apps/stream-engine/rust-toolchain.toml pins, the one the macOS engine uses."
+    }
+  ]
+}
