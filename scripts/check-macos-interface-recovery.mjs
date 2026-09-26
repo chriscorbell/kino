@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -21,6 +21,33 @@ async function freePort() {
   const { port } = server.address();
   await new Promise((done) => server.close(done));
   return port;
+}
+
+// DevTools numbers the interface process as Kino's own PID namespace sees it.
+// In the Flatpak that is not the host's number, and signalling it would reach
+// an unrelated process. Linux lists a process's number in every namespace it
+// belongs to, so find the one WebEngine renderer that carries this number.
+function hostProcess(id) {
+  if (process.platform !== 'linux') return id;
+  const matches = readdirSync('/proc').filter((entry) => {
+    if (!/^\d+$/.test(entry)) return false;
+    try {
+      const numbers = /^NSpid:\s+(.*)$/m
+        .exec(readFileSync(`/proc/${entry}/status`, 'utf8'))[1]
+        .split(/\s+/)
+        .map(Number);
+      const command = readFileSync(`/proc/${entry}/cmdline`, 'utf8');
+      return (
+        numbers.includes(id) &&
+        command.includes('QtWebEngineProcess') &&
+        command.includes('--type=renderer')
+      );
+    } catch {
+      return false;
+    }
+  });
+  assert.equal(matches.length, 1, `Expected one WebEngine renderer numbered ${id}.`);
+  return Number(matches[0]);
 }
 
 async function until(read, description, timeoutMs = 15000) {
@@ -103,7 +130,7 @@ try {
       const { result } = JSON.parse((await reply)[0].data);
       const renderer = result.processInfo.find((process) => process.type === 'renderer');
       assert.ok(renderer, 'WebEngine reported no interface process.');
-      process.kill(renderer.id, 'SIGKILL');
+      process.kill(hostProcess(renderer.id), 'SIGKILL');
       await until(() => loads() === 2, 'the interface to reload after its process crashed');
       assert.match(
         diagnostics(),
