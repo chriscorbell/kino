@@ -125,7 +125,15 @@ void PlaybackProbe::evaluate() {
         }
         return;
     }
-    if (hardwareDecoding_ &&
+    // An added subtitle file registers as a track some time after playback
+    // starts, later on a slow machine; the verdict waits for it rather than
+    // racing it, and the timeout still ends a run where it never comes.
+    const bool subtitlesSettled =
+        subtitlesPath_.isEmpty() ||
+        std::any_of(subtitleTracks_.cbegin(), subtitleTracks_.cend(), [](const QJsonValue &track) {
+            return track.toObject().value(QStringLiteral("external")).toBool();
+        });
+    if (hardwareDecoding_ && subtitlesSettled &&
         timeMs_ >= (stereoCheck_ ? kRequiredStereoPlaybackMs : kRequiredPlaybackMs)) {
         finish(QStringLiteral("played"));
     }
