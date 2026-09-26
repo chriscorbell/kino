@@ -285,6 +285,10 @@ export function generateSdrProbe(fixturesDir) {
  * explicitly, as a real release's mux carries them. Requires dovi_tool and mkvmerge.
  */
 export function generateDolbyVisionProbes(fixturesDir) {
+  // Like the other fixtures, existing ones are reused, so a machine without the tools can run
+  // fixtures made elsewhere.
+  if (['dv-p8-probe.mkv', 'dv-p5-probe.mkv'].every((name) => existsSync(join(fixturesDir, name))))
+    return;
   const probe = join(fixturesDir, 'hdr-probe.mkv');
   const work = join(fixturesDir, 'dv-work');
   mkdirSync(work, { recursive: true });
