@@ -10,6 +10,8 @@ on:
       - apps/stream-engine/**
       - package.json
       - pnpm-lock.yaml
+      - scripts/build-engine.sh
+      - scripts/check-engine-profile.mjs
       - scripts/license-notices.mjs
       - scripts/linux-notices.mjs
       - third_party/notices/**
@@ -25,6 +27,84 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The engine the Flatpak ships, built natively from the manifest's pins,
+  # since the Flatpak build runs no tests: its unit tests and the embedded
+  # profile check run on Linux as they do on macOS and Windows.
+  engine:
+    name: Linux engine build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      KINO_DEPS: ${{ github.workspace }}/build/linux-engine-deps
+      CARGO_TARGET_DIR: ${{ github.workspace }}/build/engine-target
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq cmake ninja-build pkg-config libssl-dev libclang-dev lsof >/dev/null
+      - name: Restore libtorrent and Boost
+        id: deps-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: build/linux-engine-deps
+          key: linux-engine-deps-${{ hashFiles('packaging/flatpak/com.chriscorbell.Kino.yml') }}
+      # The Boost and libtorrent releases the manifest pins, read from it so
+      # the two cannot drift apart.
+      - name: Build libtorrent over Boost's headers
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        run: |
+          manifest=packaging/flatpak/com.chriscorbell.Kino.yml
+          pinned() { sed -n "/^  - name: $1\$/,/^  - name:/p" "$manifest" | sed -n "s/^ *$2: //p" | head -1; }
+          mkdir -p build/linux-engine-src "$KINO_DEPS/include"
+          cd build/linux-engine-src
+          curl -fsSL -o boost.tar.xz "$(pinned boost-headers url)"
+          echo "$(pinned boost-headers sha256)  boost.tar.xz" | sha256sum -c -
+          tar -xf boost.tar.xz && cp -r boost-*/boost "$KINO_DEPS/include/"
+          curl -fsSL -o libtorrent.tar.gz "$(pinned libtorrent url)"
+          echo "$(pinned libtorrent sha256)  libtorrent.tar.gz" | sha256sum -c -
+          tar -xf libtorrent.tar.gz
+          cmake -S libtorrent-rasterbar-* -B libtorrent -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_STANDARD=17 -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -Dwebtorrent=OFF -Dbuild_tests=OFF -Dbuild_examples=OFF -Dbuild_tools=OFF \
+            -Dpython-bindings=OFF -DBoost_INCLUDE_DIR="$KINO_DEPS/include" \
+            -DCMAKE_INSTALL_PREFIX="$KINO_DEPS" -DCMAKE_INSTALL_LIBDIR=lib
+          cmake --build libtorrent --parallel "$(nproc)"
+          cmake --install libtorrent
+      - name: Save libtorrent and Boost
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: build/linux-engine-deps
+          key: ${{ steps.deps-cache.outputs.cache-primary-key }}
+      - name: Build the engine
+        env:
+          CXXFLAGS: -I${{ github.workspace }}/build/linux-engine-deps/include
+          LIBTORRENT_STATIC: '1'
+          PKG_CONFIG_PATH: ${{ github.workspace }}/build/linux-engine-deps/lib/pkgconfig
+        run: |
+          bash scripts/build-engine.sh --vendor-only
+          channel=$(sed -n 's/^channel = "\(.*\)"$/\1/p' apps/stream-engine/rust-toolchain.toml)
+          rustup toolchain install "$channel" --profile minimal
+          rustup run "$channel" cargo build --locked --release --manifest-path apps/stream-engine/Cargo.toml
+      - name: Check the engine
+        timeout-minutes: 10
+        env:
+          CXXFLAGS: -I${{ github.workspace }}/build/linux-engine-deps/include
+          LIBTORRENT_STATIC: '1'
+          PKG_CONFIG_PATH: ${{ github.workspace }}/build/linux-engine-deps/lib/pkgconfig
+          KINO_ENGINE_BINARY: ${{ github.workspace }}/build/engine-target/release/kino-stream-engine
+        run: |
+          channel=$(sed -n 's/^channel = "\(.*\)"$/\1/p' apps/stream-engine/rust-toolchain.toml)
+          (cd apps/stream-engine && rustup run "$channel" cargo test --locked --release)
+          pnpm engine:check-profile
+
   # The build sandbox has neither the npm packages nor the crates, so the
   # license notices are collected here and handed to the build.
   notices:
