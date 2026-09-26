@@ -4,6 +4,8 @@ The collection has 14 formula bundles totaling 3,070,501 bytes. It combines 173 
 
 The inspected app, `build/dist/Kino.app`, contains 54 Qt frameworks. Its plugin directory also contains code from Qt Image Formats, Qt Virtual Keyboard, Qt 3D, Qt Quick Timeline, and Qt SCXML. A framework-only inventory would miss those modules. `build/license-research/qt/plugin-origins.json` records the installed formula roots found by resolving the corresponding Qt plugin symlinks. The packaging implementation should determine which formula bundles it needs from the complete final app inventory.
 
+Since [ADR 0028](../adr/0028-bundle-only-the-qt-kino-loads.md) the Mac app no longer carries Image Formats, Multimedia, Serial Port, Shader Tools, SVG, 3D, Virtual Keyboard, Quick Timeline or SCXML, and `reviewed.json` drops their reviews except SVG's, which the Windows record reuses.
+
 | Formula           | Included upstream attribution groups | Third-party notices |
 | ----------------- | ------------------------------------ | ------------------: |
 | qtbase            | Core, D-Bus, GUI, Network, SQL       |                  51 |

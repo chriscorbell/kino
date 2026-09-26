@@ -14,6 +14,7 @@ import {
 import { createRequire } from 'node:module';
 import { basename, dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readMachO } from './macho.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const reviewedRoot = join(root, 'third_party/notices');
@@ -292,16 +293,7 @@ export function generateLicenseNotices(app, binaries) {
       byName.set(basename(path), list);
     }
   }
-  const uuid = (path) => {
-    try {
-      return execFileSync('dwarfdump', ['--uuid', path], {
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-      }).match(/UUID: ([A-F0-9-]+)/i)?.[1];
-    } catch {
-      return null;
-    }
-  };
+  const uuid = (path) => readMachO(path)?.uuid;
   const native = new Map();
   for (const binary of binaries) {
     const path = relative(app, binary);

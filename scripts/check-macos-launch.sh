@@ -14,6 +14,8 @@ cleanup() {
     wait "${kino_probe_pid}" 2>/dev/null || true
   fi
   rm -f "${kino_probe_log}" "${kino_second_log}"
+  # A killed Kino leaves its single-instance socket behind.
+  if [[ -n "${kino_instance_name:-}" ]]; then rm -f "${TMPDIR:-/tmp}/${kino_instance_name}"; fi
 }
 trap cleanup EXIT
 

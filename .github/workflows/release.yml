@@ -72,6 +72,8 @@ jobs:
         run: pnpm macos:package
       - name: Check the bundle carries the release version
         run: node scripts/check-version.mjs --app build/dist/Kino.app
+      - name: Run the packaged app
+        run: pnpm macos:check-package
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: macos

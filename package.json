@@ -56,6 +56,7 @@
     "windows:icon": "swift scripts/build-windows-icon.swift",
     "windows:check-icon": "node scripts/check-windows-icon.mjs",
     "macos:package": "node scripts/package-macos.mjs",
+    "macos:check-package": "node scripts/check-macos-package.mjs",
     "test": "pnpm --filter @kino/desktop test",
     "typecheck": "pnpm --filter @kino/desktop typecheck",
     "version:check": "node scripts/check-version.mjs",

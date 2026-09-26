@@ -49,6 +49,12 @@ Source: Chris's instruction of 2026-09-25 to plan and implement a full-featured,
 - `systemctl suspend` from SSH asks for interactive authorization; `pnpm linux:check-sleep` suspends through `sudo -n` (#260). macOS has no `timeout` command.
 - The TV's mode change renegotiates HDMI audio, Android broadcasts audio becoming noisy, and Media3 pauses; the frame-rate matcher undoes that pause for fifteen seconds after its request (#265).
 - `check-macos-focus` failed several runs on the macOS runner because its first Enter never reached the page: Chromium drops input while it holds a page's first frames, still acknowledges it, and React had already focused Home. Every DevTools key now waits for the page's first contentful paint. WebEngine probe timeouts report the page's state, whether it has painted, and the input it received.
+- `macdeployqt` given `import QtQuick` copies all of Qt's `QtQuick` directory, 3D and the virtual keyboard included, and every plugin of each kind; it took nine of rc.1's twelve packaging minutes. Packaging now bundles what `qmlimportscanner` names and what that links (ADR 0028).
+- `readdirSync(root, { recursive: true })` follows directory links. The old bundle's WebEngine helper linked back to `Frameworks`, and the walk looped until Node's heap ran out; `scripts/macho.mjs` walks without following links.
+- `cpSync(link, target, { dereference: true })` fails on a link to a file with `ERR_FS_EISDIR`, and on the macOS runner it copied the links inside a directory as links, which codesign refused as leading out of the bundle. Packaging resolves and copies each file itself.
+- Homebrew's Qt reaches its libraries through `@executable_path`, which inside the WebEngine helper means the helper's own folder. Each bundled binary now searches only `@loader_path`-relative `Frameworks`.
+- A Kino killed with SIGTERM leaves its single-instance socket in `$TMPDIR`; Kino clears a stale one at launch, and the probes remove theirs.
+- The notice review pins Homebrew versions from CI's runner. A Mac whose Homebrew lags, such as libtorrent 2.1.1 against the reviewed 2.1.2, fails `pnpm macos:package` at the notices step.
 
 ## Waiting on Chris
 
