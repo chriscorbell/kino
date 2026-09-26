@@ -48,7 +48,7 @@ Source: Chris's instruction of 2026-09-25 to plan and implement a full-featured,
 - `pkill -f PATTERN` inside a compound or SSH command matches that command's own shell and kills it. Match on the process name, or bracket the pattern (`[n]ode scripts`), in a command of its own.
 - `systemctl suspend` from SSH asks for interactive authorization; `pnpm linux:check-sleep` suspends through `sudo -n` (#260). macOS has no `timeout` command.
 - The TV's mode change renegotiates HDMI audio, Android broadcasts audio becoming noisy, and Media3 pauses; the frame-rate matcher undoes that pause for fifteen seconds after its request (#265).
-- On 2026-09-26 `check-macos-focus` began failing about half its runs on the macOS runner: Enter on the focused Settings button did not navigate. WebEngine probe timeouts now report the page's state and the input it received (#263); read that before changing the probe.
+- `check-macos-focus` failed several runs on the macOS runner because its first Enter never reached the page: Chromium drops input while it holds a page's first frames, still acknowledges it, and React had already focused Home. Every DevTools key now waits for the page's first contentful paint. WebEngine probe timeouts report the page's state, whether it has painted, and the input it received.
 
 ## Waiting on Chris
 
