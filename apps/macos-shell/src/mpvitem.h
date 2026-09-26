@@ -84,6 +84,8 @@ private:
     bool failed_ = false;
     bool hardwareDecoderActive_ = false;
     bool paused_ = true;
+    // Sleep waits until mpv reports the pause Kino asked for before it.
+    bool pausingForSleep_ = false;
     bool renderContextReady_ = false;
     bool suppressMpvLogDetails_ = false;
     bool videoPresent_ = false;

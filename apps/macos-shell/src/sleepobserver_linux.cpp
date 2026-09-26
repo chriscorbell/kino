@@ -6,6 +6,7 @@
 #include <QDBusUnixFileDescriptor>
 #include <QObject>
 #include <QSet>
+#include <QTimer>
 
 namespace {
 
@@ -16,6 +17,12 @@ class LogindSleep : public QObject {
     Q_OBJECT
 public:
     explicit LogindSleep(std::function<void()> willSleep) : willSleep_(std::move(willSleep)) {
+        // mpv pauses on its own thread. Asking it to is not the same as having
+        // paused, and the machine must not sleep in between; a player that
+        // never answers still lets it go well inside logind's own limit.
+        fallback_.setSingleShot(true);
+        fallback_.setInterval(2'000);
+        connect(&fallback_, &QTimer::timeout, this, &LogindSleep::ready);
         QDBusConnection bus = QDBusConnection::systemBus();
         if (!bus.isConnected()) {
             qWarning("[kino:sleep] sleep notice unavailable reason=no-system-bus");
@@ -30,15 +37,25 @@ public:
 
     void deliver() { prepareForSleep(true); }
 
+    // Closing the descriptor tells logind this program is ready. Outside a
+    // sleep there is nothing to release: the lock is the next sleep's.
+    void ready() {
+        if (!preparing_) return;
+        preparing_ = false;
+        fallback_.stop();
+        lock_ = QDBusUnixFileDescriptor();
+    }
+
 public slots:
     void prepareForSleep(bool starting) {
         if (!starting) {
+            ready();
             takeLock();
             return;
         }
+        preparing_ = true;
+        fallback_.start();
         willSleep_();
-        // Closing the descriptor tells logind this program is ready.
-        lock_ = QDBusUnixFileDescriptor();
     }
 
 private:
@@ -59,6 +76,8 @@ private:
 
     std::function<void()> willSleep_;
     QDBusUnixFileDescriptor lock_;
+    QTimer fallback_;
+    bool preparing_ = false;
 };
 
 QSet<LogindSleep *> &observers() {
@@ -79,6 +98,8 @@ SleepObserver::~SleepObserver() {
     observers().remove(observer);
     delete observer;
 }
+
+void SleepObserver::readyToSleep() { static_cast<LogindSleep *>(token_)->ready(); }
 
 void postWillSleepForProbe() {
     for (LogindSleep *observer : observers()) observer->deliver();

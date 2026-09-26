@@ -31,6 +31,12 @@ private:
     // KINO_PLAYBACK_PROBE_SLEEP: after a second of playback, deliver a system
     // will-sleep notification and expect the player to pause.
     bool sleepCheck_ = false;
+    // KINO_PLAYBACK_PROBE_SLEEP=system: announce that playback is under way and
+    // wait for the system's own notice, from a real sleep the runner starts.
+    bool systemSleep_ = false;
+    // Time the machine had spent asleep when the probe began waiting.
+    qint64 asleepBeforeMs_ = 0;
+    qint64 asleepAtPauseMs_ = -1;
     // The Stereo path plays long enough for the loudness gain to settle.
     bool stereoCheck_ = false;
     // The HDR gate pauses on a frame of the probe fixture and samples its patches.

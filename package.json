@@ -45,6 +45,7 @@
     "macos:check-web-console": "node scripts/check-macos-web-console.mjs",
     "macos:check-launch": "./scripts/check-macos-launch.sh",
     "macos:check-playback": "node scripts/check-macos-playback.mjs",
+    "linux:check-sleep": "node scripts/check-linux-sleep.mjs",
     "macos:check-request-headers": "node scripts/check-macos-request-headers.mjs",
     "macos:check-tls": "node scripts/check-macos-tls.mjs",
     "macos:check-shutdown": "node scripts/check-macos-shutdown.mjs",

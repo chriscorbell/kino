@@ -48,6 +48,8 @@ SleepObserver::~SleepObserver() {
     delete filter;
 }
 
+void SleepObserver::readyToSleep() {}
+
 void postWillSleepForProbe() {
     for (SuspendFilter *filter : observers()) filter->deliver();
 }
