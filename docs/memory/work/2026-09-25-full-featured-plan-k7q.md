@@ -2,13 +2,13 @@
 
 Read when: continuing the multi-milestone push tracked in issue #182, or picking the next chunk of platform work.
 
-Status: active
+Status: blocked on Chris; every remaining #182 box needs his hardware, his keys, or his retest.
 Plan: [issue #182](https://github.com/chriscorbell/kino/issues/182), checked off as each pull request merges.
 Source: Chris's instruction of 2026-09-25 to plan and implement a full-featured, stable Kino on all supported platforms, with full agency.
 
 ## Continuation facts
 
-- Work runs in milestone order; Milestones 1, 3 and 4 are done, and Milestone 5 (Linux and Windows) is what remains. Each chunk is its own pull request, squash-merged once CI passes.
+- Milestones 1, 3 and 4 are done. Milestone 5's code, packaging and notices shipped (#232 to #252); what remains is hardware validation on Linux and Windows. Each chunk is its own pull request, squash-merged once CI passes.
 - The `kardboard` ruleset requires one approving review with an admin bypass. Interactive work merges with `gh pr merge --squash --delete-branch --admin`, as `AGENTS.md` Shipping describes.
 - The development Shield answers at `10.0.0.191:5555`. If `adb connect` reports "No route to host" while `nc -z 10.0.0.191 5555` succeeds, restart the adb server (`adb kill-server`) and connect again.
 - The running desktop app can be driven without taking over the screen: launch `build/macos/Kino.app/Contents/MacOS/Kino` with `QTWEBENGINE_REMOTE_DEBUGGING=127.0.0.1:<port>` and use the DevTools protocol. Accessibility clicks do not reach WebEngine content.
@@ -38,6 +38,8 @@ Source: Chris's instruction of 2026-09-25 to plan and implement a full-featured,
 ## Waiting on Chris
 
 - Android release signing key: generating it and storing it as repository secrets needs his yes.
-- The v0.1.0 tag waits on his daily-driver retest.
+- The v0.1.0 tag waits on his daily-driver retest, on a packaged build from after #250: from #232 until then the packaged Mac app opened a blank window.
+- Linux hardware validation: install the `Kino-x86_64.flatpak` artifact from the Linux Flatpak workflow on a machine with a VA-API GPU and play SDR, HDR10 and a torrent source.
+- Windows hardware validation: unzip `Kino-windows-x64-with-engine` from the Windows workflow and play the same sources with D3D11VA on the Windows PC.
 
 Close when: every box in #182 is checked or explicitly deferred there.
