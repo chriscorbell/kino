@@ -22,6 +22,8 @@ SleepObserver::~SleepObserver() {
     [token release];
 }
 
+void SleepObserver::readyToSleep() {}
+
 void postWillSleepForProbe() {
     [[[NSWorkspace sharedWorkspace] notificationCenter]
         postNotificationName:NSWorkspaceWillSleepNotification
