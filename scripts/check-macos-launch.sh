@@ -61,6 +61,7 @@ for _ in $(seq 1 20); do
 done
 if ! grep -q "brought forward by a second launch" "${kino_probe_log}" || ! kill -0 "${kino_probe_pid}" 2>/dev/null; then
   echo "The first Kino was not brought forward by the second launch."
+  sed -n '1,80p' "${kino_probe_log}"
   exit 1
 fi
 echo "A second launch brought the first Kino forward and exited."

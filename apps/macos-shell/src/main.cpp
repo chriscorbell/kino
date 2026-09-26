@@ -124,20 +124,24 @@ int main(int argc, char *argv[]) {
     });
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,
                      []() { QCoreApplication::exit(1); }, Qt::QueuedConnection);
+    // Connected before the window loads: WebEngine's start-up can process
+    // events, and a second launch that arrives then would otherwise be lost.
+    // A Kino still starting has no window to raise yet; it shows it soon.
+    QObject::connect(&instance, &SingleInstance::activationRequested, &engine, [&engine]() {
+        qInfo("[kino:shell] brought forward by a second launch");
+        const QList<QObject *> roots = engine.rootObjects();
+        auto *window = roots.isEmpty() ? nullptr : qobject_cast<QQuickWindow *>(roots.first());
+        if (!window) return;
+        if (window->visibility() == QWindow::Minimized) window->showNormal();
+        else window->show();
+        window->raise();
+        window->requestActivate();
+    });
     engine.loadFromModule("KinoShell", "Main");
     if (!engine.rootObjects().isEmpty()) {
         QObject *root = engine.rootObjects().first();
         if (auto *diagnostics = root->findChild<Diagnostics *>()) {
             diagnostics->setSources(root->findChild<MpvItem *>(), root->findChild<StreamEngine *>());
-        }
-        if (auto *window = qobject_cast<QQuickWindow *>(root)) {
-            QObject::connect(&instance, &SingleInstance::activationRequested, window, [window]() {
-                qInfo("[kino:shell] brought forward by a second launch");
-                if (window->visibility() == QWindow::Minimized) window->showNormal();
-                else window->show();
-                window->raise();
-                window->requestActivate();
-            });
         }
     }
 
