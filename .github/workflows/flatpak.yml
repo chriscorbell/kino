@@ -12,18 +12,23 @@ on:
       - pnpm-lock.yaml
       - scripts/build-engine.sh
       - scripts/check-engine-profile.mjs
+      - scripts/check-version.mjs
       - scripts/license-notices.mjs
       - scripts/linux-notices.mjs
       - third_party/notices/**
   push:
     branches:
       - main
+  # The Release workflow builds its Flatpak here.
+  workflow_call:
 
 permissions:
   contents: read
 
+# github.workflow names the caller when the Release workflow calls this one, so a release never
+# cancels a run on main, or the other way around.
 concurrency:
-  group: flatpak-${{ github.ref }}
+  group: flatpak-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -167,6 +172,8 @@ jobs:
       # reviewed component, and the notices page carries every text.
       - name: Verify the installed notices
         run: node scripts/linux-notices.mjs verify "$(flatpak info --user --show-location com.chriscorbell.Kino)/files"
+      - name: Check the Flatpak carries Kino's version
+        run: node scripts/check-version.mjs --flatpak "$(flatpak info --user --show-location com.chriscorbell.Kino)/files"
       # The packaged app must start and load the interface it carries, on a
       # virtual display, with its own instance name so nothing else answers.
       # The container runs as root, where Chromium will not start with its
