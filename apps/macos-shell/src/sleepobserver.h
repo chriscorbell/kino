@@ -10,6 +10,9 @@ class SleepObserver {
 public:
     explicit SleepObserver(std::function<void()> willSleep);
     ~SleepObserver();
+    // Playback has paused, so a sleep Kino is holding back can go ahead. Only
+    // Linux holds sleep back; elsewhere the system does not wait.
+    void readyToSleep();
     SleepObserver(const SleepObserver &) = delete;
     SleepObserver &operator=(const SleepObserver &) = delete;
 
@@ -17,6 +20,6 @@ private:
     void *token_ = nullptr;
 };
 
-// Delivers the system's will-sleep notice inside this process. Only the
-// playback probe calls it; nothing can deliver a real sleep to a check.
+// Delivers the system's will-sleep notice inside this process, for the
+// playback probe. scripts/check-linux-sleep.mjs sleeps a Linux machine for real.
 void postWillSleepForProbe();

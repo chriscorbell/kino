@@ -277,9 +277,13 @@ private:
 MpvItem::MpvItem(QQuickItem *parent)
     : QQuickFramebufferObject(parent), context_(std::make_shared<MpvContext>(this)),
       handle_(context_->handle), sleepObserver_([this]() {
-          // Audio would otherwise start again by itself when the Mac wakes.
-          if (!active_ || paused_) return;
+          // Audio would otherwise start again by itself when the computer wakes.
+          if (!active_ || paused_) {
+              sleepObserver_.readyToSleep();
+              return;
+          }
           qInfo("[kino:mpv] paused for system sleep");
+          pausingForSleep_ = true;
           setPaused(true);
       }) {
     connect(this, &MpvItem::renderUpdateRequested, this, qOverload<>(&MpvItem::update),
@@ -812,6 +816,10 @@ void MpvItem::handleEvent(mpv_event *event) {
             updatePowerGuard();
             emit playerEvent(QStringLiteral("paused"),
                              {{QStringLiteral("paused"), paused_}});
+            if (paused_ && pausingForSleep_) {
+                pausingForSleep_ = false;
+                sleepObserver_.readyToSleep();
+            }
         } else if (name == "paused-for-cache" && property->format == MPV_FORMAT_FLAG) {
             emit playerEvent(QStringLiteral("buffering"),
                              {{QStringLiteral("active"),

@@ -18,6 +18,10 @@
 
 #include <cstdio>
 
+#if defined(Q_OS_LINUX)
+#include <time.h>
+#endif
+
 namespace {
 
 // Enough playback to prove sustained decoding, comfortably past the point
@@ -26,12 +30,30 @@ constexpr qlonglong kRequiredPlaybackMs = 2'500;
 // Long enough for the loudness probe's final passage to settle the gain.
 constexpr qlonglong kRequiredStereoPlaybackMs = 15'000;
 constexpr int kTimeoutMs = 30'000;
+// A real sleep and wake takes the system's own time.
+constexpr int kSystemSleepTimeoutMs = 120'000;
+
+// How long the machine has been asleep since boot: the boot clock counts
+// suspended time and the monotonic clock does not. Only Linux runs the real
+// sleep check.
+qint64 asleepMs() {
+#if defined(Q_OS_LINUX)
+    timespec boot{};
+    timespec monotonic{};
+    clock_gettime(CLOCK_BOOTTIME, &boot);
+    clock_gettime(CLOCK_MONOTONIC, &monotonic);
+    return qint64(boot.tv_sec - monotonic.tv_sec) * 1000 + (boot.tv_nsec - monotonic.tv_nsec) / 1'000'000;
+#else
+    return 0;
+#endif
+}
 
 } // namespace
 
 PlaybackProbe::PlaybackProbe(MpvItem *player, const QString &mediaPath,
                              const QString &subtitlesPath, QObject *parent)
     : QObject(parent), sleepCheck_(qEnvironmentVariableIsSet("KINO_PLAYBACK_PROBE_SLEEP")),
+      systemSleep_(qEnvironmentVariable("KINO_PLAYBACK_PROBE_SLEEP") == QLatin1String("system")),
       stereoCheck_(qEnvironmentVariableIsSet("KINO_PLAYBACK_PROBE_STEREO")),
       frameCheck_(qEnvironmentVariableIsSet("KINO_PLAYBACK_PROBE_FRAME")),
       matchCheck_(qEnvironmentVariableIsSet("KINO_PLAYBACK_PROBE_MATCH")),
@@ -98,6 +120,7 @@ void PlaybackProbe::onPlayerEvent(const QString &name, const QVariantMap &payloa
         }
     } else if (name == QLatin1String("paused") && sleepPosted_ &&
                payload.value(QStringLiteral("paused")).toBool()) {
+        if (systemSleep_) asleepAtPauseMs_ = asleepMs() - asleepBeforeMs_;
         finish(QStringLiteral("paused-for-sleep"));
         return;
     } else if (name == QLatin1String("ended")) {
@@ -111,7 +134,16 @@ void PlaybackProbe::evaluate() {
     if (sleepCheck_) {
         if (hardwareDecoding_ && timeMs_ >= 1'000 && !sleepPosted_) {
             sleepPosted_ = true;
-            postWillSleepForProbe();
+            if (systemSleep_) {
+                // The runner reads this, starts the sleep, and wakes the
+                // machine; the pause must land before the machine sleeps.
+                timeout_.start(kSystemSleepTimeoutMs);
+                asleepBeforeMs_ = asleepMs();
+                std::printf("KINO_PROBE_AWAITING_SLEEP\n");
+                std::fflush(stdout);
+            } else {
+                postWillSleepForProbe();
+            }
         }
         return;
     }
@@ -215,6 +247,10 @@ void PlaybackProbe::finish(const QString &outcome, const QString &errorCode) {
     };
     if (!errorCode.isEmpty()) {
         result.insert(QStringLiteral("errorCode"), errorCode);
+    }
+    if (systemSleep_) {
+        // Zero when the pause landed before the machine slept.
+        result.insert(QStringLiteral("asleepBeforePauseMs"), asleepAtPauseMs_);
     }
     const QByteArray line = QJsonDocument(result).toJson(QJsonDocument::Compact);
     std::printf("KINO_PROBE_RESULT %s\n", line.constData());

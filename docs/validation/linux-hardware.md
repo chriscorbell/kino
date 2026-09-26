@@ -17,7 +17,9 @@ Three things the runs found:
 - Ubuntu does not install Intel's VA-API driver, and without it Kino refuses every video, as the contract requires. The README's Linux steps now say so. The Flatpak runtime installs its Intel driver extension by itself.
 - The interface recovery probe crashed the web process with DevTools' `Page.crash`, which does nothing on Linux. It now kills the process instead (#259), and Linux CI runs it. In the Flatpak, DevTools gives the process's number inside the sandbox, so the probe finds the host process by its namespace numbers (#261).
 
-Not covered: sound heard at the speakers, GNOME's media controls seen on screen (the `media_controls` CTest covers the MPRIS surface they read), a real sleep and wake, and signing in to a real Stremio account.
+On the laptop, `pnpm linux:check-sleep` (#260) suspended the machine through logind for 20 seconds while Kino played, with both the Ubuntu build and the Flatpak. Kino paused 0 ms into the sleep each time, so the pause landed before the machine slept, and the Flatpak received logind's notice through Flatpak's D-Bus proxy.
+
+Not covered: sound heard at the speakers, GNOME's media controls seen on screen (the `media_controls` CTest covers the MPRIS surface they read), and signing in to a real Stremio account.
 
 ## Repeating it
 
