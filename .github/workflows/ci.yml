@@ -280,9 +280,9 @@ jobs:
     runs-on: windows-2025
     timeout-minutes: 45
     env:
-      # The newest Qt aqtinstall can install: from 6.11 the Qt repository is
-      # laid out per compiler, which aqtinstall 3.3 cannot read yet.
-      KINO_QT_VERSION: 6.10.3
+      # The Qt release the macOS and Linux builds use, so one notices review
+      # covers all three.
+      KINO_QT_VERSION: 6.11.2
       # SourceForge keeps every libmpv build; the GitHub releases rotate out.
       KINO_MPV_ARCHIVE: mpv-dev-x86_64-20260920-git-e76a35ec95.7z
       KINO_MPV_SHA256: 60f9102db46aea8cef9bfb4345ee6a106f34fdbd1df9587e38f0660688039341
@@ -295,12 +295,38 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
-      - uses: jurplel/install-qt-action@a9c63c7c123f3069cff414e7e482d95dfa9d8125 # v4.4.1
+      - name: Restore Qt
+        id: qt-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
-          version: ${{ env.KINO_QT_VERSION }}
-          arch: win64_msvc2022_64
-          modules: qtwebengine qtwebchannel qtpositioning
-          cache: true
+          path: build/qt
+          key: qt-windows-${{ env.KINO_QT_VERSION }}-webengine-webchannel-positioning
+      # Qt 6.11 lays its repository out per compiler, which aqtinstall reads
+      # only since a change that is merged but not yet released. Its Python
+      # 7z reader rejects a path in qtsvg's archive, and 7-Zip extracting
+      # several archives at once races on the directories they share, so
+      # 7-Zip extracts them one at a time.
+      - name: Install Qt
+        if: steps.qt-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          python -m pip install --quiet "git+https://github.com/miurahr/aqtinstall.git@076e1659807d0b362a3ed684d54c2e9c775eb9c7"
+          New-Item -ItemType Directory -Force build | Out-Null
+          "[aqt]`nconcurrency: 1" | Set-Content build/aqt.ini
+          python -m aqt -c build/aqt.ini install-qt windows desktop $env:KINO_QT_VERSION win64_msvc2022_64 `
+            --outputdir build/qt --modules qtwebengine qtwebchannel qtpositioning --external 7z
+      - name: Save Qt
+        if: steps.qt-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: build/qt
+          key: ${{ steps.qt-cache.outputs.cache-primary-key }}
+      - name: Put Qt on the path
+        shell: pwsh
+        run: |
+          $qt = "$PWD/build/qt/$env:KINO_QT_VERSION/msvc2022_64"
+          "$qt/bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+          "CMAKE_PREFIX_PATH=$qt" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
       - name: Fetch libmpv and make its MSVC import library
         shell: pwsh
         run: |
@@ -331,8 +357,11 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: ctest --test-dir build/windows --output-on-failure --timeout 30
-      # A portable folder: the shell, its interface, libmpv, and the Qt
-      # libraries and QML modules windeployqt finds it using.
+      # A portable folder: the shell, its interface, libmpv, the Qt libraries
+      # and QML modules windeployqt finds it using, and the C++ runtime beside
+      # them rather than as an installer to run first. Qt Quick draws with
+      # OpenGL, so the Direct3D shader compilers stay out, and so does Qt's
+      # software OpenGL: a 2016 Mesa whose LLVM release nothing records.
       - name: Package a portable build
         shell: pwsh
         run: |
@@ -341,8 +370,41 @@ jobs:
           Copy-Item build/windows/Kino.exe $out
           Copy-Item -Recurse build/windows/ui "$out/ui"
           Copy-Item build/mpv/libmpv-2.dll $out
-          windeployqt --release --qmldir apps/macos-shell/qml --no-translations "$out/Kino.exe"
+          windeployqt --release --qmldir apps/macos-shell/qml --no-translations `
+            --skip-plugin-types qmltooling --no-system-d3d-compiler --no-system-dxc-compiler `
+            --no-compiler-runtime --no-opengl-sw "$out/Kino.exe"
+          # The folder is named for the toolset (VC143, VC145, ...).
+          Copy-Item "$env:VCToolsRedistDir/x64/Microsoft.VC*.CRT/*.dll" $out
+          foreach ($required in 'Kino.exe', 'libmpv-2.dll', 'Qt6WebEngineCore.dll', 'QtWebEngineProcess.exe', 'vcruntime140.dll', 'msvcp140.dll', 'ui/index.html') {
+            if (-not (Test-Path "$out/$required")) { throw "The portable build lacks $required" }
+          }
+          foreach ($unwanted in 'vc_redist.x64.exe', 'd3dcompiler_47.dll', 'dxcompiler.dll', 'dxil.dll', 'opengl32sw.dll', 'qmltooling') {
+            if (Test-Path "$out/$unwanted") { throw "The portable build carries $unwanted" }
+          }
           Compress-Archive -Path $out -DestinationPath build/windows-package/Kino-windows-x64.zip
+      # The portable build, started as someone would start it. The runner's
+      # display has no OpenGL driver, so a copy of the build gets Mesa's
+      # software OpenGL beside Kino.exe, which Windows loads ahead of its own.
+      - name: Run the interface probes
+        timeout-minutes: 10
+        shell: bash
+        env:
+          KINO_APP_BINARY: ${{ github.workspace }}/build/windows-probe/Kino/Kino.exe
+          KINO_MESA_ARCHIVE: mesa3d-26.2.1-release-msvc.7z
+          KINO_MESA_SHA256: 78a0305844074535e73dfb6dcb5eb2a65f1d9dc445102e1f4c3c3e97dace19bf
+        run: |
+          mkdir -p build/windows-probe
+          cp -r build/windows-package/Kino build/windows-probe/
+          curl.exe -fsSL -o "build/$KINO_MESA_ARCHIVE" \
+            "https://github.com/pal1000/mesa-dist-win/releases/download/26.2.1/$KINO_MESA_ARCHIVE"
+          echo "$KINO_MESA_SHA256  build/$KINO_MESA_ARCHIVE" | sha256sum -c -
+          7z e "build/$KINO_MESA_ARCHIVE" -obuild/windows-probe/Kino x64/opengl32.dll x64/libgallium_wgl.dll -y >/dev/null
+          # pnpm would run these through cmd.exe, which cannot start a shell
+          # script, so they run directly.
+          bash scripts/check-macos-launch.sh
+          node scripts/check-macos-navigation.mjs
+          node scripts/check-macos-focus.mjs
+          node scripts/check-macos-scale.mjs
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: Kino-windows-x64

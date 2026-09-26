@@ -25,6 +25,7 @@ SingleInstance::SingleInstance(QString name, QObject *parent)
     : QObject(parent), name_(name.isEmpty() ? defaultName() : std::move(name)) {
     connect(&server_, &QLocalServer::newConnection, this, [this]() {
         while (QLocalSocket *client = server_.nextPendingConnection()) {
+            qInfo("[kino:shell] second launch connected");
             connect(client, &QLocalSocket::disconnected, client, &QObject::deleteLater);
             connect(client, &QLocalSocket::readyRead, this, [this, client]() {
                 if (!client->readAll().contains(kActivate.trimmed())) return;
@@ -44,9 +45,10 @@ bool SingleInstance::claim() {
         other.waitForBytesWritten(kTimeoutMs);
         // Wait for the first Kino to acknowledge before leaving: Windows drops
         // what a pipe's reader has not read yet when the writer disconnects.
-        other.waitForReadyRead(kTimeoutMs);
+        const bool answered = other.waitForReadyRead(kTimeoutMs);
         other.disconnectFromServer();
-        qInfo("[kino:shell] another Kino is running; asked it to come forward");
+        if (answered) qInfo("[kino:shell] another Kino is running; asked it to come forward");
+        else qWarning("[kino:shell] another Kino is running but did not answer");
         return false;
     }
     // Nothing answered, so a socket file left by a crashed instance is stale.

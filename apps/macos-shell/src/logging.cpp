@@ -78,6 +78,7 @@ public:
         if (!file_.isOpen()) {
             const QByteArray sanitized = boundedRecord(sanitize(message).toUtf8());
             std::fprintf(stderr, "%s\n", sanitized.constData());
+            std::fflush(stderr);
             return;
         }
 
@@ -99,6 +100,9 @@ public:
         file_.write(encoded);
         file_.flush();
         std::fwrite(encoded.constData(), 1, static_cast<size_t>(encoded.size()), stderr);
+        // Windows buffers stderr when it is a file or a pipe, which would hold
+        // back each line, and lose the last ones in a crash.
+        std::fflush(stderr);
     }
 
 private:

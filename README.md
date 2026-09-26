@@ -51,7 +51,7 @@ The shell loads the packaged Kino UI, keeps Stremio authentication material in a
 pnpm macos:check-launch
 ```
 
-The shell also builds on Linux against Qt 6.8 and libmpv 2.4 or newer, and CI compiles it and runs its unit tests in an Ubuntu 26.04 container. Each operating system supplies its own media controls, sleep notice, display-sleep guard, and display modes behind the same headers: MediaPlayer, AppKit, IOKit, and CoreGraphics on macOS; MPRIS, logind, and the desktop portal on Linux, which cannot switch display modes; and on Windows the System Media Transport Controls, the thread execution state, the suspend broadcast, and the display settings API. Hardware decoding stays mandatory everywhere: VideoToolbox on macOS, VA-API or NVDEC on Linux, and Direct3D 11 on Windows. One Kino runs per profile: a second launch brings the first window forward and exits, so two processes never write the same profile; `pnpm macos:check-launch` checks the hand-over. Linux and Windows are not packaged or validated on hardware yet.
+The shell also builds on Linux against Qt 6.8 and libmpv 2.4 or newer, and CI compiles it and runs its unit tests in an Ubuntu 26.04 container. Each operating system supplies its own media controls, sleep notice, display-sleep guard, and display modes behind the same headers: MediaPlayer, AppKit, IOKit, and CoreGraphics on macOS; MPRIS, logind, and the desktop portal on Linux, which cannot switch display modes; and on Windows the System Media Transport Controls, the thread execution state, the suspend broadcast, and the display settings API. Hardware decoding stays mandatory everywhere: VideoToolbox on macOS, VA-API or NVDEC on Linux, and Direct3D 11 on Windows. One Kino runs per profile: a second launch brings the first window forward and exits, so two processes never write the same profile; `pnpm macos:check-launch` checks the hand-over. Linux is packaged as a Flatpak and Windows as a portable folder; neither is released or validated on hardware yet.
 
 Settings can copy a diagnostic summary with the application version and build kind, macOS, Qt, Core, player, and engine versions, and playback capabilities. The summary excludes account data, media URLs, paths, and log contents. External engine overrides report an unknown version. The `diagnostic_summary` CTest suite uses an offscreen clipboard contained within the test process.
 
@@ -89,7 +89,7 @@ Community intro markers require an exact known runtime. `pnpm intro:check` exerc
 
 ### Linux and Windows shells
 
-The same shell builds on Linux and Windows; neither is packaged for release or checked on hardware yet. On Ubuntu 26.04, which is where Qt 6.8 and libmpv 2.4 first meet, install the build dependencies, then build and run the shell from the repository root:
+The same shell builds on Linux and Windows; neither is released or checked on hardware yet. On Ubuntu 26.04, which is where Qt 6.8 and libmpv 2.4 first meet, install the build dependencies, then build and run the shell from the repository root:
 
 ```sh
 sudo apt install build-essential cmake ninja-build pkg-config libmpv-dev qt6-base-dev qt6-declarative-dev qt6-webengine-dev qt6-webchannel-dev qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-window qml6-module-qtwebchannel qml6-module-qtwebengine
@@ -101,7 +101,9 @@ build/linux/Kino
 
 CI's Linux job builds the same way in an Ubuntu 26.04 container, runs the unit tests, and runs the launch, navigation, focus and scale probes against the build on a virtual display.
 
-Windows builds with MSVC against Qt 6.10 with Qt WebEngine and a libmpv development archive. CMake takes the directory holding libmpv's `include` folder and an MSVC `mpv.lib` as `-DKINO_MPV_DIR`; the archive ships only a MinGW import library, so CI makes `mpv.lib` from the DLL's exports. The Windows job in `.github/workflows/ci.yml` is the exact recipe. It runs the unit tests and uploads a portable `Kino-windows-x64` zip, with the Qt libraries and `libmpv-2.dll` beside `Kino.exe`, that runs from any folder.
+The Flatpak manifest, `packaging/flatpak/com.chriscorbell.Kino.yml`, builds libmpv with FFmpeg, libplacebo and VA-API, the torrent engine, and the shell from pinned sources on the KDE runtime and the Qt WebEngine base app. `.github/workflows/flatpak.yml` builds it, starts it on a virtual display, checks that a second launch reaches the first, and uploads the bundle. The build sandbox has no network for pnpm, so the interface is built first: with `flatpak-builder` installed, run `pnpm --filter @kino/desktop build`, then `flatpak-builder --user --install build/flatpak packaging/flatpak/com.chriscorbell.Kino.yml`.
+
+Windows builds with MSVC against Qt 6.11 with Qt WebEngine and a libmpv development archive. CMake takes the directory holding libmpv's `include` folder and an MSVC `mpv.lib` as `-DKINO_MPV_DIR`; the archive ships only a MinGW import library, so CI makes `mpv.lib` from the DLL's exports. The Windows job in `.github/workflows/ci.yml` is the exact recipe. It runs the unit tests, builds a portable folder with the Qt libraries, the C++ runtime, and `libmpv-2.dll` beside `Kino.exe` that runs from any folder, and runs the launch, navigation, focus and scale probes against it. A second job builds the torrent engine with vcpkg, and a third adds it to the `Kino-windows-x64-with-engine` zip.
 
 ### Brand assets
 
