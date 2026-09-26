@@ -385,7 +385,12 @@ bool MpvItem::initialize() {
         {"target-trc", "bt.1886"},
         {"target-prim", "bt.709"},
         {"tone-mapping", "auto"},
-        {"hdr-compute-peak", "auto"},
+        // mpv measures each frame's peak wherever the GPU has compute shaders,
+        // which Linux drivers have and the Mac's OpenGL 4.1 does not. The same
+        // frame then mapped darker on Linux than on the Mac, and brightness
+        // would follow the scene. Every desktop maps from the stream's
+        // metadata instead, as the TV does (ADR 0026).
+        {"hdr-compute-peak", "no"},
         {"cache", "yes"},
         {"tls-verify", "yes"},
         {"demuxer-readahead-secs", "10"},
