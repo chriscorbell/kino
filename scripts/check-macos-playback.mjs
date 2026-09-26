@@ -473,6 +473,7 @@ function generateFixtures() {
   ]);
   for (const { file, scale } of loudnessFixtures) encodeLoudness(file, scale);
   generateHdrProbe(fixturesDir);
+  generateHdrProbe(fixturesDir, { transfer: 'hlg' });
   generateSdrProbe(fixturesDir);
   generateDolbyVisionProbes(fixturesDir);
   writeFixture('external.srt', srtText);
@@ -540,8 +541,9 @@ const fixtures = [
     expect: { outcome: 'played', loudness: loudnessExpectation(scale) },
   })),
   // Every pixel of the probe is a known code word, so what the player drew can be compared with
-  // the host's tone map of the same values. Profile 8.1 carries the same frames under a Dolby
-  // Vision RPU and must look the same; profile 5 has no base layer this renderer can show.
+  // the host's tone map of the same values. The HLG probe holds the same code words under HLG.
+  // Profiles 8.1 and 8.4 carry the HDR10 and HLG frames under a Dolby Vision RPU and must look the
+  // same as them; profile 5 has no base layer this renderer can show.
   // The control comes first: an SDR ramp that only proves a drawn frame can be read back.
   {
     file: 'sdr-probe.mkv',
@@ -550,12 +552,17 @@ const fixtures = [
     env: { KINO_PLAYBACK_PROBE_FRAME: '1' },
     expect: { outcome: 'played', frameControl: true },
   },
-  ...['hdr-probe.mkv', 'dv-p8-probe.mkv'].map((file) => ({
+  ...[
+    ['hdr-probe.mkv', 'pq'],
+    ['dv-p8-probe.mkv', 'pq'],
+    ['hlg-probe.mkv', 'hlg'],
+    ['dv-p84-probe.mkv', 'hlg'],
+  ].map(([file, transfer]) => ({
     file,
     label: `pixels-${file}`,
     note: 'drawn pixels match the host tone map of the probe',
     env: { KINO_PLAYBACK_PROBE_FRAME: '1' },
-    expect: { outcome: 'played', frame: true },
+    expect: { outcome: 'played', frame: transfer },
   })),
   {
     file: 'dv-p5-probe.mkv',
@@ -636,8 +643,8 @@ function outlinedSubtitleProblems(style) {
 // mpv's tone mapping and the host reference agree to about 0.01 on the neutral ramp and 0.035 on
 // the coloured patches. A dropped gamut conversion moves those patches by about 0.15, and a
 // misread transfer or matrix by far more, so these bounds separate right from wrong.
-function frameProblems(frame) {
-  const patches = expectedToneMappedPatches();
+function frameProblems(frame, transfer) {
+  const patches = expectedToneMappedPatches({ transfer });
   const neutral = patches.filter((patch) => patch.band === 'A').map((patch) => patch.expected);
   const coloured = patches.filter((patch) => patch.band === 'B').map((patch) => patch.expected);
   const problems = [];
@@ -728,7 +735,7 @@ function assertExpectations(fixture, result) {
     if (!(Math.abs(loudness.gainDb - expect.loudness.gainDb) <= 0.3))
       problems.push(`gain ${loudness.gainDb} dB, expected ${expect.loudness.gainDb.toFixed(2)}`);
   }
-  if (expect.frame) problems.push(...frameProblems(result.frame));
+  if (expect.frame) problems.push(...frameProblems(result.frame, expect.frame));
   if (expect.refresh) problems.push(...refreshProblems(result.refresh, expect.refresh));
   if (expect.frameControl) {
     const ramp = (result.frame?.neutral ?? []).map((pixel) => Math.max(...pixel));

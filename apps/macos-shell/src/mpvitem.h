@@ -84,6 +84,8 @@ private:
     bool failed_ = false;
     bool hardwareDecoderActive_ = false;
     bool paused_ = true;
+    // The current file is an HLG base layer whose filter now sets HLG's light.
+    bool hlgLightRestored_ = false;
     // Sleep waits until mpv reports the pause Kino asked for before it.
     bool pausingForSleep_ = false;
     bool renderContextReady_ = false;

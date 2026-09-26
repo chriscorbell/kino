@@ -25,6 +25,32 @@ export function linearToPq(linear) {
   return Math.pow((C1 + C2 * p) / (1 + C3 * p), M2);
 }
 
+// ITU-R BT.2100 table 5, hybrid log-gamma.
+const HLG_A = 0.17883277;
+const HLG_B = 1 - 4 * HLG_A;
+const HLG_C = 0.5 - HLG_A * Math.log(4 * HLG_A);
+
+/** HLG signal to normalised scene light: the inverse of BT.2100's OETF. */
+export function hlgToScene(signal) {
+  const e = Math.max(signal, 0);
+  return e <= 0.5 ? (e * e) / 3 : (Math.exp((e - HLG_C) / HLG_A) + HLG_B) / 12;
+}
+
+/**
+ * One HLG pixel to the PQ signal of the light a reference HLG display shows for it.
+ *
+ * BT.2100's OOTF raises scene luminance to the system gamma, 1.2 on a 1000 cd/m^2 display, and
+ * scales every channel by the same factor so hue is kept. BT.2408 converts HLG to PQ through the
+ * same display, and from there the pixel takes the HDR10 path unchanged.
+ */
+export function hlgToPq([r, g, b], { displayPeakNits = 1000 } = {}) {
+  const scene = [r, g, b].map(hlgToScene);
+  const ys = 0.2627 * scene[0] + 0.678 * scene[1] + 0.0593 * scene[2];
+  const gamma = 1.2 + 0.42 * Math.log10(displayPeakNits / 1000);
+  const gain = ys > 0 ? Math.pow(ys, gamma - 1) : 0;
+  return scene.map((e) => linearToPq((displayPeakNits * gain * e) / 10000));
+}
+
 // ITU-R BT.2390 section 5.4.1. The knee sits at KS and everything below it is
 // left alone, so shadow detail passes through untouched and only highlights
 // roll off.
@@ -52,14 +78,18 @@ const BT2020_TO_BT709 = [
 ];
 
 /**
- * One BT.2020 PQ pixel to one BT.709 pixel encoded for a BT.1886 display.
+ * One BT.2020 PQ or HLG pixel to one BT.709 pixel encoded for a BT.1886 display.
  *
  * The input is what the Tegra driver hands back from `samplerExternalOES`:
- * already de-matrixed to R'G'B', range expanded, and still PQ encoded.
+ * already de-matrixed to R'G'B', range expanded, and still PQ or HLG encoded.
  */
-export function toneMapPixel([r, g, b], { sourcePeakNits = 1000, targetPeakNits = 203 } = {}) {
+export function toneMapPixel(
+  pixel,
+  { sourcePeakNits = 1000, targetPeakNits = 203, transfer = 'pq' } = {},
+) {
+  const pq = transfer === 'hlg' ? hlgToPq(pixel) : pixel;
   // Roll the highlights off in the PQ domain, which is where BT.2390 defines it.
-  const rolled = [r, g, b].map((c) => eetf(c, sourcePeakNits, targetPeakNits));
+  const rolled = pq.map((c) => eetf(c, sourcePeakNits, targetPeakNits));
   // Then leave PQ for linear light, where a gamut change is meaningful.
   const linear = rolled.map((c) => pqToLinear(c));
   // Scale so the target peak, not 10000 cd/m^2, is diffuse white.

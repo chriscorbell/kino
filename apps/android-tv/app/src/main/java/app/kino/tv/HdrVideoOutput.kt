@@ -28,10 +28,10 @@ import java.util.concurrent.TimeUnit
  * Frames are always latched, even with no display attached, because a `SurfaceTexture` that is
  * never updated stops accepting buffers and would stall the decoder.
  */
-internal class HdrVideoOutput(sourcePeakNits: Float) {
+internal class HdrVideoOutput(sourcePeakNits: Float, val hlg: Boolean = false) {
     private val thread = HandlerThread("KinoHdrOutput").apply { start() }
     private val handler = Handler(thread.looper)
-    private val toneMapper = HdrToneMapper(sourcePeakNits = sourcePeakNits)
+    private val toneMapper = HdrToneMapper(sourcePeakNits = sourcePeakNits, hlg = hlg)
     private val transform = FloatArray(16)
     private var display: EGLDisplay = EGL14.EGL_NO_DISPLAY
     private var context: EGLContext = EGL14.EGL_NO_CONTEXT
@@ -72,7 +72,7 @@ internal class HdrVideoOutput(sourcePeakNits: Float) {
             throw IllegalStateException("HDR output unavailable", failure)
         }
         inputSurface = surface
-        Log.i(TAG, "HDR tone mapping ready peak=${sourcePeakNits.toInt()}")
+        Log.i(TAG, "HDR tone mapping ready peak=${sourcePeakNits.toInt()} hlg=$hlg")
     }
 
     /**

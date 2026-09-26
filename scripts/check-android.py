@@ -56,9 +56,11 @@ try:
     # permission changes, so it is granted here, before any test is running in that process.
     subprocess.run([*adb, "shell", "appops", "set", "app.kino.tv", "REQUEST_INSTALL_PACKAGES", "allow"], check=True)
     subprocess.run([*adb, "shell", "input", "keyevent", "KEYCODE_WAKEUP"], check=True)
+    # The whole suite runs in one call and takes about five minutes on the Shield; the limit
+    # only has to catch a hung test, not pace a slow one.
     def instrument(*arguments):
         result = subprocess.run([*adb, "shell", "am", "instrument", "-w", "-r", *arguments,
-            "app.kino.tv.test/app.kino.tv.ShieldTestRunner"], capture_output=True, text=True, check=True, timeout=300)
+            "app.kino.tv.test/app.kino.tv.ShieldTestRunner"], capture_output=True, text=True, check=True, timeout=900)
         print(result.stdout)
         if "OK (" not in result.stdout or "FAILURES" in result.stdout:
             sys.exit("Shield checks failed")

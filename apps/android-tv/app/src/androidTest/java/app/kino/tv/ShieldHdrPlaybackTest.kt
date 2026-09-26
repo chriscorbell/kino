@@ -49,6 +49,13 @@ class ShieldHdrPlaybackTest {
         assertReferencePixels(result)
     }
 
+    /** The same code words under HLG must come out as the host's HLG reference predicts. */
+    @Test
+    fun hlgPlaysThroughKinoToneMappingWithReferencePixels() {
+        val result = playIntoReader("hlg-probe.mkv", expectFrames = true)
+        assertReferencePixels(result, "hlg-probe-expected.json")
+    }
+
     /**
      * Profile 8.1's base layer is plain HDR10, so the HEVC decoder must produce exactly the HDR10
      * probe's pixels from it; the enhancement metadata changes nothing Kino renders.
@@ -62,6 +69,18 @@ class ShieldHdrPlaybackTest {
                 !result.decoder.contains("dolby", ignoreCase = true),
         )
         assertReferencePixels(result)
+    }
+
+    /** Profile 8.4's base layer is plain HLG and must come out as the HLG probe does. */
+    @Test
+    fun dolbyVisionProfileEightFourPlaysItsHlgBaseLayerThroughToneMapping() {
+        val result = playIntoReader("dv-p84-probe.mkv", expectFrames = true)
+        assertTrue(
+            "Profile 8 must decode on an HEVC decoder, not the Dolby Vision one: ${result.decoder}",
+            !result.decoder.contains("dovi", ignoreCase = true) &&
+                !result.decoder.contains("dolby", ignoreCase = true),
+        )
+        assertReferencePixels(result, "hlg-probe-expected.json")
     }
 
     /** Profile 5 has no compatible base layer; decoding it as HEVC would show the wrong colours. */
@@ -84,10 +103,13 @@ class ShieldHdrPlaybackTest {
         val unsupported: Boolean,
     )
 
-    private fun assertReferencePixels(result: ReaderResult) {
+    private fun assertReferencePixels(
+        result: ReaderResult,
+        expectedAsset: String = "hdr-probe-expected.json",
+    ) {
         val expected =
             JSONObject(
-                instrumentation.context.assets.open("hdr-probe-expected.json").use {
+                instrumentation.context.assets.open(expectedAsset).use {
                     it.readBytes().decodeToString()
                 }
             )

@@ -19,12 +19,14 @@ import org.junit.Assert.*
 import org.junit.Test
 
 /**
- * Checks that [HdrToneMapper] turns real hardware-decoded HDR10 into the SDR the standards call for.
+ * Checks that [HdrToneMapper] turns real hardware-decoded HDR10 and HLG into the SDR the standards
+ * call for.
  *
  * The expected values come from `scripts/test-support/tone-map-reference.mjs`, which implements the
- * same pipeline on the host in another language, and travel with the fixture as
- * `hdr-probe-expected.json`. Comparing against a second implementation is the point: a mistake in
- * the transfer function, the knee, or the gamut matrix has to be made twice, identically, to pass.
+ * same pipeline on the host in another language, and travel with each fixture as
+ * `hdr-probe-expected.json` and `hlg-probe-expected.json`. Comparing against a second
+ * implementation is the point: a mistake in the transfer function, the knee, or the gamut matrix
+ * has to be made twice, identically, to pass.
  *
  * The absolute comparison carries a tolerance because two things legitimately differ. The Tegra
  * driver's own conversion sits up to about 0.011 off the ideal BT.2020 result, measured in
@@ -39,16 +41,22 @@ class ShieldToneMapTest {
     private lateinit var eglSurface: android.opengl.EGLSurface
 
     @Test
-    fun hdrTenBitFramesBecomeTheSdrTheStandardsSpecify() {
+    fun hdrTenBitFramesBecomeTheSdrTheStandardsSpecify() = checkProbe("hdr-probe")
+
+    /** HLG through the BT.2100 OOTF to PQ, then the same path, against the host's HLG reference. */
+    @Test
+    fun hlgTenBitFramesBecomeTheSdrTheStandardsSpecify() = checkProbe("hlg-probe")
+
+    private fun checkProbe(name: String) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val expected =
             JSONObject(
-                instrumentation.context.assets.open("hdr-probe-expected.json").use {
+                instrumentation.context.assets.open("$name-expected.json").use {
                     it.readBytes().decodeToString()
                 }
             )
         val file = java.io.File(instrumentation.targetContext.cacheDir, "tone-map.mkv")
-        instrumentation.context.assets.open("hdr-probe.mkv").use { input ->
+        instrumentation.context.assets.open("$name.mkv").use { input ->
             file.outputStream().use { input.copyTo(it) }
         }
 
@@ -57,6 +65,7 @@ class ShieldToneMapTest {
             HdrToneMapper(
                 sourcePeakNits = expected.getDouble("sourcePeakNits").toFloat(),
                 targetPeakNits = expected.getDouble("targetPeakNits").toFloat(),
+                hlg = expected.optString("transfer") == "hlg",
             )
         val textureId = createExternalTexture()
         val surfaceTexture = SurfaceTexture(textureId)
