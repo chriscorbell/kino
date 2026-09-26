@@ -19,6 +19,10 @@ import android.opengl.GLES30
  * defines the curve, moves to linear light for the gamut change, and encodes for a BT.1886 display,
  * matching the desktop client's `target-trc`.
  *
+ * With [hlg] set the frame is HLG encoded instead. BT.2100's OOTF turns it into the light a
+ * 1000 cd/m^2 reference display shows, the way BT.2408 converts HLG to PQ, and from there it takes
+ * the same path. HLG defines its display rather than carrying metadata, so its peak is that 1000.
+ *
  * The intermediate must stay half float. An eight-bit intermediate throws away the ten bits the
  * driver went to the trouble of preserving, which is the trap in reaching this through Media3's own
  * `DefaultVideoFrameProcessor`: its `useHdr` flag is what gates `GL_RGBA16F`, so telling it the
@@ -30,6 +34,7 @@ import android.opengl.GLES30
 class HdrToneMapper(
     private val sourcePeakNits: Float = DEFAULT_SOURCE_PEAK_NITS,
     private val targetPeakNits: Float = SDR_REFERENCE_WHITE_NITS,
+    private val hlg: Boolean = false,
 ) {
     private var program = 0
     private var textureUniform = 0
@@ -38,6 +43,7 @@ class HdrToneMapper(
     private var maxLumUniform = 0
     private var kneeStartUniform = 0
     private var linearScaleUniform = 0
+    private var hlgUniform = 0
 
     /** Compiles the program. A GL ES 3 context must be current. */
     fun prepare() {
@@ -49,6 +55,7 @@ class HdrToneMapper(
         maxLumUniform = GLES30.glGetUniformLocation(program, "uMaxLum")
         kneeStartUniform = GLES30.glGetUniformLocation(program, "uKneeStart")
         linearScaleUniform = GLES30.glGetUniformLocation(program, "uLinearScale")
+        hlgUniform = GLES30.glGetUniformLocation(program, "uHlg")
     }
 
     /**
@@ -63,7 +70,8 @@ class HdrToneMapper(
      */
     fun draw(externalTextureId: Int, texMatrix: FloatArray = IDENTITY) {
         check(program != 0) { "prepare() must run on the GL thread first" }
-        val maxSourcePq = linearToPq(sourcePeakNits / 10_000f)
+        val peakNits = if (hlg) HLG_DISPLAY_PEAK_NITS else sourcePeakNits
+        val maxSourcePq = linearToPq(peakNits / 10_000f)
         val maxTargetPq = linearToPq(targetPeakNits / 10_000f)
         val maxLum = maxTargetPq / maxSourcePq
 
@@ -86,6 +94,7 @@ class HdrToneMapper(
         GLES30.glUniform1f(maxLumUniform, maxLum)
         GLES30.glUniform1f(kneeStartUniform, 1.5f * maxLum - 0.5f)
         GLES30.glUniform1f(linearScaleUniform, 10_000f / targetPeakNits)
+        GLES30.glUniform1i(hlgUniform, if (hlg) 1 else 0)
         GLES30.glDrawArrays(GLES30.GL_TRIANGLE_STRIP, 0, 4)
     }
 
@@ -123,6 +132,9 @@ class HdrToneMapper(
                 ?.toFloat() ?: DEFAULT_SOURCE_PEAK_NITS
         }
 
+        /** The HLG reference display of ITU-R BT.2100 and BT.2408. */
+        const val HLG_DISPLAY_PEAK_NITS = 1000f
+
         /** ITU-R BT.2408 puts HDR reference white at 203 cd/m^2, which is SDR diffuse white. */
         const val SDR_REFERENCE_WHITE_NITS = 203f
 
@@ -159,6 +171,7 @@ class HdrToneMapper(
             uniform float uMaxLum;
             uniform float uKneeStart;
             uniform float uLinearScale;
+            uniform bool uHlg;
 
             in vec2 vTexCoord;
             out vec4 outColor;
@@ -173,6 +186,33 @@ class HdrToneMapper(
             float pqToLinear(float signal) {
               float p = pow(max(signal, 0.0), 1.0 / M2);
               return pow(max(p - C1, 0.0) / (C2 - C3 * p), 1.0 / M1);
+            }
+
+            float linearToPq(float linear) {
+              float p = pow(max(linear, 0.0), M1);
+              return pow((C1 + C2 * p) / (1.0 + C3 * p), M2);
+            }
+
+            // ITU-R BT.2100 table 5, hybrid log-gamma.
+            const float HLG_A = 0.17883277;
+            const float HLG_B = 1.0 - 4.0 * HLG_A;
+            const float HLG_C = 0.5 - HLG_A * log(4.0 * HLG_A);
+
+            // The inverse of the HLG OETF: signal to normalised scene light.
+            float hlgToScene(float signal) {
+              float e = max(signal, 0.0);
+              return e <= 0.5 ? e * e / 3.0 : (exp((e - HLG_C) / HLG_A) + HLG_B) / 12.0;
+            }
+
+            // BT.2100's OOTF on a 1000 cd/m^2 display, where the system gamma is 1.2: every
+            // channel scales by scene luminance to the power 0.2, so hue is kept. The result is
+            // PQ encoded, as BT.2408 converts HLG to PQ, and takes the HDR10 path from there.
+            // 0.1 is the display's 1000 cd/m^2 over PQ's 10000.
+            vec3 hlgToPq(vec3 signal) {
+              vec3 scene = vec3(hlgToScene(signal.r), hlgToScene(signal.g), hlgToScene(signal.b));
+              float ys = dot(scene, vec3(0.2627, 0.6780, 0.0593));
+              vec3 light = 0.1 * (ys > 0.0 ? pow(ys, 0.2) : 0.0) * scene;
+              return vec3(linearToPq(light.r), linearToPq(light.g), linearToPq(light.b));
             }
 
             // ITU-R BT.2390 section 5.4.1. Everything below the knee passes through, so
@@ -191,8 +231,10 @@ class HdrToneMapper(
             }
 
             void main() {
-              // Already BT.2020 R'G'B', full range, still PQ encoded. See the class comment.
+              // Already BT.2020 R'G'B', full range, still PQ or HLG encoded. See the class
+              // comment.
               vec3 pq = texture(uTexture, vTexCoord).rgb;
+              if (uHlg) pq = hlgToPq(pq);
               pq = vec3(rollOff(pq.r), rollOff(pq.g), rollOff(pq.b));
 
               vec3 linear = vec3(pqToLinear(pq.r), pqToLinear(pq.g), pqToLinear(pq.b));

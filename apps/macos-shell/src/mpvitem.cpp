@@ -125,6 +125,28 @@ int64_t selectedDolbyVisionProfile(const mpv_node &root) {
     return -1;
 }
 
+// Dolby Vision profile 8 plays its cross-compatible base layer, as on the TV, whose decoder never
+// sees the RPU. Applying the RPU here would grade the same file differently on each client.
+constexpr const char *kBaseLayerFilter = "format:dolbyvision=no";
+// Stripping the RPU restores the base layer's transfer but keeps the display light Dolby Vision
+// implies, so profile 8.4's HLG base layer would skip HLG's OOTF and draw its shadows lifted.
+constexpr const char *kHlgBaseLayerFilter = "format:dolbyvision=no:light=hlg";
+
+// Whether frames leave the filters HLG encoded but marked as display light: an HLG base layer
+// whose RPU was stripped. A plain HLG stream keeps HLG's own light.
+bool hlgUnderDisplayLight(const mpv_node &params) {
+    if (params.format != MPV_FORMAT_NODE_MAP || !params.u.list) return false;
+    const char *gamma = nullptr;
+    const char *light = nullptr;
+    for (int field = 0; field < params.u.list->num; ++field) {
+        const mpv_node &value = params.u.list->values[field];
+        if (value.format != MPV_FORMAT_STRING) continue;
+        if (qstrcmp(params.u.list->keys[field], "gamma") == 0) gamma = value.u.string;
+        else if (qstrcmp(params.u.list->keys[field], "light") == 0) light = value.u.string;
+    }
+    return qstrcmp(gamma, "hlg") == 0 && qstrcmp(light, "display") == 0;
+}
+
 QVariantList trackPayload(const mpv_node &root, const char *type) {
     QVariantList tracks;
     if (root.format != MPV_FORMAT_NODE_ARRAY || !root.u.list) {
@@ -386,6 +408,7 @@ bool MpvItem::initialize() {
         {"target-prim", "bt.709"},
         {"tone-mapping", "auto"},
         {"hdr-compute-peak", "auto"},
+        {"vf", kBaseLayerFilter},
         {"cache", "yes"},
         {"tls-verify", "yes"},
         {"demuxer-readahead-secs", "10"},
@@ -452,6 +475,7 @@ bool MpvItem::initialize() {
     mpv_observe_property(handle_, 10, "volume", MPV_FORMAT_DOUBLE);
     mpv_observe_property(handle_, 11, "demuxer-cache-time", MPV_FORMAT_DOUBLE);
     mpv_observe_property(handle_, 12, "container-fps", MPV_FORMAT_DOUBLE);
+    mpv_observe_property(handle_, 13, "video-out-params", MPV_FORMAT_NODE);
     return true;
 }
 
@@ -507,6 +531,11 @@ void MpvItem::load(const QString &url, bool forceStereo, const QVariantMap &head
         mpv_set_property_string(handle_, "tls-ca-file", roots.constData());
     }
     failed_ = false;
+    if (hlgLightRestored_) {
+        const char *filter = kBaseLayerFilter;
+        mpv_set_property_async(handle_, 0, "vf", MPV_FORMAT_STRING, &filter);
+        hlgLightRestored_ = false;
+    }
     bufferedMs_ = -1;
     hardwareDecoderActive_ = false;
     hardwareDecoderTimer_.stop();
@@ -828,6 +857,14 @@ void MpvItem::handleEvent(mpv_event *event) {
             emit playerEvent(
                 QStringLiteral("chapters"),
                 {{QStringLiteral("items"), chapterPayload(*chapters)}});
+        } else if (name == "video-out-params" && property->format == MPV_FORMAT_NODE) {
+            if (!hlgLightRestored_ &&
+                hlgUnderDisplayLight(*static_cast<const mpv_node *>(property->data))) {
+                // For this file only; load() puts the plain filter back.
+                hlgLightRestored_ = true;
+                const char *filter = kHlgBaseLayerFilter;
+                mpv_set_property_async(handle_, 0, "vf", MPV_FORMAT_STRING, &filter);
+            }
         } else if (name == "track-list" && property->format == MPV_FORMAT_NODE) {
             const auto *tracks = static_cast<const mpv_node *>(property->data);
             // Profile 5 has no base layer mpv can show without Dolby's reshaping, which

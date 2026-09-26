@@ -69,14 +69,16 @@ import androidx.tv.material3.Text
 import kotlinx.coroutines.*
 
 /**
- * Hardware video only, with HDR10 tone mapped to SDR by Kino rather than passed to the display.
+ * Hardware video only, with HDR10 and HLG tone mapped to SDR by Kino rather than passed to the
+ * display.
  *
- * A PQ source configures its decoder against [HdrVideoOutput]'s surface instead of the player's
- * display surface; that output tone maps each frame and draws it into the display surface itself.
- * The renderer intercepts the player's own `MSG_SET_VIDEO_OUTPUT` for this, so the player keeps
- * managing one display surface while the decoder never sees it during HDR playback. SDR takes the
- * direct path unchanged. HLG and Dolby Vision stay rejected until each is measured on the device
- * the way HDR10 was (ADR 0021), before a decoder is configured or a surface exposed.
+ * A PQ or HLG source configures its decoder against [HdrVideoOutput]'s surface instead of the
+ * player's display surface; that output tone maps each frame and draws it into the display surface
+ * itself. The renderer intercepts the player's own `MSG_SET_VIDEO_OUTPUT` for this, so the player
+ * keeps managing one display surface while the decoder never sees it during HDR playback. SDR takes
+ * the direct path unchanged. Dolby Vision plays only profile 8's base layer; the other profiles stay
+ * rejected until each is measured on the device the way HDR10 and HLG were (ADR 0021, ADR 0027),
+ * before a decoder is configured or a surface exposed.
  *
  * With [stereo] set, the sink accepts PCM only, so every track is decoded and folded to two
  * channels by [StereoDownmixProcessor] inside Kino rather than passed through or left to the
@@ -154,20 +156,22 @@ class HardwareRenderers(context: Context, private val stereo: Boolean = false) :
         else CodecSpecificDataUtil.getCodecProfileAndLevel(format)?.first ?: -1
 
     /**
-     * HLG, and every Dolby Vision profile except 8. Profile 8 carries a cross-compatible base
-     * layer that an HEVC decoder plays on its own, ignoring the enhancement metadata, and whose
-     * range the container's colour tags state: 8.1 is HDR10 and takes the tone-mapped path, 8.2
-     * is SDR, 8.4 is HLG and stays rejected with HLG. Profile 5 has no compatible base layer, so
-     * decoding it as HEVC would show the wrong colours, and 7 and 9 have not been measured.
+     * Every Dolby Vision profile except 8. Profile 8 carries a cross-compatible base layer that an
+     * HEVC decoder plays on its own, ignoring the enhancement metadata, and whose range the
+     * container's colour tags state: 8.1 is HDR10 and 8.4 is HLG, both tone mapped, and 8.2 is
+     * SDR. Profile 5 has no compatible base layer, so decoding it as HEVC would show the wrong
+     * colours, and 7 and 9 have not been measured.
      */
     private fun rejectedRange(format: Format): Boolean {
-        if (format.colorInfo?.colorTransfer == C.COLOR_TRANSFER_HLG) return true
         val profile = dolbyVisionProfile(format) ?: return false
         return profile != MediaCodecInfoLevels.DolbyVisionProfileDvheSt || format.colorInfo == null
     }
 
-    private fun pq(format: Format): Boolean =
-        format.colorInfo?.colorTransfer == C.COLOR_TRANSFER_ST2084
+    /** The HDR transfer Kino tone maps, PQ or HLG, or null for a source that needs none. */
+    private fun hdrTransfer(format: Format): Int? =
+        format.colorInfo?.colorTransfer?.takeIf {
+            it == C.COLOR_TRANSFER_ST2084 || it == C.COLOR_TRANSFER_HLG
+        }
 
     override fun buildVideoRenderers(
         context: Context,
@@ -245,8 +249,9 @@ class HardwareRenderers(context: Context, private val stereo: Boolean = false) :
                         unsupportedReason = R.string.hdr_unsupported
                         throw IllegalStateException("HDR conversion is not validated")
                     }
-                    if (pq(format) && !toneMapping) startToneMapping(format)
-                    else if (!pq(format) && toneMapping) stopToneMapping()
+                    val transfer = hdrTransfer(format)
+                    if (transfer != null) startToneMapping(format, transfer)
+                    else if (toneMapping) stopToneMapping()
                     return super.getMediaCodecConfiguration(
                         codecInfo,
                         format,
@@ -255,14 +260,23 @@ class HardwareRenderers(context: Context, private val stereo: Boolean = false) :
                     )
                 }
 
-                private fun startToneMapping(format: Format) {
+                private fun startToneMapping(format: Format, transfer: Int) {
+                    val hlg = transfer == C.COLOR_TRANSFER_HLG
+                    if (toneMapping && hdrOutput?.hlg == hlg) return
+                    // A stream that changes between PQ and HLG needs the other conversion.
+                    hdrOutput?.takeIf { it.hlg != hlg }?.let {
+                        it.setDisplay(null)
+                        it.release()
+                        hdrOutput = null
+                    }
                     val output =
                         try {
                             hdrOutput
                                 ?: HdrVideoOutput(
                                         HdrToneMapper.sourcePeakNits(
                                             format.colorInfo?.hdrStaticInfo
-                                        )
+                                        ),
+                                        hlg,
                                     )
                                     .also { hdrOutput = it }
                         } catch (error: IllegalStateException) {
@@ -324,10 +338,12 @@ class HardwareRenderers(context: Context, private val stereo: Boolean = false) :
                             }
                             ?.getInteger(android.media.MediaFormat.KEY_COLOR_TRANSFER)
                     // A decoder that reports PQ or HLG it was not configured for would put HDR
-                    // code values on an SDR display.
+                    // code values on an SDR display, or through the other conversion.
+                    val hdr = transfer == C.COLOR_TRANSFER_ST2084 || transfer == C.COLOR_TRANSFER_HLG
                     if (
-                        transfer == C.COLOR_TRANSFER_HLG ||
-                            (transfer == C.COLOR_TRANSFER_ST2084 && !toneMapping)
+                        hdr &&
+                            (!toneMapping ||
+                                hdrOutput?.hlg != (transfer == C.COLOR_TRANSFER_HLG))
                     ) {
                         unsupportedReason = R.string.hdr_unsupported
                         throw IllegalStateException("HDR conversion is not validated")

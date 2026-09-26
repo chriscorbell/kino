@@ -84,6 +84,8 @@ private:
     bool failed_ = false;
     bool hardwareDecoderActive_ = false;
     bool paused_ = true;
+    // The current file is an HLG base layer whose filter now sets HLG's light.
+    bool hlgLightRestored_ = false;
     bool renderContextReady_ = false;
     bool suppressMpvLogDetails_ = false;
     bool videoPresent_ = false;

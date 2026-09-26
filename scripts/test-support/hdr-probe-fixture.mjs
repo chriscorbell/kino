@@ -100,7 +100,7 @@ function frame() {
  * matrix, since neutral is neutral under all of them, so the coloured patches are what make a
  * wrong matrix fail here.
  */
-export function expectedToneMappedPatches() {
+export function expectedToneMappedPatches({ transfer = 'pq' } = {}) {
   const patches = [];
   const add = (band, x, y, luma) => {
     const sampled = samplerOutput(luma, 512, 512);
@@ -109,9 +109,9 @@ export function expectedToneMappedPatches() {
       x,
       y,
       luma,
-      // What the driver should hand the shader, still PQ encoded.
+      // What the driver should hand the shader, still PQ or HLG encoded.
       sampled: sampled.map((v) => Number(v.toFixed(6))),
-      expected: toneMapPixel(sampled).map((v) => Number(v.toFixed(6))),
+      expected: toneMapPixel(sampled, { transfer }).map((v) => Number(v.toFixed(6))),
     });
   };
   BAND_A_LUMA.forEach((luma, i) => add('A', i * 40 + 20, 45, luma));
@@ -126,7 +126,7 @@ export function expectedToneMappedPatches() {
       cb,
       cr,
       sampled: sampled.map((v) => Number(v.toFixed(6))),
-      expected: toneMapPixel(sampled).map((v) => Number(v.toFixed(6))),
+      expected: toneMapPixel(sampled, { transfer }).map((v) => Number(v.toFixed(6))),
     });
   }
   BAND_C_LUMA.forEach((luma, i) => add('C', i * 40 + 20, 225, luma));
@@ -134,11 +134,18 @@ export function expectedToneMappedPatches() {
   return patches;
 }
 
-export function generateHdrProbe(fixturesDir) {
-  const target = join(fixturesDir, 'hdr-probe.mkv');
+/**
+ * The probe as HDR10, or with `transfer: 'hlg'` as HLG: the same code words under the other
+ * transfer, so both reach the same layout of expected patches.
+ */
+export function generateHdrProbe(fixturesDir, { transfer = 'pq' } = {}) {
+  const hlg = transfer === 'hlg';
+  const name = hlg ? 'hlg-probe' : 'hdr-probe';
+  const trc = hlg ? 'arib-std-b67' : 'smpte2084';
+  const target = join(fixturesDir, `${name}.mkv`);
   if (existsSync(target)) return target;
   mkdirSync(fixturesDir, { recursive: true });
-  const raw = join(fixturesDir, 'hdr-probe.yuv');
+  const raw = join(fixturesDir, `${name}.yuv`);
   writeFileSync(raw, Buffer.concat(Array.from({ length: FRAMES }, frame)));
 
   // lossless=1 is the point: the code words written above must be the code words
@@ -162,20 +169,24 @@ export function generateHdrProbe(fixturesDir) {
       '-i',
       raw,
       '-vf',
-      'setparams=color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc:range=tv',
+      `setparams=color_primaries=bt2020:color_trc=${trc}:colorspace=bt2020nc:range=tv`,
       '-c:v',
       'libx265',
       '-preset',
       'ultrafast',
       '-x265-params',
-      'lossless=1:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc:range=limited:hdr10=1:' +
-        'master-display=G(8500,39850)B(6550,2300)R(35400,14600)WP(15635,16450)L(10000000,1)',
+      `lossless=1:colorprim=bt2020:transfer=${trc}:colormatrix=bt2020nc:range=limited` +
+        // HLG carries no mastering metadata: its display is defined by the standard.
+        (hlg
+          ? ''
+          : ':hdr10=1:master-display=G(8500,39850)B(6550,2300)R(35400,14600)WP(15635,16450)' +
+            'L(10000000,1)'),
       '-pix_fmt',
       'yuv420p10le',
       '-color_primaries',
       'bt2020',
       '-color_trc',
-      'smpte2084',
+      trc,
       '-colorspace',
       'bt2020nc',
       '-color_range',
@@ -184,6 +195,9 @@ export function generateHdrProbe(fixturesDir) {
     ],
     { stdio: 'inherit' },
   );
+  // The encoded file holds the same code words; the raw frames would only ride along into the
+  // test APK, which bundles this directory.
+  rmSync(raw);
 
   const probe = JSON.parse(
     execFileSync('ffprobe', [
@@ -198,20 +212,21 @@ export function generateHdrProbe(fixturesDir) {
       target,
     ]).toString(),
   ).streams[0];
-  if (probe.color_transfer !== 'smpte2084' || probe.color_primaries !== 'bt2020')
-    throw new Error(`hdr-probe.mkv lost its HDR tags: ${JSON.stringify(probe)}`);
+  if (probe.color_transfer !== trc || probe.color_primaries !== 'bt2020')
+    throw new Error(`${name}.mkv lost its HDR tags: ${JSON.stringify(probe)}`);
   if (probe.pix_fmt !== 'yuv420p10le')
-    throw new Error(`hdr-probe.mkv is not ten bit: ${probe.pix_fmt}`);
+    throw new Error(`${name}.mkv is not ten bit: ${probe.pix_fmt}`);
 
   // The gate compares the GPU's output against these. They are computed here, on the host, in a
   // different language from the shader, so an error in the pipeline has to be made twice to pass.
   writeFileSync(
-    join(fixturesDir, 'hdr-probe-expected.json'),
+    join(fixturesDir, `${name}-expected.json`),
     JSON.stringify(
       {
+        transfer,
         sourcePeakNits: 1000,
         targetPeakNits: 203,
-        patches: expectedToneMappedPatches(),
+        patches: expectedToneMappedPatches({ transfer }),
       },
       null,
       2,
@@ -297,6 +312,9 @@ export function generateSdrProbe(fixturesDir) {
     ],
     { stdio: 'inherit' },
   );
+  // The encoded file holds the same code words; the raw frames would only ride along into the
+  // test APK, which bundles this directory.
+  rmSync(raw);
   return target;
 }
 
@@ -310,9 +328,15 @@ export function generateSdrProbe(fixturesDir) {
 export function generateDolbyVisionProbes(fixturesDir) {
   // Like the other fixtures, existing ones are reused, so a machine without the tools can run
   // fixtures made elsewhere.
-  if (['dv-p8-probe.mkv', 'dv-p5-probe.mkv'].every((name) => existsSync(join(fixturesDir, name))))
-    return;
-  const probe = join(fixturesDir, 'hdr-probe.mkv');
+  // 8.1's base layer is the HDR10 probe and 8.4's the HLG one; profile 5 has no compatible base
+  // layer, so what it wraps only has to be ten-bit HEVC.
+  const variants = [
+    { profile: '8.1', name: 'dv-p8-probe.mkv', source: 'hdr-probe', transfer: 16 },
+    { profile: '8.4', name: 'dv-p84-probe.mkv', source: 'hlg-probe', transfer: 18 },
+    { profile: '5', name: 'dv-p5-probe.mkv', source: 'hdr-probe', transfer: 16 },
+  ];
+  const existing = variants.map(({ name }) => join(fixturesDir, name));
+  if (existing.every((path) => existsSync(path))) return existing;
   const work = join(fixturesDir, 'dv-work');
   mkdirSync(work, { recursive: true });
   const run = (command, args) =>
@@ -325,27 +349,25 @@ export function generateDolbyVisionProbes(fixturesDir) {
       'Dolby Vision fixtures need dovi_tool and mkvmerge: brew install dovi_tool mkvtoolnix',
     );
   }
-  const base = join(work, 'base.hevc');
-  run('ffmpeg', [
-    '-nostdin',
-    '-y',
-    '-v',
-    'error',
-    '-i',
-    probe,
-    '-c:v',
-    'copy',
-    '-bsf:v',
-    'hevc_mp4toannexb',
-    '-f',
-    'hevc',
-    base,
-  ]);
   const outputs = [];
-  for (const [profile, name] of [
-    ['8.1', 'dv-p8-probe.mkv'],
-    ['5', 'dv-p5-probe.mkv'],
-  ]) {
+  for (const { profile, name, source, transfer } of variants) {
+    const base = join(work, `${source}.hevc`);
+    if (!existsSync(base))
+      run('ffmpeg', [
+        '-nostdin',
+        '-y',
+        '-v',
+        'error',
+        '-i',
+        generateHdrProbe(fixturesDir, { transfer: source === 'hlg-probe' ? 'hlg' : 'pq' }),
+        '-c:v',
+        'copy',
+        '-bsf:v',
+        'hevc_mp4toannexb',
+        '-f',
+        'hevc',
+        base,
+      ]);
     const config = join(work, `generate-${profile}.json`);
     writeFileSync(
       config,
@@ -377,7 +399,7 @@ export function generateDolbyVisionProbes(fixturesDir) {
       '--colour-range',
       '0:1',
       '--colour-transfer-characteristics',
-      '0:16',
+      `0:${transfer}`,
       '--colour-primaries',
       '0:9',
       '--max-luminance',
@@ -397,5 +419,6 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop()
   if (!dir)
     throw new Error('Usage: node scripts/test-support/hdr-probe-fixture.mjs <fixtures dir>');
   console.log(`Generated ${generateHdrProbe(dir)}`);
+  console.log(`Generated ${generateHdrProbe(dir, { transfer: 'hlg' })}`);
   for (const target of generateDolbyVisionProbes(dir)) console.log(`Generated ${target}`);
 }

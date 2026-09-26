@@ -140,6 +140,7 @@ class ShieldPlaybackTest {
                 "h264-sdr-aac.mp4" to false,
                 "hevc-sdr-ac3.mkv" to false,
                 "hevc-hdr10-eac3.mkv" to true,
+                "hevc-hlg-flac.mkv" to true,
             )) {
             val result = play(fixture)
             assertTrue("$fixture must render hardware-decoded frames: $result", result.frame)
@@ -149,8 +150,7 @@ class ShieldPlaybackTest {
             assertNull(result.error)
             assertEquals("$fixture tone mapping", toneMapped, result.toneMapped)
         }
-        // HLG stays rejected until it is measured the way HDR10 was.
-        for (fixture in listOf("av1-aac.mkv", "ffv1-software-only.mkv", "hevc-hlg-flac.mkv")) {
+        for (fixture in listOf("av1-aac.mkv", "ffv1-software-only.mkv")) {
             val result = play(fixture)
             assertFalse(
                 "$fixture must not render unvalidated or software-decoded video: $result",
