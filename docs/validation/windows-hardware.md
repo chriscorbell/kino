@@ -10,7 +10,7 @@ Every probe the macOS job runs passed as well: launch and the second-launch hand
 
 Two things the run found were in the checks, not in Kino:
 
-- The SDR pixel control was lossless H.264, the High 4:4:4 Predictive profile, which VideoToolbox decodes and D3D11VA does not, so the hardware-only player rightly refused it. The control is now lossless HEVC, as the HDR probe is.
+- The SDR pixel control was lossless H.264, the High 4:4:4 Predictive profile, which VideoToolbox decodes and D3D11VA does not, so the hardware-only player rightly refused it. The control only has to read back as a rising ramp, so it is now plain 4:2:0 H.264.
 - FFmpeg's Schannel verifies HTTPS against the Windows certificate store and takes no CA file, so Kino's exported trust anchors have no part on Windows. The TLS probe checks there only that an unknown authority is refused.
 
 Not covered: sound heard at the speakers, the System Media Transport Controls surface, and signing in to a real Stremio account.
