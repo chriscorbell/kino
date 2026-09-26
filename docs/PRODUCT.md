@@ -8,7 +8,7 @@ The mockup is the visual contract, not production source. Kino will preserve its
 
 ## Platform order
 
-1. macOS 14 or newer, developed and validated first on Apple Silicon.
+1. macOS 26 or newer on Apple Silicon, developed and validated first.
 2. Android TV, validated on an NVIDIA Shield over network ADB.
 3. Windows and Linux.
 4. Apple TV after the earlier platforms are stable.

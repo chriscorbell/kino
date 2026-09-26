@@ -8,7 +8,7 @@ The first release focuses on browsing, explicit source selection, reliable playb
 
 Each [release](https://github.com/chriscorbell/kino/releases) carries a package for every platform and a `SHA256SUMS` file to check them against. Apple and Microsoft have not signed pre-releases, so each system warns once before the first launch.
 
-- **macOS** on Apple Silicon: open `Kino-<version>-arm64.dmg` and drag Kino to Applications. The first launch is refused; open **System Settings → Privacy & Security** and choose **Open Anyway** for Kino.
+- **macOS** 26 or newer on Apple Silicon: open `Kino-<version>-arm64.dmg` and drag Kino to Applications. The first launch is refused; open **System Settings → Privacy & Security** and choose **Open Anyway** for Kino.
 - **Windows** 10 or 11 on x64: extract `Kino-<version>-windows-x64.zip` anywhere and run `Kino.exe` in its `Kino` folder. If SmartScreen stops it, choose **More info → Run anyway**.
 - **Linux** on x86_64: run `flatpak install --user Kino-<version>-x86_64.flatpak`, which also installs the KDE runtime from Flathub, then start Kino from the app menu.
 - **Android TV**: install `Kino-TV-<version>.apk` with `adb install` or a sideloading app. Later releases install from **Settings → Check for updates**. A development build is signed with a different key; uninstall it first, which clears its sign-in and settings.
@@ -182,7 +182,7 @@ Produce a self-contained disk image with checksums:
 pnpm macos:package
 ```
 
-Packaging configures its own Release build in `build/macos-release` and refuses any other build type; `pnpm macos:build` and the probes keep using the Debug build in `build/macos`. The app carries its own Qt, mpv, and torrent stack, so it runs on a Mac without Homebrew. Packages are ad-hoc signed and Apple Silicon only; code signing, notarization, and universal builds wait for a public release channel, as recorded in [ADR 0017](docs/adr/0017-ship-apple-silicon-first-and-defer-universal-packages.md).
+Packaging configures its own Release build in `build/macos-release` and refuses any other build type; `pnpm macos:build` and the probes keep using the Debug build in `build/macos`. The app carries its own Qt, mpv, and torrent stack, so it runs on a Mac without Homebrew. Packages are ad-hoc signed, Apple Silicon only, and need macOS 26, the release Homebrew builds its bottles for; code signing, notarization, and universal builds wait for a public release channel, as recorded in [ADR 0017](docs/adr/0017-ship-apple-silicon-first-and-defer-universal-packages.md).
 
 Packaging writes Kino's GPL text, retained shell provenance, and dependency notices to `Kino.app/Contents/Resources/licenses/`. Open **Settings → Licenses and notices → Read notices** to search the local index. The accompanying `manifest.json` records component versions, source URLs, file checksums, and the origin of every shipped Mach-O binary.
 
