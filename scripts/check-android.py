@@ -9,6 +9,23 @@ root = Path(__file__).resolve().parent.parent
 device = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("ANDROID_SERIAL")
 if not device:
     sys.exit("Usage: pnpm android:check <ADB serial>")
+# Android refuses to replace a release of Kino with the development builds the suite installs, and
+# the suite resets the app's data anyway. Swapping clears the TV's sign-in and settings, so it
+# stays a deliberate step, taken before minutes of building rather than after.
+installed = subprocess.run(["adb", "-s", device, "shell", "pm", "path", "app.kino.tv"],
+    capture_output=True, text=True).stdout.split()
+if installed and installed[0].startswith("package:"):
+    pulled = root / "build/android-installed.apk"
+    pulled.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["adb", "-s", device, "pull", installed[0][len("package:"):], str(pulled)],
+        check=True, capture_output=True)
+    release = subprocess.run(["node", "scripts/check-android-signature.mjs", str(pulled)], cwd=root,
+        capture_output=True).returncode == 0
+    pulled.unlink()
+    if release:
+        sys.exit(f"{device} runs a release of Kino, which Android will not replace with the suite's "
+            f"development builds. Uninstalling it clears its sign-in and settings:\n"
+            f"  adb -s {device} uninstall app.kino.tv")
 fixture_env = {**os.environ, "KINO_FIXTURES_DIR": str(root / "build/android-fixtures")}
 subprocess.run(["node", "scripts/check-macos-playback.mjs", "--generate-only"], cwd=root, env=fixture_env, check=True)
 subprocess.run(["node", "scripts/test-support/track-fixtures.mjs", str(root / "build/android-fixtures")], cwd=root, check=True)

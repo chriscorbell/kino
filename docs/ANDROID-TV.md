@@ -97,7 +97,7 @@ The instrumented suite covers native Core browsing, device-link creation, saved 
 
 ### Driving and observing the Shield
 
-The development Shield is on the local network at `10.0.0.191`. `adb connect 10.0.0.191:5555` attaches it; `adb shell input keyevent KEYCODE_WAKEUP` wakes it before instrumentation, which `pnpm android:check` does itself.
+The development Shield is on the local network at `10.0.0.191`. `adb connect 10.0.0.191:5555` attaches it; `adb shell input keyevent KEYCODE_WAKEUP` wakes it before instrumentation, which `pnpm android:check` does itself. Since v0.1.0-rc.2 it runs Kino's release build, Chris's own setup. Android will not replace a release with the development builds the suite installs, and the suite resets the app's data, so `pnpm android:check` stops before building when it finds a release installed. Uninstalling it clears the TV's sign-in and settings; ask before doing that.
 
 Only `pnpm android:check` bundles the fixtures into the test APK. Building with `scripts/build-android.py` or gradle alone and then running instrumentation fails every media test with `FileNotFoundException` on a fixture name; that is a missing asset, not a regression. To rerun one class after the suite restores the distributed APK, first reinstall the benchmark host:
 
