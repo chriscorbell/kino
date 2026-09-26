@@ -1,0 +1,10 @@
+This package contains the PCI Utilities, version 3.15.0.
+
+Copyright (c) 1997--2026 Martin Mares <mj@ucw.cz>
+
+All files in this package can be freely distributed and used according
+to the terms of the GNU General Public License, either version 2 or
+(at your opinion) any newer version. See https://www.gnu.org/ for details.
+
+The author wants to clarify that he does not consider programs which link
+dynamically to the libpci to be derived works of the library.

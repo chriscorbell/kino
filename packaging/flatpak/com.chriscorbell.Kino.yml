@@ -36,6 +36,11 @@ cleanup:
   - '*.a'
 cleanup-commands:
   - /app/cleanup-BaseApp.sh
+  # Kino has no spell checking and no use for Qt WebView or WebDriver, which
+  # the base app also carries.
+  - rm -rf /app/qtwebengine_dictionaries /app/share/locale/*/qtwebengine_dictionaries
+  - rm -f /app/lib/libexec/webenginedriver
+  - find /app \( -name 'libQt6WebView*' -o -name QtWebView -o -path '*/plugins/webview' \) -prune -exec rm -rf {} +
 modules:
   - name: uchardet
     buildsystem: cmake-ninja
@@ -109,9 +114,12 @@ modules:
         commit: 4d92149372461bf575e8a09b1064a2884c38c3aa
 
   # mpv's DRM support, which VA-API reaches the GPU's render node through,
-  # reads monitor data with libdisplay-info.
+  # reads monitor data with libdisplay-info. hwdata is only needed to build
+  # it, since libdisplay-info compiles pnp.ids into its library.
   - name: hwdata
     buildsystem: autotools
+    cleanup:
+      - '*'
     sources:
       - type: archive
         url: https://github.com/vcrhonek/hwdata/archive/refs/tags/v0.394.tar.gz
@@ -119,6 +127,8 @@ modules:
 
   - name: libdisplay-info
     buildsystem: meson
+    cleanup:
+      - /bin
     sources:
       - type: archive
         url: https://gitlab.freedesktop.org/emersion/libdisplay-info/-/archive/0.2.0/libdisplay-info-0.2.0.tar.gz
@@ -227,17 +237,11 @@ modules:
         url: https://github.com/stremio-native/stream-server.git
         commit: f585ab6eda9b1411034548c131bb0dc30c6f5f9e
         dest: build/vendor/stream-server
-      - type: patch
-        use-git: true
-        dest: build/vendor/stream-server
-        paths:
-          - ../../apps/stream-engine/patches/0001-decode-info-hash-without-internal-libtorrent-symbols.patch
-          - ../../apps/stream-engine/patches/0002-exclude-youtube-tools.patch
-          - ../../apps/stream-engine/patches/0003-allow-embedded-router-ownership.patch
-          - ../../apps/stream-engine/patches/0004-retain-torrent-web-seeds.patch
-          - ../../apps/stream-engine/patches/0005-keep-the-engine-off-router-port-mapping-and-lan-discovery.patch
-          - ../../apps/stream-engine/patches/0006-give-the-engine-its-roots-on-android.patch
-          - ../../apps/stream-engine/patches/0007-leave-archive-readers-out-of-android.patch
+      # Every patch Kino carries, in order, as scripts/build-engine.sh applies them.
+      - type: shell
+        commands:
+          - for patch in apps/stream-engine/patches/*.patch; do git -C build/vendor/stream-server
+            apply "$PWD/$patch"; done
 
   # The shell. CI builds the web interface first, since the sandbox has no
   # network for pnpm; node is still needed for the locale the shell embeds.
@@ -254,6 +258,7 @@ modules:
       - install -Dm644 /run/build/kino/packaging/flatpak/com.chriscorbell.Kino.desktop ${FLATPAK_DEST}/share/applications/com.chriscorbell.Kino.desktop
       - install -Dm644 /run/build/kino/packaging/flatpak/com.chriscorbell.Kino.png ${FLATPAK_DEST}/share/icons/hicolor/512x512/apps/com.chriscorbell.Kino.png
       - install -Dm644 /run/build/kino/packaging/flatpak/com.chriscorbell.Kino.metainfo.xml ${FLATPAK_DEST}/share/metainfo/com.chriscorbell.Kino.metainfo.xml
+      - cp -r /run/build/kino/build/linux-notices/licenses ${FLATPAK_DEST}/share/kino/licenses
       - sed -i -e "s/@KINO_VERSION@/$(node -p "require('/run/build/kino/package.json').version")/"
         -e "s/@KINO_DATE@/$(date -u +%F)/" ${FLATPAK_DEST}/share/metainfo/com.chriscorbell.Kino.metainfo.xml
     sources:
@@ -265,3 +270,8 @@ modules:
           - node_modules
           - apps/android-tv
           - mockup
+      # The license notices the workflow collects before this build, since
+      # the sandbox has neither the npm packages nor the crates to read.
+      - type: dir
+        path: ../../build/linux-notices
+        dest: build/linux-notices
