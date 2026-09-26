@@ -42,6 +42,7 @@ export async function withWebEngine(ui, entry, check, { native = false } = {}) {
       'heading: ' + (heading ? heading.textContent.trim().slice(0, 40) : 'none'),
       'document focused: ' + document.hasFocus(),
       'location: ' + location.hash,
+      'input: ' + (window.__kinoInput ?? []).join(', '),
     ].join('; ');
   })()`;
   let child;
@@ -87,6 +88,17 @@ export async function withWebEngine(ui, entry, check, { native = false } = {}) {
     return result.result.value;
   }
   async function key(key, code, virtualKey, modifiers = 0) {
+    // What the page receives, so a timeout can tell a key that never arrived from one that did
+    // nothing. Kept to the last few events.
+    await evaluate(`(() => {
+      if (window.__kinoInput) return;
+      window.__kinoInput = [];
+      for (const type of ['keydown', 'keypress', 'keyup', 'click'])
+        addEventListener(type, (event) => {
+          window.__kinoInput.push(type + ' ' + (event.key ?? '') + ' ' + (event.target?.tagName ?? ''));
+          window.__kinoInput.splice(0, window.__kinoInput.length - 8);
+        }, true);
+    })()`);
     for (const type of ['keyDown', 'keyUp'])
       await command('Input.dispatchKeyEvent', {
         type,
