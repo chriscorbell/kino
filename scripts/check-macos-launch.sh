@@ -35,6 +35,19 @@ fi
 
 echo "Kino remained healthy through the launch probe."
 
+# The hand-over is checked once the interface has loaded: until then a slow
+# machine, such as a CI runner drawing in software, may not answer in time.
+for _ in $(seq 1 300); do
+  grep -q "packaged UI loaded" "${kino_probe_log}" && break
+  sleep 0.1
+done
+if ! grep -q "packaged UI loaded" "${kino_probe_log}"; then
+  echo "Kino did not load its packaged interface."
+  sed -n '1,80p' "${kino_probe_log}"
+  exit 1
+fi
+echo "Kino loaded its packaged interface."
+
 # A second launch for the same profile hands over to the first and exits.
 set +e
 KINO_INSTANCE_NAME="${kino_instance_name}" "${kino_app_binary}" >/dev/null 2>&1 &
@@ -61,6 +74,7 @@ for _ in $(seq 1 20); do
 done
 if ! grep -q "brought forward by a second launch" "${kino_probe_log}" || ! kill -0 "${kino_probe_pid}" 2>/dev/null; then
   echo "The first Kino was not brought forward by the second launch."
+  sed -n '1,80p' "${kino_probe_log}"
   exit 1
 fi
 echo "A second launch brought the first Kino forward and exited."

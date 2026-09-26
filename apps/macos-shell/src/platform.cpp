@@ -53,16 +53,19 @@ QString hardwareDecoderName() {
 #endif
 }
 
+// Cleaned, because the interface's URL is compared with the URLs WebEngine
+// navigates to, which never carry a "..".
 QString resourcePath(const QString &relative) {
     const QDir executable(QCoreApplication::applicationDirPath());
 #if defined(Q_OS_MACOS)
-    return executable.absoluteFilePath(QStringLiteral("../Resources/") + relative);
+    return QDir::cleanPath(executable.absoluteFilePath(QStringLiteral("../Resources/") + relative));
 #else
 #if !defined(Q_OS_WIN)
     const QString installed = executable.absoluteFilePath(QStringLiteral("../share/kino"));
-    if (QFileInfo(installed).isDir()) return QDir(installed).absoluteFilePath(relative);
+    if (QFileInfo(installed).isDir())
+        return QDir::cleanPath(QDir(installed).absoluteFilePath(relative));
 #endif
-    return executable.absoluteFilePath(relative);
+    return QDir::cleanPath(executable.absoluteFilePath(relative));
 #endif
 }
 
