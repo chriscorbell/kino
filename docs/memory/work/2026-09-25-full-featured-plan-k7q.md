@@ -58,6 +58,6 @@ Source: Chris's instruction of 2026-09-25 to plan and implement a full-featured,
 
 ## Waiting on Chris
 
-- The v0.1.0 tag waits on his daily-driver retest, on a packaged build from `main` after #264: from #232 until #250 the packaged Mac app opened a blank window, and #257 to #265 changed HDR tone mapping, interface recovery and sleep on the desktop.
+- The v0.1.0 tag waits on his daily-driver retest of the latest pre-release on the releases page. The Shield ran a development-signed build, so the release APK installs only after one uninstall, which clears the TV app's sign-in and settings.
 
 Close when: every box in #182 is checked or explicitly deferred there.
