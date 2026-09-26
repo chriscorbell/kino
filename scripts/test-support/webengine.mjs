@@ -34,6 +34,17 @@ export async function withWebEngine(ui, entry, check, { native = false } = {}) {
       response.writeHead(404).end();
     }
   });
+  const pageState = `(() => {
+    const active = document.activeElement;
+    const heading = [...document.querySelectorAll('h1')].find((h) => !h.closest('[hidden]'));
+    return [
+      'focus: ' + (active ? active.tagName + ' ' + (active.getAttribute('aria-label') ?? active.textContent.trim().slice(0, 40)) : 'none'),
+      'heading: ' + (heading ? heading.textContent.trim().slice(0, 40) : 'none'),
+      'document focused: ' + document.hasFocus(),
+      'location: ' + location.hash,
+      'input: ' + (window.__kinoInput ?? []).join(', '),
+    ].join('; ');
+  })()`;
   let child;
   let socket;
   let commandId = 0;
@@ -45,7 +56,16 @@ export async function withWebEngine(ui, entry, check, { native = false } = {}) {
       if (value) return value;
       await delay(50);
     }
-    throw new Error('Timed out waiting for ' + description);
+    // A timeout on a slow runner says little by itself; the page's state says what it did instead.
+    let state = '';
+    if (socket) {
+      try {
+        state = await evaluate(pageState);
+      } catch (error) {
+        state = `page state unavailable: ${error.message}`;
+      }
+    }
+    throw new Error(`Timed out waiting for ${description}${state ? `\n${state}` : ''}`);
   }
   function command(method, params = {}) {
     const id = ++commandId;
@@ -68,6 +88,17 @@ export async function withWebEngine(ui, entry, check, { native = false } = {}) {
     return result.result.value;
   }
   async function key(key, code, virtualKey, modifiers = 0) {
+    // What the page receives, so a timeout can tell a key that never arrived from one that did
+    // nothing. Kept to the last few events.
+    await evaluate(`(() => {
+      if (window.__kinoInput) return;
+      window.__kinoInput = [];
+      for (const type of ['keydown', 'keypress', 'keyup', 'click'])
+        addEventListener(type, (event) => {
+          window.__kinoInput.push(type + ' ' + (event.key ?? '') + ' ' + (event.target?.tagName ?? ''));
+          window.__kinoInput.splice(0, window.__kinoInput.length - 8);
+        }, true);
+    })()`);
     for (const type of ['keyDown', 'keyUp'])
       await command('Input.dispatchKeyEvent', {
         type,
