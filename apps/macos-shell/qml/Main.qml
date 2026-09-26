@@ -52,9 +52,13 @@ ApplicationWindow {
     // automatic reload so a page that crashes on load cannot loop forever.
     property var interfaceLosses: []
 
+    // The reload starts as soon as the event loop turns. Qt WebEngine 6.11
+    // keeps the dead page's accessibility tree, whose parent object it has
+    // already freed, until a new page replaces it, and an accessibility client
+    // that reads the tree in that window crashes Kino.
     Timer {
         id: interfaceReload
-        interval: 500
+        interval: 0
         onTriggered: webView.reload()
     }
 
