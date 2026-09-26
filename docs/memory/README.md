@@ -32,4 +32,10 @@ Read this index and [the protocol](protocol.md) when starting or resuming a sess
 
 ## Review record
 
-No topic notes
+2026-09-26, ordinary review after Milestone 5's Linux and Windows work:
+
+- `lessons/2026-09-25-shield-asleep-empty-nodes-p3w.md`: checked; `scripts/check-android.py` still wakes the Shield.
+- `lessons/2026-09-25-tv-material-long-press-repeat-m8d.md`: checked; `TvRemote.hold` still sends the repeat with `FLAG_LONG_PRESS`.
+- `lessons/2026-09-25-tv-dialog-content-swap-loses-press-r2k.md`: corrected; the dialog it names became `ChoiceDialog` in #230, and each step is still its own dialog.
+
+Next cursor: `context/`.
