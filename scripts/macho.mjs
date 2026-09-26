@@ -10,6 +10,7 @@ import {
   openSync,
   readdirSync,
   readFileSync,
+  readlinkSync,
   readSync,
   realpathSync,
 } from 'node:fs';
@@ -104,6 +105,7 @@ export function readMachO(path) {
 export function walk(root) {
   const files = [];
   const directories = [];
+  const links = [];
   const visit = (directory) => {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name);
@@ -111,10 +113,11 @@ export function walk(root) {
         directories.push(path);
         visit(path);
       } else if (entry.isFile()) files.push(path);
+      else if (entry.isSymbolicLink()) links.push(path);
     }
   };
   visit(root);
-  return { files, directories };
+  return { files, directories, links };
 }
 
 export function machOFiles(root) {
@@ -131,6 +134,13 @@ export function bundleProblems(bundle) {
   const contents = join(app, 'Contents');
   const problems = [];
   const loaded = new Set();
+  // codesign refuses a bundle holding a link that leads out of it.
+  for (const link of walk(app).links) {
+    const target = resolve(dirname(link), readlinkSync(link));
+    if (!target.startsWith(`${app}/`))
+      problems.push(`${relative(app, link)} links to ${readlinkSync(link)}, outside the bundle`);
+    else if (!existsSync(target)) problems.push(`${relative(app, link)} links to nothing`);
+  }
   const binaries = machOFiles(app);
   for (const binary of binaries) {
     const name = relative(app, binary);
