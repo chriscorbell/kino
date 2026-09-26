@@ -55,6 +55,7 @@ Source: Chris's instruction of 2026-09-25 to plan and implement a full-featured,
 - Homebrew's Qt reaches its libraries through `@executable_path`, which inside the WebEngine helper means the helper's own folder. Each bundled binary now searches only `@loader_path`-relative `Frameworks`.
 - A Kino killed with SIGTERM leaves its single-instance socket in `$TMPDIR`; Kino clears a stale one at launch, and the probes remove theirs.
 - The notice review pins Homebrew versions from CI's runner. A Mac whose Homebrew lags, such as libtorrent 2.1.1 against the reviewed 2.1.2, fails `pnpm macos:package` at the notices step.
+- TheIntroDB groups submissions into release versions and selects one up to 60 s from the requested runtime, then falls back to the most submitted; its documentation names no window. Kino required the runtime to the millisecond, so community intros almost never applied, and the fixtures used exact runtimes, so every gate passed (ADR 0029). `pnpm intro:check-live` now runs the client against the service.
 
 ## Waiting on Chris
 

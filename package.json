@@ -69,6 +69,7 @@
     "android:check": "python3 scripts/check-android.py",
     "android:check-banner": "node scripts/check-tv-banner.mjs",
     "intro:check": "node scripts/check-intro-community.mjs",
+    "intro:check-live": "node scripts/check-intro-live.mjs",
     "macos:check-intro": "node scripts/check-intro-community.mjs --macos"
   },
   "devDependencies": {
