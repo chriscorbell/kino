@@ -220,7 +220,7 @@ export function generateHdrProbe(fixturesDir) {
   return target;
 }
 
-const videoCodec = (path) =>
+const videoProfile = (path) =>
   execFileSync(
     'ffprobe',
     [
@@ -229,13 +229,16 @@ const videoCodec = (path) =>
       '-select_streams',
       'v:0',
       '-show_entries',
-      'stream=codec_name',
+      'stream=codec_name,profile',
       '-of',
-      'csv=p=0',
+      'default=noprint_wrappers=1:nokey=1',
       path,
     ],
     { encoding: 'utf8' },
-  ).trim();
+  )
+    .trim()
+    .split(/\s+/)
+    .join(' ');
 
 /**
  * The SDR control for the pixel gate: band A's layout as an eight-bit BT.709 neutral ramp from
@@ -244,10 +247,10 @@ const videoCodec = (path) =>
  */
 export function generateSdrProbe(fixturesDir) {
   const target = join(fixturesDir, 'sdr-probe.mkv');
-  // Lossless HEVC, as the HDR probe is: lossless H.264 is the High 4:4:4 Predictive profile,
-  // which VideoToolbox decodes but D3D11VA and NVDEC do not, so a hardware-only player rejects it.
-  // An older H.264 copy is made again.
-  if (existsSync(target) && videoCodec(target) === 'hevc') return target;
+  // Plain 4:2:0 H.264, which every hardware decoder takes. The ramp only has to read back in
+  // order, so it need not be lossless, and lossless H.264 is the High 4:4:4 Predictive profile,
+  // which VideoToolbox decodes but D3D11VA and NVDEC do not. An older lossless copy is made again.
+  if (existsSync(target) && /^h264 (?!High 4:4:4)/.test(videoProfile(target))) return target;
   mkdirSync(fixturesDir, { recursive: true });
   const luma = Buffer.alloc(WIDTH * HEIGHT, 126);
   const chroma = Buffer.alloc((WIDTH / 2) * (HEIGHT / 2) * 2, 128);
@@ -277,11 +280,11 @@ export function generateSdrProbe(fixturesDir) {
       '-i',
       raw,
       '-c:v',
-      'libx265',
+      'libx264',
+      '-crf',
+      '12',
       '-preset',
       'ultrafast',
-      '-x265-params',
-      'lossless=1:log-level=error',
       '-color_primaries',
       'bt709',
       '-color_trc',
