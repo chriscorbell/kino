@@ -8,7 +8,7 @@ Source: Chris's instruction of 2026-09-25 to plan and implement a full-featured,
 
 ## Continuation facts
 
-- Milestones 1, 3 and 4 are done. Milestone 5's code, packaging and notices shipped (#232 to #252). Windows passed every probe and the playback gate on the gaming PC (#255), and Linux on the Ubuntu laptop and minicore (#257, with #258 and #259). Each chunk is its own pull request, squash-merged once CI passes.
+- Milestones 1, 3 and 4 are done. Milestone 5's code, packaging and notices shipped (#232 to #252). Windows passed every probe and the playback gate on the gaming PC (#255), and Linux on the Ubuntu laptop and minicore (#257), with the MPRIS gate (#258), interface recovery on Linux (#259, #261) and a real suspend through logind (#260). HLG now plays on the TV, and HLG and Dolby Vision 8.4 are pixel-gated on both clients (#264). Each chunk is its own pull request, squash-merged once CI passes.
 - The `kardboard` ruleset requires one approving review with an admin bypass. Interactive work merges with `gh pr merge --squash --delete-branch --admin`, as `AGENTS.md` Shipping describes.
 - The development Shield answers at `10.0.0.191:5555`. If `adb connect` reports "No route to host" while `nc -z 10.0.0.191 5555` succeeds, restart the adb server (`adb kill-server`) and connect again.
 - The running desktop app can be driven without taking over the screen: launch `build/macos/Kino.app/Contents/MacOS/Kino` with `QTWEBENGINE_REMOTE_DEBUGGING=127.0.0.1:<port>` and use the DevTools protocol. Accessibility clicks do not reach WebEngine content.
@@ -35,13 +35,23 @@ Source: Chris's instruction of 2026-09-25 to plan and implement a full-featured,
 - Media3 1.9 buffers `file:` URIs as local playback with a one-second target; buffering gates must stream over HTTP.
 - TV dialogs need `WideDialog` (`usePlatformDefaultWidth = false`); the platform default is about 440 dp on the Shield.
 
+## Traps found on 2026-09-26
+
 - mpv measures each HDR frame's peak wherever the GPU has compute shaders, so Linux drew HDR darker than the Mac, whose OpenGL 4.1 has none. Every desktop sets `hdr-compute-peak=no` (ADR 0026, #257). Windows matched the Mac even before that; why is unknown.
-- Windows paths ignore case: extracting the portable zip's `Kino` folder beside a clone named `kino` merges them, and deleting one deletes the other.
-- DevTools' `Page.crash` does nothing to a Qt WebEngine renderer on Linux. The recovery probe kills the process `SystemInfo.getProcessInfo` names instead (#259).
+- mpv labels Dolby Vision 8.4 frames PQ. Its `format:dolbyvision=no` filter restores the HLG base layer's transfer but leaves display light, which skips HLG's OOTF; the shell sets `light=hlg` for that file only (ADR 0027, #264).
 - Stock Ubuntu has no Intel VA-API driver; `intel-media-va-driver` supplies it. The Flatpak's runtime pulls `org.freedesktop.Platform.VAAPI.Intel` by itself.
+- Windows paths ignore case: extracting the portable zip's `Kino` folder beside a clone named `kino` merges them, and deleting one deletes the other.
+- DevTools' `Page.crash` does nothing to a Qt WebEngine renderer on Linux. The recovery probe kills the process `SystemInfo.getProcessInfo` names instead (#259). In the Flatpak that number is the sandbox's, so the probe finds the host process by its `NSpid` numbers (#261).
+- Qt WebEngine 6.11 keeps a freed accessibility parent after the interface process dies, and a macOS accessibility client reading the tree then crashes Kino. The shell reloads at once to narrow the window (#261). CI's Mac runners run no accessibility clients, so only a Mac like Chris's shows it.
+- The desktop portal's WebEngine sandboxes inherit Kino's stderr and outlive a killed Flatpak Kino, so a probe reading that pipe never finishes. `scripts/test-support/kino-flatpak.sh` routes stderr through a file it follows for as long as Kino runs.
+- Looping a probe with Kino under `lldb` through a wrapper left an orphaned lldb of about 4 GB per run and nearly exhausted the Mac's memory. Check for leftovers and memory after any loop.
+- `pkill -f PATTERN` inside a compound or SSH command matches that command's own shell and kills it. Match on the process name, or bracket the pattern (`[n]ode scripts`), in a command of its own.
+- `systemctl suspend` from SSH asks for interactive authorization; `pnpm linux:check-sleep` suspends through `sudo -n` (#260). macOS has no `timeout` command.
+- The TV's mode change renegotiates HDMI audio, Android broadcasts audio becoming noisy, and Media3 pauses; the frame-rate matcher undoes that pause for fifteen seconds after its request (#265).
+- On 2026-09-26 `check-macos-focus` began failing about half its runs on the macOS runner: Enter on the focused Settings button did not navigate. WebEngine probe timeouts now report the page's state and the input it received (#263); read that before changing the probe.
 
 ## Waiting on Chris
 
-- The v0.1.0 tag waits on his daily-driver retest, on a packaged build from after #250: from #232 until then the packaged Mac app opened a blank window.
+- The v0.1.0 tag waits on his daily-driver retest, on a packaged build from `main` after #264: from #232 until #250 the packaged Mac app opened a blank window, and #257 to #265 changed HDR tone mapping, interface recovery and sleep on the desktop.
 
 Close when: every box in #182 is checked or explicitly deferred there.
