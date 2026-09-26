@@ -367,4 +367,13 @@ if(BUILD_TESTING)
   add_test(NAME tls_roots COMMAND kino_tlsroots_test)
   add_test(NAME engine_lifecycle COMMAND kino_streamengine_test)
   set_tests_properties(engine_lifecycle PROPERTIES TIMEOUT 15)
+
+  # A private session bus stands in for the desktop's, so this needs dbus-daemon.
+  if(UNIX AND NOT APPLE)
+    qt_add_executable(kino_nowplaying_mpris_test tests/nowplaying_mpris_test.cpp src/nowplaying.cpp
+      src/nowplaying_mpris.cpp)
+    target_include_directories(kino_nowplaying_mpris_test PRIVATE src)
+    target_link_libraries(kino_nowplaying_mpris_test PRIVATE Qt6::DBus Qt6::Qml Qt6::Test)
+    add_test(NAME media_controls COMMAND kino_nowplaying_mpris_test)
+  endif()
 endif()

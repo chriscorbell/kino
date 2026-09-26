@@ -87,17 +87,23 @@ try {
     { QTWEBENGINE_REMOTE_DEBUGGING: `127.0.0.1:${debugPort}` },
     async ({ loads, diagnostics }) => {
       await until(() => loads() === 1, 'the first interface load');
-      const page = await until(async () => {
+      const browser = await until(async () => {
         try {
-          const targets = await (await fetch(`http://127.0.0.1:${debugPort}/json`)).json();
-          return targets.find((target) => target.type === 'page');
+          return await (await fetch(`http://127.0.0.1:${debugPort}/json/version`)).json();
         } catch {
           return null;
         }
       }, 'WebEngine debugging');
-      const socket = new WebSocket(page.webSocketDebuggerUrl);
+      // The interface process is killed from outside, as a crash or the
+      // system would end it. DevTools' Page.crash leaves it running on Linux.
+      const socket = new WebSocket(browser.webSocketDebuggerUrl);
       await once(socket, 'open');
-      socket.send(JSON.stringify({ id: 1, method: 'Page.crash' }));
+      const reply = once(socket, 'message');
+      socket.send(JSON.stringify({ id: 1, method: 'SystemInfo.getProcessInfo' }));
+      const { result } = JSON.parse((await reply)[0].data);
+      const renderer = result.processInfo.find((process) => process.type === 'renderer');
+      assert.ok(renderer, 'WebEngine reported no interface process.');
+      process.kill(renderer.id, 'SIGKILL');
       await until(() => loads() === 2, 'the interface to reload after its process crashed');
       assert.match(
         diagnostics(),
