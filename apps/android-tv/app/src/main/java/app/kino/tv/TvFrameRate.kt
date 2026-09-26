@@ -6,9 +6,12 @@ import android.app.Activity
 import android.hardware.display.DisplayManager
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
+import android.util.Log
 import android.view.Display
 import androidx.media3.common.C
 import androidx.media3.common.Format
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.video.VideoFrameMetadataListener
 import androidx.media3.common.Tracks
@@ -72,12 +75,33 @@ internal fun selectedVideoFormat(tracks: Tracks): Format? =
  * times, since Matroska, the usual release container, does not. The TV goes dark for a moment
  * while it changes mode, so playback holds until the display reports the new mode, or five seconds
  * pass. Leaving playback hands the choice back to the system.
+ *
+ * The change also renegotiates HDMI audio, which Android reports as the audio output going away,
+ * the broadcast Media3 pauses on so unplugged headphones do not go on playing. That pause is Kino's
+ * own doing, and it can land after playback resumed, so for a while after asking for a mode it is
+ * undone.
  */
 internal class FrameRateMatcher(private val activity: Activity, private val player: ExoPlayer) {
     private val handler = Handler(Looper.getMainLooper())
     private val displays = activity.getSystemService(DisplayManager::class.java)
     private var requested = false
     private var waiting: (() -> Unit)? = null
+    private var requestedAt = 0L
+    private val renegotiation =
+        object : Player.Listener {
+            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                if (
+                    !playWhenReady &&
+                        reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY &&
+                        requested &&
+                        waiting == null &&
+                        SystemClock.elapsedRealtime() - requestedAt < RENEGOTIATION_MS
+                ) {
+                    Log.i("KinoPlayer", "Mode change audio pause undone")
+                    player.playWhenReady = true
+                }
+            }
+        }
 
     // Written on the playback thread only.
     private var firstUs = -1L
@@ -108,6 +132,7 @@ internal class FrameRateMatcher(private val activity: Activity, private val play
 
     init {
         player.setVideoFrameMetadataListener(listener)
+        player.addListener(renegotiation)
     }
 
     fun onTracks(tracks: Tracks) {
@@ -121,6 +146,7 @@ internal class FrameRateMatcher(private val activity: Activity, private val play
             matchingMode(display.supportedModes.map { it.choice() }, display.mode.choice(), frameRate)
                 ?: return
         requested = true
+        requestedAt = SystemClock.elapsedRealtime()
         val wasPlaying = player.playWhenReady
         player.playWhenReady = false
         lateinit var changes: DisplayManager.DisplayListener
@@ -151,9 +177,19 @@ internal class FrameRateMatcher(private val activity: Activity, private val play
 
     fun release() {
         player.clearVideoFrameMetadataListener(listener)
+        player.removeListener(renegotiation)
         waiting = null
         handler.removeCallbacksAndMessages(null)
         if (requested)
             activity.window.attributes = activity.window.attributes.apply { preferredDisplayModeId = 0 }
+    }
+
+    private companion object {
+        /**
+         * How long after asking for a mode an audio-becoming-noisy pause is taken for the TV's
+         * renegotiation. On the development Shield the broadcast came about three and a half
+         * seconds after the request.
+         */
+        const val RENEGOTIATION_MS = 15_000L
     }
 }
