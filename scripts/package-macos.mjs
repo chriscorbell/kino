@@ -99,17 +99,26 @@ function isSystem(path) {
   return path.startsWith('/usr/lib/') || path.startsWith('/System/');
 }
 
+// Homebrew links files into place from their kegs, and a copy has to carry the
+// files themselves: codesign refuses a link that leads out of the bundle.
+// cpSync's dereference option left links nested in a directory as they were.
+function copyResolved(source, target) {
+  const from = realpathSync(source);
+  if (!statSync(from).isDirectory()) return copyFileSync(from, target);
+  mkdirSync(target, { recursive: true });
+  for (const entry of readdirSync(from)) copyResolved(join(from, entry), join(target, entry));
+}
+
 // A module's own files, without the modules nested inside it, which the scanner
 // names separately when Kino needs them. A plugin lives in PlugIns, where a
 // bundle keeps its code, and the module points at it.
 function copyQmlModule(source, target) {
   mkdirSync(target, { recursive: true });
   for (const entry of readdirSync(source)) {
-    // Homebrew links each file into place from its keg.
     const from = realpathSync(join(source, entry));
     if (statSync(from).isDirectory()) {
       if (entry === 'designer' || existsSync(join(from, 'qmldir'))) continue;
-      cpSync(from, join(target, entry), { recursive: true, dereference: true });
+      copyResolved(from, join(target, entry));
     } else if (entry.endsWith('.dylib')) {
       const plugin = join(pluginsDir, 'quick', entry);
       mkdirSync(dirname(plugin), { recursive: true });
