@@ -4,6 +4,17 @@ Kino is a Stremio-compatible media client with an original desktop and televisio
 
 The first release focuses on browsing, explicit source selection, reliable playback, progress sync, and a built-in Skip Intro feature.
 
+## Install
+
+Each [release](https://github.com/chriscorbell/kino/releases) carries a package for every platform and a `SHA256SUMS` file to check them against. Apple and Microsoft have not signed pre-releases, so each system warns once before the first launch.
+
+- **macOS** 26 or newer on Apple Silicon: open `Kino-<version>-arm64.dmg` and drag Kino to Applications. The first launch is refused; open **System Settings → Privacy & Security** and choose **Open Anyway** for Kino.
+- **Windows** 10 or 11 on x64: extract `Kino-<version>-windows-x64.zip` anywhere and run `Kino.exe` in its `Kino` folder. If SmartScreen stops it, choose **More info → Run anyway**.
+- **Linux** on x86_64: run `flatpak install --user Kino-<version>-x86_64.flatpak`, which also installs the KDE runtime from Flathub, then start Kino from the app menu.
+- **Android TV**: install `Kino-TV-<version>.apk` with `adb install` or a sideloading app. Later releases install from **Settings → Check for updates**. A development build is signed with a different key; uninstall it first, which clears its sign-in and settings.
+
+The desktop apps check for a newer release once a day and link to its page.
+
 ## Development
 
 Requirements:
@@ -51,7 +62,7 @@ The shell loads the packaged Kino UI, keeps Stremio authentication material in a
 pnpm macos:check-launch
 ```
 
-The shell also builds on Linux against Qt 6.8 and libmpv 2.4 or newer, and CI compiles it and runs its unit tests in an Ubuntu 26.04 container. Each operating system supplies its own media controls, sleep notice, display-sleep guard, and display modes behind the same headers: MediaPlayer, AppKit, IOKit, and CoreGraphics on macOS; MPRIS, logind, and the desktop portal on Linux, which cannot switch display modes; and on Windows the System Media Transport Controls, the thread execution state, the suspend broadcast, and the display settings API. Hardware decoding stays mandatory everywhere: VideoToolbox on macOS, VA-API or NVDEC on Linux, and Direct3D 11 on Windows. One Kino runs per profile: a second launch brings the first window forward and exits, so two processes never write the same profile; `pnpm macos:check-launch` checks the hand-over. Linux is packaged as a Flatpak and Windows as a portable folder. Neither is released yet; both pass the probes and the playback gate on hardware.
+The shell also builds on Linux against Qt 6.8 and libmpv 2.4 or newer, and CI compiles it and runs its unit tests in an Ubuntu 26.04 container. Each operating system supplies its own media controls, sleep notice, display-sleep guard, and display modes behind the same headers: MediaPlayer, AppKit, IOKit, and CoreGraphics on macOS; MPRIS, logind, and the desktop portal on Linux, which cannot switch display modes; and on Windows the System Media Transport Controls, the thread execution state, the suspend broadcast, and the display settings API. Hardware decoding stays mandatory everywhere: VideoToolbox on macOS, VA-API or NVDEC on Linux, and Direct3D 11 on Windows. One Kino runs per profile: a second launch brings the first window forward and exits, so two processes never write the same profile; `pnpm macos:check-launch` checks the hand-over. Linux is packaged as a Flatpak and Windows as a portable folder, and every release publishes both; both pass the probes and the playback gate on hardware.
 
 Settings can copy a diagnostic summary with the application version and build kind, macOS, Qt, Core, player, and engine versions, and playback capabilities. The summary excludes account data, media URLs, paths, and log contents. External engine overrides report an unknown version. The `diagnostic_summary` CTest suite uses an offscreen clipboard contained within the test process.
 
@@ -171,7 +182,7 @@ Produce a self-contained disk image with checksums:
 pnpm macos:package
 ```
 
-Packaging configures its own Release build in `build/macos-release` and refuses any other build type; `pnpm macos:build` and the probes keep using the Debug build in `build/macos`. The app carries its own Qt, mpv, and torrent stack, so it runs on a Mac without Homebrew. Packages are ad-hoc signed and Apple Silicon only; code signing, notarization, and universal builds wait for a public release channel, as recorded in [ADR 0017](docs/adr/0017-ship-apple-silicon-first-and-defer-universal-packages.md).
+Packaging configures its own Release build in `build/macos-release` and refuses any other build type; `pnpm macos:build` and the probes keep using the Debug build in `build/macos`. The app carries its own Qt, mpv, and torrent stack, so it runs on a Mac without Homebrew. Packages are ad-hoc signed, Apple Silicon only, and need macOS 26, the release Homebrew builds its bottles for; code signing, notarization, and universal builds wait for a public release channel, as recorded in [ADR 0017](docs/adr/0017-ship-apple-silicon-first-and-defer-universal-packages.md).
 
 Packaging writes Kino's GPL text, retained shell provenance, and dependency notices to `Kino.app/Contents/Resources/licenses/`. Open **Settings → Licenses and notices → Read notices** to search the local index. The accompanying `manifest.json` records component versions, source URLs, file checksums, and the origin of every shipped Mach-O binary.
 
@@ -181,7 +192,7 @@ The TV APK carries the same kind of index at `assets/licenses/`, collected by `p
 
 ### Releases
 
-Pushing a tag named for the root `package.json` version, such as `v0.1.0-beta.1`, runs the Release workflow. It builds the macOS disk image and the TV APK from that commit, checks that both carry the tag's version, verifies the APK is signed with the release certificate pinned in `apps/android-tv/release-certificate.sha256`, and publishes both with a combined `SHA256SUMS`. A version with a pre-release label becomes a GitHub pre-release, which the desktop update check follows from preview builds. Running the workflow by hand builds the same artifacts without publishing them.
+Pushing a tag named for the root `package.json` version, such as `v0.1.0-beta.1`, runs the Release workflow. It builds the macOS disk image and the TV APK from that commit, and the Windows zip and the Flatpak by calling their own workflows, probes included. Each build checks that its package carries the tag's version, the APK's signature is checked against the release certificate pinned in `apps/android-tv/release-certificate.sha256`, and the four are published with a combined `SHA256SUMS`. A version with a pre-release label becomes a GitHub pre-release, which the desktop update check follows from preview builds. Running the workflow by hand builds the same artifacts without publishing them.
 
 The TV release key lives only in the workflow's secrets. `scripts/setup-android-release-key.sh` sets it up once: it chooses or creates the keystore, uploads it with its passwords, and writes the certificate pin to commit. Every other build, locally and in CI, is signed with the machine's development key.
 

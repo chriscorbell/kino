@@ -1,10 +1,10 @@
 name: Release
 
 # A tag named for the root package.json version, such as v0.1.0-beta.1, builds the macOS disk
-# image and the TV APK from that commit and publishes both with their checksums. A version with a
-# pre-release label is published as a GitHub pre-release, which is what Kino calls a pre-release:
-# unsigned by Apple and unannounced. Running the workflow by hand builds the same artifacts without
-# publishing anything.
+# image, the Windows portable zip, the Linux Flatpak and the TV APK from that commit and publishes
+# them with their checksums. A version with a pre-release label is published as a GitHub
+# pre-release, which is what Kino calls a pre-release: unsigned by Apple and Microsoft, and
+# unannounced. Running the workflow by hand builds the same artifacts without publishing anything.
 
 on:
   push:
@@ -162,10 +162,22 @@ jobs:
           path: build/release/
           if-no-files-found: error
 
+  # Windows and Linux build through their own workflows, probes and version checks included, so a
+  # release carries exactly what those workflows check on main.
+  windows:
+    name: Windows
+    needs: version
+    uses: ./.github/workflows/windows.yml
+
+  linux:
+    name: Linux
+    needs: version
+    uses: ./.github/workflows/flatpak.yml
+
   publish:
     name: Publish the release
     if: github.ref_type == 'tag'
-    needs: [version, macos, android]
+    needs: [version, macos, android, windows, linux]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -173,7 +185,20 @@ jobs:
     steps:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          path: artifacts
+          name: macos
+          path: artifacts/macos
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: android
+          path: artifacts/android
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: Kino-windows-x64-with-engine
+          path: artifacts/windows
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: Kino-x86_64.flatpak
+          path: artifacts/linux
       - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -182,8 +207,15 @@ jobs:
         run: |
           mkdir release
           cp artifacts/macos/Kino-*-arm64.dmg artifacts/android/Kino-TV-*.apk release/
-          cat artifacts/macos/SHA256SUMS artifacts/android/SHA256SUMS > release/SHA256SUMS
+          cp artifacts/windows/Kino-windows-x64.zip "release/Kino-$VERSION-windows-x64.zip"
+          cp artifacts/linux/Kino.flatpak "release/Kino-$VERSION-x86_64.flatpak"
+          {
+            cat artifacts/macos/SHA256SUMS artifacts/android/SHA256SUMS
+            (cd release && sha256sum "Kino-$VERSION-windows-x64.zip" "Kino-$VERSION-x86_64.flatpak")
+          } > SHA256SUMS
+          mv SHA256SUMS release/
           (cd release && sha256sum --check SHA256SUMS)
+          test "$(find release -type f | wc -l)" -eq 5
           flags=(--title "Kino $VERSION" --generate-notes --verify-tag)
           if [ "$PRERELEASE" = true ]; then flags+=(--prerelease); fi
           gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" "${flags[@]}" release/*
