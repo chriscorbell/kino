@@ -117,9 +117,18 @@ else()
 endif()
 configure_file(cmake/DiagnosticBuildInfo.h.in generated/diagnosticbuildinfo.h @ONLY)
 
+if(NOT DEFINED KINO_RELEASE_VERSION)
+  set(KINO_RELEASE_VERSION "${KINO_PACKAGE_VERSION}")
+endif()
+
 if(APPLE)
   set(KINO_ICON ${CMAKE_CURRENT_SOURCE_DIR}/resources/Kino.icns)
   set_source_files_properties(${KINO_ICON} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+elseif(WIN32)
+  set(KINO_WINDOWS_ICON ${CMAKE_CURRENT_SOURCE_DIR}/resources/Kino.ico)
+  configure_file(resources/Kino.rc.in generated/Kino.rc @ONLY)
+  set(KINO_ICON ${CMAKE_CURRENT_BINARY_DIR}/generated/Kino.rc)
+  set_source_files_properties(${KINO_ICON} PROPERTIES OBJECT_DEPENDS ${KINO_WINDOWS_ICON})
 endif()
 
 qt_add_executable(
@@ -172,9 +181,6 @@ qt_add_qml_module(
     src/streamengine.h
 )
 
-if(NOT DEFINED KINO_RELEASE_VERSION)
-  set(KINO_RELEASE_VERSION "${KINO_PACKAGE_VERSION}")
-endif()
 target_compile_definitions(Kino PRIVATE KINO_VERSION="${KINO_RELEASE_VERSION}")
 target_include_directories(Kino PRIVATE src "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_link_libraries(
