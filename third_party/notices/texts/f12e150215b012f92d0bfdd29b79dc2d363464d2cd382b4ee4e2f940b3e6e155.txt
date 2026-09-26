@@ -1,0 +1,19 @@
+#
+#	List of PCI ID's
+#
+#	Version: 2025.03.09
+#	Date:    2025-03-09 03:15:02
+#
+#	Maintained by Albert Pool, Martin Mares, and other volunteers from
+#	the PCI ID Project at https://pci-ids.ucw.cz/.
+#
+#	New data are always welcome, especially if they are accurate. If you have
+#	anything to contribute, please follow the instructions at the web site.
+#
+#	This file can be distributed under either the GNU General Public License
+#	(version 2 or higher) or the 3-clause BSD License.
+#
+#	The database is a compilation of factual data, and as such the copyright
+#	only covers the aggregation and formatting. The copyright is held by
+#	Martin Mares and Albert Pool.
+#
