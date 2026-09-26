@@ -5,6 +5,7 @@ set -euo pipefail
 kino_repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 kino_app_binary="${KINO_APP_BINARY:-${kino_repo_root}/build/macos/Kino.app/Contents/MacOS/Kino}"
 kino_probe_log="$(mktemp /tmp/kino-launch.XXXXXX.log)"
+kino_second_log="$(mktemp /tmp/kino-second-launch.XXXXXX.log)"
 kino_probe_pid=""
 
 cleanup() {
@@ -12,7 +13,7 @@ cleanup() {
     kill "${kino_probe_pid}"
     wait "${kino_probe_pid}" 2>/dev/null || true
   fi
-  rm -f "${kino_probe_log}"
+  rm -f "${kino_probe_log}" "${kino_second_log}"
 }
 trap cleanup EXIT
 
@@ -50,7 +51,7 @@ echo "Kino loaded its packaged interface."
 
 # A second launch for the same profile hands over to the first and exits.
 set +e
-KINO_INSTANCE_NAME="${kino_instance_name}" "${kino_app_binary}" >/dev/null 2>&1 &
+KINO_INSTANCE_NAME="${kino_instance_name}" "${kino_app_binary}" >"${kino_second_log}" 2>&1 &
 kino_second_pid=$!
 for _ in $(seq 1 50); do
   kill -0 "${kino_second_pid}" 2>/dev/null || break
@@ -75,6 +76,8 @@ done
 if ! grep -q "brought forward by a second launch" "${kino_probe_log}" || ! kill -0 "${kino_probe_pid}" 2>/dev/null; then
   echo "The first Kino was not brought forward by the second launch."
   sed -n '1,80p' "${kino_probe_log}"
+  echo "The second launch logged:"
+  sed -n '1,40p' "${kino_second_log}"
   exit 1
 fi
 echo "A second launch brought the first Kino forward and exited."
