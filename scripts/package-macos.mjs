@@ -259,7 +259,9 @@ async function rewriteBinaries(edits) {
 
 // Rewriting load commands invalidates existing signatures, so everything is
 // re-signed from the inside out before the outer bundle. Bundles at one depth
-// hold nothing of each other's and sign in parallel.
+// hold nothing of each other's and sign in parallel. The app's main executable
+// is left to the bundle's own signature: signing it signs the whole bundle,
+// which read a plugin mid-signature when it ran beside the other files.
 async function signEverything() {
   const sign = (paths) => execFileAsync('codesign', ['--force', '--sign', '-', ...paths]);
   const batches = (paths) =>
@@ -270,7 +272,9 @@ async function signEverything() {
     .directories.filter((path) => /\.(framework|app)$/.test(path))
     .sort((left, right) => right.split('/').length - left.split('/').length);
   const loose = machOFiles(stagedApp).filter(
-    (path) => !nested.some((bundle) => path.startsWith(`${bundle}/`)),
+    (path) =>
+      path !== join(contents, 'MacOS', 'Kino') &&
+      !nested.some((bundle) => path.startsWith(`${bundle}/`)),
   );
 
   await inParallel(batches(loose), sign);
