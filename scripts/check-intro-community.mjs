@@ -6,7 +6,9 @@ import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const { build } = await import(createRequire(resolve('apps/desktop/package.json')).resolve('vite'));
+const { build } = await import(
+  pathToFileURL(createRequire(resolve('apps/desktop/package.json')).resolve('vite')).href
+);
 const output = resolve('build/intro-community');
 await build({
   configFile: false,

@@ -9,17 +9,27 @@ import { join, resolve } from 'node:path';
 const binary = resolve(process.env.KINO_APP_BINARY ?? 'build/macos/Kino.app/Contents/MacOS/Kino');
 assert.ok(existsSync(binary), 'Build the native app first.');
 const root = mkdtempSync(join(tmpdir(), 'kino-engine-retry-'));
-const helper = join(root, 'helper.sh');
+// A stand-in engine that fails its first start and becomes ready on the second. Windows runs
+// it through node from a command file, since it cannot start a shell script.
+const helperScript = join(root, 'helper.mjs');
+writeFileSync(
+  helperScript,
+  `import { existsSync, writeFileSync } from 'node:fs';
+const attempt = process.env.KINO_ENGINE_FIXTURE_ATTEMPT;
+if (!existsSync(attempt)) {
+  writeFileSync(attempt, '');
+  process.exit(7);
+}
+process.stdout.write('KINO_ENGINE_READY http://127.0.0.1:12345/kino/' + 'a'.repeat(64) + '\\n');
+process.stdin.resume();
+`,
+);
+const helper = join(root, process.platform === 'win32' ? 'helper.cmd' : 'helper');
 writeFileSync(
   helper,
-  `#!/bin/sh
-if [ ! -f "$KINO_ENGINE_FIXTURE_ATTEMPT" ]; then
-  touch "$KINO_ENGINE_FIXTURE_ATTEMPT"
-  exit 7
-fi
-printf 'KINO_ENGINE_READY http://127.0.0.1:12345/kino/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\n'
-exec /bin/cat >/dev/null
-`,
+  process.platform === 'win32'
+    ? `@"${process.execPath}" "${helperScript}"\r\n`
+    : `#!/bin/sh\nexec "${process.execPath}" "${helperScript}"\n`,
   { mode: 0o700 },
 );
 let report;

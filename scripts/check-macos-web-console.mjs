@@ -3,9 +3,10 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
-import { homedir } from 'node:os';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
+
+import { kinoLocalData } from './test-support/app-data.mjs';
 
 const binary = process.env.KINO_APP_BINARY ?? resolve('build/macos/Kino.app/Contents/MacOS/Kino');
 const marker = `kino-console-${randomUUID()}`;
@@ -55,10 +56,7 @@ try {
     }),
   ]);
   assert.deepEqual(result, [0, null], 'The native shell must close normally.');
-  const file = await readFile(
-    resolve(homedir(), 'Library/Application Support/Kino/logs/kino.log'),
-    'utf8',
-  );
+  const file = await readFile(join(kinoLocalData(), 'logs/kino.log'), 'utf8');
   for (const output of [diagnostics, file]) {
     for (const [suffix, level] of [
       ['info', 'INFO'],

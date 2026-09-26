@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const binary = resolve('build/macos/Kino.app/Contents/MacOS/Kino');
+const binary = resolve(process.env.KINO_APP_BINARY ?? 'build/macos/Kino.app/Contents/MacOS/Kino');
 const fixtures = process.env.KINO_FIXTURES_DIR ?? resolve('build/fixtures');
 const media = join(fixtures, 'h264-sdr-aac.mp4');
 assert.ok(existsSync(binary), 'Build the macOS shell first.');
