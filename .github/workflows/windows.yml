@@ -20,6 +20,8 @@ on:
       - scripts/check-macos-navigation.mjs
       - scripts/check-macos-focus.mjs
       - scripts/check-macos-scale.mjs
+      - scripts/check-version.mjs
+      - scripts/check-windows-icon.mjs
       - scripts/test-support/**
       - third_party/notices/**
       - package.json
@@ -182,6 +184,11 @@ jobs:
           foreach ($unwanted in 'vc_redist.x64.exe', 'd3dcompiler_47.dll', 'dxcompiler.dll', 'dxil.dll', 'opengl32sw.dll', 'qmltooling') {
             if (Test-Path "$out/$unwanted") { throw "The portable build carries $unwanted" }
           }
+          # Explorer, the taskbar and Windows' media overlay read these from Kino.exe.
+          node scripts/check-version.mjs --exe "$out/Kino.exe"
+          if ($LASTEXITCODE) { throw 'Kino.exe carries the wrong version' }
+          node scripts/check-windows-icon.mjs "$out/Kino.exe"
+          if ($LASTEXITCODE) { throw 'Kino.exe carries the wrong icon' }
           Compress-Archive -Path $out -DestinationPath build/windows-package/Kino-windows-x64.zip
       # The portable build, started as someone would start it. The runner's
       # display has no OpenGL driver, so a copy of the build gets Mesa's

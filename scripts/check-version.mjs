@@ -4,6 +4,7 @@
 //   node scripts/check-version.mjs                 validate the version itself
 //   node scripts/check-version.mjs --app Kino.app  the macOS bundle
 //   node scripts/check-version.mjs --apk Kino.apk  the TV APK (needs aapt2)
+//   node scripts/check-version.mjs --exe Kino.exe  the Windows executable
 //   node scripts/check-version.mjs --tag v0.1.0    a release tag
 //
 // The APK's versionCode is recomputed here independently of the Gradle build,
@@ -12,6 +13,8 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+
+import { peResources, RT_VERSION, versionInfo } from './test-support/pe.mjs';
 
 const root = join(import.meta.dirname, '..');
 const kinoVersion = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
@@ -63,6 +66,19 @@ if (flag === '--app') {
   assert.equal(name, kinoVersion);
   assert.equal(code, androidVersionCode(kinoVersion));
   console.log(`The TV APK is version ${name} (${code}).`);
+} else if (flag === '--exe') {
+  const resource = peResources(readFileSync(target)).find((r) => r.type === RT_VERSION);
+  assert.ok(resource, `${target} carries no version resource.`);
+  const info = versionInfo(resource.data);
+  const numeric = kinoVersion.replace(/-.*$/, '');
+  assert.equal(info.fileVersion, `${numeric}.0`);
+  assert.equal(info.productVersion, `${numeric}.0`);
+  assert.equal(info.strings.ProductVersion, kinoVersion);
+  assert.equal(info.strings.FileVersion, numeric);
+  // Windows names an unpackaged app by its description, in the media overlay among others.
+  assert.equal(info.strings.FileDescription, 'Kino');
+  assert.equal(info.strings.ProductName, 'Kino');
+  console.log(`The Windows executable is version ${info.strings.ProductVersion}.`);
 } else if (flag === '--tag') {
   assert.equal(target, `v${kinoVersion}`, 'The release tag must name the package.json version.');
   console.log(`Tag ${target} matches package.json.`);
