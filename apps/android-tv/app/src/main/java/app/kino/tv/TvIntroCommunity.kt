@@ -8,6 +8,7 @@ import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 import java.util.concurrent.TimeUnit
+import kotlin.math.abs
 import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -69,14 +70,27 @@ internal class IntroCommunityClient(
                 responseIdentity(versions, identity) ?: return@withTimeoutOrNull null
             val listed = versions.optJSONArray("versions") ?: return@withTimeoutOrNull null
             if (listed.length() > MAX_VERSIONS) return@withTimeoutOrNull null
-            var exact = 0
+            // The service groups submissions into release versions and treats a runtime within a
+            // minute of one as that version, otherwise falling back to the most submitted. Exactly
+            // one version, by both its listed and its average runtime, lets Kino reject that
+            // fallback. The zero-runtime version is unknown and never qualifies.
+            var matching = 0
             for (index in 0 until listed.length()) {
                 val item = listed.optJSONObject(index) ?: return@withTimeoutOrNull null
                 val runtime = exactLong(item.opt("duration_ms")) ?: return@withTimeoutOrNull null
                 if (runtime < 0) return@withTimeoutOrNull null
-                if (runtime == identity.durationMs && runtime > 0) exact++
+                val average =
+                    if (item.has("average_duration_ms"))
+                        exactLong(item.opt("average_duration_ms")) ?: return@withTimeoutOrNull null
+                    else runtime
+                if (
+                    runtime > 0 &&
+                        abs(runtime - identity.durationMs) <= VERSION_WINDOW_MS &&
+                        abs(average - identity.durationMs) <= VERSION_WINDOW_MS
+                )
+                    matching++
             }
-            if (exact != 1) return@withTimeoutOrNull null
+            if (matching != 1) return@withTimeoutOrNull null
             val media =
                 get(base.newBuilder().addQueryParameter("merge_unknown", "false").build(), deadline)
                     ?: return@withTimeoutOrNull null
@@ -225,6 +239,9 @@ internal class IntroCommunityClient(
         internal const val DEFAULT_ENDPOINT = "https://api.theintrodb.org/v3/media"
         private const val MAX_RESPONSE_BYTES = 64 * 1024
         private const val MAX_VERSIONS = 512
+        // TheIntroDB selects a version up to 60 s from its runtime and falls back at 61 s,
+        // measured against the live service on 2026-09-26; its documentation gives no number.
+        internal const val VERSION_WINDOW_MS = 60_000L
         private const val MAX_TMDB_ID = 10_000_000L
     }
 }

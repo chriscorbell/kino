@@ -140,38 +140,54 @@ class SkipIntroTest {
     }
 
     @Test
-    fun communityLookupRequiresOneExactRuntimeAndMatchingIdentity() = runBlocking {
-        val duration = 3_501_000L
-        IntroServer(
-                listOf(
-                    """{"tmdb_id":1396,"type":"tv","season":1,"episode":1,"versions":[{"duration_ms":0},{"duration_ms":$duration}]}""",
-                    """{"tmdb_id":1396,"type":"tv","season":1,"episode":1,"intro":[{"start_ms":10000,"end_ms":22000}]}""",
-                )
-            )
-            .use { server ->
+    fun communityLookupMatchesOneVersionWithinItsMinute() = runBlocking {
+        // Shaped as the live service lists this episode: a version's listed runtime and the
+        // average of its submissions, the unknown-runtime bucket, and a shorter cut.
+        val listed =
+            """{"tmdb_id":1396,"type":"tv","season":1,"episode":1,"versions":[""" +
+                """{"duration_ms":3500192,"average_duration_ms":3495986,"submission_count":10},""" +
+                """{"duration_ms":0,"submission_count":7},""" +
+                """{"duration_ms":2839000,"average_duration_ms":2839000,"submission_count":2}]}"""
+        val selected =
+            """{"tmdb_id":1396,"type":"tv","season":1,"episode":1,"intro":[{"start_ms":10000,"end_ms":22000}]}"""
+        // A real file's runtime rarely equals a version's to the millisecond; the service treats
+        // one up to a minute away as that version.
+        for (duration in
+            listOf(3_496_512L, 3_500_192L, 3_440_192L, 3_555_986L, 2_779_000L, 2_899_000L)) {
+            IntroServer(listOf(listed, selected)).use { server ->
                 val marker =
                     IntroCommunityClient(server.endpoint)
                         .lookup(IntroIdentity(duration, tmdbId = 1396, season = 1, episode = 1))
                 assertEquals(
-                    "requests=${server.requests.get()} paths=${server.paths}",
+                    "duration=$duration requests=${server.requests.get()} paths=${server.paths}",
                     TvIntroMarker(10_000, 22_000, TvIntroMarker.Source.Community),
                     marker,
                 )
                 assertEquals(2, server.requests.get())
                 assertTrue(server.paths[0].contains("list_versions=true"))
                 assertTrue(server.paths[1].contains("merge_unknown=false"))
+                assertTrue(server.paths[1].contains("duration_ms=$duration"))
                 assertFalse(server.headers.joinToString("\n").contains("Authorization", true))
                 assertFalse(server.headers.joinToString("\n").contains("Cookie", true))
             }
-        IntroServer(
-                listOf(
-                    """{"tmdb_id":1396,"type":"tv","season":1,"episode":1,"versions":[{"duration_ms":${duration + 1}}]}"""
-                )
-            )
-            .use { server ->
+        }
+        // Beyond a version's minute, by its listed or its average runtime, the service would fall
+        // back to another release, and two versions within it are ambiguous.
+        val ambiguous =
+            """{"tmdb_id":1396,"type":"tv","season":1,"episode":1,"versions":[""" +
+                """{"duration_ms":3476512},{"duration_ms":3516512}]}"""
+        for ((duration, versions) in
+            listOf(
+                3_000_000L to listed,
+                2_899_001L to listed,
+                3_559_192L to listed,
+                3_496_512L to ambiguous,
+            )) {
+            IntroServer(listOf(versions)).use { server ->
                 assertNull(
+                    "duration=$duration",
                     IntroCommunityClient(server.endpoint)
-                        .lookup(IntroIdentity(duration, tmdbId = 1396, season = 1, episode = 1))
+                        .lookup(IntroIdentity(duration, tmdbId = 1396, season = 1, episode = 1)),
                 )
                 assertEquals(
                     "An unmatched runtime must not request fallback markers",
@@ -179,6 +195,7 @@ class SkipIntroTest {
                     server.requests.get(),
                 )
             }
+        }
     }
 
     @Test

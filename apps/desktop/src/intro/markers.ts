@@ -76,6 +76,10 @@ export function markerFromCommunity(
 
 const MAX_RESPONSE_BYTES = 64 * 1024;
 const MAX_VERSIONS = 512;
+// TheIntroDB selects a version up to 60 s from its runtime and falls back at
+// 61 s, measured against the live service on 2026-09-26; its documentation
+// gives no number.
+export const VERSION_WINDOW_MS = 60_000;
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -131,19 +135,27 @@ export async function lookupCommunityIntro(
       (identity.tmdbId === undefined || media.tmdbId === identity.tmdbId);
     const listed = parseMediaResponse(versions);
     if (!matchesIdentity(listed) || versions.versions.length > MAX_VERSIONS) return null;
-    const runtimes = versions.versions.map((version: unknown) =>
-      record(version) ? version.duration_ms : undefined,
+    const count = (value: unknown) =>
+      typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null;
+    const listedVersions = (versions.versions as unknown[]).map((version) => {
+      if (!record(version)) return null;
+      const runtime = count(version.duration_ms);
+      const average =
+        version.average_duration_ms === undefined ? runtime : count(version.average_duration_ms);
+      return runtime === null || average === null ? null : { runtime, average };
+    });
+    if (listedVersions.some((version) => version === null)) return null;
+    // The service groups submissions into release versions and treats a
+    // runtime within a minute of one as that version, otherwise falling back to
+    // the most submitted. Exactly one version, by both its listed and its
+    // average runtime, lets Kino reject that fallback before reading markers.
+    // The zero-runtime version is unknown and never qualifies.
+    const near = (runtime: number) => Math.abs(runtime - identity.durationMs) <= VERSION_WINDOW_MS;
+    const matching = listedVersions.filter(
+      (version) =>
+        version !== null && version.runtime > 0 && near(version.runtime) && near(version.average),
     );
-    if (
-      runtimes.some(
-        (runtime) => typeof runtime !== 'number' || !Number.isSafeInteger(runtime) || runtime < 0,
-      )
-    )
-      return null;
-    // The service deliberately falls back to another release when no runtime
-    // matches. Its version list lets Kino reject that fallback before reading
-    // markers. The zero-runtime bucket is unknown and never qualifies.
-    if (runtimes.filter((runtime) => runtime === identity.durationMs).length !== 1) return null;
+    if (matching.length !== 1) return null;
     query.delete('list_versions');
     query.set('merge_unknown', 'false');
     const media = parseMediaResponse(await readMedia(query, requestSignal));

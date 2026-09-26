@@ -45,7 +45,7 @@ Skip Intro is built in and enabled by default. Kino first uses explicit opening-
 
 Manual skipping seeks to the marker's end without showing a notice. Automatic intro skipping is a separate setting that is disabled by default. When enabled, an automatic skip shows a brief “Intro skipped” notice with Undo. Undo returns to the intro start and suppresses automatic skipping for that segment during the current playback session.
 
-Kino requests community markers only after the service lists the exact positive runtime. Unknown or unmatched runtimes leave the button hidden. Kino favors a missing button over skipping dialogue. Version one does not run local audio fingerprinting and does not provide any surface for submitting or correcting intro timestamps.
+Kino requests community markers only after the service lists exactly one release version within a minute of the video's runtime, the window TheIntroDB itself uses to tell versions apart. Unknown, unmatched, or ambiguous runtimes leave the button hidden. Kino favors a missing button over skipping dialogue. Version one does not run local audio fingerprinting and does not provide any surface for submitting or correcting intro timestamps.
 
 ## Privacy and diagnostics
 

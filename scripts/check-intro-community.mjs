@@ -24,10 +24,21 @@ await build({
   },
 });
 const { lookupCommunityIntro } = await import(pathToFileURL(resolve(output, 'markers.js')));
-const identity = { tmdbId: 1396, season: 1, episode: 1, durationMs: 3501000 };
+// A real file's runtime rarely equals a version's to the millisecond; this one sits between the
+// version's listed runtime and the average of its submissions.
+const identity = { tmdbId: 1396, season: 1, episode: 1, durationMs: 3496512 };
 const media = { tmdb_id: 1396, type: 'tv', season: 1, episode: 1 };
 const marker = { source: 'theintrodb', startMs: 10000, endMs: 22000 };
-const listed = { ...media, versions: [{ duration_ms: 0 }, { duration_ms: identity.durationMs }] };
+// Shaped as the live service lists this episode: a version's listed runtime and the average of its
+// submissions, the unknown-runtime bucket, and a shorter cut.
+const listed = {
+  ...media,
+  versions: [
+    { duration_ms: 3500192, average_duration_ms: 3495986, submission_count: 10 },
+    { duration_ms: 0, submission_count: 7 },
+    { duration_ms: 2839000, average_duration_ms: 2839000, submission_count: 2 },
+  ],
+};
 const selected = { ...media, intro: [{ start_ms: 10000, end_ms: 22000 }] };
 const networkFetch = globalThis.fetch;
 let bodies = [];
@@ -90,7 +101,20 @@ try {
     'tmdb_id',
   ]);
 
-  for (const durationMs of [0, 1000000, identity.durationMs + 1, NaN, 1.5]) {
+  // The service treats a runtime up to a minute from a version as that version.
+  for (const durationMs of [
+    3500192,
+    3500192 - 60000,
+    3495986 + 60000,
+    2839000 - 60000,
+    2839000 + 60000,
+  ]) {
+    assert.deepEqual(await lookup(listed, selected, { ...identity, durationMs }), marker);
+    assert.equal(requests[1].get('duration_ms'), String(durationMs));
+  }
+  // Beyond it, including a runtime near a version's listed runtime but not its average, the
+  // service would fall back to another release.
+  for (const durationMs of [0, 1000000, 3000000, 2839000 + 60001, 3500192 + 59000, NaN, 1.5]) {
     assert.equal(await lookup(listed, selected, { ...identity, durationMs }), null);
     assert.ok(
       requests.length <= 1,
@@ -102,6 +126,8 @@ try {
     [{ duration_ms: 0 }],
     [{ duration_ms: '3501000' }],
     [{ duration_ms: identity.durationMs }, { duration_ms: identity.durationMs }],
+    [{ duration_ms: identity.durationMs - 20000 }, { duration_ms: identity.durationMs + 20000 }],
+    [{ duration_ms: identity.durationMs, average_duration_ms: '3496512' }],
     Array.from({ length: 513 }, () => ({ duration_ms: 1 })),
   ]) {
     assert.equal(await lookup({ ...media, versions }), null);
@@ -170,7 +196,7 @@ try {
   assert.equal(hold.writableEnded, false, 'The timeout cancels the unfinished response body');
   console.log(`Both intro requests exhausted their shared deadline after ${elapsed} ms.`);
   console.log(
-    'Bundled intro client rejected mismatched runtimes, invalid identity, ambiguous versions, unsafe bounds, oversized responses, redirects, and canceled response bodies.',
+    "Bundled intro client matched runtimes within a version's minute, rejected runtimes beyond it, invalid identity, ambiguous versions, unsafe bounds, oversized responses, redirects, and canceled response bodies.",
   );
   if (process.argv.includes('--macos')) {
     globalThis.fetch = networkFetch;
@@ -203,7 +229,7 @@ try {
       bodies = [listed, selected];
       assert.deepEqual(await browserLookup(), marker);
       assert.equal(requests.length, 2);
-      bodies = [{ ...media, versions: [{ duration_ms: identity.durationMs + 1 }] }];
+      bodies = [{ ...media, versions: [{ duration_ms: identity.durationMs + 60001 }] }];
       requests = [];
       assert.equal(await browserLookup(), null);
       assert.equal(requests.length, 1);
@@ -224,7 +250,7 @@ try {
       assert.equal(canceled.result.value, 'AbortError');
       hold.end('}');
       console.log(
-        'Qt WebEngine accepted only the exact runtime and canceled the held marker response.',
+        "Qt WebEngine matched a runtime within a version's minute, rejected one beyond it, and canceled the held marker response.",
       );
     });
   }
