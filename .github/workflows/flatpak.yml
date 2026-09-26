@@ -60,7 +60,7 @@ jobs:
       - name: Build libtorrent over Boost's headers
         if: steps.deps-cache.outputs.cache-hit != 'true'
         run: |
-          manifest=packaging/flatpak/com.chriscorbell.Kino.yml
+          manifest="$GITHUB_WORKSPACE/packaging/flatpak/com.chriscorbell.Kino.yml"
           pinned() { sed -n "/^  - name: $1\$/,/^  - name:/p" "$manifest" | sed -n "s/^ *$2: //p" | head -1; }
           mkdir -p build/linux-engine-src "$KINO_DEPS/include"
           cd build/linux-engine-src
