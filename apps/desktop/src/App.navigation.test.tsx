@@ -158,6 +158,14 @@ beforeEach(() => {
   Element.prototype.scrollIntoView = vi.fn();
 });
 
+// A reload is a new Load for the model. Paging in catalogs that answer late is not, and on a loaded
+// machine that can land while the details page is open.
+function reloads(dispatch: { mock: { calls: unknown[][] } }, model: string) {
+  return dispatch.mock.calls.filter(
+    ([action, target]) => target === model && (action as { action?: string }).action === 'Load',
+  ).length;
+}
+
 it.each(['Discover', 'Library'])(
   'preserves the selected %s filter and results on Back',
   async (route) => {
@@ -177,7 +185,8 @@ it.each(['Discover', 'Library'])(
         );
     });
     const card = screen.getByRole('button', { name: /Silo/ });
-    const before = dispatch.mock.calls.filter(([, model]) => model === route.toLowerCase()).length;
+    const before = reloads(dispatch, route.toLowerCase());
+    expect(before).toBeGreaterThan(0);
     await user.click(card);
     await user.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.getByRole('button', { name: /Silo/ })).toBe(card);
@@ -186,9 +195,7 @@ it.each(['Discover', 'Library'])(
       expect(screen.getByRole('combobox', { name: 'Genre' })).toHaveValue('1');
     else
       expect(screen.getByRole('button', { name: 'Movie' })).toHaveAttribute('aria-pressed', 'true');
-    expect(dispatch.mock.calls.filter(([, model]) => model === route.toLowerCase())).toHaveLength(
-      before,
-    );
+    expect(reloads(dispatch, route.toLowerCase())).toBe(before);
   },
 );
 
@@ -205,7 +212,8 @@ it('restores the query, results, scroll and originating card focus without reloa
   const card = await screen.findByRole('button', { name: /Silo/ });
   const main = screen.getByRole('main');
   main.scrollTop = 640;
-  const before = dispatch.mock.calls.filter(([, model]) => model === 'search').length;
+  const before = reloads(dispatch, 'search');
+  expect(before).toBeGreaterThan(0);
   await user.click(card);
   expect(screen.getByRole('heading', { name: 'Silo' })).toHaveFocus();
   expect(screen.getByRole('button', { name: 'Search' })).toHaveAttribute('aria-current', 'page');
@@ -214,7 +222,7 @@ it('restores the query, results, scroll and originating card focus without reloa
   expect(screen.getByRole('button', { name: /Silo/ })).toBe(card);
   expect(card).toHaveFocus();
   expect(screen.getByRole('main').scrollTop).toBe(640);
-  expect(dispatch.mock.calls.filter(([, model]) => model === 'search')).toHaveLength(before);
+  expect(reloads(dispatch, 'search')).toBe(before);
 });
 
 it('moves focus with navigation and skip, then leaves it alone during background updates', async () => {
