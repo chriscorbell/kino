@@ -25,9 +25,26 @@ const suspended = () => Number(readFileSync('/sys/power/suspend_stats/success', 
 try {
   // Long enough that playback cannot end before the machine has slept and woken.
   execFileSync('ffmpeg', [
-    '-v', 'error', '-f', 'lavfi', '-i', 'testsrc2=size=1280x720:rate=24:duration=120',
-    '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000:duration=120',
-    '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', media,
+    '-v',
+    'error',
+    '-f',
+    'lavfi',
+    '-i',
+    'testsrc2=size=1280x720:rate=24:duration=120',
+    '-f',
+    'lavfi',
+    '-i',
+    'sine=frequency=440:sample_rate=48000:duration=120',
+    '-c:v',
+    'libx264',
+    '-preset',
+    'ultrafast',
+    '-pix_fmt',
+    'yuv420p',
+    '-c:a',
+    'aac',
+    '-shortest',
+    media,
   ]);
   const before = suspended();
   const child = spawn(binary, [], {
@@ -52,7 +69,11 @@ try {
   while (suspended() === before && Date.now() < deadline) await delay(500);
   assert.ok(suspended() > before, 'The machine never slept, so nothing was checked.');
   console.log(`Kino paused after ${result.asleepBeforePauseMs} ms asleep.`);
-  assert.equal(result.outcome, 'paused-for-sleep', `Kino reported ${result.outcome} rather than pausing for sleep.`);
+  assert.equal(
+    result.outcome,
+    'paused-for-sleep',
+    `Kino reported ${result.outcome} rather than pausing for sleep.`,
+  );
   // Asleep time at the pause: a pause after waking would carry the whole sleep.
   assert.ok(
     result.asleepBeforePauseMs >= 0 && result.asleepBeforePauseMs < 1000,
