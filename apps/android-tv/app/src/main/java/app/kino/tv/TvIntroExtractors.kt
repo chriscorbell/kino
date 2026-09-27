@@ -116,6 +116,7 @@ private class IntroMatroskaExtractor(
     private var seekPosition = -1L
     private var hasChapters = false
     private var hasIndexedChapters = false
+    private var reportedAbsent = false
     private var metadataComplete = false
 
     override fun getElementType(id: Int): Int =
@@ -125,6 +126,13 @@ private class IntroMatroskaExtractor(
 
     override fun startMasterElement(id: Int, contentPosition: Long, contentSize: Long) {
         if (id == SEGMENT) segmentContent = contentPosition
+        // Muxers write Chapters, or a seek entry for them, before the first cluster. Most releases
+        // have neither, and waiting for the end of the file to be sure would leave the community
+        // lookup until the film was over. Chapters found after the clusters still take over.
+        if (id == CLUSTER && !hasChapters && !hasIndexedChapters && !reportedAbsent) {
+            reportedAbsent = true
+            session.chapters(ByteArray(0))
+        }
         if (id == SEEK) {
             inSeek = true
             seekId = -1
@@ -176,12 +184,13 @@ private class IntroMatroskaExtractor(
     fun endOfInput() {
         if (metadataComplete) return
         metadataComplete = true
-        if (!hasChapters && !hasIndexedChapters) session.chapters(ByteArray(0))
+        if (!hasChapters && !hasIndexedChapters && !reportedAbsent) session.chapters(ByteArray(0))
     }
 
     companion object {
         private const val CHAPTERS = 0x1043a770
         private const val SEGMENT = 0x18538067
+        private const val CLUSTER = 0x1f43b675
         private const val SEEK = 0x4dbb
         private const val SEEK_ID = 0x53ab
         private const val SEEK_POSITION = 0x53ac
