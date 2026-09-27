@@ -106,7 +106,7 @@ The community client first lists the release versions and requires exactly one w
 
 The timeline highlights a trusted intro range. Seeking into that range restores the manual button; seeking outside it removes the button immediately.
 
-On TV, `SkipIntroTest` drives the actual Core, Media3 player, timeline, and remote on the Shield. Legal Matroska fixtures cover explicit skip types, labels, indexed and unindexed tail chapters, conflicts, unsupported types, missing chapters, malformed text, and oversized metadata. An HLS fixture checks adaptive community resolution. The same gate checks automatic skipping, Undo suppression, seeking, interrupted bodies and ranges, the shared deadline, and strict community release-version and identity matching, with runtimes at both edges of the window.
+On TV, `SkipIntroTest` drives the actual Core, Media3 player, timeline, and remote on the Shield. Legal Matroska fixtures cover explicit skip types, labels, indexed and unindexed tail chapters, conflicts, unsupported types, missing chapters, malformed text, and oversized metadata. An HLS fixture checks adaptive community resolution, and a five-minute Matroska file without chapters must resolve its community marker long before the player reaches its end. The same gate checks automatic skipping, Undo suppression, seeking, interrupted bodies and ranges, the shared deadline, and strict community release-version and identity matching, with runtimes at both edges of the window.
 
 ## Platform gates
 

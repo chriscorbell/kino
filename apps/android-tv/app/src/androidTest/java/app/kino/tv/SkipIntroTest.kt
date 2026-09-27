@@ -276,6 +276,52 @@ class SkipIntroTest {
     }
 
     @Test
+    fun chapterlessMatroskaUsesTheCommunityMarkerDuringPlayback() = runBlocking {
+        // Most releases carry no chapters. The file runs five minutes, so the player is far from
+        // its end when the marker must appear, and the listed version is a few seconds off the
+        // file's runtime, as a real release's is.
+        CommunityServer(
+                listed =
+                    """{"tmdb_id":1396,"type":"tv","season":1,"episode":1,"versions":[{"duration_ms":303000,"average_duration_ms":298500,"submission_count":4}]}""",
+                selected =
+                    """{"tmdb_id":1396,"type":"tv","season":1,"episode":1,"intro":[{"start_ms":5000,"end_ms":12000}]}""",
+            )
+            .use { server ->
+                withPlayback(
+                    "intro-no-chapters-long.mkv",
+                    automatic = false,
+                    mediaId = "tmdb:1396",
+                    introEndpoint = server.endpoint,
+                ) { activity, player ->
+                    onMain {
+                        player.pause()
+                        player.seekTo(6_000)
+                    }
+                    try {
+                        waitFor("A chapterless file must expose the community marker") {
+                            introBar(activity)?.introMarker()?.source ==
+                                TvIntroMarker.Source.Community &&
+                                skipButton(activity)?.isShown == true
+                        }
+                    } catch (error: AssertionError) {
+                        val state = onMain {
+                            "marker=${introBar(activity)?.introMarker()} " +
+                                "button=${skipButton(activity)?.isShown} " +
+                                "position=${player.currentPosition} duration=${player.duration}"
+                        }
+                        throw AssertionError("${error.message}: $state paths=${server.paths}", error)
+                    }
+                    val (buffered, duration) = onMain { player.bufferedPosition to player.duration }
+                    assertTrue(
+                        "The marker must not wait for the end of the file: buffered $buffered of $duration",
+                        buffered < duration,
+                    )
+                    assertEquals("paths=${server.paths}", 1, server.markerRequests.get())
+                }
+            }
+    }
+
+    @Test
     fun hlsPlaybackUsesTheCommunityMarker() = runBlocking {
         AdaptiveIntroServer().use { server ->
             withPlaybackUrl(
@@ -314,6 +360,8 @@ class SkipIntroTest {
     private suspend fun withPlayback(
         asset: String,
         automatic: Boolean,
+        mediaId: String? = null,
+        introEndpoint: String = IntroCommunityClient.DEFAULT_ENDPOINT,
         block: suspend (PlaybackProbeActivity, Player) -> Unit,
     ) {
         val file = File(context.cacheDir, asset)
@@ -321,7 +369,7 @@ class SkipIntroTest {
             file.outputStream().use { input.copyTo(it) }
         }
         try {
-            withPlaybackUrl(Uri.fromFile(file).toString(), automatic, block = block)
+            withPlaybackUrl(Uri.fromFile(file).toString(), automatic, mediaId, introEndpoint, block)
         } finally {
             file.delete()
         }
@@ -399,6 +447,53 @@ class SkipIntroTest {
                 fixture.close()
                 app.settings.edit().remove("skip_intro").remove("automatic_intro").commit()
             }
+        }
+    }
+
+    /** Answers each community request by what it asks for, as the service does. */
+    private class CommunityServer(private val listed: String, private val selected: String) :
+        AutoCloseable {
+        private val server = ServerSocket(0, 8, InetAddress.getByName("127.0.0.1"))
+        private val failure = AtomicReference<Throwable>()
+        val markerRequests = AtomicInteger()
+        val paths: MutableList<String> = java.util.Collections.synchronizedList(mutableListOf())
+        val endpoint = "http://127.0.0.1:${server.localPort}/v3/media"
+        private val thread =
+            Thread {
+                    try {
+                        while (!server.isClosed) {
+                            server.accept().use { socket ->
+                                val reader = socket.getInputStream().bufferedReader()
+                                // A canceled lookup can close its connection before asking.
+                                val path =
+                                    reader.readLine()?.split(' ')?.get(1) ?: return@use
+                                paths += path
+                                while (!reader.readLine().isNullOrEmpty()) {}
+                                val body =
+                                    if (path.contains("list_versions=true")) listed
+                                    else selected.also { markerRequests.incrementAndGet() }
+                                val bytes = body.toByteArray()
+                                socket.getOutputStream().apply {
+                                    write(
+                                        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ${bytes.size}\r\nConnection: close\r\n\r\n"
+                                            .toByteArray()
+                                    )
+                                    write(bytes)
+                                    flush()
+                                }
+                            }
+                        }
+                    } catch (error: Throwable) {
+                        if (!(error is SocketException && server.isClosed)) failure.set(error)
+                    }
+                }
+                .apply { start() }
+
+        override fun close() {
+            server.close()
+            thread.join(6_000)
+            check(!thread.isAlive)
+            failure.get()?.let { throw AssertionError("Community fixture server failed", it) }
         }
     }
 
@@ -499,7 +594,9 @@ class SkipIntroTest {
                                                     query.getQueryParameter("list_versions") ==
                                                         "true"
                                                 ) {
-                                                    """{"tmdb_id":1396,"type":"tv","season":1,"episode":1,"versions":[{"duration_ms":$duration}]}"""
+                                                    // A version a few seconds off the stream,
+                                                    // as a real release's is.
+                                                    """{"tmdb_id":1396,"type":"tv","season":1,"episode":1,"versions":[{"duration_ms":${duration + 4_000},"average_duration_ms":${duration - 2_000}}]}"""
                                                 } else {
                                                     """{"tmdb_id":1396,"type":"tv","season":1,"episode":1,"intro":[{"start_ms":5000,"end_ms":12000}]}"""
                                                 }

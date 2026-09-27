@@ -243,5 +243,20 @@ fixture(
   chapters(atom(1, 5_000, 12_000, 'Intro'), atom(2, 12_000, 30_000, 'x'.repeat(65_536))),
   true,
 );
+// Most releases carry no chapters, and a real episode is far longer than the player buffers,
+// so playback runs for minutes before the extractor reaches the end of the file.
+execFileSync(
+  'ffmpeg',
+  [
+    ...['-hide_banner', '-loglevel', 'error', '-y'],
+    ...['-f', 'lavfi', '-i', 'color=c=0x1d3040:s=320x180:r=2:d=300'],
+    ...['-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000:duration=300'],
+    ...['-map', '0:v', '-map', '1:a', '-map_chapters', '-1'],
+    ...['-c:v', 'libx264', '-preset', 'ultrafast', '-g', '2', '-pix_fmt', 'yuv420p'],
+    ...['-c:a', 'aac', '-b:a', '32k', '-t', '300'],
+    join(directory, 'intro-no-chapters-long.mkv'),
+  ],
+  { stdio: 'pipe' },
+);
 rmSync(temporary, { recursive: true, force: true });
 console.log('Wrote bounded Matroska intro fixtures');

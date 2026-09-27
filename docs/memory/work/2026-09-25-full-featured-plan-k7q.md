@@ -56,6 +56,7 @@ Source: Chris's instruction of 2026-09-25 to plan and implement a full-featured,
 - A Kino killed with SIGTERM leaves its single-instance socket in `$TMPDIR`; Kino clears a stale one at launch, and the probes remove theirs.
 - The notice review pins Homebrew versions from CI's runner. A Mac whose Homebrew lags, such as libtorrent 2.1.1 against the reviewed 2.1.2, fails `pnpm macos:package` at the notices step.
 - TheIntroDB groups submissions into release versions and selects one up to 60 s from the requested runtime, then falls back to the most submitted; its documentation names no window. Kino required the runtime to the millisecond, so community intros almost never applied, and the fixtures used exact runtimes, so every gate passed (ADR 0029). `pnpm intro:check-live` now runs the client against the service.
+- The TV concluded a Matroska file had no chapters only at the end of the file, so a chapterless release, the common case, never asked TheIntroDB during playback. Chris found it on Ted Lasso S3E4; the 30-second fixtures reached their end at once and hid it. Absence is now concluded at the first cluster.
 
 ## Waiting on Chris
 
