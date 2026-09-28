@@ -19,6 +19,7 @@ import com.stremio.core.types.resource.Stream
 import java.io.File
 import java.net.InetAddress
 import java.net.ServerSocket
+import java.net.Socket
 import java.net.SocketException
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
@@ -84,9 +85,21 @@ class SkipIntroTest {
                 player.pause()
                 player.seekTo(6_000)
             }
-            waitFor("Automatic intro skipping must seek to the typed marker end") {
-                player.currentPosition in 11_900L..12_500L &&
-                    undoButton(activity)?.hasFocus() == true
+            try {
+                waitFor("Automatic intro skipping must seek to the typed marker end") {
+                    player.currentPosition in 11_900L..12_500L &&
+                        undoButton(activity)?.hasFocus() == true
+                }
+            } catch (error: AssertionError) {
+                val state = onMain {
+                    "position=${player.currentPosition} playing=${player.isPlaying} " +
+                        "marker=${introBar(activity)?.introMarker()} " +
+                        "undo=${undoButton(activity)?.let { "shown focused=${it.hasFocus()}" }} " +
+                        "skip=${skipButton(activity)?.isShown} " +
+                        "automatic=${app.settings.getBoolean("automatic_intro", false)} " +
+                        "focus=${activity.window.decorView.findFocus()?.javaClass?.simpleName}"
+                }
+                throw AssertionError("${error.message}: $state", error)
             }
             key(KeyEvent.KEYCODE_DPAD_CENTER)
             waitFor("Undo must return to the intro start") {
@@ -322,6 +335,62 @@ class SkipIntroTest {
     }
 
     @Test
+    fun numberedChaptersBehindARedirectStillReachTheCommunity() = runBlocking {
+        // Add-ons hand out debrid links that redirect to the file, and a host may refuse a second
+        // connection to it. The stream already carried the chapters, so Kino's own read of them
+        // must not decide anything.
+        val media = communityMarkerThroughRedirect("intro-generic-long.mkv", refuseChapterRead = true)
+        assertTrue("The player must follow the redirect", media.redirects.get() >= 1)
+    }
+
+    @Test
+    fun chaptersAtTheEndAreReadThroughARedirect() = runBlocking {
+        val media = communityMarkerThroughRedirect("intro-generic-tail-long.mkv")
+        assertTrue(
+            "Only Kino's own read reaches chapters at the end of the file",
+            media.chapterReads.get() >= 1,
+        )
+    }
+
+    private suspend fun communityMarkerThroughRedirect(
+        asset: String,
+        refuseChapterRead: Boolean = false,
+    ): RedirectingMediaServer =
+        RedirectingMediaServer(asset, refuseChapterRead).use { media ->
+            CommunityServer(
+                    listed =
+                        """{"tmdb_id":1396,"type":"tv","season":1,"episode":1,"versions":[{"duration_ms":303000,"average_duration_ms":298500,"submission_count":4}]}""",
+                    selected =
+                        """{"tmdb_id":1396,"type":"tv","season":1,"episode":1,"intro":[{"start_ms":5000,"end_ms":12000}]}""",
+                )
+                .use { server ->
+                    withPlaybackUrl(
+                        media.url,
+                        automatic = false,
+                        mediaId = "tmdb:1396",
+                        introEndpoint = server.endpoint,
+                    ) { activity, player ->
+                        onMain {
+                            player.pause()
+                            player.seekTo(6_000)
+                        }
+                        waitFor("$asset must expose the community marker") {
+                            introBar(activity)?.introMarker()?.source ==
+                                TvIntroMarker.Source.Community &&
+                                skipButton(activity)?.isShown == true
+                        }
+                        // Leaving at 6 s would save it as the fixture episode's progress, and the
+                        // next test on that episode would resume inside the intro.
+                        onMain {
+                            player.seekTo(0)
+                            player.stop()
+                        }
+                    }
+                }
+            media
+        }
+
+    @Test
     fun hlsPlaybackUsesTheCommunityMarker() = runBlocking {
         AdaptiveIntroServer().use { server ->
             withPlaybackUrl(
@@ -448,6 +517,124 @@ class SkipIntroTest {
                 app.settings.edit().remove("skip_intro").remove("automatic_intro").commit()
             }
         }
+    }
+
+    /**
+     * Serves a Matroska fixture behind a redirect, as a debrid link resolves, with byte ranges and
+     * a connection each. With [refuseChapterRead], a range starting at the Chapters element is
+     * refused, as a host that allows one connection per link refuses Kino's own read.
+     */
+    private inner class RedirectingMediaServer(
+        asset: String,
+        private val refuseChapterRead: Boolean,
+    ) : AutoCloseable {
+        private val server = ServerSocket(0, 16, InetAddress.getByName("127.0.0.1"))
+        private val failure = AtomicReference<Throwable>()
+        private val bytes = instrumentation.context.assets.open(asset).readBytes()
+        private val chapters = chaptersOffset(bytes)
+        private val sockets = java.util.Collections.synchronizedList(mutableListOf<Socket>())
+        val redirects = AtomicInteger()
+        val chapterReads = AtomicInteger()
+        val url = "http://127.0.0.1:${server.localPort}/resolve/$asset"
+        private val thread =
+            Thread {
+                    try {
+                        while (!server.isClosed) {
+                            val socket = server.accept()
+                            sockets += socket
+                            Thread { serve(socket) }.apply { isDaemon = true }.start()
+                        }
+                    } catch (error: Throwable) {
+                        if (!(error is SocketException && server.isClosed)) failure.set(error)
+                    }
+                }
+                .apply { start() }
+
+        private fun serve(socket: Socket) =
+            socket.use {
+                // The player drops connections mid-body whenever it seeks.
+                runCatching {
+                    socket.soTimeout = 10_000
+                    val reader = socket.getInputStream().bufferedReader(Charsets.ISO_8859_1)
+                    val path = reader.readLine()?.split(' ')?.getOrNull(1) ?: return@runCatching
+                    var range: LongRange? = null
+                    while (true) {
+                        val line = reader.readLine()
+                        if (line.isNullOrEmpty()) break
+                        Regex("(?i)range: *bytes=([0-9]+)-([0-9]*)").matchEntire(line)?.let {
+                            val start = it.groupValues[1].toLong()
+                            val end = it.groupValues[2].toLongOrNull() ?: (bytes.size - 1L)
+                            range = start..minOf(end, bytes.size - 1L)
+                        }
+                    }
+                    val out = socket.getOutputStream()
+                    val served = range
+                    if (served?.first == chapters) chapterReads.incrementAndGet()
+                    when {
+                        path.startsWith("/resolve/") -> {
+                            redirects.incrementAndGet()
+                            val target = "/media/" + path.removePrefix("/resolve/")
+                            out.write(
+                                ("HTTP/1.1 302 Found\r\nLocation: http://127.0.0.1:" +
+                                        "${server.localPort}$target\r\nContent-Length: 0\r\n" +
+                                        "Connection: close\r\n\r\n")
+                                    .toByteArray()
+                            )
+                        }
+                        refuseChapterRead && served?.first == chapters ->
+                            out.write(
+                                "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                                    .toByteArray()
+                            )
+                        served != null -> {
+                            val length = served.last - served.first + 1
+                            out.write(
+                                ("HTTP/1.1 206 Partial Content\r\nContent-Type: video/x-matroska\r\n" +
+                                        "Accept-Ranges: bytes\r\nContent-Range: bytes " +
+                                        "${served.first}-${served.last}/${bytes.size}\r\n" +
+                                        "Content-Length: $length\r\nConnection: close\r\n\r\n")
+                                    .toByteArray()
+                            )
+                            out.write(bytes, served.first.toInt(), length.toInt())
+                        }
+                        else -> {
+                            out.write(
+                                ("HTTP/1.1 200 OK\r\nContent-Type: video/x-matroska\r\n" +
+                                        "Accept-Ranges: bytes\r\nContent-Length: ${bytes.size}\r\n" +
+                                        "Connection: close\r\n\r\n")
+                                    .toByteArray()
+                            )
+                            out.write(bytes)
+                        }
+                    }
+                    out.flush()
+                }
+            }
+
+        override fun close() {
+            server.close()
+            // A connection the player stopped reading would otherwise hold its thread in a write
+            // into the next test.
+            synchronized(sockets) { sockets.forEach { runCatching { it.close() } } }
+            thread.join(6_000)
+            check(!thread.isAlive)
+            failure.get()?.let { throw AssertionError("Media fixture server failed", it) }
+        }
+    }
+
+    /** Where the Chapters element starts, not the seek entry that names it. */
+    private fun chaptersOffset(bytes: ByteArray): Long {
+        for (index in 3..bytes.size - 4) {
+            if (
+                bytes[index] == 0x10.toByte() &&
+                    bytes[index + 1] == 0x43.toByte() &&
+                    bytes[index + 2] == 0xa7.toByte() &&
+                    bytes[index + 3] == 0x70.toByte() &&
+                    !(bytes[index - 3] == 0x53.toByte() && bytes[index - 2] == 0xab.toByte())
+            )
+                return index.toLong()
+        }
+        return -1
     }
 
     /** Answers each community request by what it asks for, as the service does. */

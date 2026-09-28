@@ -17,6 +17,15 @@ internal sealed interface IntroDiscovery {
     data object Unknown : IntroDiscovery
 }
 
+/** A stable name for logs, which carry no chapter titles or times. */
+internal val IntroDiscovery.logName: String
+    get() =
+        when (this) {
+            is IntroDiscovery.Found -> "found"
+            IntroDiscovery.Absent -> "absent"
+            IntroDiscovery.Unknown -> "unknown"
+        }
+
 /** Reads one complete Matroska Chapters payload within the limits used by intro discovery. */
 internal object MatroskaChapters {
     private const val MAX_ATOMS = 512

@@ -2,6 +2,7 @@ package app.kino.tv
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.RandomAccessFile
@@ -18,6 +19,7 @@ import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -65,7 +67,10 @@ internal class IntroCommunityClient(
                     .build()
             val versions =
                 get(base.newBuilder().addQueryParameter("list_versions", "true").build(), deadline)
-                    ?: return@withTimeoutOrNull null
+                    ?: run {
+                        Log.i("KinoIntro", "Community versions=unavailable")
+                        return@withTimeoutOrNull null
+                    }
             val listedIdentity =
                 responseIdentity(versions, identity) ?: return@withTimeoutOrNull null
             val listed = versions.optJSONArray("versions") ?: return@withTimeoutOrNull null
@@ -75,6 +80,7 @@ internal class IntroCommunityClient(
             // one version, by both its listed and its average runtime, lets Kino reject that
             // fallback. The zero-runtime version is unknown and never qualifies.
             var matching = 0
+            var nearest = Long.MAX_VALUE
             for (index in 0 until listed.length()) {
                 val item = listed.optJSONObject(index) ?: return@withTimeoutOrNull null
                 val runtime = exactLong(item.opt("duration_ms")) ?: return@withTimeoutOrNull null
@@ -83,6 +89,7 @@ internal class IntroCommunityClient(
                     if (item.has("average_duration_ms"))
                         exactLong(item.opt("average_duration_ms")) ?: return@withTimeoutOrNull null
                     else runtime
+                if (runtime > 0) nearest = minOf(nearest, abs(runtime - identity.durationMs))
                 if (
                     runtime > 0 &&
                         abs(runtime - identity.durationMs) <= VERSION_WINDOW_MS &&
@@ -90,6 +97,13 @@ internal class IntroCommunityClient(
                 )
                     matching++
             }
+            // How far the file is from the nearest version says whether a missing intro is the
+            // service's gap or Kino's, without naming the title.
+            Log.i(
+                "KinoIntro",
+                "Community versions=${listed.length()} matching=$matching " +
+                    "nearest=${if (nearest == Long.MAX_VALUE) "none" else "${nearest / 1000}s"}",
+            )
             if (matching != 1) return@withTimeoutOrNull null
             val media =
                 get(base.newBuilder().addQueryParameter("merge_unknown", "false").build(), deadline)
@@ -254,7 +268,7 @@ internal suspend fun readIndexedChapters(
     offset: Long,
     client: OkHttpClient = OkHttpClient(),
 ): ByteArray? =
-    withTimeoutOrNull(2_000) {
+    withTimeoutOrNull(5_000) {
         if (offset < 0) return@withTimeoutOrNull null
         val bytes =
             when (uri.scheme) {
@@ -283,22 +297,33 @@ internal suspend fun readIndexedChapters(
                             }
                             .getOrNull()
                     }
-                "https" ->
+                "https",
+                "http" ->
                     withContext(Dispatchers.IO) {
                         runCatching {
+                                val url = uri.toString().toHttpUrlOrNull()
+                                if (url == null || !chapterSourceAllowed(url)) return@runCatching null
+                                // Add-ons hand out debrid links that redirect to the file, as the
+                                // player follows them. Every hop must stay a source the player
+                                // itself would accept.
                                 val http =
                                     client
                                         .newBuilder()
-                                        .followRedirects(false)
-                                        .followSslRedirects(false)
-                                        .callTimeout(2, TimeUnit.SECONDS)
+                                        .followRedirects(true)
+                                        .followSslRedirects(true)
+                                        .addNetworkInterceptor { chain ->
+                                            if (!chapterSourceAllowed(chain.request().url))
+                                                throw java.io.IOException("Redirect refused")
+                                            chain.proceed(chain.request())
+                                        }
+                                        .callTimeout(5, TimeUnit.SECONDS)
                                         .build()
                                 val end =
                                     Math.addExact(
                                         offset,
                                         (MAX_CHAPTER_BYTES + MAX_ELEMENT_HEADER - 1).toLong(),
                                     )
-                                val request = Request.Builder().url(uri.toString())
+                                val request = Request.Builder().url(url)
                                 for ((name, value) in headers) request.header(name, value)
                                 request.header("Range", "bytes=$offset-$end")
                                 val response = http.newCall(request.get().build()).execute()
@@ -326,6 +351,12 @@ internal suspend fun readIndexedChapters(
             } ?: return@withTimeoutOrNull null
         chapterPayload(bytes)
     }
+
+/** HTTPS, or plain HTTP to the streaming engine on this device, never with credentials. */
+private fun chapterSourceAllowed(url: HttpUrl) =
+    url.username.isEmpty() &&
+        url.password.isEmpty() &&
+        (url.scheme == "https" || url.host in setOf("127.0.0.1", "localhost", "::1"))
 
 private fun chapterPayload(bytes: ByteArray): ByteArray? {
     if (bytes.size < 5) return null
