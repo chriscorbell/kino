@@ -474,11 +474,60 @@ export function generateDolbyVisionProbes(fixturesDir) {
   return outputs;
 }
 
+/**
+ * The HDR10 probe remuxed without the container's Colour element, as many disc remuxes are. Only
+ * the stream's own parameter set says it is PQ, so a player that reads the container alone takes
+ * it for SDR. Requires mkvmerge.
+ */
+export function generateUntaggedHdrProbe(fixturesDir) {
+  const target = join(fixturesDir, 'hdr-probe-untagged.mkv');
+  if (existsSync(target)) return target;
+  const stream = join(fixturesDir, 'hdr-probe-untagged.hevc');
+  execFileSync('ffmpeg', [
+    '-nostdin',
+    '-y',
+    '-v',
+    'error',
+    '-i',
+    generateHdrProbe(fixturesDir),
+    '-c:v',
+    'copy',
+    '-bsf:v',
+    'hevc_mp4toannexb',
+    '-f',
+    'hevc',
+    stream,
+  ]);
+  execFileSync('mkvmerge', ['-q', '-o', target, '--default-duration', '0:24fps', stream]);
+  rmSync(stream);
+  const properties = JSON.parse(execFileSync('mkvmerge', ['-J', target]).toString()).tracks[0]
+    .properties;
+  const transfer = execFileSync('ffprobe', [
+    '-v',
+    'error',
+    '-select_streams',
+    'v:0',
+    '-show_entries',
+    'stream=color_transfer',
+    '-of',
+    'default=noprint_wrappers=1:nokey=1',
+    target,
+  ])
+    .toString()
+    .trim();
+  if ('color_transfer_characteristics' in properties || transfer !== 'smpte2084')
+    throw new Error(
+      `hdr-probe-untagged.mkv must be PQ in its stream only: ${JSON.stringify(properties)}`,
+    );
+  return target;
+}
+
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop())) {
   const dir = process.argv[2];
   if (!dir)
     throw new Error('Usage: node scripts/test-support/hdr-probe-fixture.mjs <fixtures dir>');
   console.log(`Generated ${generateHdrProbe(dir)}`);
   console.log(`Generated ${generateHdrProbe(dir, { transfer: 'hlg' })}`);
+  console.log(`Generated ${generateUntaggedHdrProbe(dir)}`);
   for (const target of generateDolbyVisionProbes(dir)) console.log(`Generated ${target}`);
 }

@@ -22,6 +22,7 @@ import {
   generateDolbyVisionProbes,
   generateHdrProbe,
   generateSdrProbe,
+  generateUntaggedHdrProbe,
 } from './test-support/hdr-probe-fixture.mjs';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -476,6 +477,7 @@ function generateFixtures() {
   generateHdrProbe(fixturesDir, { transfer: 'hlg' });
   generateSdrProbe(fixturesDir);
   generateDolbyVisionProbes(fixturesDir);
+  generateUntaggedHdrProbe(fixturesDir);
   writeFixture('external.srt', srtText);
   writeFixture('external.vtt', vttText);
   if (!existsSync(join(fixturesDir, 'corrupt.mp4'))) {
@@ -541,7 +543,8 @@ const fixtures = [
     expect: { outcome: 'played', loudness: loudnessExpectation(scale) },
   })),
   // Every pixel of the probe is a known code word, so what the player drew can be compared with
-  // the host's tone map of the same values. The HLG probe holds the same code words under HLG.
+  // the host's tone map of the same values. The HLG probe holds the same code words under HLG,
+  // and the untagged probe leaves the container's Colour element out so only the stream says PQ.
   // Profiles 8.1 and 8.4 carry the HDR10 and HLG frames under a Dolby Vision RPU and must look the
   // same as them, as must profile 7, whose base layer is the HDR10 frames beside an enhancement
   // layer; profile 5 has no base layer this renderer can show.
@@ -555,6 +558,7 @@ const fixtures = [
   },
   ...[
     ['hdr-probe.mkv', 'pq'],
+    ['hdr-probe-untagged.mkv', 'pq'],
     ['dv-p8-probe.mkv', 'pq'],
     ['dv-p7-probe.mkv', 'pq'],
     ['hlg-probe.mkv', 'hlg'],

@@ -49,6 +49,16 @@ class ShieldHdrPlaybackTest {
         assertReferencePixels(result)
     }
 
+    /**
+     * A remux without the container's Colour element, which Media3 alone would take for SDR. The
+     * stream's own parameter set says PQ, and the probe must come out exactly as the tagged one.
+     */
+    @Test
+    fun hdrTenWithoutContainerTagsPlaysFromTheStreamsOwnColour() {
+        val result = playIntoReader("hdr-probe-untagged.mkv", expectFrames = true)
+        assertReferencePixels(result)
+    }
+
     /** The same code words under HLG must come out as the host's HLG reference predicts. */
     @Test
     fun hlgPlaysThroughKinoToneMappingWithReferencePixels() {
