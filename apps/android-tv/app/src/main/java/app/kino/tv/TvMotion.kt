@@ -6,8 +6,14 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 
+/**
+ * A focused poster grows from its top edge. On a TV every focus change scrolls the list to put the
+ * focused card's top on a fixed line, re-reading it each frame, so growing from the centre moved
+ * that top while the scroll chased it and the page settled a few pixels off on every move.
+ */
 @Composable
 internal fun Modifier.quickFocusScale(): Modifier {
     var focused by remember { mutableStateOf(false) }
@@ -16,6 +22,7 @@ internal fun Modifier.quickFocusScale(): Modifier {
         .graphicsLayer {
             scaleX = scale.value
             scaleY = scale.value
+            transformOrigin = TransformOrigin(0.5f, 0f)
         }
 }
 
