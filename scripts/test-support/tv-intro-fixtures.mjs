@@ -171,54 +171,62 @@ function voidBytes(length) {
   throw new Error('Void size cannot be represented');
 }
 
-const top = children(original, 0, original.length);
-const segment = top.find((value) => value.id === 0x18538067);
-const parts = children(original, segment.content, segment.end);
-const existing = parts.find((value) => value.id === 0x1043a770);
-const index = parts.find((value) => value.id === 0x114d9b74);
-const indexVoid = parts.find((value) => value.start === index.end && value.id === 0xec);
-const indexLength = indexVoid.end - index.start;
-const entries = children(original, index.content, index.end)
-  .filter((value) => value.id === 0x4dbb)
-  .map((entry) => {
-    const fields = children(original, entry.content, entry.end);
-    const idField = fields.find((value) => value.id === 0x53ab);
-    const positionField = fields.find((value) => value.id === 0x53ac);
-    const value = (field) =>
-      Number(BigInt(`0x${original.subarray(field.content, field.end).toString('hex')}`));
-    return { id: value(idField), position: value(positionField) };
-  });
+// Rewrites the Chapters element and its seek entry of a file ffmpeg muxed with room reserved for
+// them, so each fixture differs from its base only in where its chapters are and what they say.
+function layout(original, suffix = '') {
+  const top = children(original, 0, original.length);
+  const segment = top.find((value) => value.id === 0x18538067);
+  const parts = children(original, segment.content, segment.end);
+  const existing = parts.find((value) => value.id === 0x1043a770);
+  const index = parts.find((value) => value.id === 0x114d9b74);
+  const indexVoid = parts.find((value) => value.start === index.end && value.id === 0xec);
+  const indexLength = indexVoid.end - index.start;
+  const entries = children(original, index.content, index.end)
+    .filter((value) => value.id === 0x4dbb)
+    .map((entry) => {
+      const fields = children(original, entry.content, entry.end);
+      const idField = fields.find((value) => value.id === 0x53ab);
+      const positionField = fields.find((value) => value.id === 0x53ac);
+      const value = (field) =>
+        Number(BigInt(`0x${original.subarray(field.content, field.end).toString('hex')}`));
+      return { id: value(idField), position: value(positionField) };
+    });
 
-function fixture(name, block, tail = false, indexed = true) {
-  const bytes = Buffer.from(original);
-  const header = top[0];
-  const version = children(bytes, header.content, header.end).find((value) => value.id === 0x4287);
-  if (version.end - version.content !== 1) throw new Error('Unexpected DocTypeVersion width');
-  bytes[version.content] = 5;
-  const target = tail ? bytes.length : existing.start;
-  const nextIndex = element(
-    0x114d9b74,
-    ...entries.flatMap((entry) => {
-      if (entry.id === 0x1043a770 && (!block || !indexed)) return [];
-      const position = entry.id === 0x1043a770 ? target - segment.content : entry.position;
-      return [element(0x4dbb, element(0x53ab, number(entry.id)), integer(0x53ac, position))];
-    }),
-  );
-  Buffer.concat([nextIndex, voidBytes(indexLength - nextIndex.length)]).copy(bytes, index.start);
-  const inHead = block && !tail ? block : Buffer.alloc(0);
-  if (inHead.length > existing.end - existing.start)
-    throw new Error('Chapter fixture is too large');
-  Buffer.concat([inHead, voidBytes(existing.end - existing.start - inHead.length)]).copy(
-    bytes,
-    existing.start,
-  );
-  const result = tail && block ? Buffer.concat([bytes, block]) : bytes;
-  encodedSize(result.length - segment.content, segment.sizeWidth).copy(
-    result,
-    segment.content - segment.sizeWidth,
-  );
-  writeFileSync(join(directory, `intro-${name}.mkv`), result);
+  return function fixture(name, block, tail = false, indexed = true) {
+    const bytes = Buffer.from(original);
+    const header = top[0];
+    const version = children(bytes, header.content, header.end).find(
+      (value) => value.id === 0x4287,
+    );
+    if (version.end - version.content !== 1) throw new Error('Unexpected DocTypeVersion width');
+    bytes[version.content] = 5;
+    const target = tail ? bytes.length : existing.start;
+    const nextIndex = element(
+      0x114d9b74,
+      ...entries.flatMap((entry) => {
+        if (entry.id === 0x1043a770 && (!block || !indexed)) return [];
+        const position = entry.id === 0x1043a770 ? target - segment.content : entry.position;
+        return [element(0x4dbb, element(0x53ab, number(entry.id)), integer(0x53ac, position))];
+      }),
+    );
+    Buffer.concat([nextIndex, voidBytes(indexLength - nextIndex.length)]).copy(bytes, index.start);
+    const inHead = block && !tail ? block : Buffer.alloc(0);
+    if (inHead.length > existing.end - existing.start)
+      throw new Error('Chapter fixture is too large');
+    Buffer.concat([inHead, voidBytes(existing.end - existing.start - inHead.length)]).copy(
+      bytes,
+      existing.start,
+    );
+    const result = tail && block ? Buffer.concat([bytes, block]) : bytes;
+    encodedSize(result.length - segment.content, segment.sizeWidth).copy(
+      result,
+      segment.content - segment.sizeWidth,
+    );
+    writeFileSync(join(directory, `intro-${name}${suffix}.mkv`), result);
+  };
 }
+
+const fixture = layout(original);
 
 const opening = atom(1, 5_000, 12_000, 'Intro');
 const main = atom(2, 12_000, 30_000, 'Main');
@@ -258,5 +266,26 @@ execFileSync(
   ],
   { stdio: 'pipe' },
 );
+// Releases that do carry chapters mostly number them, which says nothing about an intro. Muxers
+// write them before the clusters with a seek entry pointing at them; a few leave them at the end.
+const longSource = join(temporary, 'base-long.mkv');
+execFileSync(
+  'ffmpeg',
+  [
+    ...['-hide_banner', '-loglevel', 'error', '-y'],
+    ...['-f', 'lavfi', '-i', 'color=c=0x1d3040:s=320x180:r=2:d=300'],
+    ...['-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000:duration=300'],
+    ...['-f', 'ffmetadata', '-i', join(temporary, 'chapters.ffmeta')],
+    ...['-map', '0:v', '-map', '1:a', '-map_chapters', '2'],
+    ...['-c:v', 'libx264', '-preset', 'ultrafast', '-g', '2', '-pix_fmt', 'yuv420p'],
+    ...['-c:a', 'aac', '-b:a', '32k', '-t', '300'],
+    longSource,
+  ],
+  { stdio: 'pipe' },
+);
+const longFixture = layout(readFileSync(longSource), '-long');
+const numbered = chapters(atom(1, 0, 60_000, 'Chapter 1'), atom(2, 60_000, 300_000, 'Chapter 2'));
+longFixture('generic', numbered);
+longFixture('generic-tail', numbered, true);
 rmSync(temporary, { recursive: true, force: true });
 console.log('Wrote bounded Matroska intro fixtures');

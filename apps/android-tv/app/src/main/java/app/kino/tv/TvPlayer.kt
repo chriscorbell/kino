@@ -756,13 +756,19 @@ fun FullscreenPlayer(
             embeddedDiscovery =
                 chapterPayload?.let { MatroskaChapters.parse(it, duration) }
                     ?: IntroDiscovery.Unknown
+            Log.i("KinoIntro", "Chapters from=stream result=${embeddedDiscovery.logName}")
         }
     }
     LaunchedEffect(chapterOffset, duration, skipIntro) {
+        // Muxers index the Chapters element they write before the clusters, which the extractor
+        // reads anyway, so only chapters at the end of a file need this separate read. Its failure
+        // must not replace what the stream already said: a debrid link that refused it left every
+        // such release without a community intro.
         if (
             skipIntro &&
                 chapterOffset >= 0 &&
                 duration > 0 &&
+                !chapterPayloadReceived &&
                 embeddedDiscovery !is IntroDiscovery.Found
         ) {
             val payload =
@@ -772,9 +778,14 @@ fun FullscreenPlayer(
                     sourceHeaders,
                     chapterOffset,
                 )
-            if (embeddedDiscovery !is IntroDiscovery.Found) {
+            if (!chapterPayloadReceived && embeddedDiscovery !is IntroDiscovery.Found) {
                 embeddedDiscovery =
                     payload?.let { MatroskaChapters.parse(it, duration) } ?: IntroDiscovery.Unknown
+                Log.i(
+                    "KinoIntro",
+                    "Chapters from=index read=${if (payload == null) "failed" else "ok"} " +
+                        "result=${embeddedDiscovery.logName}",
+                )
             }
         }
     }
@@ -785,7 +796,13 @@ fun FullscreenPlayer(
                 IntroDiscovery.Unknown -> null
                 IntroDiscovery.Absent -> {
                     if (!skipIntro) null
-                    else communityIdentity?.let { IntroCommunityClient(introEndpoint).lookup(it) }
+                    else if (communityIdentity == null) {
+                        if (duration > 0) Log.i("KinoIntro", "Community skipped=identity")
+                        null
+                    } else
+                        IntroCommunityClient(introEndpoint).lookup(communityIdentity).also {
+                            Log.i("KinoIntro", "Community marker=${it != null}")
+                        }
                 }
             }
     }
