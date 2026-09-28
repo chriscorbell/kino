@@ -39,12 +39,15 @@ import androidx.media3.common.text.Cue
 import androidx.media3.common.text.CueGroup
 import androidx.media3.common.util.CodecSpecificDataUtil
 import androidx.media3.common.util.Util
+import androidx.media3.container.NalUnitUtil
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.HttpDataSource
+import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.FormatHolder
 import androidx.media3.exoplayer.LoadControl
 import androidx.media3.exoplayer.Renderer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
@@ -66,6 +69,50 @@ import androidx.media3.ui.PlayerView
 import androidx.tv.material3.Button
 import androidx.tv.material3.Text
 import kotlinx.coroutines.*
+
+/**
+ * [format] with the colour its HEVC stream states, when the container stated none.
+ *
+ * Media3 reads a Matroska track's colour only from the container's Colour element, which many
+ * remuxes leave out, while the stream's sequence parameter set still names the transfer. Without
+ * it an HDR10 remux configures as SDR and fails once the decoder reports PQ.
+ */
+internal fun withStreamColour(format: Format): Format {
+    if (format.colorInfo != null) return format
+    if (
+        format.sampleMimeType != MimeTypes.VIDEO_H265 &&
+            format.sampleMimeType != MimeTypes.VIDEO_DOLBY_VISION
+    )
+        return format
+    for (data in format.initializationData) {
+        var start = NalUnitUtil.findNalUnit(data, 0, data.size, BooleanArray(3))
+        while (start < data.size) {
+            val next = NalUnitUtil.findNalUnit(data, start + 3, data.size, BooleanArray(3))
+            if (
+                NalUnitUtil.getH265NalUnitType(data, start) == NalUnitUtil.H265_NAL_UNIT_TYPE_SPS
+            ) {
+                val sps =
+                    runCatching { NalUnitUtil.parseH265SpsNalUnit(data, start + 3, next, null) }
+                        .getOrNull()
+                if (sps == null || sps.colorTransfer == Format.NO_VALUE) return format
+                return format
+                    .buildUpon()
+                    .setColorInfo(
+                        ColorInfo.Builder()
+                            .setColorSpace(sps.colorSpace)
+                            .setColorRange(sps.colorRange)
+                            .setColorTransfer(sps.colorTransfer)
+                            .setLumaBitdepth(sps.bitDepthLumaMinus8 + 8)
+                            .setChromaBitdepth(sps.bitDepthChromaMinus8 + 8)
+                            .build()
+                    )
+                    .build()
+            }
+            start = next
+        }
+    }
+    return format
+}
 
 /**
  * Hardware video only, with HDR10 and HLG tone mapped to SDR by Kino rather than passed to the
@@ -156,8 +203,8 @@ class HardwareRenderers(context: Context, private val stereo: Boolean = false) :
 
     /**
      * Every Dolby Vision profile except 7 and 8, whose cross-compatible base layers an HEVC decoder
-     * plays on its own, ignoring the RPU and any enhancement layer, and whose range the container's
-     * colour tags state. 8.1 is HDR10 and 8.4 is HLG, both tone mapped, and 8.2 is SDR. Profile 7
+     * plays on its own, ignoring the RPU and any enhancement layer, and whose range the container or
+     * the stream states. 8.1 is HDR10 and 8.4 is HLG, both tone mapped, and 8.2 is SDR. Profile 7
      * is a UHD Blu-ray's: its base layer is the disc's HDR10 picture, and its enhancement layer
      * adds precision rather than image. Profile 5 has no compatible base layer, so decoding it as
      * HEVC would show the wrong colours, and the others have not been measured.
@@ -207,6 +254,15 @@ class HardwareRenderers(context: Context, private val stereo: Boolean = false) :
                         }
                     }
                     super.handleMessage(messageType, message)
+                }
+
+                // Everything below, the range checks included, sees the colour the stream states
+                // when the container left it out.
+                override fun onInputFormatChanged(
+                    formatHolder: FormatHolder
+                ): DecoderReuseEvaluation? {
+                    formatHolder.format = formatHolder.format?.let(::withStreamColour)
+                    return super.onInputFormatChanged(formatHolder)
                 }
 
                 override fun getDecoderInfos(
