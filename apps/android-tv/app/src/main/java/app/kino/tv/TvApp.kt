@@ -49,6 +49,11 @@ fun KinoApp(
     var selected by remember(core) { mutableStateOf<Media?>(null) }
     var videoId by remember(core) { mutableStateOf<String?>(null) }
     var playing by remember(core) { mutableStateOf<Source?>(null) }
+    // The player asks for the video's display mode and gives it back as it closes. The browsing
+    // screens never keep one, however the player went away.
+    LaunchedEffect(playing) {
+        if (playing == null) (context as? android.app.Activity)?.let(::releaseDisplayMode)
+    }
     var playbackError by remember { mutableStateOf<Int?>(null) }
     var failedSource by remember { mutableStateOf<FailedSource?>(null) }
     var query by rememberSaveable { mutableStateOf("") }

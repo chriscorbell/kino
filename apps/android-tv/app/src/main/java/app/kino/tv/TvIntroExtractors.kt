@@ -17,11 +17,15 @@ import androidx.media3.extractor.mkv.MatroskaExtractor
 import androidx.media3.extractor.text.DefaultSubtitleParserFactory
 import androidx.media3.extractor.text.SubtitleParser
 
-/** Receives only metadata from the extractor Media3 actually selects for playback. */
+/**
+ * Receives only metadata from the extractor Media3 actually selects for playback: what intro
+ * discovery needs, and the frame rate a Matroska video track states, which Media3 does not read.
+ */
 internal class IntroDiscoverySession(
     private val onSelected: (Boolean) -> Unit,
     private val onChapters: (ByteArray?) -> Unit,
     private val onChapterOffset: (Long) -> Unit,
+    private val onFrameRate: (Float) -> Unit = {},
 ) {
     private val main = Handler(Looper.getMainLooper())
     private var released = false
@@ -31,6 +35,8 @@ internal class IntroDiscoverySession(
     fun chapters(payload: ByteArray?) = post { onChapters(payload) }
 
     fun chapterOffset(offset: Long) = post { onChapterOffset(offset) }
+
+    fun frameRate(rate: Float) = post { onFrameRate(rate) }
 
     @Synchronized
     private fun post(action: () -> Unit) {
@@ -118,6 +124,9 @@ private class IntroMatroskaExtractor(
     private var hasIndexedChapters = false
     private var reportedAbsent = false
     private var metadataComplete = false
+    private var trackType = -1L
+    private var defaultDurationNs = -1L
+    private var reportedFrameRate = false
 
     override fun getElementType(id: Int): Int =
         if (id == CHAPTERS) EbmlProcessor.ELEMENT_TYPE_BINARY else super.getElementType(id)
@@ -126,6 +135,10 @@ private class IntroMatroskaExtractor(
 
     override fun startMasterElement(id: Int, contentPosition: Long, contentSize: Long) {
         if (id == SEGMENT) segmentContent = contentPosition
+        if (id == TRACK_ENTRY) {
+            trackType = -1L
+            defaultDurationNs = -1L
+        }
         // Muxers write Chapters, or a seek entry for them, before the first cluster. Most releases
         // have neither, and waiting for the end of the file to be sure would leave the community
         // lookup until the film was over. Chapters found after the clusters still take over.
@@ -143,6 +156,13 @@ private class IntroMatroskaExtractor(
 
     override fun endMasterElement(id: Int) {
         super.endMasterElement(id)
+        // A video track's DefaultDuration is its frame time, known before the first frame; Media3
+        // leaves Format.frameRate unset for Matroska, which would leave the TV's mode change until
+        // three seconds of frames had been measured.
+        if (id == TRACK_ENTRY && trackType == VIDEO_TRACK && defaultDurationNs > 0) {
+            if (!reportedFrameRate) session.frameRate(1_000_000_000f / defaultDurationNs)
+            reportedFrameRate = true
+        }
         if (id == SEEK) {
             if (seekId == CHAPTERS && segmentContent >= 0 && seekPosition >= 0) {
                 hasIndexedChapters = true
@@ -156,6 +176,8 @@ private class IntroMatroskaExtractor(
 
     override fun integerElement(id: Int, value: Long) {
         if (inSeek && id == SEEK_POSITION) seekPosition = value
+        if (id == TRACK_TYPE) trackType = value
+        if (id == DEFAULT_DURATION) defaultDurationNs = value
         super.integerElement(id, value)
     }
 
@@ -194,6 +216,10 @@ private class IntroMatroskaExtractor(
         private const val SEEK = 0x4dbb
         private const val SEEK_ID = 0x53ab
         private const val SEEK_POSITION = 0x53ac
+        private const val TRACK_ENTRY = 0xae
+        private const val TRACK_TYPE = 0x83
+        private const val DEFAULT_DURATION = 0x23e383
+        private const val VIDEO_TRACK = 1L
         private const val MAX_CHAPTER_BYTES = 64 * 1024
     }
 }
