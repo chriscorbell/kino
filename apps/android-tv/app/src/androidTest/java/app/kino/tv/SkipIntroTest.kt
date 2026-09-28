@@ -660,14 +660,19 @@ class SkipIntroTest {
                                     if (path.contains("list_versions=true")) listed
                                     else selected.also { markerRequests.incrementAndGet() }
                                 val bytes = body.toByteArray()
-                                socket.getOutputStream().apply {
-                                    write(
-                                        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ${bytes.size}\r\nConnection: close\r\n\r\n"
-                                            .toByteArray()
-                                    )
-                                    write(bytes)
-                                    flush()
-                                }
+                                // A lookup canceled after asking closes before the answer, as
+                                // one the player restarts does. Ending the loop there left the
+                                // restarted lookup unanswered until it timed out.
+                                try {
+                                    socket.getOutputStream().apply {
+                                        write(
+                                            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ${bytes.size}\r\nConnection: close\r\n\r\n"
+                                                .toByteArray()
+                                        )
+                                        write(bytes)
+                                        flush()
+                                    }
+                                } catch (_: SocketException) {}
                             }
                         }
                     } catch (error: Throwable) {
