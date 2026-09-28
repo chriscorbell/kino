@@ -11,6 +11,7 @@ Kino states its intended behavior in documents, and code that contradicts one of
 - `CONTEXT.md` names things. Use its vocabulary in code, comments, UI text, commits, and PRs. Each entry's `_Avoid_` line lists wording this project rejects.
 - `docs/PRODUCT.md` is the product contract: what Kino is, what it declines to become, platform order, and the privacy promises.
 - `docs/PLAYBACK.md` is the playback contract. Read it for decoder, audio, subtitle, range, or HDR work.
+- `docs/DESKTOP.md` covers what the desktop app does, its native checks, the streaming engine, and macOS packaging.
 - `docs/ANDROID-TV.md` covers the TV toolchain, device checks, and what the TV app cannot do yet.
 - `docs/adr/` records decisions and the reasoning behind them. Behavior an ADR fixed changes by writing a new ADR, not by quietly diverging.
 - `docs/RISKS.md` lists the gates that decide whether a replaceable technical layer stays.
