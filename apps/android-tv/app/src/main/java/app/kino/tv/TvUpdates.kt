@@ -18,6 +18,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -267,6 +268,9 @@ internal sealed interface InstallStatus {
 
     data object Confirming : InstallStatus
 
+    /** The viewer confirmed; Android ends this process when the install finishes. */
+    data object Installing : InstallStatus
+
     data object Cancelled : InstallStatus
 
     data class Failed(val status: Int) : InstallStatus
@@ -296,6 +300,8 @@ internal fun installUpdate(context: Context, apk: File, status: MutableStateFlow
                         status.value = InstallStatus.Cancelled
                         app.unregisterReceiver(this)
                     }
+                    // Android usually ends this process before it can say so.
+                    PackageInstaller.STATUS_SUCCESS -> app.unregisterReceiver(this)
                     else -> {
                         status.value = InstallStatus.Failed(code)
                         app.unregisterReceiver(this)
@@ -339,10 +345,11 @@ internal fun installUpdate(context: Context, apk: File, status: MutableStateFlow
 }
 
 /**
- * Android 11 reports nothing when the viewer backs out of the installer's prompt; the session just
- * waits. When Kino is in front again with a session that is not installing, the prompt was
- * dismissed, so the session is abandoned and reported as cancelled. A session Android is still
- * installing is left alone.
+ * Android 11 reports nothing when the viewer backs out of the installer's prompt, and nothing when
+ * they confirm it either, since the finished install ends this process. Kino is in front again after
+ * both. Abandoning the session tells them apart: Android ignores it for a session it is installing,
+ * and reports an abandoned one as aborted, which the receiver turns into a cancellation. Deciding
+ * the cancellation here instead showed a confirmed update as cancelled.
  */
 internal fun settleDismissedInstall(context: Context, id: Int, status: MutableStateFlow<InstallStatus>) {
     if (status.value != InstallStatus.Confirming) return
@@ -350,7 +357,6 @@ internal fun settleDismissedInstall(context: Context, id: Int, status: MutableSt
     val session = installer.getSessionInfo(id) ?: return
     if (session.isActive) return
     runCatching { installer.abandonSession(id) }
-    status.value = InstallStatus.Cancelled
 }
 
 /** Where the update path stands, for the notice and for Settings. */
@@ -396,10 +402,25 @@ internal class TvUpdates(
     private val installStatus = MutableStateFlow<InstallStatus>(InstallStatus.Waiting)
     private var work: Job? = null
     private var session: Int? = null
+    private var settling: Job? = null
 
-    /** Kino is in front again; a prompt the viewer backed out of becomes a cancelled install. */
+    /**
+     * Kino is in front again, after the viewer backed out of the installer's prompt or confirmed
+     * it. Android takes a moment to start an install the viewer confirmed, so the session is settled
+     * after that; an abandoned one is reported as aborted at once, and no report means Android is
+     * installing.
+     */
     fun resume() {
-        session?.let { settleDismissedInstall(context, it, installStatus) }
+        val id = session ?: return
+        if (settling?.isActive == true) return
+        settling =
+            scope.launch {
+                delay(SETTLE_DELAY_MS)
+                settleDismissedInstall(context, id, installStatus)
+                delay(SETTLE_DELAY_MS)
+                if (installStatus.value == InstallStatus.Confirming)
+                    installStatus.value = InstallStatus.Installing
+            }
     }
 
     private fun time(key: String) = settings.getString(key, null)?.toLongOrNull() ?: 0L
@@ -510,5 +531,7 @@ internal class TvUpdates(
         const val REMIND_AFTER = "update_remind_after"
         const val SKIPPED = "update_skipped"
         const val RESUME = "update_resume"
+        // Longer than Android takes to start an install the viewer confirmed.
+        const val SETTLE_DELAY_MS = 2_000L
     }
 }

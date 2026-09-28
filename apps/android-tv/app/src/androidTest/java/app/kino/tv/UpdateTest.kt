@@ -211,9 +211,13 @@ class UpdateTest {
                 ?.packageName
                 ?.contains("packageinstaller") != true
         }
-        // What Kino does when it is in front again: the dismissed session becomes a cancellation.
+        // What Kino does when it is in front again: it abandons the session, and Android reports an
+        // abandoned session as aborted. Kino no longer declares the cancellation itself, which
+        // showed an update the viewer confirmed as cancelled.
         settleDismissedInstall(context, session, status)
-        assertEquals(InstallStatus.Cancelled, status.value)
+        remote.waitUntil("Android reports the abandoned session", 20_000) {
+            status.value == InstallStatus.Cancelled
+        }
         assertNull(
             "The dismissed session is gone",
             context.packageManager.packageInstaller.getSessionInfo(session),
