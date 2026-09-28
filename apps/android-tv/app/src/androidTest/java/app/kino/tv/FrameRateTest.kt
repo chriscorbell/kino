@@ -152,8 +152,8 @@ class FrameRateTest {
     fun backFromThePlayerGivesTheModeBackAtOnce() = withPlayer(matchFrameRate = true) {
         activity,
         display,
-        before ->
-        val target = twentyFourHertz(display)
+        before,
+        target ->
         waitUntil(display, "The TV switches to 24 Hz") { display.mode.modeId == target.id }
         instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         waitUntil(display, "Back hands the mode back while the player is still composed") {
@@ -167,7 +167,8 @@ class FrameRateTest {
     fun nothingAsksForAModeWithTheSettingOff() = withPlayer(matchFrameRate = false) {
         activity,
         display,
-        before ->
+        before,
+        _ ->
         val deadline = System.currentTimeMillis() + 5_000
         while (System.currentTimeMillis() < deadline) {
             instrumentation.runOnMainSync {
@@ -180,7 +181,7 @@ class FrameRateTest {
 
     private fun withPlayer(
         matchFrameRate: Boolean,
-        block: (PlaybackProbeActivity, Display, Int) -> Unit,
+        block: (PlaybackProbeActivity, Display, Int, ModeChoice) -> Unit,
     ) {
         val app = context.applicationContext as ShieldTestApplication
         instrumentation.runOnMainSync { app.core.initialize() }
@@ -194,6 +195,7 @@ class FrameRateTest {
             ) as PlaybackProbeActivity
         val display = activity.window.decorView.display
         val before = display.mode.modeId
+        val target = twentyFourHertz(display)
         val episode = CoreEpisodeFixture(activity)
         try {
             instrumentation.runOnMainSync {
@@ -220,7 +222,7 @@ class FrameRateTest {
             waitUntil(display, "The player starts") {
                 find<PlayerView>(activity.window.decorView)?.player?.isPlaying == true
             }
-            block(activity, display, before)
+            block(activity, display, before, target)
         } finally {
             instrumentation.runOnMainSync {
                 activity.setContent {}
