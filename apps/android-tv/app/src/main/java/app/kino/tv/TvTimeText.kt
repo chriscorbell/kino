@@ -2,7 +2,7 @@ package app.kino.tv
 
 import android.content.Context
 import android.util.AttributeSet
-import android.widget.TextView
+import androidx.appcompat.widget.AppCompatTextView
 
 /**
  * The controls' position text, which shows the time the remote is seeking to until the seek lands,
@@ -11,7 +11,7 @@ import android.widget.TextView
 class TvTimeText
 @JvmOverloads
 constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0) :
-    TextView(context, attrs, defStyleAttr) {
+    AppCompatTextView(context, attrs, defStyleAttr) {
     private var preview: CharSequence? = null
 
     internal fun preview(text: CharSequence?) {
