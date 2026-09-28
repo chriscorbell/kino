@@ -155,6 +155,10 @@ class FrameRateTest {
         before,
         target ->
         waitUntil(display, "The TV switches to 24 Hz") { display.mode.modeId == target.id }
+        // Back hides visible controls first; the second press would leave.
+        instrumentation.runOnMainSync {
+            find<PlayerView>(activity.window.decorView)?.hideController()
+        }
         instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         waitUntil(display, "Back hands the mode back while the player is still composed") {
             activity.window.attributes.preferredDisplayModeId == 0 &&
