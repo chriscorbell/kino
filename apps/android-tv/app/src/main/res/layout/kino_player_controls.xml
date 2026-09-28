@@ -40,10 +40,15 @@
             android:layoutDirection="ltr"
             android:paddingStart="@dimen/exo_styled_bottom_bar_time_padding">
 
+            <!-- Focus stays in the row, which sits inside Compose beside other focus targets that
+                 a plain search can reach first. -->
             <ImageButton
                 android:id="@id/exo_play_pause"
                 style="@style/ExoStyledControls.Button.Bottom"
                 android:contentDescription="@string/exo_controls_play_description"
+                android:nextFocusLeft="@id/exo_play_pause"
+                android:nextFocusRight="@+id/kino_subtitles"
+                android:nextFocusUp="@id/exo_progress"
                 android:src="@drawable/exo_styled_controls_play" />
 
             <!-- Kino's own id: Media3 disables its subtitle button when the media has no text
@@ -51,11 +56,17 @@
             <ImageButton
                 android:id="@+id/kino_subtitles"
                 style="@style/ExoStyledControls.Button.Bottom.CC"
-                android:contentDescription="@string/subtitles" />
+                android:contentDescription="@string/subtitles"
+                android:nextFocusLeft="@id/exo_play_pause"
+                android:nextFocusRight="@id/exo_settings"
+                android:nextFocusUp="@id/exo_progress" />
 
             <ImageButton
                 android:id="@id/exo_settings"
-                style="@style/ExoStyledControls.Button.Bottom.Settings" />
+                style="@style/ExoStyledControls.Button.Bottom.Settings"
+                android:nextFocusLeft="@id/kino_subtitles"
+                android:nextFocusRight="@id/exo_settings"
+                android:nextFocusUp="@id/exo_progress" />
         </LinearLayout>
 
         <LinearLayout
@@ -81,6 +92,7 @@
 
     <app.kino.tv.TvIntroTimeBar
         android:id="@id/exo_progress"
+        android:nextFocusDown="@id/exo_play_pause"
         android:layout_width="match_parent"
         android:layout_height="@dimen/exo_styled_progress_layout_height"
         android:layout_gravity="bottom"

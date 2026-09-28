@@ -347,7 +347,14 @@ internal class TvPlayerLayout(context: Context, player: Player) : FrameLayout(co
 
     /** The remote on the player itself, as Stremio's handles it. True when the key is taken. */
     private fun remote(event: KeyEvent): Boolean {
-        val visible = playerView.isControllerFullyVisible
+        // Up at all, animating in included: a quick second press is meant for the controls it
+        // just brought up, not for the picture.
+        val visible =
+            playerView
+                .findViewById<androidx.media3.ui.PlayerControlView>(
+                    androidx.media3.ui.R.id.exo_controller
+                )
+                ?.isVisible == true
         val onBar = timeBar?.hasFocus() == true
         val down = event.action == KeyEvent.ACTION_DOWN
         when (event.keyCode) {
@@ -358,19 +365,21 @@ internal class TvPlayerLayout(context: Context, player: Player) : FrameLayout(co
                 val media =
                     event.keyCode == KeyEvent.KEYCODE_MEDIA_REWIND ||
                         event.keyCode == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD
-                if (visible && !onBar && !media) return false
-                if (down) {
-                    seek(
-                        if (
-                            event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT ||
-                                event.keyCode == KeyEvent.KEYCODE_MEDIA_REWIND
+                // Along the buttons, the arrows move focus instead.
+                if (!visible || onBar || media) {
+                    if (down) {
+                        seek(
+                            if (
+                                event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT ||
+                                    event.keyCode == KeyEvent.KEYCODE_MEDIA_REWIND
+                            )
+                                -1
+                            else 1
                         )
-                            -1
-                        else 1
-                    )
-                    reveal(timeBar)
+                        reveal(timeBar)
+                    }
+                    return true
                 }
-                return true
             }
             KeyEvent.KEYCODE_DPAD_CENTER,
             KeyEvent.KEYCODE_ENTER,
@@ -397,6 +406,23 @@ internal class TvPlayerLayout(context: Context, player: Player) : FrameLayout(co
                     return true
                 }
             }
+        }
+        // Media3 takes a direction as "show the controls" until they have faded in, which lost a
+        // quick second press; move focus as the shown controls would.
+        val direction =
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_LEFT -> View.FOCUS_LEFT
+                KeyEvent.KEYCODE_DPAD_RIGHT -> View.FOCUS_RIGHT
+                KeyEvent.KEYCODE_DPAD_UP -> View.FOCUS_UP
+                KeyEvent.KEYCODE_DPAD_DOWN -> View.FOCUS_DOWN
+                else -> null
+            }
+        if (visible && direction != null && !playerView.isControllerFullyVisible) {
+            if (down) {
+                findFocus()?.focusSearch(direction)?.requestFocus()
+                playerView.showController()
+            }
+            return true
         }
         return false
     }

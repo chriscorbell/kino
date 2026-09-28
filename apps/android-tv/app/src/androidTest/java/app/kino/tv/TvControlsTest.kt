@@ -141,25 +141,56 @@ class TvControlsTest {
     fun downAndUpMoveBetweenTheSeekBarAndTheButtons() {
         withPlayingSurface { surface ->
             val player = surface.player
-            waitUntil("controls must auto-hide") { !surface.view.isControllerFullyVisible }
+            val trace = StringBuilder()
+            fun note(step: String) {
+                instrumentation.waitForIdleSync()
+                trace.append(
+                    onMain {
+                        "$step: focus=${focused(surface)} " +
+                            "shown=${surface.view.isControllerFullyVisible} " +
+                            "seek=${surface.layout.pendingSeek}; "
+                    }
+                )
+            }
+            fun expect(reason: String, condition: () -> Boolean) =
+                try {
+                    waitUntil(reason, condition)
+                } catch (error: AssertionError) {
+                    throw AssertionError("$reason; $trace", error)
+                }
+            expect("controls must auto-hide") { !surface.view.isControllerFullyVisible }
             instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_RIGHT)
-            waitUntil("Right must focus the seek bar") { timeBar(surface).hasFocus() }
+            note("right")
+            expect("Right must focus the seek bar") { timeBar(surface).hasFocus() }
             instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_DOWN)
-            waitUntil("Down from the seek bar reaches play and pause") {
+            note("down")
+            expect("Down from the seek bar reaches play and pause") {
                 playPause(surface).hasFocus()
             }
             instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_RIGHT)
-            waitUntil("Right along the buttons moves focus rather than seeking") {
-                !playPause(surface).hasFocus() && surface.layout.pendingSeek == C.TIME_UNSET
+            note("right along the row")
+            expect("Right along the buttons moves focus to the next button") {
+                surface.view.findViewById<View>(R.id.kino_subtitles).hasFocus()
+            }
+            expect("Right along the buttons must not seek") {
+                surface.layout.pendingSeek == C.TIME_UNSET
             }
             instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_UP)
-            waitUntil("Up from the buttons returns to the seek bar") { timeBar(surface).hasFocus() }
+            note("up")
+            expect("Up from the buttons returns to the seek bar") { timeBar(surface).hasFocus() }
             instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_CENTER)
-            waitUntil("select on the seek bar pauses, as Stremio's does") {
+            note("select")
+            expect("select on the seek bar pauses, as Stremio's does") {
                 !player.isPlaying && timeBar(surface).hasFocus()
             }
         }
     }
+
+    private fun focused(surface: Surface): String =
+        surface.view.rootView.findFocus()?.let { view ->
+            runCatching { view.resources.getResourceEntryName(view.id) }.getOrNull()
+                ?: view.javaClass.simpleName
+        } ?: "nothing"
 
     private fun playPause(surface: Surface) =
         surface.view.findViewById<View>(androidx.media3.ui.R.id.exo_play_pause)
