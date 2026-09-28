@@ -4,6 +4,7 @@ package app.kino.tv
 
 import android.content.Context
 import android.graphics.drawable.GradientDrawable
+import android.os.SystemClock
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
@@ -12,12 +13,26 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.compose.ui.graphics.toArgb
+import androidx.media3.common.C
 import androidx.media3.common.Player
+import androidx.media3.common.util.Util
 import androidx.media3.ui.PlayerView
 
-/** Actions remain reachable when Media3 hides its controls and consumes the first D-pad press. */
+/**
+ * The player's remote, as Stremio's TV player has it, and the actions beside the controls.
+ *
+ * With the controls hidden, select plays or pauses and Left and Right seek, each bringing the
+ * controls up; Stremio's first Left or Right only shows them, and Chris asked for the seek. With
+ * the seek bar focused, Left and Right go on seeking and Down reaches the buttons below it, and Up
+ * from those returns to it. A seek moves by the profile's seek step, the step grows while the
+ * presses keep coming, and the seek lands half a second after the last, with the bar and the time
+ * showing where until then. The media keys seek and play the same way.
+ */
 internal class TvPlayerLayout(context: Context, player: Player) : FrameLayout(context) {
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
+
+    /** The Stremio profile's seek step. */
+    var seekStepMs: Long = 10_000L
 
     private val actions =
         LinearLayout(context).apply {
@@ -249,9 +264,61 @@ internal class TvPlayerLayout(context: Context, player: Player) : FrameLayout(co
         if (play?.requestFocus() != true) playerView.requestFocus()
     }
 
+    private val timeBar
+        get() = playerView.findViewById<TvIntroTimeBar>(androidx.media3.ui.R.id.exo_progress)
+
+    private val playPause
+        get() = playerView.findViewById<View>(androidx.media3.ui.R.id.exo_play_pause)
+
+    private val position
+        get() = playerView.findViewById<TvTimeText>(androidx.media3.ui.R.id.exo_position)
+
+    private val buttons
+        get() = playerView.findViewById<View>(androidx.media3.ui.R.id.exo_basic_controls)
+
+    private var seekTarget = C.TIME_UNSET
+    private var seekStep = 0L
+    private var lastSeekAt = 0L
+    private val landSeek = Runnable {
+        val target = seekTarget
+        seekTarget = C.TIME_UNSET
+        if (target == C.TIME_UNSET) return@Runnable
+        playerView.player?.seekTo(target)
+        position?.preview(null)
+        timeBar?.endPreview(target)
+    }
+
+    /** Where the remote is seeking to, before it lands; for the gates. */
+    internal val pendingSeek: Long
+        get() = seekTarget
+
+    private fun seek(direction: Int) {
+        val player = playerView.player ?: return
+        val duration = player.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: return
+        val now = SystemClock.uptimeMillis()
+        // Stremio's step grows by a ten-thousandth of the runtime with every press in a burst, so
+        // holding the button crosses a film quickly, and starts over after a pause.
+        if (seekTarget == C.TIME_UNSET || now - lastSeekAt > SEEK_SETTLE_MS) {
+            if (seekTarget == C.TIME_UNSET) seekTarget = player.currentPosition
+            seekStep = seekStepMs
+        } else seekStep += duration / 10_000
+        lastSeekAt = now
+        seekTarget = (seekTarget + direction * seekStep).coerceIn(0, duration)
+        timeBar?.preview(seekTarget)
+        position?.preview(Util.getStringForTime(StringBuilder(), java.util.Formatter(), seekTarget))
+        removeCallbacks(landSeek)
+        postDelayed(landSeek, SEEK_SETTLE_MS)
+    }
+
+    private fun reveal(target: View?) {
+        playerView.showController()
+        if (target?.requestFocus() != true) target?.post { if (target.isShown) target.requestFocus() }
+    }
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if ((actions.hasFocus() || notice.hasFocus()) && playerView.dispatchMediaKeyEvent(event))
             return true
+        if (!actions.hasFocus() && !notice.hasFocus() && remote(event)) return true
         if (event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN && actions.hasFocus()) {
             if (event.action == KeyEvent.ACTION_DOWN) focusControls()
             return true
@@ -276,5 +343,66 @@ internal class TvPlayerLayout(context: Context, player: Player) : FrameLayout(co
             }
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    /** The remote on the player itself, as Stremio's handles it. True when the key is taken. */
+    private fun remote(event: KeyEvent): Boolean {
+        val visible = playerView.isControllerFullyVisible
+        val onBar = timeBar?.hasFocus() == true
+        val down = event.action == KeyEvent.ACTION_DOWN
+        when (event.keyCode) {
+            KeyEvent.KEYCODE_DPAD_LEFT,
+            KeyEvent.KEYCODE_DPAD_RIGHT,
+            KeyEvent.KEYCODE_MEDIA_REWIND,
+            KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
+                val media =
+                    event.keyCode == KeyEvent.KEYCODE_MEDIA_REWIND ||
+                        event.keyCode == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD
+                if (visible && !onBar && !media) return false
+                if (down) {
+                    seek(
+                        if (
+                            event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT ||
+                                event.keyCode == KeyEvent.KEYCODE_MEDIA_REWIND
+                        )
+                            -1
+                        else 1
+                    )
+                    reveal(timeBar)
+                }
+                return true
+            }
+            KeyEvent.KEYCODE_DPAD_CENTER,
+            KeyEvent.KEYCODE_ENTER,
+            KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                if (visible && !onBar) return false
+                if (down && event.repeatCount == 0) {
+                    playerView.player?.let(Util::handlePlayPauseButtonAction)
+                    reveal(if (onBar) timeBar else playPause)
+                }
+                return true
+            }
+            KeyEvent.KEYCODE_DPAD_UP,
+            KeyEvent.KEYCODE_DPAD_DOWN -> {
+                if (!visible) {
+                    if (down) reveal(playPause)
+                    return true
+                }
+                if (onBar && event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                    if (down) reveal(playPause)
+                    return true
+                }
+                if (buttons?.hasFocus() == true && event.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                    if (down) reveal(timeBar)
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    private companion object {
+        /** Stremio lands a seek, and starts a new burst, half a second after the last press. */
+        const val SEEK_SETTLE_MS = 500L
     }
 }

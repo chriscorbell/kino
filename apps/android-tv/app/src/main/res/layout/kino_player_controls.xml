@@ -21,6 +21,8 @@
         android:layout_height="0dp"
         android:background="@color/exo_black_opacity_60" />
 
+    <!-- One seek bar over one row of buttons, as Stremio's TV player lays them out: the remote
+         moves between the two with Up and Down, and seeks along the bar with Left and Right. -->
     <FrameLayout
         android:id="@id/exo_bottom_bar"
         android:layout_width="match_parent"
@@ -31,31 +33,18 @@
         android:layoutDirection="ltr">
 
         <LinearLayout
-            android:id="@id/exo_time"
+            android:id="@id/exo_basic_controls"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical|start"
             android:layoutDirection="ltr"
-            android:paddingStart="@dimen/exo_styled_bottom_bar_time_padding"
-            android:paddingEnd="@dimen/exo_styled_bottom_bar_time_padding">
+            android:paddingStart="@dimen/exo_styled_bottom_bar_time_padding">
 
-            <TextView
-                android:id="@id/exo_position"
-                style="@style/ExoStyledControls.TimeText.Position" />
-
-            <TextView style="@style/ExoStyledControls.TimeText.Separator" />
-
-            <TextView
-                android:id="@id/exo_duration"
-                style="@style/ExoStyledControls.TimeText.Duration" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@id/exo_basic_controls"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical|end"
-            android:layoutDirection="ltr">
+            <ImageButton
+                android:id="@id/exo_play_pause"
+                style="@style/ExoStyledControls.Button.Bottom"
+                android:contentDescription="@string/exo_controls_play_description"
+                android:src="@drawable/exo_styled_controls_play" />
 
             <!-- Kino's own id: Media3 disables its subtitle button when the media has no text
                  track, but add-on subtitles arrive separately and Kino's panel lists them. -->
@@ -68,6 +57,26 @@
                 android:id="@id/exo_settings"
                 style="@style/ExoStyledControls.Button.Bottom.Settings" />
         </LinearLayout>
+
+        <LinearLayout
+            android:id="@id/exo_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical|end"
+            android:layoutDirection="ltr"
+            android:paddingStart="@dimen/exo_styled_bottom_bar_time_padding"
+            android:paddingEnd="@dimen/exo_styled_bottom_bar_time_padding">
+
+            <app.kino.tv.TvTimeText
+                android:id="@id/exo_position"
+                style="@style/ExoStyledControls.TimeText.Position" />
+
+            <TextView style="@style/ExoStyledControls.TimeText.Separator" />
+
+            <TextView
+                android:id="@id/exo_duration"
+                style="@style/ExoStyledControls.TimeText.Duration" />
+        </LinearLayout>
     </FrameLayout>
 
     <app.kino.tv.TvIntroTimeBar
@@ -76,24 +85,4 @@
         android:layout_height="@dimen/exo_styled_progress_layout_height"
         android:layout_gravity="bottom"
         android:layout_marginBottom="@dimen/exo_styled_progress_margin_bottom" />
-
-    <LinearLayout
-        android:id="@id/exo_center_controls"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:layoutDirection="ltr"
-        android:background="@android:color/transparent"
-        android:clipToPadding="false"
-        android:gravity="center"
-        android:padding="@dimen/exo_styled_controls_padding">
-
-        <include layout="@layout/exo_player_control_rewind_button" />
-
-        <ImageButton
-            android:id="@id/exo_play_pause"
-            style="@style/ExoStyledControls.Button.Center.PlayPause" />
-
-        <include layout="@layout/exo_player_control_ffwd_button" />
-    </LinearLayout>
 </merge>
