@@ -101,6 +101,7 @@ internal fun UpdateNotice(updates: TvUpdates, state: UpdateState, onClose: () ->
                             when (state.status) {
                                 InstallStatus.Waiting -> R.string.update_verifying
                                 InstallStatus.Confirming -> R.string.update_confirming
+                                InstallStatus.Installing -> R.string.update_installing
                                 InstallStatus.Cancelled -> R.string.update_cancelled
                                 is InstallStatus.Failed -> R.string.update_install_failed
                             }
