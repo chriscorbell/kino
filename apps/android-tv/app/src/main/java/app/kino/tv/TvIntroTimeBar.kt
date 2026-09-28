@@ -9,7 +9,10 @@ import android.util.AttributeSet
 import androidx.compose.ui.graphics.toArgb
 import androidx.media3.ui.DefaultTimeBar
 
-/** Draws the trusted intro range on the same scale as Media3's playback timeline. */
+/**
+ * Draws the trusted intro range on the same scale as Media3's playback timeline, and holds a seek
+ * target the remote is still choosing, which Media3's progress updates would otherwise overwrite.
+ */
 class TvIntroTimeBar
 @JvmOverloads
 constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0) :
@@ -27,6 +30,23 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
     }
 
     internal fun introMarker(): TvIntroMarker? = marker
+
+    private var previewing = false
+
+    /** Shows [positionMs] until [endPreview], whatever the player reports meanwhile. */
+    internal fun preview(positionMs: Long) {
+        previewing = true
+        super.setPosition(positionMs)
+    }
+
+    internal fun endPreview(positionMs: Long) {
+        previewing = false
+        super.setPosition(positionMs)
+    }
+
+    override fun setPosition(position: Long) {
+        if (!previewing) super.setPosition(position)
+    }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)

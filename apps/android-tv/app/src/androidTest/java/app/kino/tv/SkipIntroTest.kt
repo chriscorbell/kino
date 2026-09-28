@@ -55,6 +55,10 @@ class SkipIntroTest {
                 } == true
             }
             key(KeyEvent.KEYCODE_DPAD_UP)
+            waitFor("Up from the controls' buttons reaches the seek bar") {
+                introBar(activity)?.hasFocus() == true
+            }
+            key(KeyEvent.KEYCODE_DPAD_UP)
             waitFor("Skip Intro must receive remote focus") {
                 skipButton(activity)?.hasFocus() == true
             }
@@ -412,6 +416,10 @@ class SkipIntroTest {
                     find<PlayerView>(activity.window.decorView)?.let {
                         it.isControllerFullyVisible && it.hasFocus()
                     } == true
+                }
+                key(KeyEvent.KEYCODE_DPAD_UP)
+                waitFor("Up from the controls' buttons reaches the seek bar") {
+                    introBar(activity)?.hasFocus() == true
                 }
                 key(KeyEvent.KEYCODE_DPAD_UP)
                 waitFor("HLS Skip Intro must receive remote focus") {

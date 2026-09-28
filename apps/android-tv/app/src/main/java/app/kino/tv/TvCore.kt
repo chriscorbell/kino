@@ -137,6 +137,8 @@ data class TvState(
     val signedIn: Boolean = false,
     val audioLanguage: String? = null,
     val subtitleLanguage: String? = null,
+    /** The profile's seek step, which the player's remote moves by, as Stremio's does. */
+    val seekStepMs: Long = 10_000,
     /** Installed add-ons in Core's order, with the flags that decide whether one can be removed. */
     val addons: List<AddonDescriptor> = emptyList(),
     /** The add-on a pasted address resolved to, awaiting confirmation. */
@@ -862,6 +864,7 @@ class TvCore(
                     signedIn = signedIn,
                     audioLanguage = profile.settings.audioLanguage,
                     subtitleLanguage = profile.settings.subtitlesLanguage,
+                    seekStepMs = profile.settings.seekTimeDuration.takeIf { it > 0 } ?: 10_000,
                     addons =
                         if (reads(Field.ADDONS))
                             Core.getState<AddonsWithFilters>(Field.ADDONS)

@@ -628,7 +628,9 @@ fun tvPlayerView(
             setShowSubtitleButton(true)
             setShowNextButton(false)
             setShowPreviousButton(false)
-            controllerShowTimeoutMs = 3500
+            // Stremio's: three seconds after the last press while playing, and none while paused,
+            // which Media3 keeps the controls up for.
+            controllerShowTimeoutMs = 3000
             keepScreenOn = false
             isFocusable = true
             addOnAttachStateChangeListener(
@@ -854,6 +856,7 @@ fun FullscreenPlayer(
     var closeTask by remember(player) { mutableStateOf<Job?>(null) }
     var departure by remember(player) { mutableStateOf<(() -> Unit)?>(null) }
     var resumeApplied by remember(player) { mutableStateOf(false) }
+    var playbackStarted by remember(player) { mutableStateOf(false) }
     var tracks by remember(player) { mutableStateOf(player.currentTracks) }
     var subtitlePanel by remember(player) { mutableStateOf(false) }
     var subtitleDelayMs by remember(player) { mutableLongStateOf(0L) }
@@ -1103,6 +1106,12 @@ fun FullscreenPlayer(
                         player.pause()
                         return
                     }
+                    // Playback starts with the picture alone, as Stremio's does; Media3 shows the
+                    // controls while the source loads.
+                    if (isPlaying && !playbackStarted) {
+                        playbackStarted = true
+                        view?.hideController()
+                    }
                     if (isPlaying)
                         activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                     else activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -1218,6 +1227,7 @@ fun FullscreenPlayer(
                     }
                 },
                 update = { layout ->
+                    layout.seekStepMs = coreState.seekStepMs
                     val marker = introMarker.takeIf { skipIntro }
                     layout.showIntro(
                         marker,
