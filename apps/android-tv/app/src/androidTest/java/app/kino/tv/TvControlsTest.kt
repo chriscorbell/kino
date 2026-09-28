@@ -189,6 +189,27 @@ class TvControlsTest {
         }
     }
 
+    @Test
+    fun upWithTheControlsHiddenGoesStraightToSkipIntro() {
+        withPlayingSurface { surface ->
+            instrumentation.runOnMainSync {
+                surface.layout.showIntro(
+                    TvIntroMarker(0, 300_000, TvIntroMarker.Source.Embedded),
+                    surface.player.duration,
+                    inside = true,
+                ) {}
+            }
+            waitUntil("controls must auto-hide") { !surface.view.isControllerFullyVisible }
+            instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_UP)
+            waitUntil("one Up from the picture reaches Skip Intro") {
+                views(surface.layout).filterIsInstance<android.widget.Button>().any {
+                    it.isShown && it.hasFocus() && it.text == context.getString(R.string.skip_intro)
+                }
+            }
+            assertTrue("Up must not pause playback", onMain { surface.player.isPlaying })
+        }
+    }
+
     /** The real player starts on the picture alone, as Stremio's does, not on its controls. */
     @Test
     fun playbackStartsWithThePictureAlone() {

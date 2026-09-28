@@ -334,15 +334,15 @@ class UpNextTest {
                     onMain { action(activity)!!.hasFocus() },
                 )
                 assertEquals(0, departures.get())
-                onMain { view.hideController() }
-                // A press while the controls still fade out is meant for them.
-                waitFor("The controls finish hiding") {
-                    view
-                        .findViewById<android.view.View>(androidx.media3.ui.R.id.exo_controller)
-                        .visibility != android.view.View.VISIBLE
+                // Paused, the controls stay up; Up climbs from their buttons through the seek bar.
+                onMain { view.showController() }
+                waitFor("Playback controls must be ready for remote input") {
+                    view.isControllerFullyVisible && view.hasFocus()
                 }
                 key(KeyEvent.KEYCODE_DPAD_UP)
-                waitFor("Up with the controls hidden goes straight to Choose source") {
+                waitFor("Up from the buttons reaches the seek bar") { seekBar(view).hasFocus() }
+                key(KeyEvent.KEYCODE_DPAD_UP)
+                waitFor("Up from the seek bar reaches Choose source") {
                     action(activity)?.hasFocus() == true
                 }
                 repeat(3) {
