@@ -9,7 +9,7 @@ Source: Chris's instruction of 2026-09-25 to plan and implement a full-featured,
 ## Continuation facts
 
 - Milestones 1, 3 and 4 are done. Milestone 5's code, packaging and notices shipped (#232 to #252). Windows passed every probe and the playback gate on the gaming PC (#255), and Linux on the Ubuntu laptop and minicore (#257), with the MPRIS gate (#258), interface recovery on Linux (#259, #261) and a real suspend through logind (#260). HLG now plays on the TV, and HLG and Dolby Vision 8.4 are pixel-gated on both clients (#264). Each chunk is its own pull request, squash-merged once CI passes.
-- The `kardboard` ruleset requires one approving review with an admin bypass. Interactive work merges with `gh pr merge --squash --delete-branch --admin`, as `AGENTS.md` Shipping describes.
+- The `kardboard` ruleset requires one approving review with an admin bypass. Interactive work merges with `gh pr merge --squash --delete-branch --admin` as Chris's account, as `AGENTS.md` Shipping describes. On `agent-pc`, `gh` is `milo-devbot`, which can push but is not an admin, so its pull requests wait for Chris's approval before they merge (#280).
 - The development Shield answers at `10.0.0.191:5555`. If `adb connect` reports "No route to host" while `nc -z 10.0.0.191 5555` succeeds, restart the adb server (`adb kill-server`) and connect again.
 - The running desktop app can be driven without taking over the screen: launch `build/macos/Kino.app/Contents/MacOS/Kino` with `QTWEBENGINE_REMOTE_DEBUGGING=127.0.0.1:<port>` and use the DevTools protocol. Accessibility clicks do not reach WebEngine content.
 - After a Homebrew upgrade of mpv or its dependencies, CMake fails with "includes non-existent path". Delete `build/macos/CMakeCache.txt` and build again.
