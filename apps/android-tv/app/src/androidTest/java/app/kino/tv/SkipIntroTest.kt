@@ -85,9 +85,21 @@ class SkipIntroTest {
                 player.pause()
                 player.seekTo(6_000)
             }
-            waitFor("Automatic intro skipping must seek to the typed marker end") {
-                player.currentPosition in 11_900L..12_500L &&
-                    undoButton(activity)?.hasFocus() == true
+            try {
+                waitFor("Automatic intro skipping must seek to the typed marker end") {
+                    player.currentPosition in 11_900L..12_500L &&
+                        undoButton(activity)?.hasFocus() == true
+                }
+            } catch (error: AssertionError) {
+                val state = onMain {
+                    "position=${player.currentPosition} playing=${player.isPlaying} " +
+                        "marker=${introBar(activity)?.introMarker()} " +
+                        "undo=${undoButton(activity)?.let { "shown focused=${it.hasFocus()}" }} " +
+                        "skip=${skipButton(activity)?.isShown} " +
+                        "automatic=${app.settings.getBoolean("automatic_intro", false)} " +
+                        "focus=${activity.window.decorView.findFocus()?.javaClass?.simpleName}"
+                }
+                throw AssertionError("${error.message}: $state", error)
             }
             key(KeyEvent.KEYCODE_DPAD_CENTER)
             waitFor("Undo must return to the intro start") {
@@ -367,6 +379,12 @@ class SkipIntroTest {
                                 TvIntroMarker.Source.Community &&
                                 skipButton(activity)?.isShown == true
                         }
+                        // Leaving at 6 s would save it as the fixture episode's progress, and the
+                        // next test on that episode would resume inside the intro.
+                        onMain {
+                            player.seekTo(0)
+                            player.stop()
+                        }
                     }
                 }
             media
@@ -514,6 +532,7 @@ class SkipIntroTest {
         private val failure = AtomicReference<Throwable>()
         private val bytes = instrumentation.context.assets.open(asset).readBytes()
         private val chapters = chaptersOffset(bytes)
+        private val sockets = java.util.Collections.synchronizedList(mutableListOf<Socket>())
         val redirects = AtomicInteger()
         val chapterReads = AtomicInteger()
         val url = "http://127.0.0.1:${server.localPort}/resolve/$asset"
@@ -522,6 +541,7 @@ class SkipIntroTest {
                     try {
                         while (!server.isClosed) {
                             val socket = server.accept()
+                            sockets += socket
                             Thread { serve(socket) }.apply { isDaemon = true }.start()
                         }
                     } catch (error: Throwable) {
@@ -593,6 +613,9 @@ class SkipIntroTest {
 
         override fun close() {
             server.close()
+            // A connection the player stopped reading would otherwise hold its thread in a write
+            // into the next test.
+            synchronized(sockets) { sockets.forEach { runCatching { it.close() } } }
             thread.join(6_000)
             check(!thread.isAlive)
             failure.get()?.let { throw AssertionError("Media fixture server failed", it) }
