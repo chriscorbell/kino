@@ -163,6 +163,96 @@ class NavigationMotionTest {
         }
     }
 
+    /**
+     * The focused poster grows, and on a TV every focus change scrolls the list to put the focused
+     * card's top on a fixed line. Growing from its centre moved that top on every move along a row,
+     * and the page chased it up or down by a few pixels each time.
+     */
+    @Test
+    fun movingAlongARowLeavesThePageStill() {
+        val activity =
+            instrumentation.startActivitySync(
+                Intent(context, PlaybackProbeActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            ) as PlaybackProbeActivity
+        val contentFocus = FocusRequester()
+        val navigationFocus = TvDestinations.associate { it.route to FocusRequester() }
+        try {
+            instrumentation.runOnMainSync {
+                activity.setContent {
+                    KinoTheme {
+                        TvNavigation("home", navigationFocus, contentFocus, false, {}, {}) {
+                            Box(Modifier.fillMaxSize().focusRequester(contentFocus).focusGroup()) {
+                                HomeScreen(
+                                    TvState(
+                                        shelves =
+                                            (1..5).map { row ->
+                                                Shelf(
+                                                    "row-$row",
+                                                    "Movies",
+                                                    (1..12).map {
+                                                        Media(
+                                                            "$row-$it",
+                                                            "movie",
+                                                            // Titles that wrap to different line
+                                                            // counts, as real ones do.
+                                                            if (it % 3 == 0)
+                                                                "Row $row a considerably longer " +
+                                                                    "title $it"
+                                                            else "Row $row title $it",
+                                                            null,
+                                                        )
+                                                    },
+                                                    false,
+                                                    false,
+                                                    name = "Shelf $row",
+                                                    type = "movie",
+                                                )
+                                            }
+                                    ),
+                                    {},
+                                    {},
+                                )
+                            }
+                            LaunchedEffect(Unit) {
+                                withFrameNanos {}
+                                contentFocus.requestFocus()
+                            }
+                        }
+                    }
+                }
+            }
+            instrumentation.waitForIdleSync()
+            repeat(2) {
+                instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_DOWN)
+                Thread.sleep(600)
+            }
+            val resting = textTop("Shelf 3")
+            for (code in List(6) { KeyEvent.KEYCODE_DPAD_RIGHT } + List(6) { KeyEvent.KEYCODE_DPAD_LEFT }) {
+                instrumentation.sendKeyDownUpSync(code)
+                // Past the focus growth and the scroll that follows it.
+                Thread.sleep(400)
+                val top = textTop("Shelf 3")
+                assertTrue(
+                    "The page moved $resting to $top while focus moved along the row",
+                    abs(top - resting) <= 1,
+                )
+            }
+        } finally {
+            instrumentation.runOnMainSync { activity.finish() }
+        }
+    }
+
+    /** Where a piece of text sits on screen, without the focusable card around it. */
+    private fun textTop(text: String): Int {
+        val node =
+            instrumentation.uiAutomation.rootInActiveWindow?.let(::nodes)?.firstOrNull {
+                it.text?.toString() == text
+            } ?: error("Missing $text")
+        node.refresh()
+        return Rect().also { node.getBoundsInScreen(it) }.top
+    }
+
     private fun frames(count: Int) {
         val latch = CountDownLatch(1)
         instrumentation.runOnMainSync {
