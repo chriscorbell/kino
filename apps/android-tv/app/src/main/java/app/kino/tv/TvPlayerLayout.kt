@@ -393,11 +393,21 @@ internal class TvPlayerLayout(context: Context, player: Player) : FrameLayout(co
             }
             KeyEvent.KEYCODE_DPAD_UP,
             KeyEvent.KEYCODE_DPAD_DOWN -> {
-                if (!visible) {
-                    if (down) reveal(playPause)
+                val up = event.keyCode == KeyEvent.KEYCODE_DPAD_UP
+                // Skip Intro and Choose source sit above the controls: one Up reaches them from
+                // the picture, and from the seek bar.
+                val action = if (up) action() else null
+                if (!visible || (onBar && up)) {
+                    if (down) {
+                        when {
+                            action != null -> reveal(action)
+                            onBar -> playerView.showController()
+                            else -> reveal(playPause)
+                        }
+                    }
                     return true
                 }
-                if (onBar && event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                if (onBar) {
                     if (down) reveal(playPause)
                     return true
                 }
@@ -426,6 +436,13 @@ internal class TvPlayerLayout(context: Context, player: Player) : FrameLayout(co
         }
         return false
     }
+
+    private fun action(): View? =
+        when {
+            skip.visibility == VISIBLE -> skip
+            offer.visibility == VISIBLE -> choose
+            else -> null
+        }
 
     private companion object {
         /** Stremio lands a seek, and starts a new burst, half a second after the last press. */

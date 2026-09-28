@@ -102,6 +102,8 @@ class UpNextTest {
                     action(activity) != null && view.isControllerFullyVisible && view.hasFocus()
                 }
                 key(KeyEvent.KEYCODE_DPAD_UP)
+                waitFor("Up from the controls' buttons reaches the seek bar") { seekBar(view).hasFocus() }
+                key(KeyEvent.KEYCODE_DPAD_UP)
                 waitFor("Choose source must be focused") { action(activity)?.hasFocus() == true }
                 key(KeyEvent.KEYCODE_DPAD_CENTER)
                 waitFor("Up Next must return to the same saved details entry") {
@@ -163,6 +165,8 @@ class UpNextTest {
                 waitFor("Playback controls must finish appearing before Up enters the offer") {
                     view.isControllerFullyVisible && view.hasFocus()
                 }
+                key(KeyEvent.KEYCODE_DPAD_UP)
+                waitFor("Up from the controls' buttons reaches the seek bar") { seekBar(view).hasFocus() }
                 key(KeyEvent.KEYCODE_DPAD_UP)
                 waitFor("Choose source must be focused") { action(activity)?.hasFocus() == true }
                 key(KeyEvent.KEYCODE_DPAD_CENTER)
@@ -226,6 +230,8 @@ class UpNextTest {
             waitFor("Playback controls must finish appearing before Up enters the offer") {
                 view.isControllerFullyVisible && view.hasFocus()
             }
+            key(KeyEvent.KEYCODE_DPAD_UP)
+            waitFor("Up from the controls' buttons reaches the seek bar") { seekBar(view).hasFocus() }
             key(KeyEvent.KEYCODE_DPAD_UP)
             waitFor("Choose source must be focused") { action(activity)?.hasFocus() == true }
             key(KeyEvent.KEYCODE_DPAD_CENTER)
@@ -331,11 +337,9 @@ class UpNextTest {
                 onMain { view.hideController() }
                 instrumentation.waitForIdleSync()
                 key(KeyEvent.KEYCODE_DPAD_UP)
-                waitFor("The first D-pad press must reveal playback controls") {
-                    view.isControllerFullyVisible
+                waitFor("Up with the controls hidden goes straight to Choose source") {
+                    action(activity)?.hasFocus() == true
                 }
-                key(KeyEvent.KEYCODE_DPAD_UP)
-                waitFor("Up must focus Choose source") { action(activity)?.hasFocus() == true }
                 repeat(3) {
                     onMain { view.hideController() }
                     delay(180)
@@ -347,6 +351,8 @@ class UpNextTest {
                     waitFor("Down must return to playback controls") {
                         view.hasFocus() && view.isControllerFullyVisible
                     }
+                    key(KeyEvent.KEYCODE_DPAD_UP)
+                    waitFor("Up from the buttons reaches the seek bar") { seekBar(view).hasFocus() }
                     key(KeyEvent.KEYCODE_DPAD_UP)
                     waitFor("Up must return to the offer") { action(activity)?.hasFocus() == true }
                 }
@@ -642,6 +648,9 @@ class UpNextTest {
         @Suppress("UNCHECKED_CAST")
         return result as T
     }
+
+    private fun seekBar(view: PlayerView): android.view.View =
+        view.findViewById(androidx.media3.ui.R.id.exo_progress)
 
     private fun waitFor(reason: String, condition: () -> Boolean) {
         val deadline = System.currentTimeMillis() + 15_000
