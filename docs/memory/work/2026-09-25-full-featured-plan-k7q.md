@@ -59,8 +59,20 @@ Source: Chris's instruction of 2026-09-25 to plan and implement a full-featured,
 - TheIntroDB groups submissions into release versions and selects one up to 60 s from the requested runtime, then falls back to the most submitted; its documentation names no window. Kino required the runtime to the millisecond, so community intros almost never applied, and the fixtures used exact runtimes, so every gate passed (ADR 0029). `pnpm intro:check-live` now runs the client against the service.
 - The TV concluded a Matroska file had no chapters only at the end of the file, so a chapterless release, the common case, never asked TheIntroDB during playback. Chris found it on Ted Lasso S3E4; the 30-second fixtures reached their end at once and hid it. Absence is now concluded at the first cluster.
 
+## Traps found on 2026-09-28
+
+- The Shield's log buffer holds about eleven minutes, so a failure Chris reports later is gone. `adb logcat -G 16M` raises it until the next reboot, and a background `adb logcat -v threadtime -b main,system,crash -T 1 >> file` loop keeps a copy on the host while he tests. `KinoIntro` lines say where chapters came from and how the file's runtime compares with TheIntroDB's versions.
+- Chris's sources come from AIOStreams through Real-Debrid: HTTPS links that redirect to the file. Anything Kino fetches from a source itself must follow redirects as the player does (#286).
+- Media3's `MatroskaExtractor` reads colour only from the container's Colour element and never sets `Format.frameRate`; Kino fills both from the stream and the track's DefaultDuration (#285, #289).
+- Media3's `PlayerView` takes a direction key as "show the controls" until they have faded in, and keeps a paused player's controls up. The TV's remote handling in `TvPlayerLayout` works around the first; tests that need hidden controls must play (#291).
+- A TV test that leaves the shared fixture episode mid-way saves progress that the next test resumes at; see the lesson note.
+
+## rc.5 feedback, 2026-09-28
+
+Chris's list after a session on rc.5, and what became of each: HDR10 remux without colour tags failed (#285); Skip Intro never ran on debrid links (#286); a confirmed update showed as cancelled (#287); the refresh rate stuck after leaving the player (#289); Home jittered along a row (#292); the remote should work as Stremio's, with shorter seeks (#291). He chose to keep an SDR source's range blank rather than guess it. All shipped in v0.1.0-rc.6. Open: #290, the flaky Dolby Vision pixel probes on Linux.
+
 ## Waiting on Chris
 
-- The v0.1.0 tag waits on his daily-driver retest of the latest pre-release on the releases page. On 2026-09-28 the Shield was put back on the rc.4 release after a suite run, so later releases install over it from Settings. `pnpm android:check` refuses to run over a release; uninstalling it first clears the TV app's sign-in and settings, so ask Chris.
+- The v0.1.0 tag waits on his daily-driver retest of the latest pre-release on the releases page. After the rc.6 suite runs the Shield was put back on the rc.6 release, signed out, so Chris signs in once and later releases install over it from Settings. `pnpm android:check` refuses to run over a release; uninstalling it first clears the TV app's sign-in and settings, so ask Chris. The confirmed-update path of #287 can only be checked by him, on the next update.
 
 Close when: every box in #182 is checked or explicitly deferred there.
