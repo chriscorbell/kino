@@ -335,7 +335,12 @@ class UpNextTest {
                 )
                 assertEquals(0, departures.get())
                 onMain { view.hideController() }
-                instrumentation.waitForIdleSync()
+                // A press while the controls still fade out is meant for them.
+                waitFor("The controls finish hiding") {
+                    view
+                        .findViewById<android.view.View>(androidx.media3.ui.R.id.exo_controller)
+                        .visibility != android.view.View.VISIBLE
+                }
                 key(KeyEvent.KEYCODE_DPAD_UP)
                 waitFor("Up with the controls hidden goes straight to Choose source") {
                     action(activity)?.hasFocus() == true
