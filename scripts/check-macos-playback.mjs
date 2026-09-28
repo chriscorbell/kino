@@ -483,8 +483,8 @@ function generateFixtures() {
   }
 }
 
-// PGS, TrueHD, DTS-HD, Atmos, and Dolby Vision inputs cannot be synthesized
-// with ffmpeg encoders; those remain manual real-device release gates.
+// PGS, TrueHD, DTS-HD, and Atmos inputs cannot be synthesized with ffmpeg
+// encoders; those remain manual real-device release gates.
 const fixtures = [
   { file: 'h264-sdr-aac.mp4', expect: { outcome: 'played' } },
   { file: 'hevc-sdr-ac3.mkv', expect: { outcome: 'played' } },
@@ -543,7 +543,8 @@ const fixtures = [
   // Every pixel of the probe is a known code word, so what the player drew can be compared with
   // the host's tone map of the same values. The HLG probe holds the same code words under HLG.
   // Profiles 8.1 and 8.4 carry the HDR10 and HLG frames under a Dolby Vision RPU and must look the
-  // same as them; profile 5 has no base layer this renderer can show.
+  // same as them, as must profile 7, whose base layer is the HDR10 frames beside an enhancement
+  // layer; profile 5 has no base layer this renderer can show.
   // The control comes first: an SDR ramp that only proves a drawn frame can be read back.
   {
     file: 'sdr-probe.mkv',
@@ -555,6 +556,7 @@ const fixtures = [
   ...[
     ['hdr-probe.mkv', 'pq'],
     ['dv-p8-probe.mkv', 'pq'],
+    ['dv-p7-probe.mkv', 'pq'],
     ['hlg-probe.mkv', 'hlg'],
     ['dv-p84-probe.mkv', 'hlg'],
   ].map(([file, transfer]) => ({

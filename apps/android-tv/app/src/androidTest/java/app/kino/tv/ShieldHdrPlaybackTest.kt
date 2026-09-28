@@ -83,6 +83,22 @@ class ShieldHdrPlaybackTest {
         assertReferencePixels(result, "hlg-probe-expected.json")
     }
 
+    /**
+     * Profile 7 carries the HDR10 probe as its base layer beside an enhancement layer in the same
+     * track, as a UHD Blu-ray remux does. Media3 offers no HEVC decoder for it on its own, and the
+     * enhancement layer's units must pass through the decoder without changing a pixel.
+     */
+    @Test
+    fun dolbyVisionProfileSevenPlaysItsBaseLayerThroughToneMapping() {
+        val result = playIntoReader("dv-p7-probe.mkv", expectFrames = true)
+        assertTrue(
+            "Profile 7 must decode on an HEVC decoder, not the Dolby Vision one: ${result.decoder}",
+            !result.decoder.contains("dovi", ignoreCase = true) &&
+                !result.decoder.contains("dolby", ignoreCase = true),
+        )
+        assertReferencePixels(result)
+    }
+
     /** Profile 5 has no compatible base layer; decoding it as HEVC would show the wrong colours. */
     @Test
     fun dolbyVisionProfileFiveIsRefused() {

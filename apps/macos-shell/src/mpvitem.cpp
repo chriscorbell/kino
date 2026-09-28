@@ -125,8 +125,9 @@ int64_t selectedDolbyVisionProfile(const mpv_node &root) {
     return -1;
 }
 
-// Dolby Vision profile 8 plays its cross-compatible base layer, as on the TV, whose decoder never
-// sees the RPU. Applying the RPU here would grade the same file differently on each client.
+// Dolby Vision profiles 7 and 8 play their cross-compatible base layer, as on the TV, whose decoder
+// never sees the RPU. Applying the RPU here would grade the same file differently on each client.
+// FFmpeg skips profile 7's enhancement layer on its own.
 constexpr const char *kBaseLayerFilter = "format:dolbyvision=no";
 // Stripping the RPU restores the base layer's transfer but keeps the display light Dolby Vision
 // implies, so profile 8.4's HLG base layer would skip HLG's OOTF and draw its shadows lifted.

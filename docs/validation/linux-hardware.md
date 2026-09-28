@@ -9,6 +9,8 @@ On 2026-09-26 Kino ran the desktop probes and the playback gate on two Linux mac
 
 Both forms passed all 26 playback fixtures on the laptop, and the Ubuntu build did on the server, decoding through VA-API: H.264, HEVC SDR, HDR10 at 1080p and 2160p, HLG, and AV1; FFV1 rejected as software-only; ALAC, DTS, PCM, E-AC-3 and AC-3 audio; embedded, authored and external subtitles; chapters; the pause before sleep; Stereo loudness normalization; drawn HDR10 and Dolby Vision 8.1 pixels matching the tone-map reference; Dolby Vision 5 rejected; refresh-rate matching, which leaves the display as it is on Linux; and broken or missing sources rejected.
 
+On 2026-09-27 the laptop, reinstalled with Xubuntu 26.04.1 and Xfce on X11, ran the Ubuntu build through the gate as it stood with [ADR 0030](../adr/0030-play-dolby-vision-profile-7-as-its-base-layer.md). All 29 fixtures passed, among them drawn HLG and Dolby Vision 8.4 and 7 pixels, which the gate had gained since the first run.
+
 On the laptop both forms also passed launch and the second-launch hand-over, scale, focus, resume, community intros, seasons, fullscreen, volume, audio, track choices, the web console, navigation, interface recovery, TLS, request headers, shutdown, and add-on transports. The Flatpak, which carries the torrent engine, passed the engine start, the engine UI, cache clear with torrent replay, and engine retry as well. The Flatpak held its logind sleep delay lock through Flatpak's D-Bus proxy.
 
 Three things the runs found:
