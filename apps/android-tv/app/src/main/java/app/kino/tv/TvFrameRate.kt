@@ -58,8 +58,17 @@ private val StandardRates =
  */
 internal fun measuredFrameRate(firstUs: Long, lastUs: Long, frames: Int): Float? {
     if (frames < 2 || lastUs <= firstUs) return null
-    val estimate = (frames - 1) * 1_000_000f / (lastUs - firstUs)
-    return StandardRates.minBy { abs(it - estimate) / it }.takeIf { abs(it - estimate) / it < 0.004f }
+    return standardRate((frames - 1) * 1_000_000f / (lastUs - firstUs))
+}
+
+/** The standard rate [estimate] is, or null when it is none. */
+internal fun standardRate(estimate: Float): Float? =
+    StandardRates.minBy { abs(it - estimate) / it }.takeIf { abs(it - estimate) / it < 0.004f }
+
+/** Drops any display mode this window asked for, so the system's own mode returns. */
+internal fun releaseDisplayMode(activity: Activity) {
+    if (activity.window.attributes.preferredDisplayModeId != 0)
+        activity.window.attributes = activity.window.attributes.apply { preferredDisplayModeId = 0 }
 }
 
 internal fun selectedVideoFormat(tracks: Tracks): Format? =
@@ -70,11 +79,11 @@ internal fun selectedVideoFormat(tracks: Tracks): Format? =
         }
 
 /**
- * Switches the TV to the video's frame rate while it plays, when the viewer asked for it. The rate
- * comes from the container when it states one, and otherwise from the first three seconds of frame
- * times, since Matroska, the usual release container, does not. The TV goes dark for a moment
- * while it changes mode, so playback holds until the display reports the new mode, or five seconds
- * pass. Leaving playback hands the choice back to the system.
+ * Switches the TV to the video's frame rate while the player is open, when the viewer asked for it.
+ * The rate comes from the container when it states one, Matroska's through [onStatedRate] before
+ * the first frame, and otherwise from the first three seconds of frame times. The TV goes dark for a
+ * moment while it changes mode, so playback holds until the display reports the new mode, or five
+ * seconds pass. [release] hands the choice back to the system, and nothing is asked for after it.
  *
  * The change also renegotiates HDMI audio, which Android reports as the audio output going away,
  * the broadcast Media3 pauses on so unplugged headphones do not go on playing. That pause is Kino's
@@ -85,7 +94,9 @@ internal class FrameRateMatcher(private val activity: Activity, private val play
     private val handler = Handler(Looper.getMainLooper())
     private val displays = activity.getSystemService(DisplayManager::class.java)
     private var requested = false
+    private var released = false
     private var waiting: (() -> Unit)? = null
+    private var changes: DisplayManager.DisplayListener? = null
     private var requestedAt = 0L
     private val renegotiation =
         object : Player.Listener {
@@ -139,8 +150,13 @@ internal class FrameRateMatcher(private val activity: Activity, private val play
         selectedVideoFormat(tracks)?.frameRate?.takeIf { it > 1f }?.let(::request)
     }
 
+    /** The frame rate a Matroska video track states, which Media3 leaves off the format. */
+    fun onStatedRate(frameRate: Float) {
+        standardRate(frameRate)?.let(::request)
+    }
+
     private fun request(frameRate: Float) {
-        if (requested) return
+        if (requested || released) return
         val display = activity.window.decorView.display ?: return
         val target =
             matchingMode(display.supportedModes.map { it.choice() }, display.mode.choice(), frameRate)
@@ -149,16 +165,16 @@ internal class FrameRateMatcher(private val activity: Activity, private val play
         requestedAt = SystemClock.elapsedRealtime()
         val wasPlaying = player.playWhenReady
         player.playWhenReady = false
-        lateinit var changes: DisplayManager.DisplayListener
         val resume: () -> Unit = {
             if (waiting != null) {
                 waiting = null
                 handler.removeCallbacksAndMessages(null)
-                displays.unregisterDisplayListener(changes)
+                changes?.let(displays::unregisterDisplayListener)
+                changes = null
                 if (wasPlaying) player.playWhenReady = true
             }
         }
-        changes =
+        val listener =
             object : DisplayManager.DisplayListener {
                 override fun onDisplayChanged(displayId: Int) {
                     if (displayId == display.displayId && display.mode.modeId == target.id) resume()
@@ -168,20 +184,27 @@ internal class FrameRateMatcher(private val activity: Activity, private val play
 
                 override fun onDisplayRemoved(displayId: Int) = Unit
             }
+        changes = listener
         waiting = resume
-        displays.registerDisplayListener(changes, handler)
+        displays.registerDisplayListener(listener, handler)
         handler.postDelayed({ resume() }, 5_000)
         activity.window.attributes =
             activity.window.attributes.apply { preferredDisplayModeId = target.id }
     }
 
+    /**
+     * Idempotent. A measurement already posted from the playback thread finds [released] set, so a
+     * mode can never be asked for with nothing left to give it back.
+     */
     fun release() {
+        released = true
         player.clearVideoFrameMetadataListener(listener)
         player.removeListener(renegotiation)
         waiting = null
         handler.removeCallbacksAndMessages(null)
-        if (requested)
-            activity.window.attributes = activity.window.attributes.apply { preferredDisplayModeId = 0 }
+        changes?.let(displays::unregisterDisplayListener)
+        changes = null
+        releaseDisplayMode(activity)
     }
 
     private companion object {

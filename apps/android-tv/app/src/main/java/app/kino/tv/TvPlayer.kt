@@ -702,6 +702,7 @@ fun FullscreenPlayer(
     var chapterPayload by remember(source) { mutableStateOf<ByteArray?>(null) }
     var chapterPayloadReceived by remember(source) { mutableStateOf(false) }
     var chapterOffset by remember(source) { mutableLongStateOf(-1L) }
+    var statedFrameRate by remember(source) { mutableStateOf<Float?>(null) }
     val introSession =
         remember(source) {
             IntroDiscoverySession(
@@ -713,6 +714,7 @@ fun FullscreenPlayer(
                     chapterPayloadReceived = true
                 },
                 onChapterOffset = { chapterOffset = it },
+                onFrameRate = { statedFrameRate = it },
             )
         }
     val introExtractors = remember(source) { IntroExtractorsFactory(introSession) }
@@ -735,6 +737,17 @@ fun FullscreenPlayer(
     }
     val player =
         remember(source) { createTvPlayer(context, renderers, sourceHeaders, introExtractors) }
+    // Only when the viewer asked: a matcher attaches itself to the player, and one built and dropped
+    // with the setting off still asked for modes that nothing gave back.
+    val frameRate =
+        remember(player) {
+            if (kinoSettings(context).getBoolean("match_frame_rate", false))
+                FrameRateMatcher(activity, player)
+            else null
+        }
+    LaunchedEffect(frameRate, statedFrameRate) {
+        statedFrameRate?.let { frameRate?.onStatedRate(it) }
+    }
     val session = remember(player) { MediaSession.Builder(context, player).build() }
     val upNext = remember(player) { kinoSettings(context).getBoolean("up_next", true) }
     val skipIntro = remember(player) { kinoSettings(context).getBoolean("skip_intro", true) }
@@ -956,6 +969,8 @@ fun FullscreenPlayer(
     }
     fun close(error: Int? = null, destination: (() -> Unit)? = null) {
         if (closed || closing) return
+        // The TV returns to its own mode as the viewer leaves, not once the save completes.
+        frameRate?.release()
         if (departure == null)
             departure =
                 destination ?: { if (error == null) currentExit() else currentFailure(error) }
@@ -1025,12 +1040,6 @@ fun FullscreenPlayer(
             }
         }
     }
-    val frameRate =
-        remember(player) {
-            FrameRateMatcher(activity, player).takeIf {
-                kinoSettings(context).getBoolean("match_frame_rate", false)
-            }
-        }
     DisposableEffect(player) {
         val listener =
             object : Player.Listener {
