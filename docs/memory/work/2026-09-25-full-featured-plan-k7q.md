@@ -1,9 +1,9 @@
 # Full-featured and stable on every platform
 
-Read when: continuing the multi-milestone push tracked in issue #182, or picking the next chunk of platform work.
+Read when: continuing the multi-milestone push to a full-featured, stable Kino, or picking the next chunk of platform work.
 
-Status: blocked on Chris; what remains of #182 is the v0.1.0 retest.
-Plan: [issue #182](https://github.com/chriscorbell/kino/issues/182), checked off as each pull request merges.
+Status: blocked on Chris; what remains is the v0.1.0 retest.
+Plan: issue #182, deleted from GitHub by 2026-09-28 along with #176 (cast search) and #143 (diagnostic reports). Every milestone in it was done except the v0.1.0 tag; its pull requests carry the detail.
 Source: Chris's instruction of 2026-09-25 to plan and implement a full-featured, stable Kino on all supported platforms, with full agency.
 
 ## Continuation facts
@@ -75,4 +75,4 @@ Chris's list after a session on rc.5, and what became of each: HDR10 remux witho
 
 - The v0.1.0 tag waits on his daily-driver retest of the latest pre-release on the releases page. After the rc.6 suite runs the Shield was put back on the rc.6 release, signed out, so Chris signs in once and later releases install over it from Settings. `pnpm android:check` refuses to run over a release; uninstalling it first clears the TV app's sign-in and settings, so ask Chris. The confirmed-update path of #287 can only be checked by him, on the next update.
 
-Close when: every box in #182 is checked or explicitly deferred there.
+Close when: v0.1.0 is tagged after Chris's retest.
