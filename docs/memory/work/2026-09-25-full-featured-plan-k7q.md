@@ -9,7 +9,7 @@ Source: Chris's instruction of 2026-09-25 to plan and implement a full-featured,
 ## Continuation facts
 
 - Milestones 1, 3 and 4 are done. Milestone 5's code, packaging and notices shipped (#232 to #252). Windows passed every probe and the playback gate on the gaming PC (#255), and Linux on the Ubuntu laptop and minicore (#257), with the MPRIS gate (#258), interface recovery on Linux (#259, #261) and a real suspend through logind (#260). HLG now plays on the TV, and HLG and Dolby Vision 8.4 are pixel-gated on both clients (#264). Each chunk is its own pull request, squash-merged once CI passes.
-- The `kardboard` ruleset requires one approving review with an admin bypass. Interactive work merges with `gh pr merge --squash --delete-branch --admin` as Chris's account, as `AGENTS.md` Shipping describes. On `agent-pc`, `gh` is `milo-devbot`, which can push but is not an admin, so its pull requests wait for Chris's approval before they merge (#280).
+- The `kardboard` ruleset allows only squash merges through a pull request. Chris set its required approvals to zero on 2026-09-28, after `milo-devbot`, which `gh` uses on `agent-pc` and which cannot bypass rules, could not merge #280; `gh pr merge --squash --delete-branch` now merges once CI passes.
 - The development Shield answers at `10.0.0.191:5555`. If `adb connect` reports "No route to host" while `nc -z 10.0.0.191 5555` succeeds, restart the adb server (`adb kill-server`) and connect again.
 - The running desktop app can be driven without taking over the screen: launch `build/macos/Kino.app/Contents/MacOS/Kino` with `QTWEBENGINE_REMOTE_DEBUGGING=127.0.0.1:<port>` and use the DevTools protocol. Accessibility clicks do not reach WebEngine content.
 - After a Homebrew upgrade of mpv or its dependencies, CMake fails with "includes non-existent path". Delete `build/macos/CMakeCache.txt` and build again.
@@ -61,6 +61,6 @@ Source: Chris's instruction of 2026-09-25 to plan and implement a full-featured,
 
 ## Waiting on Chris
 
-- The v0.1.0 tag waits on his daily-driver retest of the latest pre-release on the releases page. The Shield ran a development-signed build, so the release APK installs only after one uninstall, which clears the TV app's sign-in and settings.
+- The v0.1.0 tag waits on his daily-driver retest of the latest pre-release on the releases page. On 2026-09-28 the Shield was put back on the rc.4 release after a suite run, so later releases install over it from Settings. `pnpm android:check` refuses to run over a release; uninstalling it first clears the TV app's sign-in and settings, so ask Chris.
 
 Close when: every box in #182 is checked or explicitly deferred there.
