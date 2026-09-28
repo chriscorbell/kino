@@ -22,7 +22,10 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerView
 import androidx.test.platform.app.InstrumentationRegistry
+import com.stremio.core.Core
+import com.stremio.core.types.resource.Stream
 import java.io.File
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -184,6 +187,72 @@ class TvControlsTest {
                 !player.isPlaying && timeBar(surface).hasFocus()
             }
         }
+    }
+
+    /** The real player starts on the picture alone, as Stremio's does, not on its controls. */
+    @Test
+    fun playbackStartsWithThePictureAlone() {
+        val app = context.applicationContext as ShieldTestApplication
+        instrumentation.runOnMainSync { app.core.initialize() }
+        assertTrue(runBlocking { Core.drainWrites() })
+        val file = File(context.cacheDir, "controls-start.mkv")
+        instrumentation.context.assets.open("intro-no-chapters-long.mkv").use { input ->
+            file.outputStream().use { input.copyTo(it) }
+        }
+        val activity =
+            instrumentation.startActivitySync(
+                Intent(context, PlaybackProbeActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            ) as PlaybackProbeActivity
+        val episode = CoreEpisodeFixture(activity)
+        try {
+            instrumentation.runOnMainSync {
+                episode.install()
+                app.core.open(episode.media, episode.firstVideoId)
+            }
+            waitUntil("Core must resolve the fixture source") {
+                app.core.state.value.details.sources.any { it.playable }
+            }
+            val selected = app.core.state.value.details.sources.first { it.playable }
+            val local =
+                selected.copy(
+                    stream =
+                        selected.stream.copy(
+                            source = Stream.Source.Url(Stream.Url(Uri.fromFile(file).toString()))
+                        )
+                )
+            instrumentation.runOnMainSync {
+                assertTrue(app.core.startPlayer(selected))
+                activity.setContent {
+                    KinoTheme { FullscreenPlayer(local, episode.media, app.core, {}, {}, {}) }
+                }
+            }
+            var view: PlayerView? = null
+            waitUntil("the player starts") {
+                view = views(activity.window.decorView).filterIsInstance<PlayerView>().firstOrNull()
+                view?.player?.isPlaying == true
+            }
+            val started = System.currentTimeMillis()
+            waitUntil("the controls go once the picture plays") { !view!!.isControllerFullyVisible }
+            val hidden = System.currentTimeMillis() - started
+            assertTrue("The controls stayed $hidden ms, as long as their timeout", hidden < 1_500)
+        } finally {
+            instrumentation.runOnMainSync {
+                activity.setContent {}
+                app.core.stopPlayer()
+                episode.uninstall()
+            }
+            runBlocking { Core.drainWrites(retry = true) }
+            episode.close()
+            instrumentation.runOnMainSync { activity.finish() }
+            file.delete()
+        }
+    }
+
+    private fun views(view: View): Sequence<View> = sequence {
+        yield(view)
+        if (view is android.view.ViewGroup)
+            for (index in 0 until view.childCount) yieldAll(views(view.getChildAt(index)))
     }
 
     private fun focused(surface: Surface): String =
