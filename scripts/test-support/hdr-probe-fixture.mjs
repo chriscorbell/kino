@@ -320,20 +320,22 @@ export function generateSdrProbe(fixturesDir) {
 
 /**
  * Dolby Vision variants of the probe, for the profile gates. Each carries a generated RPU for its
- * profile and the matching Matroska configuration record, over the same HDR10 frames, so profile
- * 8.1's HDR10-compatible base layer must tone map to exactly the probe's expected patches, while
- * profile 5, which has no compatible base layer, must be refused. The Colour elements are written
- * explicitly, as a real release's mux carries them. Requires dovi_tool and mkvmerge.
+ * profile and the matching Matroska configuration record, over the same HDR10 frames, so the
+ * HDR10-compatible base layers of profiles 7 and 8.1 must tone map to exactly the probe's expected
+ * patches, while profile 5, which has no compatible base layer, must be refused. The Colour
+ * elements are written explicitly, as a real release's mux carries them. Requires dovi_tool and
+ * mkvmerge.
  */
 export function generateDolbyVisionProbes(fixturesDir) {
   // Like the other fixtures, existing ones are reused, so a machine without the tools can run
   // fixtures made elsewhere.
-  // 8.1's base layer is the HDR10 probe and 8.4's the HLG one; profile 5 has no compatible base
-  // layer, so what it wraps only has to be ten-bit HEVC.
+  // 8.1's and 7's base layer is the HDR10 probe and 8.4's the HLG one; profile 5 has no compatible
+  // base layer, so what it wraps only has to be ten-bit HEVC.
   const variants = [
     { profile: '8.1', name: 'dv-p8-probe.mkv', source: 'hdr-probe', transfer: 16 },
     { profile: '8.4', name: 'dv-p84-probe.mkv', source: 'hlg-probe', transfer: 18 },
     { profile: '5', name: 'dv-p5-probe.mkv', source: 'hdr-probe', transfer: 16 },
+    { profile: '7', name: 'dv-p7-probe.mkv', source: 'hdr-probe', transfer: 16 },
   ];
   const existing = variants.map(({ name }) => join(fixturesDir, name));
   if (existing.every((path) => existsSync(path))) return existing;
@@ -368,13 +370,17 @@ export function generateDolbyVisionProbes(fixturesDir) {
         'hevc',
         base,
       ]);
+    // dovi_tool generates profiles 5, 8.1 and 8.4 only. Profile 7 is two layers in one track, as
+    // on a UHD Blu-ray: the base layer, a quarter-size enhancement layer, and an RPU that uses
+    // it. Its conversion to a minimal enhancement layer turns an 8.1 RPU into exactly that one.
+    const layered = profile === '7';
     const config = join(work, `generate-${profile}.json`);
     writeFileSync(
       config,
       JSON.stringify({
         cm_version: 'V40',
         length: FRAMES,
-        profile,
+        profile: layered ? '8.1' : profile,
         level6: {
           max_display_mastering_luminance: 1000,
           min_display_mastering_luminance: 1,
@@ -386,7 +392,39 @@ export function generateDolbyVisionProbes(fixturesDir) {
     const rpu = join(work, `rpu-${profile}.bin`);
     const stream = join(work, `dv-${profile}.hevc`);
     run('dovi_tool', ['generate', '-j', config, '-o', rpu]);
-    run('dovi_tool', ['inject-rpu', '-i', base, '--rpu-in', rpu, '-o', stream]);
+    if (layered) {
+      // The muxer pairs the layers frame by frame in decoding order, so the enhancement layer is
+      // encoded exactly as the base layer was. A minimal one carries no residual, so mid grey.
+      const el = join(work, 'el.hevc');
+      const elWithRpu = join(work, 'el-rpu.hevc');
+      run('ffmpeg', [
+        '-nostdin',
+        '-y',
+        '-v',
+        'error',
+        '-f',
+        'lavfi',
+        '-i',
+        `color=c=gray:s=${WIDTH / 2}x${HEIGHT / 2}:r=24`,
+        '-frames:v',
+        String(FRAMES),
+        '-pix_fmt',
+        'yuv420p10le',
+        '-c:v',
+        'libx265',
+        '-preset',
+        'ultrafast',
+        '-x265-params',
+        'lossless=1',
+        '-f',
+        'hevc',
+        el,
+      ]);
+      run('dovi_tool', ['inject-rpu', '-i', el, '--rpu-in', rpu, '-o', elWithRpu]);
+      run('dovi_tool', ['-m', '1', 'mux', '--bl', base, '--el', elWithRpu, '-o', stream]);
+    } else {
+      run('dovi_tool', ['inject-rpu', '-i', base, '--rpu-in', rpu, '-o', stream]);
+    }
     const target = join(fixturesDir, name);
     run('mkvmerge', [
       '-q',
@@ -408,6 +446,28 @@ export function generateDolbyVisionProbes(fixturesDir) {
       '0:0.0001',
       stream,
     ]);
+    // Players read the profile from the container's configuration record, so check that rather
+    // than trust the file name.
+    const record = JSON.parse(
+      execFileSync('ffprobe', [
+        '-v',
+        'error',
+        '-select_streams',
+        'v:0',
+        '-show_entries',
+        'stream_side_data',
+        '-of',
+        'json',
+        target,
+      ]).toString(),
+    ).streams[0]?.side_data_list?.find(
+      (data) => data.side_data_type === 'DOVI configuration record',
+    );
+    if (
+      String(record?.dv_profile) !== profile.split('.')[0] ||
+      record.el_present_flag !== (layered ? 1 : 0)
+    )
+      throw new Error(`${name} carries the wrong configuration record: ${JSON.stringify(record)}`);
     outputs.push(target);
   }
   rmSync(work, { recursive: true, force: true });

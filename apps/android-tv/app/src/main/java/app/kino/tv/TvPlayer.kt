@@ -54,7 +54,6 @@ import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.mediacodec.MediaCodecAdapter
 import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
-import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
@@ -76,9 +75,9 @@ import kotlinx.coroutines.*
  * player's display surface; that output tone maps each frame and draws it into the display surface
  * itself. The renderer intercepts the player's own `MSG_SET_VIDEO_OUTPUT` for this, so the player
  * keeps managing one display surface while the decoder never sees it during HDR playback. SDR takes
- * the direct path unchanged. Dolby Vision plays only profile 8's base layer; the other profiles stay
- * rejected until each is measured on the device the way HDR10 and HLG were (ADR 0021, ADR 0027),
- * before a decoder is configured or a surface exposed.
+ * the direct path unchanged. Dolby Vision plays only the base layers of profiles 7 and 8; the other
+ * profiles stay rejected until each is measured on the device the way HDR10 and HLG were (ADR 0021,
+ * ADR 0027), before a decoder is configured or a surface exposed.
  *
  * With [stereo] set, the sink accepts PCM only, so every track is decoded and folded to two
  * channels by [StereoDownmixProcessor] inside Kino rather than passed through or left to the
@@ -156,15 +155,17 @@ class HardwareRenderers(context: Context, private val stereo: Boolean = false) :
         else CodecSpecificDataUtil.getCodecProfileAndLevel(format)?.first ?: -1
 
     /**
-     * Every Dolby Vision profile except 8. Profile 8 carries a cross-compatible base layer that an
-     * HEVC decoder plays on its own, ignoring the enhancement metadata, and whose range the
-     * container's colour tags state: 8.1 is HDR10 and 8.4 is HLG, both tone mapped, and 8.2 is
-     * SDR. Profile 5 has no compatible base layer, so decoding it as HEVC would show the wrong
-     * colours, and 7 and 9 have not been measured.
+     * Every Dolby Vision profile except 7 and 8, whose cross-compatible base layers an HEVC decoder
+     * plays on its own, ignoring the RPU and any enhancement layer, and whose range the container's
+     * colour tags state. 8.1 is HDR10 and 8.4 is HLG, both tone mapped, and 8.2 is SDR. Profile 7
+     * is a UHD Blu-ray's: its base layer is the disc's HDR10 picture, and its enhancement layer
+     * adds precision rather than image. Profile 5 has no compatible base layer, so decoding it as
+     * HEVC would show the wrong colours, and the others have not been measured.
      */
     private fun rejectedRange(format: Format): Boolean {
         val profile = dolbyVisionProfile(format) ?: return false
-        return profile != MediaCodecInfoLevels.DolbyVisionProfileDvheSt || format.colorInfo == null
+        return (profile != MediaCodecInfoLevels.DolbyVisionProfileDvheSt &&
+            profile != MediaCodecInfoLevels.DolbyVisionProfileDvheDtb) || format.colorInfo == null
     }
 
     /** The HDR transfer Kino tone maps, PQ or HLG, or null for a source that needs none. */
@@ -217,14 +218,14 @@ class HardwareRenderers(context: Context, private val stereo: Boolean = false) :
                         unsupportedReason = R.string.hdr_unsupported
                         return emptyList()
                     }
-                    // Dolby Vision profile 8 goes to the HEVC decoders for its base layer. The
-                    // Shield's Dolby Vision decoder would hand the display a Dolby Vision signal,
-                    // which is exactly the output Kino does not produce.
+                    // Dolby Vision goes to the HEVC decoders for its base layer. The Shield's
+                    // Dolby Vision decoder would hand the display a Dolby Vision signal, which is
+                    // exactly the output Kino does not produce. Media3 offers those decoders for
+                    // profile 8 but not for profile 7, so Kino asks for them itself.
                     val decoders =
                         if (dolbyVisionProfile(format) != null)
-                            MediaCodecUtil.getAlternativeDecoderInfos(
-                                selector,
-                                format,
+                            selector.getDecoderInfos(
+                                MimeTypes.VIDEO_H265,
                                 requiresSecureDecoder,
                                 false,
                             )
@@ -315,7 +316,7 @@ class HardwareRenderers(context: Context, private val stereo: Boolean = false) :
                             tunnelingAudioSessionId,
                         )
                     // Media3 names the Dolby Vision profile on the codec, which means nothing to
-                    // the HEVC decoder playing profile 8's ten-bit base layer.
+                    // the HEVC decoder playing the ten-bit base layer.
                     if (
                         codecMimeType == MimeTypes.VIDEO_H265 &&
                             format.sampleMimeType == MimeTypes.VIDEO_DOLBY_VISION
