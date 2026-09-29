@@ -6,17 +6,17 @@ Read when a change or finding may belong in a document other than the one being 
 
 Ownership follows what the information is, never who reads it. Preserve any configured alternative to these defaults.
 
-| Information                                                      | Owner                                                                                                       |
-| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| Setup, commands, usage, public behavior                          | `README.md` and existing human guides                                                                       |
-| Guides and reference for humans                                  | `docs/`, excluding `docs/memory/` and `docs/adr/`                                                           |
-| Domain vocabulary                                                | Root `CONTEXT.md`                                                                                           |
-| Architectural decisions and their rationale                      | `docs/adr/`                                                                                                 |
-| Skill configuration                                              | `docs/agents/` (`domain.md`, `issue-tracker.md`, `triage-labels.md`)                                        |
-| Specs, tickets, plans, discovery                                 | The task's issue or [Kino board](https://cardboard.xode.cc/b/kino), or `.scratch/<feature>/` for local work |
-| Research                                                         | `docs/research/`                                                                                            |
-| Session handoffs                                                 | The OS temporary directory; memory keeps only continuation facts in `work/`                                 |
-| Hidden constraints, expensive findings, lessons, unfinished work | `docs/memory/`                                                                                              |
+| Information                                                      | Owner                                                                                                  |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Setup, commands, usage, public behavior                          | `README.md` and existing human guides                                                                  |
+| Guides and reference for humans                                  | `docs/`, excluding `docs/memory/` and `docs/adr/`                                                      |
+| Domain vocabulary                                                | Root `CONTEXT.md`                                                                                      |
+| Architectural decisions and their rationale                      | `docs/adr/`                                                                                            |
+| Skill configuration                                              | `docs/agents/` (`domain.md`, `issue-tracker.md`, `triage-labels.md`)                                   |
+| Specs, tickets, plans, discovery                                 | The task's issue or [Kino board](https://kardboard.cc/b/kino), or `.scratch/<feature>/` for local work |
+| Research                                                         | `docs/research/`                                                                                       |
+| Session handoffs                                                 | The OS temporary directory; memory keeps only continuation facts in `work/`                            |
+| Hidden constraints, expensive findings, lessons, unfinished work | `docs/memory/`                                                                                         |
 
 Memory holds links and what no owner above already records. A fact found by one file read or one command stays in the environment; memory gets a pointer when the lookup is expensive.
 

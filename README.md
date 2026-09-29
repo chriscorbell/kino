@@ -108,7 +108,7 @@ The TV release key lives only in the workflow's secrets. Run `scripts/setup-andr
 - [Domain glossary](CONTEXT.md)
 - [Architecture decisions](docs/adr)
 - [Agent guide](AGENTS.md)
-- [Cardboard board](https://cardboard.xode.cc/b/kino)
+- [Kino board](https://kardboard.cc/b/kino)
 
 The original UI mockup and logo are in [`mockup/`](mockup/).
 
