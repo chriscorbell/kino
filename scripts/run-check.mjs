@@ -4,7 +4,7 @@
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { readFileSync } from 'node:fs';
-import { availableParallelism } from 'node:os';
+import { availableParallelism, constants } from 'node:os';
 
 const root = new URL('..', import.meta.url);
 const { checkSteps } = JSON.parse(readFileSync(new URL('package.json', root), 'utf8'));
@@ -24,19 +24,54 @@ const results = new Map();
 const started = performance.now();
 const secondsSince = (since) => ((performance.now() - since) / 1000).toFixed(1);
 
+const windows = process.platform === 'win32';
+const running = new Set();
+
+// Off Windows each step leads its own process group, so one kill reaches the whole step tree.
+function killStep(child, signal) {
+  try {
+    if (windows) child.kill(signal);
+    else process.kill(-child.pid, signal);
+  } catch {
+    // The step's group is already gone.
+  }
+}
+
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  process.on(signal, () => {
+    for (const child of running) killStep(child, signal);
+    process.exit(128 + constants.signals[signal]);
+  });
+}
+
 async function run(step) {
   const since = performance.now();
-  const child = spawn('pnpm', ['run', '--silent', step, ...(stepArgs[step] ?? [])], {
-    cwd: root,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  const args = ['run', '--silent', step, ...(stepArgs[step] ?? [])];
+  const options = { cwd: root, stdio: ['ignore', 'pipe', 'pipe'], detached: !windows };
+  // pnpm is pnpm.cmd on Windows, which only a shell can launch, and Node warns when a shell gets
+  // an argument list.
+  const child = windows
+    ? spawn(['pnpm', ...args].join(' '), { ...options, shell: true })
+    : spawn('pnpm', args, options);
+  const closed = new Promise((resolve) => child.once('close', resolve));
   let output = '';
-  for (const stream of [child.stdout, child.stderr]) stream.on('data', (data) => (output += data));
-  const [code, signal] = await once(child, 'close');
-  const result = { exit: code ?? signal, seconds: secondsSince(since) };
-  results.set(step, result);
-  console.log(`${result.exit === 0 ? 'ok  ' : 'FAIL'} ${step} (${result.seconds}s)`);
-  if (result.exit !== 0) console.log(output.trimEnd().replace(/^/gm, '  | '));
+  for (const stream of [child.stdout, child.stderr]) {
+    stream.setEncoding('utf8');
+    stream.on('data', (data) => (output += data));
+  }
+  running.add(child);
+  const exit = await once(child, 'exit').then(
+    ([code, signal]) => code ?? signal,
+    (error) => ((output += error.message), error.code),
+  );
+  // A grandchild that outlives the step still holds its pipes, and close waits for it.
+  if (child.pid) killStep(child, 'SIGKILL');
+  await closed;
+  running.delete(child);
+  const seconds = secondsSince(since);
+  results.set(step, { exit, seconds });
+  console.log(`${exit === 0 ? 'ok  ' : 'FAIL'} ${step} (${seconds}s)`);
+  if (exit !== 0) console.log(output.trimEnd().replace(/^/gm, '  | '));
 }
 
 console.log(
