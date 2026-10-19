@@ -743,7 +743,7 @@ fun FullscreenPlayer(
     // with the setting off still asked for modes that nothing gave back.
     val frameRate =
         remember(player) {
-            if (kinoSettings(context).getBoolean("match_frame_rate", false))
+            if (kinoSettings(context)[KinoSettings.matchRefreshRate])
                 FrameRateMatcher(activity, player)
             else null
         }
@@ -751,10 +751,10 @@ fun FullscreenPlayer(
         statedFrameRate?.let { frameRate?.onStatedRate(it) }
     }
     val session = remember(player) { MediaSession.Builder(context, player).build() }
-    val upNext = remember(player) { kinoSettings(context).getBoolean("up_next", true) }
-    val skipIntro = remember(player) { kinoSettings(context).getBoolean("skip_intro", true) }
+    val upNext = remember(player) { kinoSettings(context)[KinoSettings.upNext] }
+    val skipIntro = remember(player) { kinoSettings(context)[KinoSettings.skipIntroButton] }
     val automaticIntro =
-        remember(player) { kinoSettings(context).getBoolean("automatic_intro", false) }
+        remember(player) { kinoSettings(context)[KinoSettings.automaticIntroSkipping] }
     val coreState by core.state.collectAsState()
     val communityIdentity =
         introIdentity(media, source.request.path.id, coreState.details.meta, duration)
@@ -834,10 +834,7 @@ fun FullscreenPlayer(
                     .buildUpon()
                     .setPreferredAudioLanguage(languages.audioLanguage)
                     .setPreferredTextLanguage(languages.subtitleLanguage)
-                    .setTrackTypeDisabled(
-                        C.TRACK_TYPE_TEXT,
-                        !settings.getBoolean("subtitles", false),
-                    )
+                    .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !settings[KinoSettings.subtitles])
                     .build(),
             )
         }
@@ -860,9 +857,10 @@ fun FullscreenPlayer(
     var tracks by remember(player) { mutableStateOf(player.currentTracks) }
     var subtitlePanel by remember(player) { mutableStateOf(false) }
     var subtitleDelayMs by remember(player) { mutableLongStateOf(0L) }
-    var subtitleSize by remember(player) { mutableIntStateOf(SubtitleAppearance.size(context)) }
+    var subtitleSize by
+        remember(player) { mutableIntStateOf(kinoSettings(context)[KinoSettings.subtitleSize]) }
     var subtitlePosition by
-        remember(player) { mutableIntStateOf(SubtitleAppearance.position(context)) }
+        remember(player) { mutableIntStateOf(kinoSettings(context)[KinoSettings.subtitlePosition]) }
     var sideLoaded by
         remember(player) { mutableStateOf(listOf<MediaItem.SubtitleConfiguration>()) }
     var pendingAddon by remember(player) { mutableStateOf<String?>(null) }
@@ -959,8 +957,7 @@ fun FullscreenPlayer(
         val language =
             addonMemory.language()
                 ?: coreState.subtitleLanguage.takeIf {
-                    kinoSettings(context).getBoolean("subtitles", false) &&
-                        addonMemory.allowsAutomatic()
+                    kinoSettings(context)[KinoSettings.subtitles] && addonMemory.allowsAutomatic()
                 }
                 ?: return@LaunchedEffect
         val match =
@@ -1376,9 +1373,8 @@ private fun introIdentity(
     )
 }
 
-/** The device-local Kino audio output setting: "stereo" or the default "auto". */
 fun stereoOutputPreferred(context: Context): Boolean =
-    kinoSettings(context).getString("audio_output", "auto") == "stereo"
+    kinoSettings(context)[KinoSettings.audioOutput] == AudioOutput.Stereo
 
 @Composable
 internal fun PendingPlaybackSaveDialog(core: TvCore) {

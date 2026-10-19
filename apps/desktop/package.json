@@ -13,6 +13,7 @@
   "dependencies": {
     "@fontsource-variable/geist": "5.3.0",
     "@kino/design-tokens": "workspace:*",
+    "@kino/settings": "workspace:*",
     "@phosphor-icons/react": "2.1.10",
     "@stremio/stremio-core-web": "0.61.0",
     "react": "19.2.8",

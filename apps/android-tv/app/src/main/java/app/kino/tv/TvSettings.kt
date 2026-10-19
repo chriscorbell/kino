@@ -140,20 +140,20 @@ internal fun SettingsScreen(
     val settings = remember { kinoSettings(context) }
     val scope = rememberCoroutineScope()
     var stereo by remember { mutableStateOf(stereoOutputPreferred(context)) }
-    var subtitles by remember { mutableStateOf(settings.getBoolean("subtitles", false)) }
-    var upNext by remember { mutableStateOf(settings.getBoolean("up_next", true)) }
-    var skipIntro by remember { mutableStateOf(settings.getBoolean("skip_intro", true)) }
-    var automaticIntro by remember { mutableStateOf(settings.getBoolean("automatic_intro", false)) }
-    var matchFrameRate by remember {
-        mutableStateOf(settings.getBoolean("match_frame_rate", false))
+    var subtitles by remember { mutableStateOf(settings[KinoSettings.subtitles]) }
+    var upNext by remember { mutableStateOf(settings[KinoSettings.upNext]) }
+    var skipIntro by remember { mutableStateOf(settings[KinoSettings.skipIntroButton]) }
+    var automaticIntro by remember {
+        mutableStateOf(settings[KinoSettings.automaticIntroSkipping])
     }
+    var matchFrameRate by remember { mutableStateOf(settings[KinoSettings.matchRefreshRate]) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         stereo = stereoOutputPreferred(context)
-        subtitles = settings.getBoolean("subtitles", false)
-        upNext = settings.getBoolean("up_next", true)
-        skipIntro = settings.getBoolean("skip_intro", true)
-        automaticIntro = settings.getBoolean("automatic_intro", false)
-        matchFrameRate = settings.getBoolean("match_frame_rate", false)
+        subtitles = settings[KinoSettings.subtitles]
+        upNext = settings[KinoSettings.upNext]
+        skipIntro = settings[KinoSettings.skipIntroButton]
+        automaticIntro = settings[KinoSettings.automaticIntroSkipping]
+        matchFrameRate = settings[KinoSettings.matchRefreshRate]
     }
     var languageDialog by remember { mutableStateOf<Boolean?>(null) }
     val audioFocus = remember { FocusRequester() }
@@ -256,7 +256,7 @@ internal fun SettingsScreen(
                 save {
                     val stored =
                         withContext(Dispatchers.IO) {
-                            settings.edit().putBoolean("skip_intro", next).commit()
+                            settings.edit().put(KinoSettings.skipIntroButton, next).commit()
                         }
                     if (stored) skipIntro = next
                     stored
@@ -273,7 +273,7 @@ internal fun SettingsScreen(
                 save {
                     val stored =
                         withContext(Dispatchers.IO) {
-                            settings.edit().putBoolean("automatic_intro", next).commit()
+                            settings.edit().put(KinoSettings.automaticIntroSkipping, next).commit()
                         }
                     if (stored) automaticIntro = next
                     stored
@@ -290,7 +290,7 @@ internal fun SettingsScreen(
                 save {
                     val stored =
                         withContext(Dispatchers.IO) {
-                            settings.edit().putBoolean("up_next", next).commit()
+                            settings.edit().put(KinoSettings.upNext, next).commit()
                         }
                     if (stored) upNext = next
                     stored
@@ -315,7 +315,10 @@ internal fun SettingsScreen(
                         withContext(Dispatchers.IO) {
                             settings
                                 .edit()
-                                .putString("audio_output", if (next) "stereo" else "auto")
+                                .put(
+                                    KinoSettings.audioOutput,
+                                    if (next) AudioOutput.Stereo else AudioOutput.Auto,
+                                )
                                 .commit()
                         }
                     if (stored) stereo = next
@@ -333,7 +336,7 @@ internal fun SettingsScreen(
                 save {
                     val stored =
                         withContext(Dispatchers.IO) {
-                            settings.edit().putBoolean("match_frame_rate", next).commit()
+                            settings.edit().put(KinoSettings.matchRefreshRate, next).commit()
                         }
                     if (stored) matchFrameRate = next
                     stored
@@ -350,7 +353,7 @@ internal fun SettingsScreen(
                 save {
                     val stored =
                         withContext(Dispatchers.IO) {
-                            settings.edit().putBoolean("subtitles", next).commit()
+                            settings.edit().putSubtitles(next).commit()
                         }
                     if (stored) subtitles = next
                     stored

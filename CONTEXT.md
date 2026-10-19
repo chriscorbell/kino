@@ -88,6 +88,10 @@ _Avoid_: Skip Intro
 A device-local preference owned by Kino, such as appearance, playback, logging, or Skip Intro behavior. Kino settings do not belong to the Stremio profile and do not sync between devices.
 _Avoid_: Profile setting, account setting
 
+**Honor**:
+A platform honors a Kino setting when something on that platform applies it. The settings schema lists the platforms that honor each setting, and a platform it leaves out does not honor that setting.
+_Avoid_: Supported setting, available setting
+
 **Diagnostic log**:
 A rotating, device-local record of Kino activity used to investigate bugs and crashes. Diagnostic logs never leave the device automatically and never contain credentials.
 _Avoid_: Analytics, telemetry

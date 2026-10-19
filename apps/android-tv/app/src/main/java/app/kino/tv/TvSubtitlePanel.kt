@@ -173,16 +173,17 @@ internal fun SubtitlePanel(
                     }
                 }
                 Setting(stringResource(R.string.subtitle_size)) {
-                    Options(SubtitleAppearance.sizes, size, onSize) {
+                    Options(KinoSettings.subtitleSize.values, size, onSize) {
                         stringResource(R.string.subtitle_percent, it)
                     }
                 }
                 Setting(stringResource(R.string.subtitle_position)) {
-                    Options(SubtitleAppearance.positions, position, onPosition) {
+                    Options(KinoSettings.subtitlePosition.values, position, onPosition) {
                         stringResource(
                             when (it) {
                                 0 -> R.string.subtitle_position_default
-                                SubtitleAppearance.positions[1] -> R.string.subtitle_position_higher
+                                KinoSettings.subtitlePosition.values[1] ->
+                                    R.string.subtitle_position_higher
                                 else -> R.string.subtitle_position_highest
                             }
                         )

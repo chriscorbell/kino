@@ -9,5 +9,8 @@
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "types": ["vite/client", "@testing-library/jest-dom"]
   },
-  "include": ["src"]
+  // An incremental tsc -b judges the project fresh from its root files alone, so a change only
+  // in an imported workspace package left it reporting up to date. Listed here, the package's
+  // source is a root file and gets rechecked.
+  "include": ["src", "../../packages/settings/src"]
 }

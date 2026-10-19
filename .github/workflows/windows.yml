@@ -9,6 +9,7 @@ on:
       - .github/workflows/windows.yml
       - apps/macos-shell/**
       - apps/desktop/**
+      - packages/settings/**
       - apps/stream-engine/**
       - scripts/build-engine.sh
       - scripts/build-windows-mpv.sh

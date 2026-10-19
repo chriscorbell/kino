@@ -44,6 +44,9 @@ importers:
       '@kino/design-tokens':
         specifier: workspace:*
         version: link:../../packages/design-tokens
+      '@kino/settings':
+        specifier: workspace:*
+        version: link:../../packages/settings
       '@phosphor-icons/react':
         specifier: 2.1.10
         version: 2.1.10(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -89,6 +92,8 @@ importers:
         version: 4.1.11(@types/node@24.13.3)(jsdom@30.0.1)(vite@8.2.2(@types/node@24.13.3))
 
   packages/design-tokens: {}
+
+  packages/settings: {}
 
 packages:
 
