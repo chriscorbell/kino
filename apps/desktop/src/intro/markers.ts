@@ -1,12 +1,9 @@
 import { buildMediaQuery, parseMediaResponse, type NormalizedSegmentTimestamp } from 'theintrodb';
 
-export interface Chapter {
-  endMs: number;
+export interface ChapterCue {
   startMs: number;
   title: string;
 }
-
-export type ChapterCue = Omit<Chapter, 'endMs'>;
 
 export interface IntroIdentity {
   durationMs: number;
@@ -36,29 +33,29 @@ function validBounds(startMs: number, endMs: number, durationMs: number) {
   );
 }
 
-export function markerFromChapters(chapters: Chapter[], durationMs: number): IntroMarker | null {
-  const chapter = chapters.find(
-    (candidate) =>
-      INTRO_LABEL.test(candidate.title.trim()) &&
-      validBounds(candidate.startMs, candidate.endMs, durationMs),
-  );
-  return chapter ? { source: 'chapter', startMs: chapter.startMs, endMs: chapter.endMs } : null;
-}
-
-export function markerFromChapterCues(
+/**
+ * 'absent' when no chapter is labelled as an intro, so a community marker may
+ * stand in. 'unknown' when the chapters label one Kino cannot trust, which
+ * rules the community marker out too: a wrong skip is worse than none.
+ */
+export function introFromChapters(
   chapters: ChapterCue[],
   durationMs: number,
-): IntroMarker | null {
+): IntroMarker | 'absent' | 'unknown' {
   const ordered = chapters
     .filter((chapter) => Number.isFinite(chapter.startMs) && chapter.startMs >= 0)
     .toSorted((left, right) => left.startMs - right.startMs);
-  return markerFromChapters(
-    ordered.map((chapter, index) => ({
-      ...chapter,
-      endMs: ordered[index + 1]?.startMs ?? durationMs,
-    })),
-    durationMs,
+  if (ordered.some((chapter, index) => chapter.startMs === ordered[index + 1]?.startMs))
+    return 'unknown';
+  const [intro, ...others] = ordered.flatMap((chapter, index) =>
+    INTRO_LABEL.test(chapter.title.trim())
+      ? [{ startMs: chapter.startMs, endMs: ordered[index + 1]?.startMs ?? durationMs }]
+      : [],
   );
+  if (!intro) return 'absent';
+  return !others.length && validBounds(intro.startMs, intro.endMs, durationMs)
+    ? { source: 'chapter', ...intro }
+    : 'unknown';
 }
 
 export function markerFromCommunity(

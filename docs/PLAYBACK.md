@@ -89,20 +89,20 @@ When Up Next is enabled and a next episode exists, Kino offers its source select
 
 The offer never starts playback automatically. Choosing it saves progress and opens the next episode's source selector, where the user must select a source.
 
-On TV, `UpNextTest` runs the actual Core, Media3 player and remote controls with short and 30-minute fixtures. An MPEG-TS fixture without PCR is streamed through a controlled pipe to check unknown-duration playback and EOF. Delayed and failed storage writes check that choosing the next episode waits for both save phases and that Retry retains the destination.
+The desktop's vitest suite and the TV's JVM tests both check the ending window against the cases in `fixtures/parity/up-next.json`. On TV, `UpNextTest` runs the actual Core, Media3 player and remote controls with short and 30-minute fixtures. An MPEG-TS fixture without PCR is streamed through a controlled pipe to check unknown-duration playback and EOF. Delayed and failed storage writes check that choosing the next episode waits for both save phases and that Retry retains the destination.
 
 ## Intro behavior
 
 Marker resolution uses this order:
 
-1. An explicit Matroska opening-credit skip type or a recognized opening/intro chapter label.
+1. A chapter with a recognized opening/intro label, or on TV an explicit Matroska opening-credit skip type. libmpv reports only each chapter's title and start time, so the desktop reads labels alone. Exactly one chapter may qualify. A labelled intro ends where the next chapter starts, or at the end of the video, and an intro must last 5 to 200 seconds within the video. Two qualifying chapters, one outside those bounds, or two chapters sharing a start time leave the intro unknown, and Kino then shows no button rather than asking TheIntroDB, because a wrong skip is worse than none.
 2. A read-only TheIntroDB result whose media identity and release version pass strict matching checks.
 
 The button exists only while the playhead is inside a trusted marker. Manual activation seeks to the marker end and shows no notice. Automatic skipping is off by default, triggers no more than once per segment in a playback session, and shows an “Intro skipped” notice with Undo. Undo seeks to the marker start and suppresses another automatic skip for that segment during the session.
 
 The community client first lists the release versions and requires exactly one whose listed runtime and average submitted runtime both lie within 60 seconds of the video's runtime, the window within which TheIntroDB selects a version rather than falling back to the most submitted one ([ADR 0029](adr/0029-match-community-intros-by-release-version.md)). It then requests that runtime with unknown-runtime submissions excluded. It checks media identity in both responses. Missing or ambiguous matches, invalid responses, redirects, canceled requests, and responses above 64 KiB produce no marker. A five-second deadline covers both requests. The service does not return a stable version ID or echo the selected runtime, so this selection check cannot detect a release change between the two responses.
 
-`pnpm intro:check`, included in `pnpm check`, bundles the production client and exercises it against HTTP fixtures shaped as the live service answers, including runtimes at both edges of the window. `pnpm macos:check-intro` also runs the bundle in Qt WebEngine, including a canceled response body. `PlayerScreen.intro.test.tsx` drives the desktop player with chapter and community markers through Skip Intro, automatic skipping and Undo. `pnpm intro:check-live` runs the production client against TheIntroDB itself and needs the network, so it runs by hand when the service or the client changes.
+`pnpm intro:check`, included in `pnpm check`, bundles the production client and exercises it against HTTP fixtures shaped as the live service answers, including runtimes at both edges of the window. `pnpm macos:check-intro` also runs the bundle in Qt WebEngine, including a canceled response body. `PlayerScreen.intro.test.tsx` drives the desktop player with chapter and community markers through Skip Intro, automatic skipping and Undo, and checks that two intro chapters show no button and start no community lookup. The desktop's vitest suite and the TV's JVM tests both check chapter choice against the cases in `fixtures/parity/intro-chapters.json`. `pnpm intro:check-live` runs the production client against TheIntroDB itself and needs the network, so it runs by hand when the service or the client changes.
 
 The timeline highlights a trusted intro range. Seeking into that range restores the manual button; seeking outside it removes the button immediately.
 

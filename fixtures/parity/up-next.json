@@ -1,0 +1,65 @@
+{
+  "rule": "Up Next is offered during the final two minutes of playback, capped at the final 10% of a shorter video. With no known duration it waits for the end of the file.",
+  "cases": [
+    {
+      "name": "a 30-minute episode before its final two minutes",
+      "positionMs": 1679999,
+      "durationMs": 1800000,
+      "expect": false
+    },
+    {
+      "name": "a 30-minute episode in its final two minutes",
+      "positionMs": 1680000,
+      "durationMs": 1800000,
+      "expect": true
+    },
+    {
+      "name": "a 30-minute episode at its end",
+      "positionMs": 1800000,
+      "durationMs": 1800000,
+      "expect": true
+    },
+    {
+      "name": "a two-minute video before its final 10%",
+      "positionMs": 107999,
+      "durationMs": 120000,
+      "expect": false
+    },
+    {
+      "name": "a two-minute video in its final 10%",
+      "positionMs": 108000,
+      "durationMs": 120000,
+      "expect": true
+    },
+    {
+      "name": "a 20-minute video, where the two limits meet",
+      "positionMs": 1079999,
+      "durationMs": 1200000,
+      "expect": false
+    },
+    {
+      "name": "a 20-minute video, in its final two minutes",
+      "positionMs": 1080000,
+      "durationMs": 1200000,
+      "expect": true
+    },
+    {
+      "name": "a final 10% that starts between milliseconds, before it",
+      "positionMs": 900004,
+      "durationMs": 1000005,
+      "expect": false
+    },
+    {
+      "name": "a final 10% that starts between milliseconds, in it",
+      "positionMs": 900005,
+      "durationMs": 1000005,
+      "expect": true
+    },
+    {
+      "name": "an unknown duration",
+      "positionMs": 60000,
+      "durationMs": 0,
+      "expect": false
+    }
+  ]
+}

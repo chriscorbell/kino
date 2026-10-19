@@ -157,3 +157,31 @@ it('skips an intro automatically once, and Undo returns to it without skipping a
   expect(fixture.native.seek).toHaveBeenCalledTimes(2);
   expect(screen.getByRole('button', { name: 'Skip Intro' })).toBeInTheDocument();
 });
+
+const twoIntros = [
+  ...chapters,
+  { startMs: 1_200_000, title: 'Opening' },
+  { startMs: 1_290_000, title: 'Episode' },
+];
+
+it('offers no Skip Intro and asks no community when two chapters are labelled as the intro', async () => {
+  const emit = await play();
+  await emit('chapters', { items: twoIntros });
+  await emit('duration', { milliseconds: runtime });
+  for (const milliseconds of [65_000, 230_000, 1_250_000]) {
+    await emit('time', { milliseconds });
+    expect(screen.queryByRole('button', { name: 'Skip Intro' })).toBeNull();
+  }
+  expect(requests).toHaveLength(0);
+});
+
+it('drops a community intro once two chapters are labelled as the intro', async () => {
+  const emit = await play();
+  await emit('duration', { milliseconds: runtime });
+  await emit('time', { milliseconds: 230_000 });
+  await screen.findByRole('button', { name: 'Skip Intro' });
+  await emit('chapters', { items: twoIntros });
+  expect(screen.queryByRole('button', { name: 'Skip Intro' })).toBeNull();
+  await emit('time', { milliseconds: 65_000 });
+  expect(screen.queryByRole('button', { name: 'Skip Intro' })).toBeNull();
+});

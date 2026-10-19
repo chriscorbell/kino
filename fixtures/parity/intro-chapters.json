@@ -1,0 +1,143 @@
+{
+  "rule": "An intro comes from the one chapter titled intro, introduction, opening, opening credits or op, in any case. It ends where the next chapter starts, or at the end of the video, and must last 5 to 200 seconds within the video. Two such chapters, one outside those bounds, or two chapters sharing a start time leave the intro unknown rather than absent.",
+  "cases": [
+    {
+      "name": "a labelled chapter ends where the next chapter starts",
+      "chapters": [
+        { "title": "Prologue", "startMs": 0 },
+        { "title": "Intro", "startMs": 20000 },
+        { "title": "", "startMs": 87000 }
+      ],
+      "durationMs": 2400000,
+      "expect": { "result": "found", "startMs": 20000, "endMs": 87000 }
+    },
+    {
+      "name": "labels match in any case, without surrounding spaces",
+      "chapters": [
+        { "title": "  OPENING CREDITS ", "startMs": 12000 },
+        { "title": "Episode", "startMs": 96000 }
+      ],
+      "durationMs": 3000000,
+      "expect": { "result": "found", "startMs": 12000, "endMs": 96000 }
+    },
+    {
+      "name": "introduction is a label",
+      "chapters": [
+        { "title": "Introduction", "startMs": 0 },
+        { "title": "Episode", "startMs": 45000 }
+      ],
+      "durationMs": 1500000,
+      "expect": { "result": "found", "startMs": 0, "endMs": 45000 }
+    },
+    {
+      "name": "op is a label",
+      "chapters": [
+        { "title": "Cold open", "startMs": 0 },
+        { "title": "OP", "startMs": 90000 },
+        { "title": "Part A", "startMs": 180000 }
+      ],
+      "durationMs": 1440000,
+      "expect": { "result": "found", "startMs": 90000, "endMs": 180000 }
+    },
+    {
+      "name": "chapters are read in time order",
+      "chapters": [
+        { "title": "Episode", "startMs": 90000 },
+        { "title": "Intro", "startMs": 20000 },
+        { "title": "Prologue", "startMs": 0 }
+      ],
+      "durationMs": 2400000,
+      "expect": { "result": "found", "startMs": 20000, "endMs": 90000 }
+    },
+    {
+      "name": "the last chapter ends with the video",
+      "chapters": [{ "title": "Intro", "startMs": 0 }],
+      "durationMs": 90000,
+      "expect": { "result": "found", "startMs": 0, "endMs": 90000 }
+    },
+    {
+      "name": "an intro of exactly 5 seconds",
+      "chapters": [
+        { "title": "Intro", "startMs": 10000 },
+        { "title": "Episode", "startMs": 15000 }
+      ],
+      "durationMs": 2400000,
+      "expect": { "result": "found", "startMs": 10000, "endMs": 15000 }
+    },
+    {
+      "name": "an intro of exactly 200 seconds",
+      "chapters": [
+        { "title": "Intro", "startMs": 0 },
+        { "title": "Episode", "startMs": 200000 }
+      ],
+      "durationMs": 2400000,
+      "expect": { "result": "found", "startMs": 0, "endMs": 200000 }
+    },
+    {
+      "name": "no chapters",
+      "chapters": [],
+      "durationMs": 2400000,
+      "expect": { "result": "absent" }
+    },
+    {
+      "name": "titles that only contain a label are not an intro",
+      "chapters": [
+        { "title": "Chapter 1", "startMs": 0 },
+        { "title": "Intro theme", "startMs": 60000 },
+        { "title": "Chapter 2", "startMs": 90000 }
+      ],
+      "durationMs": 2400000,
+      "expect": { "result": "absent" }
+    },
+    {
+      "name": "two labelled chapters leave the intro unknown",
+      "chapters": [
+        { "title": "Opening", "startMs": 0 },
+        { "title": "Episode", "startMs": 90000 },
+        { "title": "Opening", "startMs": 1200000 },
+        { "title": "Episode", "startMs": 1290000 }
+      ],
+      "durationMs": 2400000,
+      "expect": { "result": "unknown" }
+    },
+    {
+      "name": "an intro shorter than 5 seconds is unknown",
+      "chapters": [
+        { "title": "Intro", "startMs": 10000 },
+        { "title": "Episode", "startMs": 14999 }
+      ],
+      "durationMs": 2400000,
+      "expect": { "result": "unknown" }
+    },
+    {
+      "name": "an intro longer than 200 seconds is unknown",
+      "chapters": [
+        { "title": "Chapter 1", "startMs": 0 },
+        { "title": "Intro", "startMs": 90000 },
+        { "title": "Episode", "startMs": 290001 }
+      ],
+      "durationMs": 2400000,
+      "expect": { "result": "unknown" }
+    },
+    {
+      "name": "an intro past the end of the video is unknown",
+      "chapters": [
+        { "title": "Episode", "startMs": 0 },
+        { "title": "Intro", "startMs": 2500000 }
+      ],
+      "durationMs": 2400000,
+      "expect": { "result": "unknown" }
+    },
+    {
+      "name": "chapters sharing a start time leave the intro unknown",
+      "chapters": [
+        { "title": "Recap", "startMs": 0 },
+        { "title": "Prologue", "startMs": 0 },
+        { "title": "Intro", "startMs": 30000 },
+        { "title": "Episode", "startMs": 90000 }
+      ],
+      "durationMs": 2400000,
+      "expect": { "result": "unknown" }
+    }
+  ]
+}

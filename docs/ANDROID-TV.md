@@ -74,7 +74,7 @@ cd apps/android-tv
 ./gradlew :app:testBenchmarkUnitTest
 ```
 
-Rules that need neither the device nor Android run as plain JVM tests under `app/src/test`. `ParityTest` reads the shared cases in `fixtures/parity`, which the desktop's vitest suite reads too, so a rule both clients implement cannot change on one side alone. Its source field cases check the labels a viewer reads, built from the app's own string resources, including those generated from `en-US.ts`. A change to a fixture, `en-US.ts`, or `tv.ts` also starts this workflow.
+Rules that need neither the device nor Android run as plain JVM tests under `app/src/test`. `ParityTest` reads the shared cases in `fixtures/parity`, which the desktop's vitest suite reads too, so a rule both clients implement cannot change on one side alone: source fields, update version order, season and episode order, the Up Next window, and intro chapter choice. Its source field cases check the labels a viewer reads, built from the app's own string resources, including those generated from `en-US.ts`. Its intro cases write each chapter list as the Matroska payload the extractor reads, so they run the same parser playback does. A change to a fixture, `en-US.ts`, or `tv.ts` also starts this workflow.
 
 ## Core and profile boundaries
 

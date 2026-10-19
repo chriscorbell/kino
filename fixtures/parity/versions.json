@@ -1,0 +1,28 @@
+{
+  "rule": "Update checks order Kino versions by semantic version precedence: 1 when left is newer, -1 when older, 0 when equal, and null when either is not a valid version.",
+  "cases": [
+    { "left": "0.1.0", "right": "0.1.0", "expect": 0 },
+    { "left": "v0.2.0", "right": "0.1.9", "expect": 1 },
+    { "left": "0.10.0", "right": "0.9.0", "expect": 1 },
+    { "left": "9.99.99", "right": "10.0.0", "expect": -1 },
+    { "left": "99999999999999999999.0.0", "right": "99999999999999999998.0.0", "expect": 1 },
+    { "left": "1.0.0", "right": "1.0.0-rc.1", "expect": 1 },
+    { "left": "0.1.0-rc.6", "right": "0.1.0", "expect": -1 },
+    { "left": "0.1.0-rc.6", "right": "0.1.0-rc.10", "expect": -1 },
+    { "left": "1.0.0-beta.10", "right": "1.0.0-beta.9", "expect": 1 },
+    { "left": "0.1.0-rc.6", "right": "0.1.0-rc.6.1", "expect": -1 },
+    { "left": "1.0.0-rc.1", "right": "1.0.0-rc", "expect": 1 },
+    { "left": "0.1.0-beta.3", "right": "0.1.0-rc.1", "expect": -1 },
+    { "left": "1.0.0-beta", "right": "1.0.0-1", "expect": 1 },
+    { "left": "1.0.0-RC.1", "right": "1.0.0-rc.1", "expect": -1 },
+    { "left": "v1.0.0+build.1", "right": "1.0.0+build.2", "expect": 0 },
+    { "left": "1.0.0+build.5", "right": "1.0.0", "expect": 0 },
+    { "left": "1.0", "right": "1.0.0", "expect": null },
+    { "left": "01.2.3", "right": "1.0.0", "expect": null },
+    { "left": "1.0.0-01", "right": "1.0.0", "expect": null },
+    { "left": "1.0.0-", "right": "1.0.0", "expect": null },
+    { "left": "<script>", "right": "1.0.0", "expect": null },
+    { "left": "1.0.0/../other", "right": "1.0.0", "expect": null },
+    { "left": "1.0.0", "right": "latest", "expect": null }
+  ]
+}

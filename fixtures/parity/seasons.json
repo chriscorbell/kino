@@ -1,0 +1,45 @@
+{
+  "rule": "A series lists Specials first, then numbered seasons in order, then Other episodes for videos with no season. A season's episodes sort by number, then by video id in code unit order. A video without a season has no episode number either, as in Core.",
+  "cases": [
+    {
+      "name": "Specials first, numbered seasons in order, Other episodes last",
+      "videos": [
+        { "id": "tt1:2:1", "season": 2, "episode": 1 },
+        { "id": "tt1:trailer" },
+        { "id": "tt1:10:1", "season": 10, "episode": 1 },
+        { "id": "tt1:1:2", "season": 1, "episode": 2 },
+        { "id": "tt1:0:1", "season": 0, "episode": 1 },
+        { "id": "tt1:1:1", "season": 1, "episode": 1 }
+      ],
+      "expect": [
+        { "season": 0, "episodes": ["tt1:0:1"] },
+        { "season": 1, "episodes": ["tt1:1:1", "tt1:1:2"] },
+        { "season": 2, "episodes": ["tt1:2:1"] },
+        { "season": 10, "episodes": ["tt1:10:1"] },
+        { "season": null, "episodes": ["tt1:trailer"] }
+      ]
+    },
+    {
+      "name": "episodes sort by number, not by listing order or id",
+      "videos": [
+        { "id": "tt1:1:z", "season": 1, "episode": 1 },
+        { "id": "tt1:1:a", "season": 1, "episode": 10 },
+        { "id": "tt1:1:m", "season": 1, "episode": 9 }
+      ],
+      "expect": [{ "season": 1, "episodes": ["tt1:1:z", "tt1:1:m", "tt1:1:a"] }]
+    },
+    {
+      "name": "episodes sharing a number sort by video id in code unit order",
+      "videos": [
+        { "id": "tt1:1:1:a", "season": 1, "episode": 1 },
+        { "id": "tt1:1:1:B", "season": 1, "episode": 1 }
+      ],
+      "expect": [{ "season": 1, "episodes": ["tt1:1:1:B", "tt1:1:1:a"] }]
+    },
+    {
+      "name": "Other episodes sort by video id in code unit order, whatever the locale",
+      "videos": [{ "id": "tt1:x:extra-a" }, { "id": "tt1:x:Extra-b" }],
+      "expect": [{ "season": null, "episodes": ["tt1:x:Extra-b", "tt1:x:extra-a"] }]
+    }
+  ]
+}
