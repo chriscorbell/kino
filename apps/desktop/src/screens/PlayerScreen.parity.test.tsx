@@ -1,9 +1,10 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import type { CoreSource } from '../core/types';
-import { defaultSettings, type KinoSettings } from '../settings';
+import type { KinoSettings } from '../settings';
 import { preview, video } from '../test/coreState';
+import { renderWithSettings } from '../test/renderWithSettings';
 import { PlayerScreen } from './PlayerScreen';
 
 // The native player and the browser's <video> must tell Core the same story.
@@ -100,18 +101,15 @@ const selection = {
 async function play(kind: 'native' | 'browser') {
   fixture.nativeShell = kind === 'native';
   const noop = () => {};
-  const screenFor = (settings: Partial<KinoSettings> = {}) => (
+  const view = renderWithSettings(
     <PlayerScreen
       selection={selection}
-      settings={{ ...defaultSettings, ...settings }}
       preferredSubtitleLanguage={null}
       onBack={noop}
-      onSettingsChange={noop}
       onSourceFailure={noop}
       onUpNext={noop}
-    />
+    />,
   );
-  const view = render(screenFor());
   const element = () => view.container.querySelector('video')!;
   if (kind === 'native') await waitFor(() => expect(fixture.native.load).toHaveBeenCalled());
   else await waitFor(() => expect(element().getAttribute('src')).toBe(fixture.stream.source.url));
@@ -154,7 +152,7 @@ async function play(kind: 'native' | 'browser') {
   return {
     element,
     media,
-    reload: (settings: Partial<KinoSettings>) => view.rerender(screenFor(settings)),
+    reload: (settings: Partial<KinoSettings>) => act(() => view.store.update(settings)),
   };
 }
 

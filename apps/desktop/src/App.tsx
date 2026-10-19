@@ -7,7 +7,7 @@ import {
   Toolbox,
   type Icon,
 } from '@phosphor-icons/react';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import logo from './assets/kino.svg';
 import sharedStyles from './styles/shared.module.css';
@@ -38,7 +38,7 @@ import { MetaDetailsScreen } from './screens/MetaDetailsScreen';
 import { PlayerScreen } from './screens/PlayerScreen';
 import { SearchScreen } from './screens/SearchScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
-import { defaultSettings, loadSettings, saveSettings, type KinoSettings } from './settings';
+import { useKinoSettings } from './useKinoSettings';
 
 import { useUpdates } from './updates/useUpdates';
 import { UpdateNotice } from './updates/UpdateNotice';
@@ -123,9 +123,7 @@ export function App() {
   const [failedSources, setFailedSources] = useState<ReadonlyMap<string, string>>(new Map());
   const [accountOpen, setAccountOpen] = useState(false);
   const profile = useCoreModel('ctx', null, 'app-profile');
-  const [settings, setSettings] = useState<KinoSettings>(() =>
-    typeof window === 'undefined' ? defaultSettings : loadSettings(window.localStorage),
-  );
+  const [settings] = useKinoSettings();
   if (detailTransport !== transport) {
     setDetailTransport(transport);
     setDetailVideoId(null);
@@ -136,10 +134,6 @@ export function App() {
   }
 
   const interfaceScale = useInterfaceScale(settings.interfaceScale);
-
-  useEffect(() => {
-    saveSettings(window.localStorage, settings);
-  }, [settings]);
 
   const updateBrowseState = useCallback<UpdateBrowseState>((key, value) => {
     setEntry((previous) => ({
@@ -302,14 +296,7 @@ export function App() {
       case 'addons':
         return <AddonsScreen />;
       case 'settings':
-        return (
-          <SettingsScreen
-            onChange={setSettings}
-            settings={settings}
-            updates={updates}
-            interfaceScale={interfaceScale}
-          />
-        );
+        return <SettingsScreen updates={updates} interfaceScale={interfaceScale} />;
     }
   })();
 
@@ -435,7 +422,6 @@ export function App() {
         >
           <PlayerScreen
             onBack={closePlayer}
-            onSettingsChange={setSettings}
             onSourceFailure={reportSourceFailure}
             onUpNext={(video) => {
               setDetailVideoId(video.id);
@@ -450,7 +436,6 @@ export function App() {
             preferredAudioLanguage={profile.state?.profile.settings.audioLanguage ?? null}
             preferredSubtitleLanguage={profile.state?.profile.settings.subtitlesLanguage ?? null}
             selection={playback}
-            settings={settings}
           />
         </main>
       ) : null}

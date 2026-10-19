@@ -1,9 +1,9 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 
 import type { CoreSource } from '../core/types';
-import { defaultSettings } from '../settings';
 import { preview } from '../test/coreState';
+import { renderWithSettings } from '../test/renderWithSettings';
 import { PlayerScreen } from './PlayerScreen';
 
 const fixture = vi.hoisted(() => ({
@@ -58,7 +58,7 @@ vi.mock('../core/useCoreModel', () => ({
 }));
 
 it('passes the preferred language and selects native audio IDs without reloading playback', async () => {
-  render(
+  renderWithSettings(
     <PlayerScreen
       selection={{
         meta: preview({ id: 'fixture', name: 'Fixture', type: 'movie' }),
@@ -68,13 +68,11 @@ it('passes the preferred language and selects native audio IDs without reloading
         video: null,
         nextVideo: null,
       }}
-      settings={defaultSettings}
       preferredAudioLanguage="spa"
       preferredSubtitleLanguage={null}
       onBack={vi.fn()}
       onSourceFailure={vi.fn()}
       onUpNext={vi.fn()}
-      onSettingsChange={vi.fn()}
     />,
   );
   const menu = await screen.findByRole('button', { name: 'Audio tracks' });

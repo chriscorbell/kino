@@ -1,11 +1,11 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 
 import { CoreContext } from '../core/context';
 import type { CoreTransport } from '../core/transport';
 import type { CoreRuntimeEvent, CoreSource, PlayerState } from '../core/types';
-import { defaultSettings } from '../settings';
 import { preview, torrentSource } from '../test/coreState';
+import { renderWithSettings } from '../test/renderWithSettings';
 import { PlayerScreen } from './PlayerScreen';
 
 const native = vi.hoisted(() => ({
@@ -60,7 +60,7 @@ function mountTorrentPlayer(stream: CoreSource) {
     },
   };
 
-  render(
+  renderWithSettings(
     <CoreContext.Provider
       value={{ error: null, status: 'ready', session: 'guest', transport, selectSession: vi.fn() }}
     >
@@ -73,10 +73,8 @@ function mountTorrentPlayer(stream: CoreSource) {
           video: null,
           nextVideo: null,
         }}
-        settings={defaultSettings}
         preferredSubtitleLanguage={null}
         onBack={vi.fn()}
-        onSettingsChange={vi.fn()}
         onSourceFailure={vi.fn()}
         onUpNext={vi.fn()}
       />

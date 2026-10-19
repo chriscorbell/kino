@@ -1,9 +1,9 @@
-import { act, fireEvent, render, waitFor } from '@testing-library/react';
+import { act, fireEvent, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 
 import type { CoreSource } from '../core/types';
-import { defaultSettings } from '../settings';
 import { hints, preview, urlSource } from '../test/coreState';
+import { renderWithSettings } from '../test/renderWithSettings';
 import { PlayerScreen } from './PlayerScreen';
 
 const fixture = vi.hoisted(() => ({
@@ -102,7 +102,7 @@ it('includes supplied file hints when reporting native readiness', async () => {
 });
 
 function renderPlayer(stream: CoreSource) {
-  return render(
+  return renderWithSettings(
     <PlayerScreen
       selection={{
         meta: preview({ id: 'fixture', name: 'Fixture', type: 'movie' }),
@@ -112,12 +112,10 @@ function renderPlayer(stream: CoreSource) {
         video: null,
         nextVideo: null,
       }}
-      settings={defaultSettings}
       preferredSubtitleLanguage={null}
       onBack={vi.fn()}
       onSourceFailure={vi.fn()}
       onUpNext={vi.fn()}
-      onSettingsChange={vi.fn()}
     />,
   );
 }

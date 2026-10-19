@@ -5,6 +5,7 @@ import { App } from '../App';
 import { CoreRecovery } from '../components/CoreRecovery';
 import { t as enUS } from '../locales';
 import { addon, profile } from '../test/coreState';
+import { renderWithSettings } from '../test/renderWithSettings';
 import { commitThrough } from '../test/transport';
 import { CoreProvider } from './CoreProvider';
 import { useCore } from './context';
@@ -98,7 +99,7 @@ function Probe() {
 
 it('keeps Core and Settings usable after an optional catalog failure, then retries without replacing Core', async () => {
   vi.mocked(fetch).mockRejectedValueOnce(new Error('Offline'));
-  render(
+  renderWithSettings(
     <CoreProvider>
       <App />
     </CoreProvider>,
@@ -166,7 +167,7 @@ it('reports an account storage failure at sign-in and keeps the guest Core runni
       ? Promise.reject(new Error('Account storage unavailable.'))
       : Promise.resolve(),
   );
-  render(
+  renderWithSettings(
     <CoreProvider>
       <App />
     </CoreProvider>,

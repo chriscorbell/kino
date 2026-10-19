@@ -1,8 +1,9 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { CoreSource } from '../core/types';
-import { defaultSettings, type KinoSettings } from '../settings';
+import type { KinoSettings } from '../settings';
 import { preview, video } from '../test/coreState';
+import { renderWithSettings } from '../test/renderWithSettings';
 import { PlayerScreen } from './PlayerScreen';
 
 const fixture = vi.hoisted(() => ({
@@ -99,16 +100,15 @@ afterEach(() => vi.unstubAllGlobals());
 
 async function play(settings: Partial<KinoSettings> = {}) {
   const noop = () => {};
-  render(
+  renderWithSettings(
     <PlayerScreen
       selection={selection}
-      settings={{ ...defaultSettings, ...settings }}
-      onSettingsChange={noop}
       preferredSubtitleLanguage={null}
       onBack={noop}
       onSourceFailure={noop}
       onUpNext={noop}
     />,
+    { settings },
   );
   await waitFor(() => expect(fixture.native.playerEvent.connect).toHaveBeenCalled());
   return (name: string, payload: Record<string, unknown>) =>

@@ -22,6 +22,7 @@ import {
   type KinoSettings,
 } from '../settings';
 import type { InterfaceScaleState } from '../native/useInterfaceScale';
+import { useKinoSettings } from '../useKinoSettings';
 
 import { UpdateSettings } from '../updates/UpdateNotice';
 import type { Updates } from '../updates/useUpdates';
@@ -35,17 +36,14 @@ function formatBytes(bytes: number) {
 }
 
 export function SettingsScreen({
-  onChange,
-  settings,
   updates,
   interfaceScale,
 }: {
-  onChange: (settings: KinoSettings) => void;
-  settings: KinoSettings;
   updates?: Updates;
   interfaceScale?: InterfaceScaleState;
 }) {
   const { transport } = useCore();
+  const [settings, update] = useKinoSettings();
   const profile = useCoreModel('ctx', null, 'settings-profile');
   const [cacheBytes, setCacheBytes] = useState<number | null>(null);
   const cacheAction = useActionFeedback();
@@ -55,10 +53,6 @@ export function SettingsScreen({
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle');
   const nativeShell = nativeShellPresent();
   const profileSettings = profile.state?.profile.settings;
-
-  const update = <Key extends keyof KinoSettings>(key: Key, value: KinoSettings[Key]) => {
-    onChange({ ...settings, [key]: value });
-  };
 
   const updateProfile = (patch: Record<string, string>) => {
     if (!profileSettings || !transport) return;
@@ -153,7 +147,7 @@ export function SettingsScreen({
               id="interface-scale"
               value={settings.interfaceScale}
               onChange={(event) =>
-                update('interfaceScale', Number(event.target.value) as InterfaceScale)
+                update({ interfaceScale: Number(event.target.value) as InterfaceScale })
               }
             >
               {interfaceScales.map((percent) => (
@@ -168,7 +162,7 @@ export function SettingsScreen({
                 !interfaceScale?.available ||
                 settings.interfaceScale === defaultSettings.interfaceScale
               }
-              onClick={() => update('interfaceScale', defaultSettings.interfaceScale)}
+              onClick={() => update({ interfaceScale: defaultSettings.interfaceScale })}
               type="button"
             >
               {enUS.settings.resetScale}
@@ -199,25 +193,25 @@ export function SettingsScreen({
           checked={settings.skipIntroButton}
           description={enUS.settings.skipIntroButtonDescription}
           label={enUS.settings.skipIntroButton}
-          onChange={(checked) => update('skipIntroButton', checked)}
+          onChange={(checked) => update({ skipIntroButton: checked })}
         />
         <SettingSwitch
           checked={settings.automaticIntroSkipping}
           description={enUS.settings.automaticIntroSkippingDescription}
           label={enUS.settings.automaticIntroSkipping}
-          onChange={(checked) => update('automaticIntroSkipping', checked)}
+          onChange={(checked) => update({ automaticIntroSkipping: checked })}
         />
         <SettingSwitch
           checked={settings.upNext}
           description={enUS.settings.upNextDescription}
           label={enUS.settings.upNext}
-          onChange={(checked) => update('upNext', checked)}
+          onChange={(checked) => update({ upNext: checked })}
         />
         <SettingSelect
           description={enUS.settings.audioOutputDescription}
           id="audio-output"
           label={enUS.settings.audioOutput}
-          onChange={(value) => update('audioOutput', value as KinoSettings['audioOutput'])}
+          onChange={(value) => update({ audioOutput: value as KinoSettings['audioOutput'] })}
           options={[
             { label: enUS.settings.audioAuto, value: 'auto' },
             { label: enUS.settings.audioStereo, value: 'stereo' },
@@ -229,7 +223,7 @@ export function SettingsScreen({
             checked={settings.matchRefreshRate}
             description={enUS.settings.matchRefreshRateDescription}
             label={enUS.settings.matchRefreshRate}
-            onChange={(checked) => update('matchRefreshRate', checked)}
+            onChange={(checked) => update({ matchRefreshRate: checked })}
           />
         ) : null}
       </section>
@@ -241,7 +235,7 @@ export function SettingsScreen({
           checked={settings.subtitles}
           description={enUS.settings.subtitlesDescription}
           label={enUS.settings.subtitles}
-          onChange={(checked) => update('subtitles', checked)}
+          onChange={(checked) => update({ subtitles: checked })}
         />
         <SettingSelect
           description={enUS.settings.subtitleLanguageDescription}

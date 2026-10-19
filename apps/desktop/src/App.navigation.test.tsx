@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 
@@ -7,6 +7,7 @@ import { CoreContext } from './core/context';
 import type { CoreTransport } from './core/transport';
 import type { CatalogRequest, CoreRuntimeEvent, LibraryRequest } from './core/types';
 import { metaItem, profile } from './test/coreState';
+import { renderWithSettings } from './test/renderWithSettings';
 
 function fixture() {
   let query = '';
@@ -134,7 +135,7 @@ function fixture() {
                     }
                   : { catalogs: [], selected: null }) as CoreTransport['getState'],
   };
-  render(
+  renderWithSettings(
     <CoreContext.Provider
       value={{ transport, status: 'ready', error: null, session: 'guest', selectSession: vi.fn() }}
     >

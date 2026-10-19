@@ -49,43 +49,23 @@ function accepts(value: SettingValue, candidate: unknown) {
   }
 }
 
-export function loadSettings(storage: Pick<Storage, 'getItem'>): KinoSettings {
-  let stored: string | null;
+export function normalizeSettings(candidate: unknown): KinoSettings {
+  if (!candidate || typeof candidate !== 'object') return defaultSettings;
+  const values = candidate as Record<string, unknown>;
 
-  try {
-    stored = storage.getItem(SETTINGS_STORAGE_KEY);
-  } catch {
-    return defaultSettings;
-  }
-
-  if (!stored) {
-    return defaultSettings;
-  }
-
-  try {
-    const candidate: unknown = JSON.parse(stored);
-
-    if (!candidate || typeof candidate !== 'object') {
-      return defaultSettings;
-    }
-
-    const values = candidate as Record<string, unknown>;
-
-    return Object.fromEntries(
-      desktopKeys.map((key) => {
-        const { value } = settingsSchema[key];
-        return [key, accepts(value, values[key]) ? values[key] : value.default];
-      }),
-    ) as KinoSettings;
-  } catch {
-    return defaultSettings;
-  }
+  return Object.fromEntries(
+    desktopKeys.map((key) => {
+      const { value } = settingsSchema[key];
+      return [key, accepts(value, values[key]) ? values[key] : value.default];
+    }),
+  ) as KinoSettings;
 }
 
-export function saveSettings(storage: Pick<Storage, 'setItem'>, settings: KinoSettings): void {
+export function loadSettings(storage: Pick<Storage, 'getItem'>): KinoSettings {
   try {
-    storage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    const stored = storage.getItem(SETTINGS_STORAGE_KEY);
+    return stored ? normalizeSettings(JSON.parse(stored)) : defaultSettings;
   } catch {
-    return;
+    return defaultSettings;
   }
 }

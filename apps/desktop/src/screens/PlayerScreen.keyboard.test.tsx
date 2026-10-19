@@ -1,10 +1,10 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 
 import type { CoreSource } from '../core/types';
-import { defaultSettings } from '../settings';
 import { preview } from '../test/coreState';
+import { renderWithSettings } from '../test/renderWithSettings';
 import { PlayerScreen } from './PlayerScreen';
 
 const fixture = vi.hoisted(() => ({
@@ -69,7 +69,7 @@ beforeEach(() => {
 });
 
 async function mountPlayer() {
-  render(
+  renderWithSettings(
     <PlayerScreen
       selection={{
         meta: preview({ id: 'fixture', name: 'Fixture', type: 'movie' }),
@@ -79,12 +79,10 @@ async function mountPlayer() {
         video: null,
         nextVideo: null,
       }}
-      settings={defaultSettings}
       preferredSubtitleLanguage={null}
       onBack={vi.fn()}
       onSourceFailure={vi.fn()}
       onUpNext={vi.fn()}
-      onSettingsChange={vi.fn()}
     />,
   );
   await screen.findByRole('button', { name: 'Subtitles' });

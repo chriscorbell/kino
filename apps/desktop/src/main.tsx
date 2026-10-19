@@ -7,6 +7,8 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { CoreProvider } from './core/CoreProvider';
 import { migrateNativeAccountProfile } from './core/transport';
 import { nativeShellPresent } from './native/player';
+import { createKinoSettingsStore } from './settingsStore';
+import { KinoSettingsProvider } from './useKinoSettings';
 import './global.css';
 
 if (nativeShellPresent()) document.documentElement.dataset.kinoNative = 'true';
@@ -28,12 +30,16 @@ async function start() {
     );
   }
 
+  const settingsStore = createKinoSettingsStore(window.localStorage);
+
   createRoot(rootElement).render(
     <StrictMode>
       <ErrorBoundary>
-        <CoreProvider>
-          <App />
-        </CoreProvider>
+        <KinoSettingsProvider value={settingsStore}>
+          <CoreProvider>
+            <App />
+          </CoreProvider>
+        </KinoSettingsProvider>
       </ErrorBoundary>
     </StrictMode>,
   );

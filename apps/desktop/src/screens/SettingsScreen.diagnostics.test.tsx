@@ -1,7 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 
-import { defaultSettings } from '../settings';
+import { renderWithSettings } from '../test/renderWithSettings';
 import { SettingsScreen } from './SettingsScreen';
 
 const fixture = vi.hoisted(() => ({
@@ -29,16 +29,16 @@ beforeEach(() => {
 });
 
 it('offers Match refresh rate only where the shell can switch the display', () => {
-  const { unmount } = render(<SettingsScreen settings={defaultSettings} onChange={vi.fn()} />);
+  const { unmount } = renderWithSettings(<SettingsScreen />);
   expect(screen.getByRole('switch', { name: /Match refresh rate/ })).toBeInTheDocument();
   unmount();
   fixture.refreshMatching = false;
-  render(<SettingsScreen settings={defaultSettings} onChange={vi.fn()} />);
+  renderWithSettings(<SettingsScreen />);
   expect(screen.queryByRole('switch', { name: /Match refresh rate/ })).not.toBeInTheDocument();
 });
 
 it('offers storage controls without torrent configuration or starting the engine', async () => {
-  render(<SettingsScreen settings={defaultSettings} onChange={vi.fn()} />);
+  renderWithSettings(<SettingsScreen />);
   expect(screen.getByRole('button', { name: /Clear cache/ })).toBeEnabled();
   expect(screen.queryByRole('heading', { name: 'Torrent streaming' })).not.toBeInTheDocument();
   expect(screen.queryByRole('switch', { name: 'Seeding' })).not.toBeInTheDocument();
@@ -54,7 +54,7 @@ it('copies diagnostics only on request and announces completion', async () => {
       finish = resolve;
     }),
   );
-  render(<SettingsScreen settings={defaultSettings} onChange={vi.fn()} />);
+  renderWithSettings(<SettingsScreen />);
   const copy = screen.getByRole('button', { name: 'Copy diagnostic summary' });
   expect(fixture.diagnostics.copyDiagnosticSummary).not.toHaveBeenCalled();
   fireEvent.click(copy);
@@ -74,7 +74,7 @@ it.each([false, new Error('Synthetic clipboard failure')])(
       fixture.diagnostics.copyDiagnosticSummary.mockRejectedValueOnce(failure);
     else fixture.diagnostics.copyDiagnosticSummary.mockResolvedValueOnce(failure);
     fixture.diagnostics.copyDiagnosticSummary.mockResolvedValue(true);
-    render(<SettingsScreen settings={defaultSettings} onChange={vi.fn()} />);
+    renderWithSettings(<SettingsScreen />);
     const copy = screen.getByRole('button', { name: 'Copy diagnostic summary' });
     fireEvent.click(copy);
     expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -116,7 +116,7 @@ it.each([
         }),
       )
       .mockResolvedValue(true);
-    render(<SettingsScreen settings={defaultSettings} onChange={vi.fn()} />);
+    renderWithSettings(<SettingsScreen />);
     const button = screen.getByRole('button', { name: label });
     fireEvent.click(button);
     fireEvent.click(button);
