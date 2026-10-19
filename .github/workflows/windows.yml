@@ -25,6 +25,7 @@ on:
       - scripts/check-macos-focus.mjs
       - scripts/check-macos-scale.mjs
       - scripts/check-native-addon-redirects.mjs
+      - scripts/check-shell-capabilities.mjs
       - scripts/check-version.mjs
       - scripts/check-windows-icon.mjs
       - scripts/test-support/**

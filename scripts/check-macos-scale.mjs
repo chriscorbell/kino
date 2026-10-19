@@ -4,6 +4,8 @@ import { once } from 'node:events';
 import { createServer } from 'node:http';
 import { resolve } from 'node:path';
 
+import { shellReportProblems } from './test-support/shell-capabilities.mjs';
+
 const binary = process.env.KINO_APP_BINARY ?? resolve('build/macos/Kino.app/Contents/MacOS/Kino');
 let report;
 const server = createServer((request, response) => {
@@ -24,7 +26,8 @@ const server = createServer((request, response) => {
 new QWebChannel(qt.webChannelTransport, async channel => {
   const ui = channel.objects.kinoInterface, lifecycle = channel.objects.kinoLifecycle;
   lifecycle.closeRequested.connect(id => lifecycle.acknowledgeClose(id, true));
-  const result = { scales: [], rejected: [] };
+  const native = channel.objects.kinoNative;
+  const result = { scales: [], rejected: [], shell: { platform: native.platform, capabilities: native.capabilities } };
   try {
     for (const percent of [100, 125, 150, 175, 200, 100]) {
       if (!(await ui.setScale(percent))) throw new Error('Valid scale was rejected.');
@@ -75,8 +78,13 @@ try {
   );
   assert.deepEqual(report?.rejected, [false, false, false, false, false, false]);
   assert.deepEqual(report?.reset, { width: 1000, height: 650 });
+  assert.deepEqual(
+    shellReportProblems(report.shell),
+    [],
+    'the bridge reports what the schema lists',
+  );
   console.log(
-    'Native interface zoom resizes the minimum-window viewport through 100–200%, rejects unsupported values, and resets to 100%.',
+    `Native interface zoom resizes the minimum-window viewport through 100–200%, rejects unsupported values, and resets to 100%. The ${report.shell.platform} bridge reports ${report.shell.capabilities.join(', ')}.`,
   );
 } finally {
   clearTimeout(timer);

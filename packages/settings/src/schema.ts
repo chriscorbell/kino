@@ -27,7 +27,9 @@ export interface RangeValue {
 
 export type SettingValue = BooleanValue | ChoiceValue | RangeValue;
 
-export type ShellCapability = 'interfaceScale' | 'refreshRateMatching';
+/** What a native shell can apply, as its bridge reports it to the client. */
+export const shellCapabilities = ['interfaceScale', 'refreshRateMatching'] as const;
+export type ShellCapability = (typeof shellCapabilities)[number];
 
 /** Who applies a setting on a desktop platform: the React client, or a capability of the shell. */
 export type DesktopConsumer =
@@ -133,3 +135,23 @@ export const settingsSchema = {
 } as const satisfies Record<string, SettingSpec>;
 
 export type SettingKey = keyof typeof settingsSchema;
+
+/** Where the desktop client runs: a native shell on one of the desktop platforms, or a browser. */
+export type ClientPlatform = DesktopPlatform | 'web';
+
+/**
+ * Whether Settings offers a setting: the platform honors it, and the shell reports the capability
+ * that applies it. The web build is the client without a shell, so it offers what the client
+ * applies on every desktop platform and nothing that needs a shell.
+ */
+export function settingShown(
+  key: SettingKey,
+  platform: ClientPlatform,
+  capabilities: ReadonlySet<ShellCapability>,
+): boolean {
+  const platforms: Platforms<TvEntry> = settingsSchema[key].platforms;
+  if (platform === 'web') return desktopPlatforms.every((each) => platforms[each]?.by === 'client');
+  const consumer = platforms[platform];
+  if (!consumer) return false;
+  return consumer.by === 'client' || capabilities.has(consumer.capability);
+}

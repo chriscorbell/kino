@@ -19,6 +19,8 @@ CGDirectDisplayID displayOf(QWindow *window) {
 
 DisplayModeMatcher::~DisplayModeMatcher() { restore(); }
 
+bool DisplayModeMatcher::switchesModes() { return true; }
+
 bool DisplayModeMatcher::match(QWindow *window, double frameRate) {
     const CGDirectDisplayID display = displayOf(window);
     CGDisplayModeRef current = CGDisplayCopyDisplayMode(display);

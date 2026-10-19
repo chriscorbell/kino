@@ -30,12 +30,8 @@ import type { CoreTransport } from '../core/transport';
 import type { CoreVideo } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
-import {
-  connectNativePlayer,
-  nativeShellPresent,
-  playbackDevice,
-  type NativePlayer,
-} from '../native/player';
+import { connectNativePlayer, nativeShellPresent, type NativePlayer } from '../native/player';
+import { useShellReport } from '../native/useShellReport';
 import { formatTime } from '../player/nativeEvents';
 import {
   addonSubtitleLabel,
@@ -96,6 +92,9 @@ export function PlayerScreen({
   const [buffering, setBuffering] = useState(false);
   const [nativePlayer, setNativePlayer] = useState<NativePlayer | null>(null);
   const nativeShell = nativeShellPresent();
+  const report = useShellReport();
+  // A failed report fails the same connection the player needs, which reports it.
+  const shell = report instanceof Error ? null : report;
   const nativeBackend = useMemo(
     () => (nativePlayer ? mpvBackend(nativePlayer) : null),
     [nativePlayer],
@@ -196,7 +195,7 @@ export function PlayerScreen({
       const frozen = await backend?.freeze();
       if (frozen) playbackRef.current = frozen;
       await loaded.catch(() => undefined);
-      const finalTime = timeChangedAction(playbackRef.current, playbackDevice());
+      const finalTime = shell && timeChangedAction(playbackRef.current, shell.platform);
       if (finalTime) await target.dispatch(finalTime, 'player');
       await target.commit(finalPauseAction, 'player');
       backend?.stop();
@@ -581,7 +580,7 @@ export function PlayerScreen({
   });
 
   useEffect(() => {
-    if (!backend || !streamUrl) return;
+    if (!backend || !streamUrl || !shell) return;
     audioAutoDoneRef.current = false;
     subtitleAutoDoneRef.current = false;
     subtitleFallbackDoneRef.current = false;
@@ -594,7 +593,7 @@ export function PlayerScreen({
     addedAddonSubtitlesRef.current = new Map();
     addonSubtitlesByTokenRef.current = new Map();
     closingRef.current = false;
-    progressRef.current = transport ? createProgressReporter(transport, playbackDevice()) : null;
+    progressRef.current = transport ? createProgressReporter(transport, shell.platform) : null;
     const unsubscribe = backend.subscribe((event) => onMedia(event, backend));
     sendVolume(savedVolume());
     backend.load({
@@ -616,6 +615,7 @@ export function PlayerScreen({
     selection.meta.type,
     sendVolume,
     settings.audioOutput,
+    shell,
     streamUrl,
     transport,
   ]);

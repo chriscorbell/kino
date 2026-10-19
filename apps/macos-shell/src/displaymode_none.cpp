@@ -17,6 +17,8 @@ QScreen *screenOf(QWindow *window) {
 
 DisplayModeMatcher::~DisplayModeMatcher() { restore(); }
 
+bool DisplayModeMatcher::switchesModes() { return false; }
+
 bool DisplayModeMatcher::match(QWindow *, double) { return false; }
 
 void DisplayModeMatcher::restore() {}

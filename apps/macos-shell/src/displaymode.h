@@ -24,7 +24,7 @@ std::optional<RefreshMode> chooseRefreshMode(const std::vector<RefreshMode> &mod
 
 // Switches the display a window is on to a matching mode for the rest of the app session, and
 // back. CoreGraphics on macOS and the display settings API on Windows also put the mode back if
-// Kino exits without restoring it. Linux reports that nothing changed.
+// Kino exits without restoring it. Linux cannot switch, and reports that nothing changed.
 class DisplayModeMatcher {
 public:
     DisplayModeMatcher() = default;
@@ -32,6 +32,8 @@ public:
     DisplayModeMatcher(const DisplayModeMatcher &) = delete;
     DisplayModeMatcher &operator=(const DisplayModeMatcher &) = delete;
 
+    // Whether this system's backend can change the display's mode at all.
+    static bool switchesModes();
     // True when the display changed mode.
     bool match(QWindow *window, double frameRate);
     void restore();

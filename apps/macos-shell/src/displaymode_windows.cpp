@@ -53,6 +53,8 @@ std::vector<DEVMODEW> sameSizeModes(const std::wstring &device, const DEVMODEW &
 
 DisplayModeMatcher::~DisplayModeMatcher() { restore(); }
 
+bool DisplayModeMatcher::switchesModes() { return true; }
+
 bool DisplayModeMatcher::match(QWindow *window, double frameRate) {
     const std::wstring device = deviceOf(window);
     DEVMODEW current;

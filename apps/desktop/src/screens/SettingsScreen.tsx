@@ -1,3 +1,4 @@
+import { type SettingKey, settingShown } from '@kino/settings';
 import { useEffect, useState } from 'react';
 
 import sharedStyles from '../styles/shared.module.css';
@@ -9,11 +10,8 @@ import { updateProfileSettingsAction } from '../core/actions';
 import { useCore } from '../core/context';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
-import {
-  connectNativeDiagnostics,
-  nativeShellPresent,
-  refreshMatchingAvailable,
-} from '../native/player';
+import { connectNativeDiagnostics, nativeShellPresent } from '../native/player';
+import { useShellReport } from '../native/useShellReport';
 import { subtitleLanguages } from '../player/subtitles';
 import {
   defaultSettings,
@@ -52,6 +50,11 @@ export function SettingsScreen({
   const languageAction = useActionFeedback(transport);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle');
   const nativeShell = nativeShellPresent();
+  const shell = useShellReport();
+  const shown = (key: SettingKey) =>
+    shell !== null &&
+    !(shell instanceof Error) &&
+    settingShown(key, shell.platform, shell.capabilities);
   const profileSettings = profile.state?.profile.settings;
 
   const updateProfile = (patch: Record<string, string>) => {
@@ -131,94 +134,102 @@ export function SettingsScreen({
   return (
     <div className={`${sharedStyles.page} ${styles.settingsPage}`}>
       <h1>{enUS.settings.title}</h1>
-      <section className={styles.settingsGroup} aria-labelledby="appearance-settings-title">
-        <h2 id="appearance-settings-title">{enUS.settings.appearance}</h2>
-        <div className={`${sharedStyles.settingRow} ${styles.scaleRow}`}>
-          <label htmlFor="interface-scale">
-            <span className={styles.settingLabel}>{enUS.settings.interfaceScale}</span>
-            <span className={styles.settingDescription}>
-              {enUS.settings.interfaceScaleDescription}
-            </span>
-          </label>
-          <div className={styles.scaleActions}>
-            <select
-              className={styles.select}
-              disabled={!interfaceScale?.available}
-              id="interface-scale"
-              value={settings.interfaceScale}
-              onChange={(event) =>
-                update({ interfaceScale: Number(event.target.value) as InterfaceScale })
-              }
-            >
-              {interfaceScales.map((percent) => (
-                <option key={percent} value={percent}>
-                  {enUS.format.percent(percent)}
-                </option>
-              ))}
-            </select>
-            <button
-              className={sharedStyles.secondaryButton}
-              disabled={
-                !interfaceScale?.available ||
-                settings.interfaceScale === defaultSettings.interfaceScale
-              }
-              onClick={() => update({ interfaceScale: defaultSettings.interfaceScale })}
-              type="button"
-            >
-              {enUS.settings.resetScale}
-            </button>
+      {shell instanceof Error ? (
+        <p className={sharedStyles.loadError} role="alert">
+          {shell.message}
+        </p>
+      ) : null}
+      {shown('interfaceScale') ? (
+        <section className={styles.settingsGroup} aria-labelledby="appearance-settings-title">
+          <h2 id="appearance-settings-title">{enUS.settings.appearance}</h2>
+          <div className={`${sharedStyles.settingRow} ${styles.scaleRow}`}>
+            <label htmlFor="interface-scale">
+              <span className={styles.settingLabel}>{enUS.settings.interfaceScale}</span>
+              <span className={styles.settingDescription}>
+                {enUS.settings.interfaceScaleDescription}
+              </span>
+            </label>
+            <div className={styles.scaleActions}>
+              <select
+                className={styles.select}
+                id="interface-scale"
+                value={settings.interfaceScale}
+                onChange={(event) =>
+                  update({ interfaceScale: Number(event.target.value) as InterfaceScale })
+                }
+              >
+                {interfaceScales.map((percent) => (
+                  <option key={percent} value={percent}>
+                    {enUS.format.percent(percent)}
+                  </option>
+                ))}
+              </select>
+              <button
+                className={sharedStyles.secondaryButton}
+                disabled={settings.interfaceScale === defaultSettings.interfaceScale}
+                onClick={() => update({ interfaceScale: defaultSettings.interfaceScale })}
+                type="button"
+              >
+                {enUS.settings.resetScale}
+              </button>
+            </div>
           </div>
-        </div>
-        {interfaceScale?.failed ? (
-          <div className={styles.scaleError}>
-            <p role="alert">{enUS.settings.scaleFailed}</p>
-            <button
-              className={sharedStyles.secondaryButton}
-              onClick={interfaceScale.retry}
-              type="button"
-            >
-              {enUS.settings.retryScale}
-            </button>
-          </div>
-        ) : null}
-        {!interfaceScale?.available ? (
-          <p className={sharedStyles.settingsNote}>{enUS.settings.desktopOnly}</p>
-        ) : null}
-      </section>
+          {interfaceScale?.failed ? (
+            <div className={styles.scaleError}>
+              <p role="alert">{enUS.settings.scaleFailed}</p>
+              <button
+                className={sharedStyles.secondaryButton}
+                onClick={interfaceScale.retry}
+                type="button"
+              >
+                {enUS.settings.retryScale}
+              </button>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
       <UpdateSettings updates={updates} />
 
       <section className={styles.settingsGroup} aria-labelledby="playback-settings-title">
         <h2 id="playback-settings-title">{enUS.settings.playback}</h2>
-        <SettingSwitch
-          checked={settings.skipIntroButton}
-          description={enUS.settings.skipIntroButtonDescription}
-          label={enUS.settings.skipIntroButton}
-          onChange={(checked) => update({ skipIntroButton: checked })}
-        />
-        <SettingSwitch
-          checked={settings.automaticIntroSkipping}
-          description={enUS.settings.automaticIntroSkippingDescription}
-          label={enUS.settings.automaticIntroSkipping}
-          onChange={(checked) => update({ automaticIntroSkipping: checked })}
-        />
-        <SettingSwitch
-          checked={settings.upNext}
-          description={enUS.settings.upNextDescription}
-          label={enUS.settings.upNext}
-          onChange={(checked) => update({ upNext: checked })}
-        />
-        <SettingSelect
-          description={enUS.settings.audioOutputDescription}
-          id="audio-output"
-          label={enUS.settings.audioOutput}
-          onChange={(value) => update({ audioOutput: value as KinoSettings['audioOutput'] })}
-          options={[
-            { label: enUS.settings.audioAuto, value: 'auto' },
-            { label: enUS.settings.audioStereo, value: 'stereo' },
-          ]}
-          value={settings.audioOutput}
-        />
-        {refreshMatchingAvailable() ? (
+        {shown('skipIntroButton') ? (
+          <SettingSwitch
+            checked={settings.skipIntroButton}
+            description={enUS.settings.skipIntroButtonDescription}
+            label={enUS.settings.skipIntroButton}
+            onChange={(checked) => update({ skipIntroButton: checked })}
+          />
+        ) : null}
+        {shown('automaticIntroSkipping') ? (
+          <SettingSwitch
+            checked={settings.automaticIntroSkipping}
+            description={enUS.settings.automaticIntroSkippingDescription}
+            label={enUS.settings.automaticIntroSkipping}
+            onChange={(checked) => update({ automaticIntroSkipping: checked })}
+          />
+        ) : null}
+        {shown('upNext') ? (
+          <SettingSwitch
+            checked={settings.upNext}
+            description={enUS.settings.upNextDescription}
+            label={enUS.settings.upNext}
+            onChange={(checked) => update({ upNext: checked })}
+          />
+        ) : null}
+        {shown('audioOutput') ? (
+          <SettingSelect
+            description={enUS.settings.audioOutputDescription}
+            id="audio-output"
+            label={enUS.settings.audioOutput}
+            onChange={(value) => update({ audioOutput: value as KinoSettings['audioOutput'] })}
+            options={[
+              { label: enUS.settings.audioAuto, value: 'auto' },
+              { label: enUS.settings.audioStereo, value: 'stereo' },
+            ]}
+            value={settings.audioOutput}
+          />
+        ) : null}
+        {shown('matchRefreshRate') ? (
           <SettingSwitch
             checked={settings.matchRefreshRate}
             description={enUS.settings.matchRefreshRateDescription}
@@ -231,12 +242,14 @@ export function SettingsScreen({
       <section className={styles.settingsGroup} aria-labelledby="language-settings-title">
         <h2 id="language-settings-title">{enUS.settings.languages}</h2>
         <p className={sharedStyles.settingsNote}>{enUS.settings.languagesNote}</p>
-        <SettingSwitch
-          checked={settings.subtitles}
-          description={enUS.settings.subtitlesDescription}
-          label={enUS.settings.subtitles}
-          onChange={(checked) => update({ subtitles: checked })}
-        />
+        {shown('subtitles') ? (
+          <SettingSwitch
+            checked={settings.subtitles}
+            description={enUS.settings.subtitlesDescription}
+            label={enUS.settings.subtitles}
+            onChange={(checked) => update({ subtitles: checked })}
+          />
+        ) : null}
         <SettingSelect
           description={enUS.settings.subtitleLanguageDescription}
           disabled={!profileSettings || !transport || languageAction.pending}
