@@ -125,6 +125,7 @@ android {
     // The license index scripts/android-notices.mjs collects, packaged as assets/licenses.
     sourceSets["main"].assets.srcDir("../../../build/android-notices")
     sourceSets["androidTest"].assets.srcDir("../../../build/android-fixtures")
+    sourceSets["test"].resources.srcDir("../../../fixtures/parity")
     sourceSets["release"].jniLibs.srcDir("../../../build/android-core/jniLibs")
     sourceSets["debug"].jniLibs.srcDir("../../../build/android-core/jniLibs")
     sourceSets["benchmark"].jniLibs.srcDir("../../../build/android-core-test/jniLibs")
@@ -177,6 +178,9 @@ val requireStreamEngine by
         }
     }
 
+// ParityTest reads the label templates from strings.xml, which no compiled input reflects.
+tasks.withType<Test>().configureEach { inputs.file("src/main/res/values/strings.xml") }
+
 tasks.named("preBuild") {
     dependsOn(generateDesignTokens, requireFfmpegRenderer, requireLicenseNotices, requireStreamEngine)
 }
@@ -203,6 +207,9 @@ dependencies {
     implementation("androidx.media3:media3-ui:1.9.3")
     implementation("androidx.media3:media3-effect:1.9.3")
     implementation("androidx.media3:media3-session:1.9.3")
+    testImplementation("junit:junit:4.13.2")
+    // The version Core already brings in, so the test and app classpaths agree.
+    testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
 }

@@ -18,8 +18,8 @@ data class SourceFields(
     val videoCodec: String?,
     val videoRange: String?,
     val size: SourceSize?,
-    /** A rate the add-on states itself, in Mbps. */
-    val statedMegabits: Double?,
+    /** A rate the add-on states itself, in Mbps, with its digits as written. */
+    val statedBitrate: String?,
     val peers: Int?,
     /** The primary text when nothing structured could be read. */
     val fallbackTitle: String,
@@ -150,7 +150,7 @@ private fun parseSizeBytes(amount: String, unit: String): Long? {
 }
 
 /** "2h 22min", "142 min", and "142" all mean minutes; anything else is unknown. */
-fun runtimeMinutes(runtime: String?): Int? {
+private fun runtimeMinutes(runtime: String?): Int? {
     if (runtime.isNullOrBlank()) return null
     val hours = Regex("(\\d+)\\s*h", ci).find(runtime)?.groupValues?.get(1)?.toIntOrNull()
     val minutes = Regex("(\\d+)\\s*m", ci).find(runtime)?.groupValues?.get(1)?.toIntOrNull()
@@ -161,11 +161,36 @@ fun runtimeMinutes(runtime: String?): Int? {
 }
 
 /** Mbps from a byte size and a runtime, or null when either is unknown. */
-fun estimatedMegabits(size: SourceSize?, runtimeMinutes: Int?): Double? {
+private fun estimatedMegabits(size: SourceSize?, runtimeMinutes: Int?): Double? {
     val bytes = (size as? SourceSize.Bytes)?.bytes ?: return null
     val minutes = runtimeMinutes ?: return null
     val megabits = bytes * 8.0 / (minutes * 60.0) / 1_000_000.0
     return megabits.takeIf { it.isFinite() && it >= 0.1 }
+}
+
+/** The size column's text, given the gigabyte and megabyte templates from strings.xml. */
+internal fun sizeLabel(size: SourceSize?, gigabytes: String, megabytes: String): String? =
+    when (size) {
+        null -> null
+        is SourceSize.Text -> size.text
+        is SourceSize.Bytes -> {
+            val gibibytes = size.bytes / (1L shl 30).toDouble()
+            // One decimal at every size, so "54.3 GB" and "6.9 GB" line up.
+            if (gibibytes >= 1) gigabytes.format("%.1f".format(gibibytes))
+            else megabytes.format(Math.round(size.bytes / (1L shl 20).toDouble()))
+        }
+    }
+
+/** The bitrate column's text, given the stated and estimated templates from strings.xml. */
+internal fun bitrateLabel(
+    fields: SourceFields,
+    runtime: String?,
+    stated: String,
+    estimated: String,
+): String? {
+    fields.statedBitrate?.let { return stated.format(it) }
+    val estimate = estimatedMegabits(fields.size, runtimeMinutes(runtime)) ?: return null
+    return estimated.format(if (estimate >= 10) "%.0f".format(estimate) else "%.1f".format(estimate))
 }
 
 private fun detectRange(text: String): String? {
@@ -276,8 +301,7 @@ fun sourceFields(stream: Stream, unnamed: String): SourceFields {
         videoCodec = videoCodecs.firstOrNull { (p, _) -> p.containsMatchIn(corpus) }?.second,
         videoRange = detectRange(corpus),
         size = size,
-        statedMegabits =
-            bitratePattern.find(corpus)?.groupValues?.get(1)?.replace(',', '.')?.toDoubleOrNull(),
+        statedBitrate = bitratePattern.find(corpus)?.groupValues?.get(1)?.replace(',', '.'),
         peers = peersPattern.find(corpus)?.groupValues?.get(1)?.toIntOrNull(),
         fallbackTitle = release ?: lines.firstOrNull() ?: unnamed,
         original =

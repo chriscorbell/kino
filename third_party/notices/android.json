@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "pins": {
-    "gradleLockfileSha256": "c120c1e4e2bff5ce0718545326c727b0568e93637782a81c2cf03a01213fa8b8",
+    "gradleLockfileSha256": "96cd49a12dc0655f5766f9503d931871304f07e93955ecffe529aab8caabdfff",
     "coreLockSha256": "0d268728d918cc0580fdc5ffd3c719f3995394ef25ad131fd561f4c9da631033",
     "coreRevision": "2a8083f1026603e7c49f104473340d110902a72c",
     "ffmpegDecoders": ["ac3", "eac3", "dca", "truehd", "mlp"]

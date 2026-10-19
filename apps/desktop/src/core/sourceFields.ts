@@ -188,7 +188,7 @@ function formatBytes(bytes: number) {
 }
 
 /** "2h 22min", "142 min", and "142" all mean minutes; anything else is unknown. */
-export function runtimeMinutes(runtime: string | null | undefined) {
+function runtimeMinutes(runtime: string | null | undefined) {
   if (!runtime) return null;
   const hours = /(\d+)\s*h/i.exec(runtime);
   const minutes = /(\d+)\s*m/i.exec(runtime);
