@@ -54,7 +54,6 @@ export function fakeNativePlayer<Extra extends Partial<NativePlayer>>(extra = {}
     setVolume: vi.fn<NativePlayer['setVolume']>(),
     startStreamingEngine: vi.fn<NativePlayer['startStreamingEngine']>(),
     stop: vi.fn<NativePlayer['stop']>(),
-    /** Sends a player event, the shell's most common signal. */
     emit: (name: string, payload: Record<string, unknown> = {}) => playerEvent.emit(name, payload),
     ...extra,
   };

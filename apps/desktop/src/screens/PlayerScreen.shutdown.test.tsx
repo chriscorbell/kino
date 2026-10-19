@@ -242,7 +242,7 @@ describe('near-end Up Next', () => {
 
   it('waits for end-of-file when duration is unknown', async () => {
     const player = await mountPlayer();
-    // The shell reports an unknown duration as 0.
+    // mpv sends no duration while it has none; the player then holds 0, as media.ts defines.
     for (const duration of [0]) {
       await player.emit('duration', { milliseconds: duration });
       await player.emit('time', { milliseconds: 1_000_000 });
