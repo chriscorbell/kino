@@ -6,11 +6,15 @@ import type { CoreTransport } from '../../core/transport';
 import type { CoreSource, PlayerState } from '../../core/types';
 import { connectNativePlayer } from '../../native/player';
 import { PlayerScreen } from '../../screens/PlayerScreen';
-import { defaultSettings } from '../../settings';
+import { createKinoSettingsStore } from '../../settingsStore';
+import { KinoSettingsProvider } from '../../useKinoSettings';
 import { preview, video } from '../coreState';
+import { memoryStorage } from '../memoryStorage';
 
 const root = createRoot(document.getElementById('root')!);
 let generation = 0;
+// The fixture sets the subtitle setting per title; nothing it changes outlives the page.
+const settings = createKinoSettingsStore(memoryStorage());
 const probe = {
   connected: false,
   closed: true,
@@ -75,6 +79,7 @@ const probe = {
       getState: async () => state,
       subscribe: () => () => {},
     } as CoreTransport;
+    settings.update({ subtitles: enabled });
     root.render(
       <CoreContext.Provider
         key={++generation}
@@ -86,26 +91,26 @@ const probe = {
           selectSession: () => {},
         }}
       >
-        <PlayerScreen
-          selection={{
-            meta: preview({ id, type: episode ? 'series' : 'movie', name: 'Track fixture' }),
-            video: episode ? video({ id: `${id}:1:${episode}`, season: 1, episode }) : null,
-            nextVideo: null,
-            stream,
-            metaTransportUrl: 'https://addon.invalid/manifest.json',
-            streamTransportUrl: 'https://addon.invalid/manifest.json',
-          }}
-          settings={{ ...defaultSettings, subtitles: enabled }}
-          preferredAudioLanguage={language}
-          preferredSubtitleLanguage={language}
-          onSettingsChange={() => {}}
-          onBack={() => {
-            probe.closed = true;
-            root.render(null);
-          }}
-          onSourceFailure={() => {}}
-          onUpNext={() => {}}
-        />
+        <KinoSettingsProvider value={settings}>
+          <PlayerScreen
+            selection={{
+              meta: preview({ id, type: episode ? 'series' : 'movie', name: 'Track fixture' }),
+              video: episode ? video({ id: `${id}:1:${episode}`, season: 1, episode }) : null,
+              nextVideo: null,
+              stream,
+              metaTransportUrl: 'https://addon.invalid/manifest.json',
+              streamTransportUrl: 'https://addon.invalid/manifest.json',
+            }}
+            preferredAudioLanguage={language}
+            preferredSubtitleLanguage={language}
+            onBack={() => {
+              probe.closed = true;
+              root.render(null);
+            }}
+            onSourceFailure={() => {}}
+            onUpNext={() => {}}
+          />
+        </KinoSettingsProvider>
       </CoreContext.Provider>,
     );
   },

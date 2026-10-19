@@ -43,7 +43,8 @@ import {
   type AddonSubtitle,
   type SubtitleTrack,
 } from '../player/subtitles';
-import { subtitlePositionRange, subtitleSizeRange, type KinoSettings } from '../settings';
+import { subtitlePositionRange, subtitleSizeRange } from '../settings';
+import { useKinoSettings } from '../useKinoSettings';
 import { videoParams } from '../player/videoParams';
 import { useFullscreen } from '../player/useFullscreen';
 import { useIdleControls } from '../player/useIdleControls';
@@ -62,24 +63,21 @@ import { videoBackend } from '../playback/videoBackend';
 
 export function PlayerScreen({
   onBack,
-  onSettingsChange,
   onSourceFailure,
   onUpNext,
   preferredAudioLanguage = null,
   preferredSubtitleLanguage,
   selection,
-  settings,
 }: {
   onBack: () => void;
-  onSettingsChange: (settings: KinoSettings) => void;
   onSourceFailure: (message: string) => void;
   onUpNext: (video: CoreVideo) => void;
   preferredAudioLanguage?: string | null;
   preferredSubtitleLanguage: string | null;
   selection: PlaybackSelection;
-  settings: KinoSettings;
 }) {
   const { transport } = useCore();
+  const [settings, updateSettings] = useKinoSettings();
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const topbarRef = useRef<HTMLDivElement>(null);
@@ -283,13 +281,13 @@ export function PlayerScreen({
       if (!Number.isFinite(percent)) return;
       const next = Math.max(0, Math.min(100, percent));
       setVolume(next);
-      onSettingsChange({ ...settings, volume: next });
+      updateSettings({ volume: next });
       if (next > 0 && muted) {
         setMuted(false);
         backend?.setMuted(false);
       }
     },
-    [backend, muted, onSettingsChange, settings],
+    [backend, muted, updateSettings],
   );
 
   useEffect(() => {
@@ -347,9 +345,7 @@ export function PlayerScreen({
       });
     }
     trackBackend.setSubtitleTrack(id);
-    if (settings.subtitles !== (id !== null)) {
-      onSettingsChange({ ...settings, subtitles: id !== null });
-    }
+    updateSettings({ subtitles: id !== null });
   };
 
   const attachAddonSubtitle = useCallback(
@@ -374,7 +370,7 @@ export function PlayerScreen({
     setAddedSubtitleUrls((previous) => new Set(previous).add(subtitle.url));
     attachAddonSubtitle(subtitle);
     setSubtitleMenuOpen(false);
-    if (!settings.subtitles) onSettingsChange({ ...settings, subtitles: true });
+    updateSettings({ subtitles: true });
   };
 
   const changeSubtitleDelay = (deltaMs: number) => {
@@ -388,7 +384,7 @@ export function PlayerScreen({
       subtitleSizeRange.min,
       Math.min(subtitleSizeRange.max, settings.subtitleSize + delta),
     );
-    if (next !== settings.subtitleSize) onSettingsChange({ ...settings, subtitleSize: next });
+    updateSettings({ subtitleSize: next });
   };
 
   const changeSubtitlePosition = (delta: number) => {
@@ -396,9 +392,7 @@ export function PlayerScreen({
       subtitlePositionRange.min,
       Math.min(subtitlePositionRange.max, settings.subtitlePosition + delta),
     );
-    if (next !== settings.subtitlePosition) {
-      onSettingsChange({ ...settings, subtitlePosition: next });
-    }
+    updateSettings({ subtitlePosition: next });
   };
 
   useEffect(() => {

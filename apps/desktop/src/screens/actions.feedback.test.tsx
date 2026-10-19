@@ -1,12 +1,12 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 
 import { CoreContext } from '../core/context';
 import type { CoreTransport } from '../core/transport';
 import type { CoreRuntimeEvent } from '../core/types';
 import { profile } from '../test/coreState';
+import { renderWithSettings } from '../test/renderWithSettings';
 import { commitThrough } from '../test/transport';
-import { defaultSettings } from '../settings';
 import { HomeScreen } from './HomeScreen';
 import { SettingsScreen } from './SettingsScreen';
 
@@ -58,7 +58,7 @@ function fixture() {
   return {
     target,
     render(child: React.ReactNode) {
-      return render(
+      return renderWithSettings(
         <CoreContext.Provider
           value={{
             error: null,
@@ -130,7 +130,7 @@ it('retries the chosen language with current profile settings and blocks concurr
   vi.mocked(test.target.dispatch).mockImplementation((action) =>
     action.action === 'Ctx' ? pending : Promise.resolve(),
   );
-  test.render(<SettingsScreen settings={defaultSettings} onChange={vi.fn()} />);
+  test.render(<SettingsScreen />);
   const audio = screen.getByRole('combobox', { name: /Audio language/ });
   const subtitles = screen.getByRole('combobox', { name: /Subtitle language/ });
   await waitFor(() => expect(audio).toBeEnabled());

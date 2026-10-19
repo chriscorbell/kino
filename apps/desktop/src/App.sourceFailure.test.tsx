@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 
 import { App } from './App';
@@ -7,6 +7,7 @@ import type { CoreTransport } from './core/transport';
 import type { PlaybackSelection } from './core/actions';
 import type { CoreMetaItem, CoreRuntimeEvent, CoreVideo } from './core/types';
 import { metaItem, profile, torrentSource, video } from './test/coreState';
+import { renderWithSettings } from './test/renderWithSettings';
 
 const meta: CoreMetaItem = metaItem({
   id: 'show',
@@ -104,7 +105,7 @@ function mountApp() {
       return () => listeners.delete(listener);
     },
   };
-  render(
+  renderWithSettings(
     <CoreContext.Provider
       value={{ error: null, status: 'ready', session: 'guest', transport, selectSession: vi.fn() }}
     >

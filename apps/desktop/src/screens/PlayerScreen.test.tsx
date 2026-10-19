@@ -1,11 +1,11 @@
-import { render, waitFor } from '@testing-library/react';
+import { waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { CoreContext } from '../core/context';
 import type { CoreTransport } from '../core/transport';
 import type { PlayerState } from '../core/types';
-import { defaultSettings } from '../settings';
 import { hints, preview, urlSource } from '../test/coreState';
+import { renderWithSettings } from '../test/renderWithSettings';
 import { PlayerScreen } from './PlayerScreen';
 
 const native = vi.hoisted(() => ({
@@ -65,7 +65,7 @@ describe('native direct sources', () => {
         subscribe: () => () => {},
       };
       native.load.mockClear();
-      render(
+      renderWithSettings(
         <CoreContext.Provider
           value={{
             error: null,
@@ -84,10 +84,8 @@ describe('native direct sources', () => {
               video: null,
               nextVideo: null,
             }}
-            settings={defaultSettings}
             preferredSubtitleLanguage={null}
             onBack={vi.fn()}
-            onSettingsChange={vi.fn()}
             onSourceFailure={vi.fn()}
             onUpNext={vi.fn()}
           />

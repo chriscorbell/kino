@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 
 import { App } from './App';
@@ -9,6 +9,7 @@ import type { CoreTransport } from './core/transport';
 import type { CoreRuntimeEvent } from './core/types';
 import { hints, profile, torrentSource, urlSource } from './test/coreState';
 import { addon, details, episode, item, remembered } from './test/resumeState';
+import { renderWithSettings } from './test/renderWithSettings';
 
 const played = vi.hoisted(() => vi.fn());
 vi.mock('./screens/PlayerScreen', () => ({
@@ -67,7 +68,7 @@ function mount() {
       <App />
     </CoreContext.Provider>
   );
-  const view = render(app());
+  const view = renderWithSettings(app());
   return {
     async ready(next = details()) {
       await act(async () => {

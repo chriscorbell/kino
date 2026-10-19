@@ -1,9 +1,9 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 
 import type { CoreSource } from '../core/types';
-import { defaultSettings } from '../settings';
 import { preview } from '../test/coreState';
+import { renderWithSettings } from '../test/renderWithSettings';
 import { PlayerScreen } from './PlayerScreen';
 
 const fixture = vi.hoisted(() => ({
@@ -74,14 +74,12 @@ it.each([true, false])(
         video: null,
         nextVideo: null,
       },
-      settings: defaultSettings,
       preferredSubtitleLanguage: null,
       onBack: vi.fn(),
       onSourceFailure: vi.fn(),
       onUpNext: vi.fn(),
-      onSettingsChange: vi.fn(),
     };
-    const view = render(<PlayerScreen {...props} />);
+    const view = renderWithSettings(<PlayerScreen {...props} />);
     if (nativeShell) await waitFor(() => expect(fixture.native.load).toHaveBeenCalledTimes(1));
     const video = view.container.querySelector('video');
     await act(async () => {

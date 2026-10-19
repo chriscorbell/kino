@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -6,7 +6,7 @@ import { CoreContext } from '../core/context';
 import type { CoreTransport } from '../core/transport';
 import { preview, urlSource, video } from '../test/coreState';
 import { commitThrough } from '../test/transport';
-import { defaultSettings } from '../settings';
+import { renderWithSettings } from '../test/renderWithSettings';
 import { PlayerScreen } from './PlayerScreen';
 
 const native = vi.hoisted(() => {
@@ -90,7 +90,7 @@ async function mountPlayer({ upNext = true, hasNextVideo = true } = {}) {
   const onSourceFailure = vi.fn();
   const onUpNext = vi.fn();
   const nextVideo = video({ id: 'ep2', title: 'Episode two', season: 1, episode: 2 });
-  const view = render(
+  const view = renderWithSettings(
     <StrictMode>
       <CoreContext.Provider
         value={{
@@ -110,15 +110,14 @@ async function mountPlayer({ upNext = true, hasNextVideo = true } = {}) {
             video: video({ id: 'ep1', title: 'Episode one', season: 1, episode: 1 }),
             nextVideo: hasNextVideo ? nextVideo : null,
           }}
-          settings={{ ...defaultSettings, upNext }}
           preferredSubtitleLanguage={null}
           onBack={onBack}
           onSourceFailure={onSourceFailure}
           onUpNext={onUpNext}
-          onSettingsChange={vi.fn()}
         />
       </CoreContext.Provider>
     </StrictMode>,
+    { settings: { upNext } },
   );
   await waitFor(() => expect(native.load).toHaveBeenCalled());
   const emit = async (name: string, payload: Record<string, unknown> = {}) => {

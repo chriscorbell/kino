@@ -4,6 +4,8 @@ import '../../global.css';
 import { App } from '../../App';
 import { CoreContext } from '../../core/context';
 import type { CoreTransport } from '../../core/transport';
+import { createKinoSettingsStore } from '../../settingsStore';
+import { KinoSettingsProvider } from '../../useKinoSettings';
 import type { CoreRuntimeEvent, MetaDetailsState } from '../../core/types';
 import type { CoreSession } from '../../core/storage';
 import { metaItem, profile, video, urlSource } from '../coreState';
@@ -78,6 +80,7 @@ const transport: CoreTransport = {
   },
 };
 const root = createRoot(document.getElementById('root')!);
+const settings = createKinoSettingsStore(window.localStorage);
 const render = (target = transport) =>
   root.render(
     <CoreContext.Provider
@@ -89,7 +92,9 @@ const render = (target = transport) =>
         selectSession: () => {},
       }}
     >
-      <App />
+      <KinoSettingsProvider value={settings}>
+        <App />
+      </KinoSettingsProvider>
     </CoreContext.Provider>,
   );
 const probe = {

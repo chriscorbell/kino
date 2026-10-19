@@ -1,9 +1,9 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { useState } from 'react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { CoreSource } from '../core/types';
-import { defaultSettings, loadSettings, saveSettings } from '../settings';
+import { loadSettings } from '../settings';
 import { preview } from '../test/coreState';
+import { renderWithSettings } from '../test/renderWithSettings';
 import { PlayerScreen } from './PlayerScreen';
 
 const fixture = vi.hoisted(() => ({
@@ -65,28 +65,20 @@ const selection = {
   nextVideo: null,
 };
 const noop = () => {};
-function Fixture() {
-  const [settings, setSettings] = useState({ ...defaultSettings, volume: 30 });
-  return (
-    <PlayerScreen
-      selection={selection}
-      settings={settings}
-      onSettingsChange={(next) => {
-        saveSettings(localStorage, next);
-        setSettings(next);
-      }}
-      preferredSubtitleLanguage={null}
-      onBack={noop}
-      onSourceFailure={noop}
-      onUpNext={noop}
-    />
-  );
-}
 it.each([true, false])(
   'adjusts, saves and observes volume without reloading (native=%s)',
   async (nativeShell) => {
     fixture.nativeShell = nativeShell;
-    const view = render(<Fixture />);
+    const view = renderWithSettings(
+      <PlayerScreen
+        selection={selection}
+        preferredSubtitleLanguage={null}
+        onBack={noop}
+        onSourceFailure={noop}
+        onUpNext={noop}
+      />,
+      { settings: { volume: 30 }, storage: localStorage },
+    );
     const range = await screen.findByRole('slider', { name: 'Volume' });
     if (nativeShell) await waitFor(() => expect(fixture.native.setVolume).toHaveBeenCalledWith(30));
     else expect(view.container.querySelector('video')!.volume).toBe(0.3);

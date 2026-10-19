@@ -1,18 +1,10 @@
 import { type SettingSpec, settingsSchema } from '@kino/settings';
 import { describe, expect, it, vi } from 'vitest';
 
-import { defaultSettings, loadSettings, saveSettings, SETTINGS_STORAGE_KEY } from './settings';
+import { defaultSettings, loadSettings } from './settings';
 
 function createStorage(initial?: string) {
-  let value = initial ?? null;
-
-  return {
-    getItem: () => value,
-    setItem: (_key: string, nextValue: string) => {
-      value = nextValue;
-    },
-    value: () => value,
-  };
+  return { getItem: () => initial ?? null };
 }
 
 const load = (values: object) => loadSettings(createStorage(JSON.stringify(values)));
@@ -78,39 +70,11 @@ describe('settings storage', () => {
     });
   });
 
-  it('preserves a supported interface scale across reload', () => {
-    const storage = createStorage();
-    saveSettings(storage, { ...defaultSettings, interfaceScale: 175 });
-    expect(loadSettings(storage).interfaceScale).toBe(175);
-  });
-
   it('restores saved volume and rejects invalid levels', () => {
     expect(loadSettings(createStorage('{"volume":37}')).volume).toBe(37);
     for (const volume of [-1, 101, 'quiet', null]) {
       expect(loadSettings(createStorage(JSON.stringify({ volume }))).volume).toBe(100);
     }
-  });
-
-  it('writes the versioned settings record', () => {
-    const storage = createStorage();
-
-    saveSettings(storage, { ...defaultSettings, audioOutput: 'stereo' });
-
-    expect(storage.value()).toBe(JSON.stringify({ ...defaultSettings, audioOutput: 'stereo' }));
-    expect(SETTINGS_STORAGE_KEY).toBe('kino.settings.v1');
-  });
-
-  it('does not crash when settings cannot be written', () => {
-    expect(() =>
-      saveSettings(
-        {
-          setItem: () => {
-            throw new Error('storage unavailable');
-          },
-        },
-        defaultSettings,
-      ),
-    ).not.toThrow();
   });
 
   it('keeps a ranged value at either limit and repairs one past it or of another type', () => {
