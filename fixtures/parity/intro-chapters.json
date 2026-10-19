@@ -1,5 +1,5 @@
 {
-  "rule": "An intro comes from the one chapter titled intro, introduction, opening, opening credits or op, in any case. It ends where the next chapter starts, or at the end of the video, and must last 5 to 200 seconds within the video. Two such chapters, one outside those bounds, or two chapters sharing a start time leave the intro unknown rather than absent.",
+  "rule": "An intro comes from the one chapter titled intro, introduction, opening, opening credits or op, in any case. It ends where the next chapter starts, or at the end of the video, and must last 5 to 200 seconds within the video. On TV, a chapter's own end time, when the file gives one, comes first. The desktop's chapter list carries start times only, so these cases give none. Two such chapters, one outside those bounds, or any two chapters sharing a start time, labelled or not, leave the intro unknown rather than absent.",
   "cases": [
     {
       "name": "a labelled chapter ends where the next chapter starts",
@@ -135,6 +135,16 @@
         { "title": "Prologue", "startMs": 0 },
         { "title": "Intro", "startMs": 30000 },
         { "title": "Episode", "startMs": 90000 }
+      ],
+      "durationMs": 2400000,
+      "expect": { "result": "unknown" }
+    },
+    {
+      "name": "chapters sharing a start time with no intro label are unknown",
+      "chapters": [
+        { "title": "Part 1", "startMs": 0 },
+        { "title": "Part 2", "startMs": 0 },
+        { "title": "Part 3", "startMs": 90000 }
       ],
       "durationMs": 2400000,
       "expect": { "result": "unknown" }

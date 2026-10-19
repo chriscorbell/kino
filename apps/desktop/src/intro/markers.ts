@@ -35,8 +35,10 @@ function validBounds(startMs: number, endMs: number, durationMs: number) {
 
 /**
  * 'absent' when no chapter is labelled as an intro, so a community marker may
- * stand in. 'unknown' when the chapters label one Kino cannot trust, which
- * rules the community marker out too: a wrong skip is worse than none.
+ * stand in. 'unknown' when two chapters are labelled, the labelled one falls
+ * outside the trusted bounds, or any two chapters share a start time, labelled
+ * or not. That rules the community marker out too, because a wrong skip is
+ * worse than none.
  */
 export function introFromChapters(
   chapters: ChapterCue[],
