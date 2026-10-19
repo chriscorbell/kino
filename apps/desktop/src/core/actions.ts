@@ -8,8 +8,7 @@ import type {
   CoreVideo,
   LibraryRequest,
 } from './types';
-import { durable, transient } from './writes.ts';
-import type { DurableAction, TransientAction } from './writes.ts';
+import { durable, transient, type DurableAction, type TransientAction } from './writes.ts';
 
 export interface PlaybackSelection {
   meta: CoreMetaPreview;
@@ -207,7 +206,7 @@ export function updateProfileSettingsAction(
 }
 
 /** The add-on record Core stores. */
-export interface AddonDescriptor {
+interface AddonDescriptor {
   flags: { official: boolean; protected: boolean };
   manifest: Readonly<Record<string, unknown>>;
   transportUrl: string;

@@ -12,6 +12,7 @@ import type { CoreTransport } from './transport';
 
 const control = vi.hoisted(() => ({
   init: vi.fn(),
+  store: vi.fn(),
   transports: [] as CoreTransport[],
 }));
 vi.mock('./transport', () => ({
@@ -20,8 +21,11 @@ vi.mock('./transport', () => ({
     const transport: CoreTransport = {
       init: () => control.init(session),
       destroy: vi.fn().mockResolvedValue(undefined),
-      // The guest catalog install lands in the same record as every other action.
-      commit: dispatch,
+      // Built like the production commit, so a test can fail the storage step.
+      commit: async (...args) => {
+        await dispatch(...args);
+        await control.store();
+      },
       dispatch,
       prepareClose: vi.fn().mockResolvedValue(undefined),
       onBeforeDestroy: () => () => {},
@@ -41,6 +45,7 @@ beforeEach(() => {
   window.localStorage.clear();
   control.transports.length = 0;
   control.init.mockReset().mockResolvedValue(undefined);
+  control.store.mockReset().mockResolvedValue(undefined);
   vi.stubGlobal('Worker', class {});
   vi.stubGlobal(
     'fetch',
@@ -102,6 +107,26 @@ it('keeps Core and Settings usable after an optional catalog failure, then retri
     expect(control.transports[0]!.dispatch).toHaveBeenCalledWith(
       expect.objectContaining({ args: expect.objectContaining({ action: 'InstallAddon' }) }),
     ),
+  );
+  expect(control.transports).toHaveLength(1);
+});
+
+it('keeps Core running when the guest catalog cannot be stored, then retries the catalog', async () => {
+  control.store.mockRejectedValueOnce(new Error('Core storage did not finish in time.'));
+  vi.mocked(fetch).mockImplementation(
+    async () => new Response(JSON.stringify({ id: 'com.linvo.cinemeta', name: 'Cinemeta' })),
+  );
+  render(
+    <CoreProvider>
+      <Probe />
+    </CoreProvider>,
+  );
+  const retry = await screen.findByRole('button', { name: 'Retry guest catalog' });
+  expect(screen.getByTestId('status')).toHaveTextContent('ready');
+  fireEvent.click(retry);
+  await waitFor(() => expect(control.store).toHaveBeenCalledTimes(2));
+  await waitFor(() =>
+    expect(screen.queryByRole('button', { name: 'Retry guest catalog' })).not.toBeInTheDocument(),
   );
   expect(control.transports).toHaveLength(1);
 });

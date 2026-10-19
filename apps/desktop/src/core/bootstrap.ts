@@ -40,11 +40,17 @@ export async function ensureGuestCatalog(transport: CoreTransport, signal?: Abor
   // A response arriving after a session switch must not mutate the old profile.
   signal?.throwIfAborted();
 
-  await transport.commit(
-    installDescriptorAction({
-      flags: { official: true, protected: true },
-      manifest,
-      transportUrl: CINEMETA_MANIFEST_URL,
-    }),
-  );
+  try {
+    await transport.commit(
+      installDescriptorAction({
+        flags: { official: true, protected: true },
+        manifest,
+        transportUrl: CINEMETA_MANIFEST_URL,
+      }),
+    );
+  } catch (error) {
+    // A save that fails or times out leaves the catalog installed for this
+    // session, so it is the optional catalog's failure, not the session's.
+    throw new GuestCatalogError('The default guest catalog could not be saved.', { cause: error });
+  }
 }

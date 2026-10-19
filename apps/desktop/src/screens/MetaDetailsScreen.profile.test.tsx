@@ -17,7 +17,7 @@ function transport(inLibrary: boolean) {
   return {
     destroy: vi.fn(),
     // Built like the production commit, so a test can fail either step.
-    commit: async (...args: Parameters<CoreTransport['commit']>) => {
+    commit: async (...args) => {
       await dispatch(...args);
       await flush();
     },
