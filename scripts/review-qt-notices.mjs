@@ -9,6 +9,8 @@
 //
 // The documentation groups come from the formula's newest existing review. A new review is added
 // beside the old ones, which another record may still reuse for a platform that builds that Qt.
+// It refuses Qt WebEngine, whose bundle also carries the pinned Chromium license files and lists
+// a page its WebEngine and PDF groups share only once; this tool does neither.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -79,7 +81,6 @@ export function attributionText(html, url) {
   return { name, text: `${name}\n\n\n\n${decode(body).trim()}\n`, links };
 }
 
-/** The attribution pages Qt's license index lists under each documentation group, by URL. */
 function attributionPages(index, docs, modules) {
   const pages = [];
   for (const group of index.split(/<h2 /).slice(1)) {
@@ -158,6 +159,10 @@ export async function qtBundle({ formula, version, modules, retrieved, docs }) {
 if (process.argv[1] === import.meta.filename) {
   const [version, ...formulae] = process.argv.slice(2);
   assert.ok(version && formulae.length, 'Usage: review-qt-notices.mjs <version> <formula>...');
+  assert.ok(
+    !formulae.includes('qtwebengine'),
+    'qtwebengine needs its pinned Chromium license files and deduplicated pages; review it by hand.',
+  );
   const reviewed = JSON.parse(readFileSync(reviewedPath, 'utf8'));
   const docs = `https://doc.qt.io/qt-${version.split('.').slice(0, 2).join('.')}/`;
   const retrieved = new Date().toISOString().slice(0, 10);

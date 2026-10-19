@@ -84,8 +84,13 @@ function sourceVersion(version) {
   return version.replace(/_\d+$/, '');
 }
 
-/** Whether the Linux or Windows record takes its review of this release from the entry. */
+// The TV engine and the Windows engine build these at the release reviewed here, and read it by
+// name from this file rather than through a record's reuse.
+const pinnedByEngines = new Set(['libtorrent-rasterbar', 'boost']);
+
+/** Whether another record or build still takes its review of this release from the entry. */
 function reusedElsewhere(entry) {
+  if (pinnedByEngines.has(entry.name)) return true;
   const release = entry.sourceVersion ?? sourceVersion(entry.version);
   return ['linux.json', 'windows.json'].some((name) =>
     record(name).components.some(
@@ -156,7 +161,6 @@ for (const formula of process.argv.slice(2).filter((argument) => !argument.start
     if (archive) archives.set(source.split('#')[0], archive);
     const retained = readFileSync(join(noticesDir, file.path));
     const located = { ...file, source };
-    if (file.archivePath) located.archivePath = moved(file.archivePath, from, to);
     // A Kino-written statement about the release, such as the IJG credit, names its versions.
     // Only those names move; the printed text must still be checked against the new formula.
     if (file.extraction && retained.includes(from) && !bytes.includes(retained)) {
@@ -218,6 +222,21 @@ for (const formula of process.argv.slice(2).filter((argument) => !argument.start
     target.archive.url = moved(target.archive.url, from, to);
     target.archive.path = moved(target.archive.path, from, to);
     target.archive.sha256 = sha256(readFileSync(await download(target.archive.url)));
+  }
+  // Archive paths take their top directory from the archive itself, so a stale one cannot carry.
+  const archiveUrl = target.archive?.url ?? target.sourceArchive;
+  if (archiveUrl && target.files.some((file) => file.archivePath)) {
+    const members = execFileSync('tar', ['-tf', await download(archiveUrl)], {
+      encoding: 'utf8',
+      maxBuffer: 1 << 28,
+    }).split('\n');
+    const top = members.find((member) => member.includes('/')).split('/')[0];
+    target.files = target.files.map((file) => {
+      if (!file.archivePath) return file;
+      const archivePath = `${top}/${file.archivePath.split('/').slice(1).join('/')}`;
+      assert.ok(members.includes(archivePath), `${archiveUrl} has no ${archivePath}`);
+      return { ...file, archivePath };
+    });
   }
   console.log(`${formula}: the supplement moved to ${version}.`);
   for (const statement of statements)

@@ -9939,7 +9939,7 @@
           "path": "texts/ba8f810f2455c2f08e2d56bb49b72f37fcf68f1f4fade38977cfd7372050ad64.txt",
           "source": "https://github.com/harfbuzz/harfbuzz/blob/14.5.0/COPYING",
           "sha256": "ba8f810f2455c2f08e2d56bb49b72f37fcf68f1f4fade38977cfd7372050ad64",
-          "archivePath": "harfbuzz-14.4.0/COPYING",
+          "archivePath": "harfbuzz-14.5.0/COPYING",
           "kind": "upstream-license-file",
           "name": "COPYING"
         },
@@ -9947,7 +9947,7 @@
           "path": "texts/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383.txt",
           "source": "https://github.com/harfbuzz/harfbuzz/blob/14.5.0/src/ms-use/COPYING",
           "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
-          "archivePath": "harfbuzz-14.4.0/src/ms-use/COPYING",
+          "archivePath": "harfbuzz-14.5.0/src/ms-use/COPYING",
           "kind": "upstream-license-file",
           "name": "COPYING"
         },
@@ -9978,7 +9978,7 @@
           "path": "texts/ba8f810f2455c2f08e2d56bb49b72f37fcf68f1f4fade38977cfd7372050ad64.txt",
           "source": "https://github.com/harfbuzz/harfbuzz/blob/14.6.0/COPYING",
           "sha256": "ba8f810f2455c2f08e2d56bb49b72f37fcf68f1f4fade38977cfd7372050ad64",
-          "archivePath": "harfbuzz-14.4.0/COPYING",
+          "archivePath": "harfbuzz-14.6.0/COPYING",
           "kind": "upstream-license-file",
           "name": "COPYING"
         },
@@ -9986,7 +9986,7 @@
           "path": "texts/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383.txt",
           "source": "https://github.com/harfbuzz/harfbuzz/blob/14.6.0/src/ms-use/COPYING",
           "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
-          "archivePath": "harfbuzz-14.4.0/src/ms-use/COPYING",
+          "archivePath": "harfbuzz-14.6.0/src/ms-use/COPYING",
           "kind": "upstream-license-file",
           "name": "COPYING"
         },
