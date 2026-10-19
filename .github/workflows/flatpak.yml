@@ -13,8 +13,12 @@ on:
       - scripts/build-engine.sh
       - scripts/check-engine-profile.mjs
       - scripts/check-version.mjs
+      - scripts/generate-native-locale.mjs
       - scripts/license-notices.mjs
       - scripts/linux-notices.mjs
+      - scripts/macho.mjs
+      - scripts/record-notices.mjs
+      - scripts/test-support/pe.mjs
       - third_party/notices/**
   push:
     branches:

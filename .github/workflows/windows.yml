@@ -13,13 +13,16 @@ on:
       - scripts/build-engine.sh
       - scripts/build-windows-mpv.sh
       - scripts/license-notices.mjs
+      - scripts/macho.mjs
       - scripts/record-notices.mjs
       - scripts/windows-notices.mjs
+      - scripts/generate-native-locale.mjs
       - scripts/check-engine-profile.mjs
       - scripts/check-macos-launch.sh
       - scripts/check-macos-navigation.mjs
       - scripts/check-macos-focus.mjs
       - scripts/check-macos-scale.mjs
+      - scripts/check-native-addon-redirects.mjs
       - scripts/check-version.mjs
       - scripts/check-windows-icon.mjs
       - scripts/test-support/**

@@ -1,9 +1,9 @@
+// Gate: by hand, it needs the network. Run it when the service or the client changes.
 // Checks the production intro client against the live TheIntroDB service, which
-// the fixtures in check-intro-community.mjs imitate. It needs the network, so it
-// runs by hand rather than in CI: run it when the service or the client changes.
-// Twice the fixtures have matched Kino's assumptions rather than the service: the
-// client once read confidence fields the service does not send (#28), and then
-// matched runtimes to the millisecond when the service groups them by the minute.
+// the fixtures in check-intro-community.mjs imitate. Twice the fixtures have
+// matched Kino's assumptions rather than the service: the client once read
+// confidence fields the service does not send (#28), and then matched runtimes
+// to the millisecond when the service groups them by the minute.
 //
 //   pnpm intro:check-live
 

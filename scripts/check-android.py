@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Gate: by hand, it needs the development Shield on the local network.
 """Run isolated Core and hardware playback checks on a selected Shield."""
 import os
 from pathlib import Path
