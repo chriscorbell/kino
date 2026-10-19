@@ -122,7 +122,6 @@ internal fun subtitleLabel(subtitle: AddonSubtitle) =
 internal fun KinoSettingsStore.Editor.putSubtitles(enabled: Boolean) =
     put(KinoSettings.subtitles, enabled)
 
-/** The subtitle size and position the player's subtitle panel offers, kept on the device. */
 internal object SubtitleAppearance {
     fun save(context: Context, size: Int, position: Int) {
         kinoSettings(context)

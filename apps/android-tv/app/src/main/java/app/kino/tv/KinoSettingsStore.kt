@@ -64,7 +64,6 @@ internal interface StoredChoice {
     val stored: String
 }
 
-/** A choice of text, stored as the chosen value's text. */
 internal class TextChoiceSetting<T>(key: String, default: T, private val values: List<T>) :
     KinoSetting<T>(key, default) where T : Enum<T>, T : StoredChoice {
     override fun read(store: KinoSettingsStore) =

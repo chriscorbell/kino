@@ -76,7 +76,7 @@ if (committed !== source)
   );
 
 const settingFor = new Map(tvSettings.map((setting) => [setting.key, setting.name]));
-const rawKey = /\b(?:getBoolean|getString|putBoolean|putString|remove)\(\s*"([^"]+)"/g;
+const rawKey = /\b(?:(?:get|put)(?:Boolean|String|StringSet|Int|Long|Float)|remove)\(\s*"([^"]+)"/g;
 for (const file of readdirSync(join(root, sources), { recursive: true })) {
   const path = `${sources}/${file}`;
   if (!path.endsWith('.kt') || path === target) continue;

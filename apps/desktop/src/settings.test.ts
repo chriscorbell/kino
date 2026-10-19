@@ -18,6 +18,21 @@ function createStorage(initial?: string) {
 const load = (values: object) => loadSettings(createStorage(JSON.stringify(values)));
 
 describe('settings storage', () => {
+  it('starts from the product defaults', () => {
+    expect(defaultSettings).toEqual({
+      automaticIntroSkipping: false,
+      audioOutput: 'auto',
+      interfaceScale: 100,
+      matchRefreshRate: false,
+      skipIntroButton: true,
+      subtitlePosition: 94,
+      subtitleSize: 100,
+      subtitles: false,
+      upNext: true,
+      volume: 100,
+    });
+  });
+
   it('uses product defaults when no settings exist', () => {
     const storage = createStorage();
 
