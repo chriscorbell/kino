@@ -24,7 +24,7 @@ export function useInterfaceScale(scale: InterfaceScale) {
       active = false;
     };
   }, [attempt, available, scale]);
-  return { available, failed, retry: () => setAttempt((value) => value + 1) };
+  return { failed, retry: () => setAttempt((value) => value + 1) };
 }
 
 export type InterfaceScaleState = ReturnType<typeof useInterfaceScale>;

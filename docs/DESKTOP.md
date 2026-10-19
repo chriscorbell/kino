@@ -20,6 +20,8 @@ Navigation moves focus to the page or heading without drawing an outline. Keyboa
 
 Kino settings are declared once, with the platforms that honor each, in `packages/settings` ([ADR 0031](adr/0031-declare-each-kino-setting-once-with-the-platforms-that-honor-it.md)). The client keeps every setting a desktop platform lists in one record on the device, and takes the schema's default for a value that is missing or outside the setting's domain. `settings.test.ts` checks the record against the schema.
 
+Settings shows a setting only where the platform it runs on honors it. The shell reports its platform and its capabilities over the bridge, and a setting the shell applies, such as Interface size or Match refresh rate, shows only where the shell reports the capability for it. The web build has no shell, so it shows only the settings the client applies on every desktop platform. `SettingsScreen.platforms.test.tsx` checks what each platform's report shows. The `shell_capabilities` CTest fails when the shell it runs with reports other capabilities than the schema lists for its platform, and the scale probe reads the report over the real WebChannel.
+
 ## Player
 
 The player saves volume locally between launches, including a change the shell reports that Kino did not make, though one made within a second of a Kino change the player has not reported yet can be missed. Its slider and Up/Down shortcuts adjust 0-100% volume; M toggles mute, and raising volume unmutes playback. Focused sliders keep their native keyboard step. `pnpm macos:check-volume` verifies the production WebChannel method and libmpv volume notifications, including bounds and that mpv sends no notification for a volume it already holds.

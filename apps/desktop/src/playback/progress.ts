@@ -5,6 +5,8 @@
 // carry `.ts`, everything else is `import type`, and nothing here may use Vite
 // syntax or import the locales.
 
+import type { ClientPlatform } from '@kino/settings';
+
 import { playerAction } from '../core/actions.ts';
 import type { CoreTransport } from '../core/transport';
 import type { TransientAction } from '../core/writes';
@@ -34,16 +36,23 @@ export interface ProgressReporter {
   mediaReady(params: VideoParams): void;
 }
 
+/** The device name a report carries: the platform the client plays on. */
+export const playbackDevice = (platform: ClientPlatform) => `kino-${platform}`;
+
 /** TimeChanged for a position, or null while its duration is unknown, which Core cannot store. */
-export function timeChangedAction(position: MediaPosition, device: string): TransientAction | null {
+export function timeChangedAction(
+  position: MediaPosition,
+  platform: ClientPlatform,
+): TransientAction | null {
   const known = mediaPosition(position.time, position.duration);
-  return known ? playerAction('TimeChanged', { ...known, device }) : null;
+  return known ? playerAction('TimeChanged', { ...known, device: playbackDevice(platform) }) : null;
 }
 
 export function createProgressReporter(
   core: Pick<CoreTransport, 'dispatch'>,
-  device: string,
+  platform: ClientPlatform,
 ): ProgressReporter {
+  const device = playbackDevice(platform);
   let lastReported = 0;
   let mediaReported = false;
   const send = (action: TransientAction) => {
@@ -55,7 +64,7 @@ export function createProgressReporter(
     });
   };
   const reportTime = (position: MediaPosition) => {
-    const action = timeChangedAction(position, device);
+    const action = timeChangedAction(position, platform);
     if (action) send(action);
   };
 

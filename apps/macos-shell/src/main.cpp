@@ -4,6 +4,7 @@
 #include "mpvitem.h"
 #include "platform.h"
 #include "playbackprobe.h"
+#include "shellcapabilities.h"
 #include "singleinstance.h"
 #include "streamengine.h"
 #include "tlsroots.h"
@@ -121,6 +122,8 @@ int main(int argc, char *argv[]) {
     engine.setInitialProperties({
         {QStringLiteral("kinoWebProfile"), QVariant::fromValue(webProfile)},
         {QStringLiteral("kinoUiUrl"), uiUrl()},
+        {QStringLiteral("kinoPlatform"), Platform::name()},
+        {QStringLiteral("kinoShellCapabilities"), shellCapabilities()},
     });
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,
                      []() { QCoreApplication::exit(1); }, Qt::QueuedConnection);

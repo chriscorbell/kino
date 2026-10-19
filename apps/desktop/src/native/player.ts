@@ -1,3 +1,11 @@
+import {
+  type ClientPlatform,
+  type DesktopPlatform,
+  desktopPlatforms,
+  type ShellCapability,
+  shellCapabilities,
+} from '@kino/settings';
+
 import { t } from '../locales';
 export interface NativePlayerEvent {
   connect(listener: (name: string, payload: Record<string, unknown>) => void): void;
@@ -25,7 +33,9 @@ export interface NativePlayer {
     audioLanguage: string,
   ): void;
   pauseAndSnapshot(): Promise<{ duration: number; time: number }>;
-  platform: string;
+  /** Read through connectShellReport, which checks them. */
+  readonly platform: unknown;
+  readonly capabilities: unknown;
   playerEvent: NativePlayerEvent;
   seek(seconds: number): void;
   setFullscreen(enabled: boolean): void;
@@ -87,7 +97,26 @@ interface NativeShellConnection {
   lifecycle: NativeLifecycle | null;
   diagnostics: NativeDiagnostics;
   player: NativePlayer;
+  report: ShellReport;
   secureStore: NativeSecureStore;
+}
+
+/** The platform the client runs on, and what its shell can apply. */
+export interface ShellReport {
+  readonly platform: ClientPlatform;
+  readonly capabilities: ReadonlySet<ShellCapability>;
+}
+
+const webReport: ShellReport = { platform: 'web', capabilities: new Set() };
+let shellReport: ShellReport | null = null;
+
+function readShellReport({ capabilities, platform }: NativePlayer): ShellReport | null {
+  if (!desktopPlatforms.includes(platform as DesktopPlatform) || !Array.isArray(capabilities))
+    return null;
+  return {
+    platform: platform as DesktopPlatform,
+    capabilities: new Set(shellCapabilities.filter((name) => capabilities.includes(name))),
+  };
 }
 
 interface WebChannelResult {
@@ -116,23 +145,6 @@ function nativeWindow() {
 
 export function nativeShellPresent() {
   return Boolean(nativeWindow().qt?.webChannelTransport);
-}
-
-/**
- * Whether the shell can move the display to the video's refresh rate. Linux cannot: Wayland does
- * not let an app change the output's mode.
- */
-export function refreshMatchingAvailable() {
-  return nativeShellPresent() && !navigator.userAgent.includes('Linux');
-}
-
-/** The device name playback progress carries: the shell's operating system, or the web. */
-export function playbackDevice() {
-  if (!nativeShellPresent()) return 'kino-web';
-  const agent = navigator.userAgent;
-  if (agent.includes('Windows')) return 'kino-windows';
-  if (agent.includes('Linux')) return 'kino-linux';
-  return 'kino-macos';
 }
 
 function loadChannelScript() {
@@ -177,16 +189,19 @@ function connectNativeShell(): Promise<NativeShellConnection | null> {
           const diagnostics = channel.objects.kinoDiagnostics;
           const player = channel.objects.kinoNative;
           const secureStore = channel.objects.kinoSecureStore;
-          if (!diagnostics || !player || !secureStore) {
+          const report = player && readShellReport(player);
+          if (!diagnostics || !player || !report || !secureStore) {
             reject(new Error(t.core.nativeServicesUnavailable));
             return;
           }
+          shellReport = report;
           resolve({
             addonNetwork: channel.objects.kinoAddonNetwork ?? null,
             interface: channel.objects.kinoInterface ?? null,
             diagnostics,
             externalNavigation: channel.objects.kinoExternalNavigation ?? null,
             player,
+            report,
             secureStore,
             lifecycle: channel.objects.kinoLifecycle ?? null,
           });
@@ -198,6 +213,19 @@ function connectNativeShell(): Promise<NativeShellConnection | null> {
     if (connection === pendingConnection) connection = null;
   });
   return connection;
+}
+
+/**
+ * The report without waiting: the web build's at once, and the shell's once its connection has
+ * answered, so a screen opened later renders its settings in the first frame.
+ */
+export function knownShellReport() {
+  return nativeShellPresent() ? shellReport : webReport;
+}
+
+/** What the shell reports about itself, or the web build's report outside one. Starts nothing. */
+export async function connectShellReport() {
+  return (await connectNativeShell())?.report ?? webReport;
 }
 
 export async function connectNativePlayer() {

@@ -10,6 +10,8 @@ ApplicationWindow {
 
     required property var kinoWebProfile
     required property url kinoUiUrl
+    required property string kinoPlatform
+    required property list<string> kinoShellCapabilities
     readonly property var messages: NativeLocale.messages(Qt.locale().uiLanguages)
 
     width: 1280
@@ -109,7 +111,8 @@ ApplicationWindow {
     QtObject {
         id: nativeBridge
 
-        readonly property string platform: Qt.platform.os === "osx" ? "macos" : Qt.platform.os
+        readonly property string platform: root.kinoPlatform
+        readonly property list<string> capabilities: root.kinoShellCapabilities
         readonly property string shellVersion: Qt.application.version
         readonly property bool fullscreen: root.visibility === Window.FullScreen
 

@@ -72,27 +72,28 @@ if(APPLE)
   find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
   find_library(IOKIT_FRAMEWORK IOKit REQUIRED)
   find_library(MEDIAPLAYER_FRAMEWORK MediaPlayer REQUIRED)
-  set(KINO_PLAYER_PLATFORM_SOURCES src/displaymode_mac.mm src/powerguard_mac.cpp src/sleepobserver_mac.mm)
+  set(KINO_DISPLAYMODE_SOURCE src/displaymode_mac.mm)
+  set(KINO_PLAYER_PLATFORM_SOURCES src/powerguard_mac.cpp src/sleepobserver_mac.mm)
   set(KINO_PLAYER_PLATFORM_LIBRARIES ${APPKIT_FRAMEWORK} ${COREGRAPHICS_FRAMEWORK} ${IOKIT_FRAMEWORK})
   set(KINO_SHELL_PLATFORM_SOURCES src/nowplaying_mac.mm)
   set(KINO_SHELL_PLATFORM_LIBRARIES ${FOUNDATION_FRAMEWORK} ${MEDIAPLAYER_FRAMEWORK})
 elseif(WIN32)
-  set(KINO_PLAYER_PLATFORM_SOURCES src/displaymode_windows.cpp src/powerguard_windows.cpp
-    src/sleepobserver_windows.cpp)
+  set(KINO_DISPLAYMODE_SOURCE src/displaymode_windows.cpp)
+  set(KINO_PLAYER_PLATFORM_SOURCES src/powerguard_windows.cpp src/sleepobserver_windows.cpp)
   set(KINO_PLAYER_PLATFORM_LIBRARIES user32)
   set(KINO_SHELL_PLATFORM_SOURCES src/nowplaying_windows.cpp)
   # C++/WinRT, for the System Media Transport Controls.
   set(KINO_SHELL_PLATFORM_LIBRARIES windowsapp)
 else()
   find_package(Qt6 REQUIRED COMPONENTS DBus)
-  set(KINO_PLAYER_PLATFORM_SOURCES src/displaymode_none.cpp src/powerguard_linux.cpp
-    src/sleepobserver_linux.cpp)
+  set(KINO_DISPLAYMODE_SOURCE src/displaymode_none.cpp)
+  set(KINO_PLAYER_PLATFORM_SOURCES src/powerguard_linux.cpp src/sleepobserver_linux.cpp)
   set(KINO_PLAYER_PLATFORM_LIBRARIES Qt6::DBus)
   set(KINO_SHELL_PLATFORM_SOURCES src/nowplaying_mpris.cpp)
   set(KINO_SHELL_PLATFORM_LIBRARIES Qt6::DBus)
 endif()
 set(KINO_PLAYER_SOURCES src/displaymode.cpp src/mpvitem.cpp src/platform.cpp src/tlsroots.cpp
-  ${KINO_PLAYER_PLATFORM_SOURCES})
+  ${KINO_DISPLAYMODE_SOURCE} ${KINO_PLAYER_PLATFORM_SOURCES})
 set(KINO_PLAYER_LIBRARIES kino_mpv Qt6::Concurrent Qt6::Network Qt6::Quick
   ${KINO_PLAYER_PLATFORM_LIBRARIES})
 
@@ -144,6 +145,7 @@ qt_add_executable(
   src/nowplaying.cpp
   src/playbackprobe.cpp
   src/securestore.cpp
+  src/shellcapabilities.cpp
   src/singleinstance.cpp
   src/streamengine.cpp
   ${KINO_PLAYER_SOURCES}
@@ -283,6 +285,13 @@ if(BUILD_TESTING)
   target_include_directories(kino_displaymode_test PRIVATE src)
   target_link_libraries(kino_displaymode_test PRIVATE Qt6::Gui Qt6::Test)
   add_test(NAME kino_displaymode_test COMMAND kino_displaymode_test)
+  qt_add_executable(kino_shellcapabilities_probe tests/shellcapabilities_probe.cpp
+    src/shellcapabilities.cpp src/platform.cpp src/displaymode.cpp ${KINO_DISPLAYMODE_SOURCE})
+  target_include_directories(kino_shellcapabilities_probe PRIVATE src)
+  target_link_libraries(kino_shellcapabilities_probe PRIVATE Qt6::Gui ${KINO_PLAYER_PLATFORM_LIBRARIES})
+  add_test(NAME shell_capabilities COMMAND ${NODE_EXECUTABLE}
+    "${KINO_REPOSITORY_ROOT}/scripts/check-shell-capabilities.mjs"
+    $<TARGET_FILE:kino_shellcapabilities_probe>)
   qt_add_executable(kino_externalnavigation_test tests/externalnavigation_test.cpp src/externalnavigation.cpp)
   target_include_directories(kino_externalnavigation_test PRIVATE src)
   target_link_libraries(kino_externalnavigation_test PRIVATE Qt6::Gui Qt6::Qml Qt6::Test)
