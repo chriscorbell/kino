@@ -10,6 +10,9 @@ on:
         'scripts/build-engine.sh',
         'apps/stream-engine/**',
         'scripts/license-notices.mjs',
+        'scripts/macho.mjs',
+        'scripts/check-version.mjs',
+        'scripts/test-support/pe.mjs',
         'third_party/notices/**',
         '.github/workflows/android.yml',
       ]
@@ -23,6 +26,9 @@ on:
         'scripts/build-engine.sh',
         'apps/stream-engine/**',
         'scripts/license-notices.mjs',
+        'scripts/macho.mjs',
+        'scripts/check-version.mjs',
+        'scripts/test-support/pe.mjs',
         'third_party/notices/**',
         '.github/workflows/android.yml',
       ]

@@ -1,3 +1,4 @@
+// Gate: by hand, it suspends the machine it runs on.
 // Puts a Linux machine to sleep for real while Kino plays, and expects Kino to
 // have paused before it slept. The system-sleep case of the playback gate
 // posts the notice itself; this one needs logind to send it, Kino's delay lock
