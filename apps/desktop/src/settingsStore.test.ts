@@ -51,6 +51,34 @@ describe('Kino settings store', () => {
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps a second subscription of the same function after the first unsubscribes', () => {
+    const store = createKinoSettingsStore(memoryStorage());
+    const listener = vi.fn();
+    const first = store.subscribe(listener);
+    const second = store.subscribe(listener);
+
+    first();
+    store.update({ upNext: false });
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    second();
+    store.update({ upNext: true });
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('writes storage only when a setting changes', () => {
+    const storage = memoryStorage();
+    const setItem = vi.spyOn(storage, 'setItem');
+    const store = createKinoSettingsStore(storage);
+
+    store.update({});
+    store.update({ volume: defaultSettings.volume });
+    expect(setItem).not.toHaveBeenCalled();
+
+    store.update({ volume: 40 });
+    expect(setItem).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps and announces the change when storage cannot be written', () => {
     const store = createKinoSettingsStore({
       getItem: () => null,

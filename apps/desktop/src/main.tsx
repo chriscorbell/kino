@@ -30,10 +30,12 @@ async function start() {
     );
   }
 
+  const settingsStore = createKinoSettingsStore(window.localStorage);
+
   createRoot(rootElement).render(
     <StrictMode>
       <ErrorBoundary>
-        <KinoSettingsProvider value={createKinoSettingsStore(window.localStorage)}>
+        <KinoSettingsProvider value={settingsStore}>
           <CoreProvider>
             <App />
           </CoreProvider>

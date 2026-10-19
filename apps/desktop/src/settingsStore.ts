@@ -25,8 +25,10 @@ export function createKinoSettingsStore(
   return {
     get: () => current,
     subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
+      // A wrapper per subscription, so one function subscribed twice needs two unsubscribes.
+      const subscription = () => listener();
+      listeners.add(subscription);
+      return () => listeners.delete(subscription);
     },
     update(patch) {
       const next = normalizeSettings({ ...current, ...patch });

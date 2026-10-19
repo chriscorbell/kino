@@ -7,11 +7,14 @@ const KinoSettingsContext = createContext<KinoSettingsStore | null>(null);
 
 export const KinoSettingsProvider = KinoSettingsContext.Provider;
 
-export function useKinoSettings(): readonly [KinoSettings, KinoSettingsStore['update']] {
-  const store = useContext(KinoSettingsContext) ?? missingProvider();
-  return [useSyncExternalStore(store.subscribe, store.get), store.update];
+/** The store itself, for code that reads or patches settings outside React's render. */
+export function useKinoSettingsStore(): KinoSettingsStore {
+  const store = useContext(KinoSettingsContext);
+  if (!store) throw new Error('Kino settings need a KinoSettingsProvider above them.');
+  return store;
 }
 
-function missingProvider(): never {
-  throw new Error('useKinoSettings needs a KinoSettingsProvider above it.');
+export function useKinoSettings(): readonly [KinoSettings, KinoSettingsStore['update']] {
+  const store = useKinoSettingsStore();
+  return [useSyncExternalStore(store.subscribe, store.get), store.update];
 }
