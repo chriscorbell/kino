@@ -1,6 +1,15 @@
 import { expect, it } from 'vitest';
 
-import { episodeFromVideoId } from './seasons';
+import { video } from '../test/coreState';
+import { episodeFromVideoId, seasonEpisodes } from './seasons';
+
+it('breaks an episode tie by video id in code unit order, whatever the locale', () => {
+  const videos = [video({ id: 'tt1:x:extra-a' }), video({ id: 'tt1:x:Extra-b' })];
+  expect(seasonEpisodes(videos, null).map((item) => item.id)).toEqual([
+    'tt1:x:Extra-b',
+    'tt1:x:extra-a',
+  ]);
+});
 
 it('names a saved episode only from a Stremio series video id for that title', () => {
   expect(episodeFromVideoId('tt0903747', 'tt0903747:2:5')).toEqual({ season: 2, episode: 5 });

@@ -11,8 +11,15 @@ export function seasonEpisodes(videos: CoreVideo[], season: number | null) {
     .filter((video) => video.season === season)
     .sort(
       (left, right) =>
-        (left.episode ?? Infinity) - (right.episode ?? Infinity) || left.id.localeCompare(right.id),
+        (left.episode ?? Infinity) - (right.episode ?? Infinity) || compareIds(left.id, right.id),
     );
+}
+
+// Code unit order, as the TV's String.compareTo uses. localeCompare would
+// make the order depend on the ICU locale.
+function compareIds(left: string, right: string) {
+  if (left === right) return 0;
+  return left < right ? -1 : 1;
 }
 
 export function initialSeason(videos: CoreVideo[], progress: LibraryPlaybackProgress | null) {

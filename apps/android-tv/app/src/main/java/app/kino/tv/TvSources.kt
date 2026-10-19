@@ -35,8 +35,19 @@ internal fun SourceRow(
         listOfNotNull(fields.videoRange, fields.videoCodec, fields.audio) +
             fields.languages +
             listOfNotNull(fields.releaseGroup)
-    val size = sizeLabel(fields.size)
-    val bitrate = bitrateLabel(fields, runtime)
+    val size =
+        sizeLabel(
+            fields.size,
+            stringResource(R.string.format_gigabytes),
+            stringResource(R.string.format_megabytes),
+        )
+    val bitrate =
+        bitrateLabel(
+            fields,
+            runtime,
+            stringResource(R.string.format_megabits),
+            stringResource(R.string.format_estimated_megabits),
+        )
     Column(Modifier.padding(horizontal = PageGutter)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Surface(
@@ -143,27 +154,4 @@ private fun DetailField(label: Int, value: String) {
         Text(stringResource(label), fontSize = 12.sp, color = KinoColors.TextFaint)
         Text(value, fontSize = 15.sp, color = Muted)
     }
-}
-
-@Composable
-private fun sizeLabel(size: SourceSize?): String? =
-    when (size) {
-        null -> null
-        is SourceSize.Text -> size.text
-        is SourceSize.Bytes -> {
-            val gibibytes = size.bytes / (1L shl 30).toDouble()
-            // One decimal at every size, so "54.3 GB" and "6.9 GB" line up.
-            if (gibibytes >= 1) stringResource(R.string.format_gigabytes, "%.1f".format(gibibytes))
-            else stringResource(R.string.format_megabytes, (size.bytes / (1L shl 20)).toInt())
-        }
-    }
-
-@Composable
-private fun bitrateLabel(fields: SourceFields, runtime: String?): String? {
-    fun digits(value: Double) = if (value >= 10) "%.0f".format(value) else "%.1f".format(value)
-    fields.statedMegabits?.let {
-        return stringResource(R.string.format_megabits, digits(it))
-    }
-    val estimate = estimatedMegabits(fields.size, runtimeMinutes(runtime)) ?: return null
-    return stringResource(R.string.format_estimated_megabits, digits(estimate))
 }

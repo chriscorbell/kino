@@ -1,0 +1,155 @@
+{
+  "rule": "A source row reads identical add-on text into identical fields and labels on desktop and TV.",
+  "cases": [
+    {
+      "name": "scene release name",
+      "input": {
+        "name": "Torrentio\n4k DV",
+        "description": "Some.Film.1994.UHD.BluRay.2160p.DTS-HD.MA.5.1.DV.HEVC.HYBRID.REMUX-FraMeSToR\n👤 101 💾 54.33 GB ⚙️ TorrentGalaxy",
+        "filename": "Some.Film.1994.UHD.BluRay.2160p.DTS-HD.MA.5.1.DV.HEVC.HYBRID.REMUX-FraMeSToR.mkv"
+      },
+      "expect": {
+        "resolution": "2160p",
+        "releaseType": "Remux",
+        "releaseGroup": "FraMeSToR",
+        "audio": "DTS-HD MA 5.1",
+        "videoCodec": "HEVC",
+        "videoRange": "DV",
+        "peers": 101,
+        "languages": [],
+        "sizeLabel": "54.3 GB",
+        "filename": "Some.Film.1994.UHD.BluRay.2160p.DTS-HD.MA.5.1.DV.HEVC.HYBRID.REMUX-FraMeSToR.mkv",
+        "remainder": []
+      }
+    },
+    {
+      "name": "brackets do not confuse the group",
+      "input": {
+        "name": "Torrentio\n4k HDR",
+        "description": "Some Film (1994) (2160p BluRay x265 HEVC 10bit HDR AAC 5.1 Tigole) [QxR]\n👤 39 💾 17.1 GB ⚙️ 1337x",
+        "filename": "Some Film (1994) (2160p BluRay x265 10bit HDR Tigole).mkv"
+      },
+      "expect": {
+        "resolution": "2160p",
+        "releaseType": "BluRay",
+        "videoCodec": "HEVC",
+        "videoRange": "HDR",
+        "audio": "AAC 5.1",
+        "releaseGroup": null
+      }
+    },
+    {
+      "name": "flags become languages and ranges combine",
+      "input": {
+        "name": "Torrentio\n4k DV | HDR",
+        "description": "Le.ali.1994.UHDRip.2160p.Hevc.HDR.AC3.ITA.ENG.SUBS.LFi.mkv\n👤 6 💾 23.58 GB ⚙️ 1337x\n🇬🇧 / 🇮🇹"
+      },
+      "expect": {
+        "languages": ["EN", "IT"],
+        "videoRange": "DV + HDR",
+        "releaseType": "BDRip",
+        "audio": "AC3"
+      }
+    },
+    {
+      "name": "three-letter tokens only without flags",
+      "input": {
+        "description": "Some Film 2160p H265 HDR10 DV ITA DTS 5.1 ENG AC3 5.1 SUB ITA ENG"
+      },
+      "expect": { "languages": ["IT", "EN"], "videoRange": "DV + HDR10", "videoCodec": "HEVC" }
+    },
+    {
+      "name": "no SDR inferred",
+      "input": { "description": "Film 1080p WEB-DL x264" },
+      "expect": { "videoRange": null }
+    },
+    {
+      "name": "SDR kept when stated",
+      "input": { "description": "Film.2160p.MA.WEB-Group SDR 4k UHD" },
+      "expect": { "videoRange": "SDR" }
+    },
+    {
+      "name": "slash size shown as written",
+      "input": { "description": "Show S01E03 1080p WEB-DL\n📦 6.8 / 13.6 GB", "runtime": "45 min" },
+      "expect": { "sizeLabel": "6.8 / 13.6 GB", "bitrateLabel": null }
+    },
+    {
+      "name": "structured size hint wins and bitrate is estimated",
+      "input": {
+        "description": "Film 1080p 💾 9.99 GB",
+        "videoSize": 5368709120,
+        "runtime": "2h 0min"
+      },
+      "expect": { "sizeLabel": "5.0 GB", "bitrateLabel": "~6.0 Mbps" }
+    },
+    {
+      "name": "no bitrate without a runtime",
+      "input": { "description": "Film 1080p", "videoSize": 5368709120 },
+      "expect": { "bitrateLabel": null }
+    },
+    {
+      "name": "runtime in minutes",
+      "input": { "description": "Film 1080p", "videoSize": 1073741824, "runtime": "142 min" },
+      "expect": { "bitrateLabel": "~1.0 Mbps" }
+    },
+    {
+      "name": "runtime in hours and minutes",
+      "input": { "description": "Film 1080p", "videoSize": 1073741824, "runtime": "2h 22min" },
+      "expect": { "bitrateLabel": "~1.0 Mbps" }
+    },
+    {
+      "name": "bare runtime counts minutes",
+      "input": { "description": "Film 1080p", "videoSize": 1073741824, "runtime": "45" },
+      "expect": { "bitrateLabel": "~3.2 Mbps" }
+    },
+    {
+      "name": "unreadable runtime gives no bitrate",
+      "input": { "description": "Film 1080p", "videoSize": 1073741824, "runtime": "unknown" },
+      "expect": { "bitrateLabel": null }
+    },
+    {
+      "name": "stated bitrate is quoted as written",
+      "input": { "description": "Film 1080p 12.5 Mbps", "videoSize": 5368709120, "runtime": "2h" },
+      "expect": { "bitrateLabel": "12.5 Mbps" }
+    },
+    {
+      "name": "sub-gigabyte size rounds to the nearest megabyte",
+      "input": { "description": "Film 720p WEB-DL", "videoSize": 734603264 },
+      "expect": { "sizeLabel": "701 MB" }
+    },
+    {
+      "name": "plain direct stream keeps its label",
+      "input": { "name": "Debrid", "description": "Instant stream" },
+      "expect": { "structured": false, "fallbackTitle": "Instant stream", "remainder": [] }
+    },
+    {
+      "name": "unrecognised text stays for the details view",
+      "input": {
+        "name": "Torrentio\n4k",
+        "description": "Film (1994) Featurettes (2160p BluRay x265 10bit DTS 5.1 Joy) [UTR]\nFilm (1994) [2160p x265 10bit FS97 Joy].mkv\n👤 56 💾 7.13 GB ⚙️ 1337x"
+      },
+      "expect": {
+        "resolution": "2160p",
+        "remainder": ["Film (1994) [2160p x265 10bit FS97 Joy].mkv"]
+      }
+    },
+    {
+      "name": "bracketed group before the extension",
+      "input": {
+        "description": "Film 1994 2160p BluRay\n👤 100 💾 6.91 GB ⚙️ YTS",
+        "filename": "Film.1994.2160p.4K.BluRay.x265.10bit.HDR.AAC5.1-[YTS.MX].mkv"
+      },
+      "expect": { "audio": "AAC 5.1", "releaseGroup": "YTS.MX" }
+    },
+    {
+      "name": "hyphenated title is not a group",
+      "input": { "description": "Spider-Man 2002 1080p" },
+      "expect": { "releaseGroup": null }
+    },
+    {
+      "name": "audio layout is not a group",
+      "input": { "description": "Film.1080p.AAC-5.1" },
+      "expect": { "releaseGroup": null }
+    }
+  ]
+}

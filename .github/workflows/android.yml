@@ -5,6 +5,7 @@ on:
     paths:
       [
         'apps/android-tv/**',
+        'fixtures/parity/**',
         'packages/design-tokens/**',
         'scripts/*android*',
         'scripts/build-engine.sh',
@@ -21,6 +22,7 @@ on:
     paths:
       [
         'apps/android-tv/**',
+        'fixtures/parity/**',
         'packages/design-tokens/**',
         'scripts/*android*',
         'scripts/build-engine.sh',
@@ -102,8 +104,8 @@ jobs:
           key: android-gradle-${{ runner.os }}-${{ hashFiles('apps/android-tv/**/*.gradle.kts', 'apps/android-tv/gradle.properties', 'apps/android-tv/gradle/wrapper/gradle-wrapper.properties', 'apps/android-tv/app/gradle.lockfile') }}
           restore-keys: android-gradle-${{ runner.os }}-
 
-      - name: Build Core, compile instrumentation, and lint
-        run: python3 scripts/build-android.py :app:assembleBenchmark :app:assembleBenchmarkAndroidTest :app:lintRelease
+      - name: Build Core, compile instrumentation, lint, and run the JVM tests
+        run: python3 scripts/build-android.py :app:assembleBenchmark :app:assembleBenchmarkAndroidTest :app:lintRelease :app:testBenchmarkUnitTest
       - name: Check the APK carries Kino's version
         run: node scripts/check-version.mjs --apk build/android/Kino-TV.apk
 
