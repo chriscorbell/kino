@@ -137,15 +137,22 @@ async function play(kind: 'native' | 'browser') {
           paused: (paused: boolean) => emit('paused', { paused }),
           ended: () => emit('ended'),
           ready: () => emit('ready'),
+          buffering: (active: boolean) => emit('buffering', { active }),
         }
       : {
           duration: (milliseconds: number) => dom('durationchange', 'duration', milliseconds),
           time: (milliseconds: number) => dom('timeupdate', 'currentTime', milliseconds),
           paused: (paused: boolean) => dom(paused ? 'pause' : 'play'),
-          ended: () => dom('ended'),
+          // A browser that reaches the end pauses first.
+          ended: async () => {
+            await dom('pause');
+            await dom('ended');
+          },
           ready: () => dom('loadedmetadata'),
+          buffering: (active: boolean) => dom(active ? 'waiting' : 'canplay'),
         };
   return {
+    element,
     media,
     reload: (settings: Partial<KinoSettings>) => view.rerender(screenFor(settings)),
   };
@@ -173,7 +180,33 @@ it.each(backends)('reports an end as TimeChanged then Ended (%s)', async (kind) 
   await media.time(119_000);
   fixture.transport.dispatch.mockClear();
   await media.ended();
-  expect(reports()).toEqual(['TimeChanged:119000', 'Ended']);
+  expect(reports()).toEqual(
+    kind === 'native'
+      ? ['TimeChanged:119000', 'Ended']
+      : ['TimeChanged:119000', 'PausedChanged:true', 'TimeChanged:119000', 'Ended'],
+  );
+});
+
+it.each(backends)('shows buffering until the player says it can play (%s)', async (kind) => {
+  const { media } = await play(kind);
+  await media.buffering(true);
+  expect(screen.getByText('Buffering…')).toBeInTheDocument();
+  await media.ready();
+  expect(screen.getByText('Buffering…')).toBeInTheDocument();
+  await media.buffering(false);
+  expect(screen.queryByText('Buffering…')).not.toBeInTheDocument();
+});
+
+it("re-reads the browser's paused state when a source's metadata arrives", async () => {
+  const { element, media } = await play('browser');
+  await media.paused(false);
+  expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument();
+  fixture.transport.dispatch.mockClear();
+  // Loading a new source pauses the element without a pause event.
+  Object.defineProperty(element(), 'paused', { configurable: true, value: true });
+  await media.ready();
+  expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument();
+  expect(reports()).toEqual(['VideoParamsChanged']);
 });
 
 it.each(backends)('reports VideoParamsChanged once per load (%s)', async (kind) => {

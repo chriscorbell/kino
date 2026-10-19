@@ -9,7 +9,7 @@ import { playerAction } from '../core/actions.ts';
 import type { CoreTransport } from '../core/transport';
 import type { TransientAction } from '../core/writes';
 import type { videoParams } from '../player/videoParams';
-import type { MediaPosition } from './media';
+import { mediaPosition, type MediaPosition } from './media.ts';
 
 /** Core stores progress this often while playing, and after any backwards jump. */
 const progressIntervalMs = 5_000;
@@ -36,7 +36,8 @@ export interface ProgressReporter {
 
 /** TimeChanged for a position, or null while its duration is unknown, which Core cannot store. */
 export function timeChangedAction(position: MediaPosition, device: string): TransientAction | null {
-  return position.duration > 0 ? playerAction('TimeChanged', { ...position, device }) : null;
+  const known = mediaPosition(position.time, position.duration);
+  return known ? playerAction('TimeChanged', { ...known, device }) : null;
 }
 
 export function createProgressReporter(
@@ -66,7 +67,8 @@ export function createProgressReporter(
       reportTime(position);
     },
     seek(position) {
-      if (position.duration > 0) send(playerAction('Seek', { ...position, device }));
+      const known = mediaPosition(position.time, position.duration);
+      if (known) send(playerAction('Seek', { ...known, device }));
     },
     paused(paused, position) {
       if (paused) reportTime(position);

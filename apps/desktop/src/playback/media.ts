@@ -32,8 +32,12 @@ export type MediaEvent =
   | { type: 'buffered'; milliseconds: number }
   | { type: 'paused'; paused: boolean }
   | { type: 'buffering'; active: boolean }
-  /** The first frame is coming: mpv's PLAYBACK_RESTART, or loadedmetadata. */
-  | { type: 'ready' }
+  /**
+   * The first frame is coming: mpv's PLAYBACK_RESTART, or loadedmetadata. The
+   * browser adds whether it is paused, since loading a new source can pause
+   * it without a pause event.
+   */
+  | { type: 'ready'; paused?: boolean }
   | { type: 'ended' }
   | { type: 'volume'; percent: number }
   | { type: 'muted'; muted: boolean }

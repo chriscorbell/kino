@@ -73,14 +73,25 @@ describe('parseNativeEvent', () => {
     ['buffering', {}],
     ['volume', { percent: Number.POSITIVE_INFINITY }],
     ['muted', { muted: 1 }],
-    ['audioTracks', { items: 'Secret Title' }],
-    ['subtitleTracks', { tracks: [] }],
-    ['chapters', { items: { title: 'Secret Title' } }],
-    ['error', { message: 'Secret Title' }],
     ['seeked', { title: 'Secret Title' }],
   ])('drops an unreadable %s event and logs only its name', (name, payload) => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     expect(parseNativeEvent(name, payload)).toBeNull();
+    expect(warn).toHaveBeenCalledExactlyOnceWith('[kino:player] unreadable native event', name);
+  });
+
+  it.each<[string, Record<string, unknown>, MediaEvent]>([
+    ['audioTracks', { items: 'Secret Title' }, { type: 'audioTracks', tracks: [] }],
+    ['subtitleTracks', { tracks: [] }, { type: 'subtitleTracks', tracks: [] }],
+    ['chapters', { items: { title: 'Secret Title' } }, { type: 'chapters', cues: [] }],
+    [
+      'error',
+      { message: 'Secret Title' },
+      { type: 'failed', failure: 'native-playback-failed', detail: { code: 'unknown' } },
+    ],
+  ])('still acts on an unreadable %s event and logs only its name', (name, payload, event) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(parseNativeEvent(name, payload)).toEqual(event);
     expect(warn).toHaveBeenCalledExactlyOnceWith('[kino:player] unreadable native event', name);
   });
 
@@ -171,6 +182,23 @@ describe('mpvBackend', () => {
     expect(events).toEqual([{ type: 'time', milliseconds: 1000 }]);
     leave();
     expect(native.playerEvent.disconnect).toHaveBeenCalledExactlyOnceWith(listener);
+  });
+
+  it('logs an unreadable event once per subscription, however often it arrives', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const native = fakeShell();
+    const backend = backendFor(native);
+    backend.subscribe(() => {});
+    const listener = native.playerEvent.connect.mock.calls[0]![0];
+    for (let frame = 0; frame < 60; frame++) listener('time', { seconds: frame / 24 });
+    listener('paused', {});
+    expect(warn.mock.calls).toEqual([
+      ['[kino:player] unreadable native event', 'time'],
+      ['[kino:player] unreadable native event', 'paused'],
+    ]);
+    backend.subscribe(() => {});
+    native.playerEvent.connect.mock.calls[1]![0]('time', { seconds: 3 });
+    expect(warn).toHaveBeenCalledTimes(3);
   });
 
   it('freezes on a position Core can store, or none', async () => {

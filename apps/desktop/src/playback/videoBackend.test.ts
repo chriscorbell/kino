@@ -38,7 +38,7 @@ it('turns media element events into the same MediaEvents the native player sends
   expect(events).toEqual([
     { type: 'buffering', active: true },
     { type: 'duration', milliseconds: 120000 },
-    { type: 'ready' },
+    { type: 'ready', paused: true },
     { type: 'buffering', active: false },
     { type: 'paused', paused: false },
     { type: 'time', milliseconds: 30500 },

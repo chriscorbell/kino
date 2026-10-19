@@ -519,9 +519,9 @@ export function PlayerScreen({
         break;
       case 'ready':
         mediaReadyRef.current = true;
+        if (event.paused !== undefined) setPaused(event.paused);
         restoreTracks(source);
         setMediaReadyVersion((version) => version + 1);
-        setBuffering(false);
         progress?.mediaReady(videoParams(selection.stream));
         break;
       case 'ended':

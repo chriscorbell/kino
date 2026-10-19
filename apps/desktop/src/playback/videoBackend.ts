@@ -40,7 +40,7 @@ const domEvents: Record<string, (video: HTMLVideoElement) => MediaEvent[]> = {
   timeupdate: time,
   seeking: time,
   durationchange: (video) => [duration(video)],
-  loadedmetadata: (video) => [duration(video), { type: 'ready' }],
+  loadedmetadata: (video) => [duration(video), { type: 'ready', paused: video.paused }],
   progress: bufferedAhead,
   play: () => [{ type: 'paused', paused: false }],
   pause: () => [{ type: 'paused', paused: true }],
