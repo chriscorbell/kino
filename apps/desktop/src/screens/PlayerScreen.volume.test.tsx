@@ -65,23 +65,29 @@ const selection = {
   nextVideo: null,
 };
 const noop = () => {};
+const renderPlayer = () =>
+  renderWithSettings(
+    <PlayerScreen
+      selection={selection}
+      preferredSubtitleLanguage={null}
+      onBack={noop}
+      onSourceFailure={noop}
+      onUpNext={noop}
+    />,
+    { settings: { volume: 30 }, storage: localStorage },
+  );
+const reportVolume = (percent: number) =>
+  act(async () => fixture.native.playerEvent.connect.mock.calls.at(-1)?.[0]('volume', { percent }));
 it.each([true, false])(
   'adjusts, saves and observes volume without reloading (native=%s)',
   async (nativeShell) => {
     fixture.nativeShell = nativeShell;
-    const view = renderWithSettings(
-      <PlayerScreen
-        selection={selection}
-        preferredSubtitleLanguage={null}
-        onBack={noop}
-        onSourceFailure={noop}
-        onUpNext={noop}
-      />,
-      { settings: { volume: 30 }, storage: localStorage },
-    );
+    const view = renderPlayer();
     const range = await screen.findByRole('slider', { name: 'Volume' });
-    if (nativeShell) await waitFor(() => expect(fixture.native.setVolume).toHaveBeenCalledWith(30));
-    else expect(view.container.querySelector('video')!.volume).toBe(0.3);
+    if (nativeShell) {
+      await waitFor(() => expect(fixture.native.setVolume).toHaveBeenCalledWith(30));
+      await reportVolume(30);
+    } else expect(view.container.querySelector('video')!.volume).toBe(0.3);
     expect(range).toHaveValue('30');
     fireEvent.change(range, { target: { value: '42' } });
     expect(loadSettings(localStorage).volume).toBe(42);
@@ -94,9 +100,7 @@ it.each([true, false])(
     expect(loadSettings(localStorage).volume).toBe(42);
     if (nativeShell) {
       expect(fixture.native.setVolume).toHaveBeenLastCalledWith(42);
-      await act(async () =>
-        fixture.native.playerEvent.connect.mock.calls.at(-1)?.[0]('volume', { percent: 65 }),
-      );
+      await reportVolume(65);
       expect(fixture.native.load).toHaveBeenCalledTimes(1);
     } else {
       const video = view.container.querySelector('video')!;
@@ -105,5 +109,35 @@ it.each([true, false])(
       fireEvent.volumeChange(video);
     }
     expect(range).toHaveValue('65');
+    expect(loadSettings(localStorage).volume).toBe(65);
   },
 );
+
+it('keeps the newest volume when a report of an older one arrives late', async () => {
+  fixture.nativeShell = true;
+  renderPlayer();
+  const range = await screen.findByRole('slider', { name: 'Volume' });
+  await waitFor(() => expect(fixture.native.setVolume).toHaveBeenCalledWith(30));
+  await reportVolume(30);
+
+  fireEvent.change(range, { target: { value: '42' } });
+  fireEvent.keyDown(window, { key: 'ArrowUp' });
+  await reportVolume(42);
+
+  expect(loadSettings(localStorage).volume).toBe(47);
+  expect(range).toHaveValue('47');
+  await reportVolume(47);
+  await reportVolume(65);
+  expect(loadSettings(localStorage).volume).toBe(65);
+});
+
+it("keeps the saved volume when the player reports its own default before Kino's", async () => {
+  fixture.nativeShell = true;
+  renderPlayer();
+  await waitFor(() => expect(fixture.native.setVolume).toHaveBeenCalledWith(30));
+
+  await reportVolume(100);
+
+  expect(loadSettings(localStorage).volume).toBe(30);
+  expect(screen.getByRole('slider', { name: 'Volume' })).toHaveValue('30');
+});
