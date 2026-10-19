@@ -16,6 +16,7 @@ on:
       - .node-version
       - .npmrc
       - LICENSE
+      - tsconfig.base.json
       - scripts/build-engine.sh
       - scripts/check-engine-profile.mjs
       - scripts/check-version.mjs

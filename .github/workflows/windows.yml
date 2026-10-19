@@ -35,6 +35,7 @@ on:
       - .node-version
       - .npmrc
       - LICENSE
+      - tsconfig.base.json
   push:
     branches:
       - main

@@ -14,10 +14,10 @@
 //
 // The wiring is read from the files as they stand, by pattern rather than by parsing YAML. It
 // traces local imports of JavaScript and TypeScript, and the scripts/ paths named in scripts,
-// workflow, CMake and package text. It does not see a path built at run time, and a script's reads
-// of other directories are listed in SCRIPT_READS.
+// workflow, CMake and package text. It does not see a path built at run time, and the files a
+// script reads by path outside scripts/ are listed in SCRIPT_READS.
 import { execFileSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 
 const [mode, ...rest] = process.argv[2]?.startsWith('--')
@@ -39,7 +39,11 @@ const CTEST_FILTER =
 // vitest runs only in the web job, which every change runs.
 const UNIT_TESTS = ['!apps/desktop/**/*.test.ts', '!apps/desktop/**/*.test.tsx'];
 const SCRIPT_READS = {
-  'scripts/android-notices.mjs': ['LICENSE'],
+  'scripts/android-notices.mjs': [
+    'LICENSE',
+    'apps/android-tv/app/gradle.lockfile',
+    'apps/android-tv/core/Cargo.lock',
+  ],
   'scripts/build-engine.sh': ['apps/stream-engine/**'],
   'scripts/check-version.mjs': ['package.json'],
   'scripts/license-notices.mjs': ['LICENSE', 'third_party/notices/**'],
@@ -75,6 +79,7 @@ const workspace = new Map(
 );
 const client = [
   'apps/desktop/**',
+  'tsconfig.base.json',
   ...Object.keys(JSON.parse(read('apps/desktop/package.json')).dependencies ?? {})
     .filter((name) => workspace.has(name))
     .map((name) => workspace.get(name)),
@@ -166,14 +171,14 @@ function readWorkflow(path) {
 }
 
 // Every file the given files read, each mapped to the file that led to it. A glob such as a
-// directory is kept as it stands.
+// directory is kept as it stands. So is a path that no longer exists: something still names it, so
+// deleting or renaming it away is a change to what the job reads.
 function inputsOf(files) {
   const via = new Map();
   const visit = (file, parent) => {
     if (via.has(file)) return;
-    if (file.includes('*')) return via.set(file, parent);
-    if (!isFile(file)) return;
     via.set(file, parent);
+    if (file.includes('*') || !isFile(file)) return;
     const next = [...(SCRIPT_READS[file] ?? [])];
     if (/^scripts\/.*\.(?:sh|py|mjs|js)$/.test(file))
       next.push(...(read(file).match(SCRIPT_REF) ?? []));
@@ -231,7 +236,7 @@ const nativeInputs = [
   .concat(UNIT_TESTS);
 
 if (mode === '--native-inputs') {
-  console.log(nativeInputs.join('\n'));
+  console.log(nativeInputs.filter((input) => /\*/.test(input) || isFile(input)).join('\n'));
   process.exit(0);
 }
 if (mode === '--native-changed') {
@@ -256,7 +261,9 @@ const tracked = execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: '
   .split('\0')
   .filter(Boolean);
 const filesOf = (glob) =>
-  glob.includes('*') ? tracked.filter((file) => matches([glob, ...UNIT_TESTS], file)) : [glob];
+  glob.includes('*')
+    ? tracked.filter((file) => matches([glob, ...UNIT_TESTS], file))
+    : [glob].filter(isFile);
 
 const gates = readdirSync(join(root, 'scripts'))
   .filter((name) => name.startsWith('check-'))
