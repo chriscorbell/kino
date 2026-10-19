@@ -20,6 +20,8 @@ on:
         'third_party/notices/**',
         '.github/workflows/android.yml',
         '.node-version',
+        'LICENSE',
+        'package.json',
       ]
   push:
     branches: [main]
@@ -41,6 +43,8 @@ on:
         'third_party/notices/**',
         '.github/workflows/android.yml',
         '.node-version',
+        'LICENSE',
+        'package.json',
       ]
 
 permissions:

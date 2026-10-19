@@ -17,7 +17,7 @@
 // workflow, CMake and package text. It does not see a path built at run time, and a script's reads
 // of other directories are listed in SCRIPT_READS.
 import { execFileSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 
 const [mode, ...rest] = process.argv[2]?.startsWith('--')
@@ -25,6 +25,7 @@ const [mode, ...rest] = process.argv[2]?.startsWith('--')
   : ['--check', ...process.argv.slice(2)];
 const root = (mode === '--native-changed' ? undefined : rest[0]) ?? join(import.meta.dirname, '..');
 const read = (path) => readFileSync(join(root, path), 'utf8');
+const isFile = (path) => statSync(join(root, path), { throwIfNoEntry: false })?.isFile();
 
 const SCRIPT_REF = /scripts\/[\w./-]+\.(?:mjs|js|sh|py|cpp)\b/g;
 const PNPM_RUN = /\bpnpm (?:run )?([\w:-]+)/g;
@@ -38,8 +39,11 @@ const CTEST_FILTER =
 // vitest runs only in the web job, which every change runs.
 const UNIT_TESTS = ['!apps/desktop/**/*.test.ts', '!apps/desktop/**/*.test.tsx'];
 const SCRIPT_READS = {
-  'scripts/build-engine.sh': 'apps/stream-engine/**',
-  'scripts/license-notices.mjs': 'third_party/notices/**',
+  'scripts/android-notices.mjs': ['LICENSE'],
+  'scripts/build-engine.sh': ['apps/stream-engine/**'],
+  'scripts/check-version.mjs': ['package.json'],
+  'scripts/license-notices.mjs': ['LICENSE', 'third_party/notices/**'],
+  'scripts/linux-notices.mjs': ['packaging/flatpak/com.chriscorbell.Kino.yml'],
 };
 
 const pkg = JSON.parse(read('package.json'));
@@ -65,10 +69,9 @@ const packaged = new Set(
 
 // The client the shell bundles, with the workspace packages it depends on.
 const workspace = new Map(
-  readdirSync(join(root, 'packages')).map((dir) => [
-    JSON.parse(read(`packages/${dir}/package.json`)).name,
-    `packages/${dir}/**`,
-  ]),
+  readdirSync(join(root, 'packages'))
+    .filter((dir) => isFile(`packages/${dir}/package.json`))
+    .map((dir) => [JSON.parse(read(`packages/${dir}/package.json`)).name, `packages/${dir}/**`]),
 );
 const client = [
   'apps/desktop/**',
@@ -87,7 +90,7 @@ const cmakePaths = (text) =>
     .map(([, base, path]) =>
       posix.normalize(base === 'KINO_REPOSITORY_ROOT' ? path : `apps/macos-shell/${path}`),
     )
-    .filter((path) => !/^(?:\.|\.\.\/.*|apps\/macos-shell\/.*)$/.test(path));
+    .filter((path) => !/^(?:\.|\.\.\/.*|apps\/macos-shell\/.*|build\/.*)$/.test(path));
 for (const file of readdirSync(join(root, 'apps/macos-shell'), { recursive: true })) {
   if (!/(?:^|\/)CMakeLists\.txt$|\.cmake$/.test(file)) continue;
   const source = read(join('apps/macos-shell', file)).replace(/^\s*#.*$/gm, '');
@@ -155,7 +158,7 @@ function readWorkflow(path) {
     const reads = (files, reason) => files.forEach((f) => job.via.has(f) || job.via.set(f, reason));
     reads([path], null);
     if (/\bpnpm install\b/.test(job.body))
-      reads(['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml'], 'pnpm install');
+      reads(['.npmrc', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml'], 'pnpm install');
     for (const [, file] of job.body.matchAll(/node-version-file:\s*(\S+)/g)) reads([file], null);
     if (CLIENT_BUILD.test(job.body)) reads(client, 'the client build');
   }
@@ -169,9 +172,9 @@ function inputsOf(files) {
   const visit = (file, parent) => {
     if (via.has(file)) return;
     if (file.includes('*')) return via.set(file, parent);
-    if (!existsSync(join(root, file))) return;
+    if (!isFile(file)) return;
     via.set(file, parent);
-    const next = SCRIPT_READS[file] ? [SCRIPT_READS[file]] : [];
+    const next = [...(SCRIPT_READS[file] ?? [])];
     if (/^scripts\/.*\.(?:sh|py|mjs|js)$/.test(file))
       next.push(...(read(file).match(SCRIPT_REF) ?? []));
     if (/\.(?:mjs|js|ts|tsx)$/.test(file))
@@ -180,9 +183,11 @@ function inputsOf(files) {
       )) {
         const path = posix.join(dirname(file), spec);
         next.push(
-          ['', '.ts', '.tsx', '/index.ts']
-            .map((ending) => path + ending)
-            .find((candidate) => existsSync(join(root, candidate))) ?? path,
+          [
+            path,
+            path.replace(/\.js$/, '.ts'),
+            ...['.ts', '.tsx', '/index.ts'].map((e) => path + e),
+          ].find(isFile) ?? path,
         );
       }
     for (const n of next) visit(n, file);
@@ -236,7 +241,7 @@ if (mode === '--native-changed') {
     console.log('native=true');
     process.exit(0);
   }
-  const changed = execFileSync('git', ['diff', '--name-only', '-z', base, head], {
+  const changed = execFileSync('git', ['diff', '--name-only', '--no-renames', '-z', base, head], {
     cwd: root,
     encoding: 'utf8',
   })

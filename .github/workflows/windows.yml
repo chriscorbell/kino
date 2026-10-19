@@ -33,6 +33,8 @@ on:
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
       - .node-version
+      - .npmrc
+      - LICENSE
   push:
     branches:
       - main
