@@ -124,6 +124,8 @@ android {
     sourceSets["main"].java.srcDirs(generatedTokens, "../../../build/android-ffmpeg/java")
     // The license index scripts/android-notices.mjs collects, packaged as assets/licenses.
     sourceSets["main"].assets.srcDir("../../../build/android-notices")
+    // The text both clients show, generated from en-US.ts by scripts/generate-tv-strings.mjs.
+    sourceSets["main"].res.srcDir("../../../build/android-strings/res")
     sourceSets["androidTest"].assets.srcDir("../../../build/android-fixtures")
     sourceSets["test"].resources.srcDir("../../../fixtures/parity")
     sourceSets["release"].jniLibs.srcDir("../../../build/android-core/jniLibs")
@@ -178,11 +180,34 @@ val requireStreamEngine by
         }
     }
 
-// ParityTest reads the label templates from strings.xml, which no compiled input reflects.
-tasks.withType<Test>().configureEach { inputs.file("src/main/res/values/strings.xml") }
+val sharedStrings = file("../../../build/android-strings/res/values/strings_shared.xml")
+
+// Without the generated file every shared string the code names is an unresolved reference, which
+// reads like a code error rather than a skipped build step.
+val requireSharedStrings by
+    tasks.registering {
+        doLast {
+            check(sharedStrings.exists()) {
+                "Missing $sharedStrings. Run `pnpm android:build`, which generates the text both " +
+                    "clients show from en-US.ts before Gradle."
+            }
+        }
+    }
+
+// ParityTest reads the label templates from the string resources, which no compiled input reflects.
+tasks.withType<Test>().configureEach {
+    inputs.file("src/main/res/values/strings.xml")
+    inputs.file(sharedStrings)
+}
 
 tasks.named("preBuild") {
-    dependsOn(generateDesignTokens, requireFfmpegRenderer, requireLicenseNotices, requireStreamEngine)
+    dependsOn(
+        generateDesignTokens,
+        requireFfmpegRenderer,
+        requireLicenseNotices,
+        requireStreamEngine,
+        requireSharedStrings,
+    )
 }
 
 dependencies {

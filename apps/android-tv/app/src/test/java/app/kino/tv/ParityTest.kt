@@ -93,17 +93,32 @@ private fun cases(fixture: String): List<JsonObject> {
     return Json.parseToJsonElement(text).jsonObject.getValue("cases").jsonArray.map { it.jsonObject }
 }
 
+// The hand-written resources and the ones scripts/generate-tv-strings.mjs writes from en-US.ts.
 private val strings: Map<String, String> by lazy {
-    val document =
-        DocumentBuilderFactory.newInstance()
-            .newDocumentBuilder()
-            .parse(File("src/main/res/values/strings.xml"))
-    val nodes = document.getElementsByTagName("string")
-    (0 until nodes.length).associate { index ->
-        val node = nodes.item(index)
-        node.attributes.getNamedItem("name").nodeValue to node.textContent
-    }
+    listOf(
+            "src/main/res/values/strings.xml",
+            "../../../build/android-strings/res/values/strings_shared.xml",
+        )
+        .flatMap { path ->
+            val nodes =
+                DocumentBuilderFactory.newInstance()
+                    .newDocumentBuilder()
+                    .parse(File(path))
+                    .getElementsByTagName("string")
+            (0 until nodes.length).map { index ->
+                val node = nodes.item(index)
+                node.attributes.getNamedItem("name").nodeValue to androidText(node.textContent)
+            }
+        }
+        .toMap()
 }
+
+private val androidEscape = Regex("""\\(.)|"""")
+
+// What getString returns for a resource's text: the resource compiler drops unescaped double
+// quotes and resolves backslash escapes.
+private fun androidText(raw: String) =
+    androidEscape.replace(raw) { match -> match.groupValues[1].let { if (it == "n") "\n" else it } }
 
 private fun string(name: String) = strings.getValue(name)
 
