@@ -19,7 +19,7 @@ data class SourceFields(
     val videoRange: String?,
     val size: SourceSize?,
     /** A rate the add-on states itself, in Mbps, with its digits as written. */
-    val statedMegabits: String?,
+    val statedBitrate: String?,
     val peers: Int?,
     /** The primary text when nothing structured could be read. */
     val fallbackTitle: String,
@@ -150,7 +150,7 @@ private fun parseSizeBytes(amount: String, unit: String): Long? {
 }
 
 /** "2h 22min", "142 min", and "142" all mean minutes; anything else is unknown. */
-fun runtimeMinutes(runtime: String?): Int? {
+private fun runtimeMinutes(runtime: String?): Int? {
     if (runtime.isNullOrBlank()) return null
     val hours = Regex("(\\d+)\\s*h", ci).find(runtime)?.groupValues?.get(1)?.toIntOrNull()
     val minutes = Regex("(\\d+)\\s*m", ci).find(runtime)?.groupValues?.get(1)?.toIntOrNull()
@@ -161,7 +161,7 @@ fun runtimeMinutes(runtime: String?): Int? {
 }
 
 /** Mbps from a byte size and a runtime, or null when either is unknown. */
-fun estimatedMegabits(size: SourceSize?, runtimeMinutes: Int?): Double? {
+private fun estimatedMegabits(size: SourceSize?, runtimeMinutes: Int?): Double? {
     val bytes = (size as? SourceSize.Bytes)?.bytes ?: return null
     val minutes = runtimeMinutes ?: return null
     val megabits = bytes * 8.0 / (minutes * 60.0) / 1_000_000.0
@@ -188,7 +188,7 @@ internal fun bitrateLabel(
     stated: String,
     estimated: String,
 ): String? {
-    fields.statedMegabits?.let { return stated.format(it) }
+    fields.statedBitrate?.let { return stated.format(it) }
     val estimate = estimatedMegabits(fields.size, runtimeMinutes(runtime)) ?: return null
     return estimated.format(if (estimate >= 10) "%.0f".format(estimate) else "%.1f".format(estimate))
 }
@@ -301,7 +301,7 @@ fun sourceFields(stream: Stream, unnamed: String): SourceFields {
         videoCodec = videoCodecs.firstOrNull { (p, _) -> p.containsMatchIn(corpus) }?.second,
         videoRange = detectRange(corpus),
         size = size,
-        statedMegabits = bitratePattern.find(corpus)?.groupValues?.get(1)?.replace(',', '.'),
+        statedBitrate = bitratePattern.find(corpus)?.groupValues?.get(1)?.replace(',', '.'),
         peers = peersPattern.find(corpus)?.groupValues?.get(1)?.toIntOrNull(),
         fallbackTitle = release ?: lines.firstOrNull() ?: unnamed,
         original =

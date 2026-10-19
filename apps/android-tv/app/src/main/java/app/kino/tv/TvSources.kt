@@ -136,7 +136,7 @@ internal fun SourceRow(
                 bitrate?.let {
                     DetailField(
                         R.string.source_bitrate,
-                        if (fields.statedMegabits == null)
+                        if (fields.statedBitrate == null)
                             "$it  " + stringResource(R.string.source_bitrate_estimated)
                         else it,
                     )
