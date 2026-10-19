@@ -107,7 +107,12 @@ function range() {
   if (args.length) return args;
   if (process.env.GITHUB_ACTIONS === 'true') {
     // actions/checkout fetches one commit; the first parent is the base.
-    git('fetch', '--no-tags', '--quiet', '--depth=2', 'origin', git('rev-parse', 'HEAD').trim());
+    try {
+      git('fetch', '--no-tags', '--quiet', '--depth=2', 'origin', git('rev-parse', 'HEAD').trim());
+    } catch {
+      console.error('Could not fetch the base commit for the prose check.');
+      process.exit(1);
+    }
     return ['HEAD^1', 'HEAD'];
   }
   try {
@@ -120,7 +125,21 @@ function range() {
   }
 }
 
+const [base, head] = range();
+const short = (rev) => git('rev-parse', '--short', rev).trim();
+const label = `${short(base)}..${head ? short(head) : 'working tree'}`;
+// A pass over an empty range would look like a clean change.
+if (
+  process.env.GITHUB_ACTIONS === 'true' &&
+  git('rev-list', '--count', `${base}..${head}`).trim() === '0'
+) {
+  console.error(`The prose check's range ${label} looks empty, so it would check nothing.`);
+  process.exit(1);
+}
+
 const problems = [];
+const files = new Set();
+let added = 0;
 let file;
 let lineNumber;
 let inHeader = false;
@@ -130,7 +149,7 @@ const diff = git(
   '--no-ext-diff',
   '-M',
   '--unified=0',
-  ...range(),
+  ...[base, head].filter(Boolean),
   '--',
   ...PATHS,
 );
@@ -145,6 +164,8 @@ for (const line of diff.split('\n')) {
   if (inHeader || !line.startsWith('+')) continue;
   const text = line.slice(1);
   const at = `${file}:${lineNumber++}`;
+  added++;
+  files.add(file);
   if (text.includes('\u2014'))
     problems.push(`${at}: em dash. AGENTS.md "Conventions" asks for a period or comma instead.`);
   if (TERM_EXEMPT.has(file)) continue;
@@ -162,4 +183,8 @@ if (problems.length) {
   );
   process.exit(1);
 }
-console.log(`No added line has an em dash or one of ${matchers.length} avoided terms.`);
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+console.log(
+  `Examined ${plural(added, 'added line')} in ${plural(files.size, 'file')}, ${label}, against ${matchers.length} terms.`,
+);
+if (!added) console.log('No added lines in the file types this check reads.');
