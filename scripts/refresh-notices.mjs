@@ -18,6 +18,8 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
+import { record } from './record-notices.mjs';
+
 const root = join(import.meta.dirname, '..');
 const noticesDir = join(root, 'third_party', 'notices');
 const reviewedPath = join(noticesDir, 'reviewed.json');
@@ -82,6 +84,21 @@ function sourceVersion(version) {
   return version.replace(/_\d+$/, '');
 }
 
+// The TV engine and the Windows engine build these at the release reviewed here, and read it by
+// name from this file rather than through a record's reuse.
+const pinnedByEngines = new Set(['libtorrent-rasterbar', 'boost']);
+
+/** Whether another record or build still takes its review of this release from the entry. */
+function reusedElsewhere(entry) {
+  if (pinnedByEngines.has(entry.name)) return true;
+  const release = entry.sourceVersion ?? sourceVersion(entry.version);
+  return ['linux.json', 'windows.json'].some((name) =>
+    record(name).components.some(
+      (item) => item.reuse === `reviewed.json#homebrew/${entry.name}` && item.version === release,
+    ),
+  );
+}
+
 /** The same source location at the new release. GNOME also files releases by major.minor. */
 function moved(url, from, to) {
   const series = (version) => version.split('.').slice(0, 2).join('.');
@@ -117,11 +134,12 @@ const accept = process.argv.includes('--accept');
 const release = process.argv.includes('--release');
 let failed = false;
 for (const formula of process.argv.slice(2).filter((argument) => !argument.startsWith('--'))) {
-  const entry = reviewed.homebrew.find((item) => item.name === formula);
+  // An older release's review can stay beside the newest while another platform still builds it.
+  const entry = reviewed.homebrew.findLast((item) => item.name === formula);
   assert.ok(entry, `No reviewed supplement for ${formula}`);
   const released = release ? await releasedFormula(formula) : null;
   const version = released?.version ?? installedVersion(formula);
-  if (entry.version === version) {
+  if (reviewed.homebrew.some((item) => item.name === formula && item.version === version)) {
     console.log(`${formula} ${version} is already reviewed.`);
     continue;
   }
@@ -142,6 +160,7 @@ for (const formula of process.argv.slice(2).filter((argument) => !argument.start
     const { bytes, archive } = await fetchText(source);
     if (archive) archives.set(source.split('#')[0], archive);
     const retained = readFileSync(join(noticesDir, file.path));
+    const located = { ...file, source };
     // A Kino-written statement about the release, such as the IJG credit, names its versions.
     // Only those names move; the printed text must still be checked against the new formula.
     if (file.extraction && retained.includes(from) && !bytes.includes(retained)) {
@@ -152,15 +171,22 @@ for (const formula of process.argv.slice(2).filter((argument) => !argument.start
       const hash = sha256(Buffer.from(text));
       writeFileSync(join(noticesDir, 'texts', `${hash}.txt`), text);
       statements.push(`${file.name}:\n${text}`);
-      files.push({ ...file, source, sha256: hash, path: `texts/${hash}.txt` });
+      files.push({ ...located, sha256: hash, path: `texts/${hash}.txt` });
       continue;
     }
-    const holds = file.extraction ? bytes.includes(retained) : sha256(bytes) === file.sha256;
+    // A byte range is a verbatim excerpt, such as a license comment, from a file that changes.
+    const excerpt = file.extraction || file.byteRange;
+    const start = excerpt ? bytes.indexOf(retained) : -1;
+    const holds = excerpt ? start >= 0 : sha256(bytes) === file.sha256;
+    if (holds && file.byteRange) {
+      located.byteRange = [start, start + retained.length];
+      located.sourceSha256 = sha256(bytes);
+    }
     // A person has read the changed text and it still carries the same terms.
-    if (!holds && accept && !file.extraction) {
+    if (!holds && accept && !excerpt) {
       const hash = sha256(bytes);
       writeFileSync(join(noticesDir, 'texts', `${hash}.txt`), bytes);
-      files.push({ ...file, source, sha256: hash, path: `texts/${hash}.txt` });
+      files.push({ ...located, sha256: hash, path: `texts/${hash}.txt` });
       console.log(`${formula}: accepted the reviewed ${file.name} from ${source}`);
       continue;
     }
@@ -170,7 +196,7 @@ for (const formula of process.argv.slice(2).filter((argument) => !argument.start
       writeFileSync(join(review, file.name), bytes);
       changed.push(`${file.name} (${source})`);
     }
-    files.push({ ...file, source });
+    files.push(located);
   }
   if (changed.length) {
     failed = true;
@@ -181,18 +207,36 @@ for (const formula of process.argv.slice(2).filter((argument) => !argument.start
     );
     continue;
   }
-  entry.version = version;
-  if (entry.sourceVersion) entry.sourceVersion = to;
-  entry.files = files;
-  if (entry.sourceArchive) {
-    entry.sourceArchive = moved(entry.sourceArchive, from, to);
-    const archive = archives.get(entry.sourceArchive) ?? (await download(entry.sourceArchive));
-    entry.sourceArchiveSha256 = sha256(readFileSync(archive));
+  // The new release goes after a review another record still reuses, which stays as it is.
+  const target = reusedElsewhere(entry) ? structuredClone(entry) : entry;
+  if (target !== entry) reviewed.homebrew.splice(reviewed.homebrew.indexOf(entry) + 1, 0, target);
+  target.version = version;
+  if (target.sourceVersion) target.sourceVersion = to;
+  target.files = files;
+  if (target.sourceArchive) {
+    target.sourceArchive = moved(target.sourceArchive, from, to);
+    const archive = archives.get(target.sourceArchive) ?? (await download(target.sourceArchive));
+    target.sourceArchiveSha256 = sha256(readFileSync(archive));
   }
-  if (entry.archive?.url) {
-    entry.archive.url = moved(entry.archive.url, from, to);
-    entry.archive.path = moved(entry.archive.path, from, to);
-    entry.archive.sha256 = sha256(readFileSync(await download(entry.archive.url)));
+  if (target.archive?.url) {
+    target.archive.url = moved(target.archive.url, from, to);
+    target.archive.path = moved(target.archive.path, from, to);
+    target.archive.sha256 = sha256(readFileSync(await download(target.archive.url)));
+  }
+  // Archive paths take their top directory from the archive itself, so a stale one cannot carry.
+  const archiveUrl = target.archive?.url ?? target.sourceArchive;
+  if (archiveUrl && target.files.some((file) => file.archivePath)) {
+    const members = execFileSync('tar', ['-tf', await download(archiveUrl)], {
+      encoding: 'utf8',
+      maxBuffer: 1 << 28,
+    }).split('\n');
+    const top = members.find((member) => member.includes('/')).split('/')[0];
+    target.files = target.files.map((file) => {
+      if (!file.archivePath) return file;
+      const archivePath = `${top}/${file.archivePath.split('/').slice(1).join('/')}`;
+      assert.ok(members.includes(archivePath), `${archiveUrl} has no ${archivePath}`);
+      return { ...file, archivePath };
+    });
   }
   console.log(`${formula}: the supplement moved to ${version}.`);
   for (const statement of statements)
