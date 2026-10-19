@@ -37,7 +37,7 @@ const emit = () =>
 const transport: CoreTransport = {
   init: async () => {},
   destroy: async () => {},
-  flush: async () => {},
+  commit: async () => {},
   prepareClose: async () => {},
   onBeforeDestroy: () => () => {},
   dispatch: async (action, model) => {

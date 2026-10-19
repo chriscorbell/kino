@@ -19,13 +19,20 @@ function fixture() {
   });
   let dismissed = false;
   const listeners = new Set<(event: CoreRuntimeEvent) => void>();
-  const target: CoreTransport = {
+  const dispatch = vi.fn().mockResolvedValue(undefined);
+  const flush = vi.fn().mockResolvedValue(undefined);
+  const target: CoreTransport & { flush: typeof flush } = {
     init: vi.fn(),
     destroy: vi.fn(),
-    flush: vi.fn().mockResolvedValue(undefined),
+    // Built like the production commit, so a test can fail either step.
+    commit: async (...args) => {
+      await dispatch(...args);
+      await flush();
+    },
+    flush,
     prepareClose: vi.fn(),
     onBeforeDestroy: () => () => {},
-    dispatch: vi.fn().mockResolvedValue(undefined),
+    dispatch,
     getState: (async (model: string) =>
       model === 'ctx'
         ? currentProfile

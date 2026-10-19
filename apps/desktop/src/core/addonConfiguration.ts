@@ -30,7 +30,7 @@ export async function installAddonConfiguration(
   addon: CoreAddon,
   previous: CoreAddon[] = [],
 ) {
-  await transport.dispatch(installAddonAction(addon));
+  await transport.commit(installAddonAction(addon));
   let state = await transport.getState('ctx');
   if (!state.profile.addons.some((installed) => installed.transportUrl === addon.transportUrl)) {
     throw new Error('The add-on could not be installed.');
@@ -44,7 +44,7 @@ export async function installAddonConfiguration(
       throw new AddonReplacementError();
     }
     try {
-      await transport.dispatch(uninstallAddonAction(installed));
+      await transport.commit(uninstallAddonAction(installed));
       state = await transport.getState('ctx');
       if (state.profile.addons.some((candidate) => candidate.transportUrl === old.transportUrl)) {
         throw new AddonReplacementError();

@@ -1,10 +1,12 @@
 import { t } from '../locales';
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
 
+import { unloadAction, unloadPlayerAction } from './actions';
 import { useCore } from './context';
 import { coreFailureDetail, coreFailureMessage } from './errors';
 import type { CoreTransport } from './transport';
-import type { CoreAction, CoreModelName, CoreRuntimeEvent, CoreStateMap } from './types';
+import type { CoreModelName, CoreRuntimeEvent, CoreStateMap } from './types';
+import type { TransientAction } from './writes';
 
 interface CoreModelResult<State> {
   error: string | null;
@@ -28,7 +30,7 @@ const failureMessage = (error: unknown) => coreFailureMessage(error, modelFailed
 
 export function useCoreModel<Model extends CoreModelName>(
   model: Model,
-  action: CoreAction | null,
+  action: TransientAction | null,
   actionKey: string,
   options?: { beforeUnload: (transport: CoreTransport, loaded: Promise<void>) => Promise<void> },
 ): CoreModelResult<CoreStateMap[Model]> {
@@ -93,8 +95,8 @@ export function useCoreModel<Model extends CoreModelName>(
         else await loaded.catch(() => undefined);
         disposed = true;
         unsubscribe();
-        await transport.dispatch({ action: 'Unload' }, model);
-        if (managedUnload) await transport.flush();
+        if (managedUnload) await transport.commit(unloadPlayerAction, model);
+        else await transport.dispatch(unloadAction, model);
         unregister();
       })().catch((error: unknown) => {
         closed = null;
@@ -132,7 +134,7 @@ export function useCoreModel<Model extends CoreModelName>(
           .catch(() => console.error('[kino:core] player shutdown could not save progress'))
           .finally(unregister);
       } else {
-        void transport.dispatch({ action: 'Unload' }, model).catch(() => undefined);
+        void transport.dispatch(unloadAction, model).catch(() => undefined);
       }
     };
   }, [actionKey, managedUnload, model, revision, status, transport]);

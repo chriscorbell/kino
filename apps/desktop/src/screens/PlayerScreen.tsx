@@ -24,7 +24,12 @@ import {
   saveTitleTrackChoice,
   type TitleTrackChoices,
 } from '../player/trackChoices';
-import { loadPlayerAction, playerAction, type PlaybackSelection } from '../core/actions';
+import {
+  finalPauseAction,
+  loadPlayerAction,
+  playerAction,
+  type PlaybackSelection,
+} from '../core/actions';
 import { useCore } from '../core/context';
 import type { CoreTransport } from '../core/transport';
 import type { CoreVideo } from '../core/types';
@@ -236,10 +241,7 @@ export function PlayerScreen({
           'player',
         );
       }
-      // TimeChanged is throttled by Core. PausedChanged forces the current
-      // library item into storage and account sync before Unload clears it.
-      await target.dispatch(playerAction('PausedChanged', { paused: true }), 'player');
-      await target.flush();
+      await target.commit(finalPauseAction, 'player');
       nativePlayer?.stop();
     } catch (error) {
       closingRef.current = false;

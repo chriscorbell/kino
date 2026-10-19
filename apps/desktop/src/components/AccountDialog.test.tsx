@@ -31,7 +31,7 @@ function fakeTransport() {
     dispatch: vi.fn(async (action: { args?: { action?: string } }) => {
       calls.push(`dispatch:${action.args?.action ?? ''}`);
     }),
-    flush: vi.fn().mockResolvedValue(undefined),
+    commit: vi.fn().mockResolvedValue(undefined),
     getState: vi.fn(async () => ({ profile: { auth: null } })),
     init: vi.fn(async () => {
       calls.push('init');

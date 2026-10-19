@@ -16,11 +16,13 @@ const control = vi.hoisted(() => ({
 }));
 vi.mock('./transport', () => ({
   createCoreTransport: (session: CoreSession) => {
+    const dispatch = vi.fn().mockResolvedValue(undefined);
     const transport: CoreTransport = {
       init: () => control.init(session),
       destroy: vi.fn().mockResolvedValue(undefined),
-      dispatch: vi.fn().mockResolvedValue(undefined),
-      flush: vi.fn().mockResolvedValue(undefined),
+      // The guest catalog install lands in the same record as every other action.
+      commit: dispatch,
+      dispatch,
       prepareClose: vi.fn().mockResolvedValue(undefined),
       onBeforeDestroy: () => () => {},
       getState: vi.fn(async (model: string) => {

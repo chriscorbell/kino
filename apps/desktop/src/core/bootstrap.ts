@@ -1,3 +1,4 @@
+import { installDescriptorAction } from './actions';
 import type { CoreTransport } from './transport';
 import { createAddonNetwork } from './addonNetwork';
 import { fetchNativeAddonRedirect } from '../native/player';
@@ -39,15 +40,11 @@ export async function ensureGuestCatalog(transport: CoreTransport, signal?: Abor
   // A response arriving after a session switch must not mutate the old profile.
   signal?.throwIfAborted();
 
-  await transport.dispatch({
-    action: 'Ctx',
-    args: {
-      action: 'InstallAddon',
-      args: {
-        flags: { official: true, protected: true },
-        manifest,
-        transportUrl: CINEMETA_MANIFEST_URL,
-      },
-    },
-  });
+  await transport.commit(
+    installDescriptorAction({
+      flags: { official: true, protected: true },
+      manifest,
+      transportUrl: CINEMETA_MANIFEST_URL,
+    }),
+  );
 }

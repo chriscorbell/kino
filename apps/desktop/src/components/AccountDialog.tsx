@@ -5,6 +5,7 @@ import { CoreRecovery } from './CoreRecovery';
 import logo from '../assets/kino.svg';
 import styles from '../styles/shared.module.css';
 import settingsStyles from '../styles/settings.module.css';
+import { loginAction, logoutAction } from '../core/actions';
 import { useCore } from '../core/context';
 import { coreFailureMessage } from '../core/errors';
 import { createCoreTransport, type CoreTransport } from '../core/transport';
@@ -35,19 +36,11 @@ function authenticate(transport: CoreTransport, email: string, password: string)
         reject(new Error(enUS.account.rejected));
       }
     });
-    void transport
-      .dispatch({
-        action: 'Ctx',
-        args: {
-          action: 'Authenticate',
-          args: { type: 'Login', email, password },
-        },
-      })
-      .catch((dispatchError: unknown) => {
-        window.clearTimeout(timeout);
-        unsubscribe();
-        reject(dispatchError instanceof Error ? dispatchError : new Error(enUS.account.failed));
-      });
+    void transport.dispatch(loginAction(email, password)).catch((dispatchError: unknown) => {
+      window.clearTimeout(timeout);
+      unsubscribe();
+      reject(dispatchError instanceof Error ? dispatchError : new Error(enUS.account.failed));
+    });
   });
 }
 
@@ -190,7 +183,7 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
             className={styles.secondaryAction}
             onClick={() => {
               if (!transport) return;
-              void transport.dispatch({ action: 'Ctx', args: { action: 'Logout' } }).finally(() => {
+              void transport.commit(logoutAction).finally(() => {
                 selectSession('guest');
                 onClose();
               });

@@ -24,7 +24,7 @@ function mount(target: CoreTransport) {
 
 const idle = {
   destroy: async () => {},
-  flush: async () => {},
+  commit: async () => {},
   prepareClose: async () => {},
   init: async () => {},
   onBeforeDestroy: () => () => {},

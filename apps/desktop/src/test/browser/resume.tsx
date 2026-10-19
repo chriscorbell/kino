@@ -34,7 +34,7 @@ const listeners = new Set<(event: CoreRuntimeEvent) => void>();
 const transport: CoreTransport = {
   init: async () => {},
   destroy: async () => {},
-  flush: async () => {},
+  commit: async () => {},
   prepareClose: async () => {},
   onBeforeDestroy: () => () => {},
   dispatch: async (action, model) => {

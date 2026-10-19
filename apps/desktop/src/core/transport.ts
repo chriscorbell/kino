@@ -14,13 +14,15 @@ import {
   type SecureAuthStorage,
 } from './storage';
 import type { CoreAction, CoreModelName, CoreRuntimeEvent, CoreStateMap } from './types';
+import type { DurableAction, TransientAction } from './writes';
 
 type CoreEventListener = (event: CoreRuntimeEvent) => void;
 
 export interface CoreTransport {
+  /** Dispatches, then resolves once Core's storage writes and account sync finish. */
+  commit(action: DurableAction, model?: CoreModelName): Promise<void>;
   destroy(): Promise<void>;
-  dispatch(action: CoreAction, model?: CoreModelName): Promise<void>;
-  flush(): Promise<void>;
+  dispatch(action: TransientAction, model?: CoreModelName): Promise<void>;
   /** The model decides the state; callers cannot ask for a different shape. */
   getState<Model extends CoreModelName>(model: Model): Promise<CoreStateMap[Model]>;
   init(): Promise<void>;
@@ -156,6 +158,9 @@ export function createCoreTransport(
   };
   const beforeDestroy = new Set<() => Promise<void>>();
   let initializing: Promise<void> | null = null;
+  const dispatch = async (action: CoreAction, model?: CoreModelName) => {
+    await call(['dispatch'], [action, model, currentHash()]);
+  };
   const flush = () => call<void>(['flush'], [], false);
   const prepareClose = async () => {
     // Closing while session storage or WASM startup is still running must also wait for
@@ -168,16 +173,17 @@ export function createCoreTransport(
   let destroying: Promise<void> | null = null;
 
   return {
+    async commit(action, model) {
+      await dispatch(action, model);
+      await flush();
+    },
     destroy() {
       destroying ??= prepareClose().finally(() => {
         stop(new Error(t.core.stopped));
       });
       return destroying;
     },
-    async dispatch(action, model) {
-      await call(['dispatch'], [action, model, currentHash()]);
-    },
-    flush,
+    dispatch,
     // The worker adapts every model before it answers, so the response already
     // has this model's application shape.
     getState<Model extends CoreModelName>(model: Model) {

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CoreContext } from '../core/context';
 import type { CoreTransport } from '../core/transport';
+import type { DurableAction } from '../core/writes';
 import { preview, urlSource, video } from '../test/coreState';
 import { defaultSettings } from '../settings';
 import { PlayerScreen } from './PlayerScreen';
@@ -80,6 +81,11 @@ async function mountPlayer({ upNext = true, hasNextVideo = true } = {}) {
       if (holdFlush) await pending;
       calls.push('saved');
     }),
+    // Built like the production commit, so the record shows each save's flush.
+    commit: async (action: DurableAction): Promise<void> => {
+      await transport.dispatch(action);
+      await transport.flush();
+    },
   };
   const stream = urlSource('https://media.invalid/fixture.mp4');
   const onBack = vi.fn();

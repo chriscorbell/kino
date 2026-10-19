@@ -40,7 +40,7 @@ function fixture() {
   const transport: CoreTransport = {
     init: vi.fn().mockResolvedValue(undefined),
     destroy: vi.fn(),
-    flush: vi.fn().mockResolvedValue(undefined),
+    commit: vi.fn().mockResolvedValue(undefined),
     prepareClose: vi.fn().mockResolvedValue(undefined),
     onBeforeDestroy: () => () => {},
     subscribe: (listener) => {

@@ -20,7 +20,7 @@ const clonedContractError = new Error(contractError.message);
 function mountHome(readCtx: () => Promise<unknown>, error: string | null = null) {
   const transport: CoreTransport = {
     destroy: vi.fn(),
-    flush: vi.fn().mockResolvedValue(undefined),
+    commit: vi.fn().mockResolvedValue(undefined),
     prepareClose: vi.fn().mockResolvedValue(undefined),
     onBeforeDestroy: () => () => {},
     dispatch: vi.fn().mockResolvedValue(undefined),

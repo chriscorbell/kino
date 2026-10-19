@@ -3,20 +3,30 @@ import { expect, it, vi } from 'vitest';
 
 import { CoreContext } from '../core/context';
 import type { CoreTransport } from '../core/transport';
+import type { CoreAction, CoreModelName } from '../core/types';
 import { metaItem, preview } from '../test/coreState';
 import { MetaDetailsScreen } from './MetaDetailsScreen';
 
 const item = preview({ id: 'movie', name: 'Profile fixture', type: 'movie' });
 
 function transport(inLibrary: boolean) {
+  const dispatch = vi
+    .fn<(action: CoreAction, model?: CoreModelName) => Promise<void>>()
+    .mockResolvedValue(undefined);
+  const flush = vi.fn();
   return {
     destroy: vi.fn(),
-    flush: vi.fn(),
+    // Built like the production commit, so a test can fail either step.
+    commit: async (...args: Parameters<CoreTransport['commit']>) => {
+      await dispatch(...args);
+      await flush();
+    },
+    flush,
     prepareClose: vi.fn(),
     init: vi.fn(),
     onBeforeDestroy: () => () => {},
     subscribe: () => () => {},
-    dispatch: vi.fn<CoreTransport['dispatch']>().mockResolvedValue(undefined),
+    dispatch,
     getState: (async () => ({
       libraryItem: null,
       streams: [],
@@ -27,7 +37,7 @@ function transport(inLibrary: boolean) {
         content: { type: 'Ready', content: metaItem({ ...item, inLibrary }) },
       },
     })) as CoreTransport['getState'],
-  } satisfies CoreTransport;
+  } satisfies CoreTransport & { flush: typeof flush };
 }
 
 function view(target: CoreTransport, session: 'guest' | 'account') {

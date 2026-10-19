@@ -1,6 +1,5 @@
 import type {
   CatalogRequest,
-  CoreAction,
   CoreAddon,
   CoreMetaPreview,
   CoreProfileSettings,
@@ -9,6 +8,8 @@ import type {
   CoreVideo,
   LibraryRequest,
 } from './types';
+import { durable, transient } from './writes.ts';
+import type { DurableAction, TransientAction } from './writes.ts';
 
 export interface PlaybackSelection {
   meta: CoreMetaPreview;
@@ -19,40 +20,56 @@ export interface PlaybackSelection {
   video: CoreVideo | null;
 }
 
-export const loadBoardAction: CoreAction = {
+export const loadBoardAction: TransientAction = transient({
   action: 'Load',
   args: { model: 'CatalogsWithExtra', args: { extra: [] } },
-};
+});
 
-export function loadSearchAction(query: string): CoreAction {
-  return {
+export function loadSearchAction(query: string): TransientAction {
+  return transient({
     action: 'Load',
     args: {
       model: 'CatalogsWithExtra',
       args: { extra: [['search', query]] },
     },
-  };
+  });
 }
 
-export function loadCatalogAction(request: CatalogRequest | null): CoreAction {
-  return {
+/** Asks Core for every catalog row of the board or a search, not only the first ones. */
+export function loadCatalogRangeAction(end: number): TransientAction {
+  return transient({
+    action: 'CatalogsWithExtra',
+    args: { action: 'LoadRange', args: { start: 0, end } },
+  });
+}
+
+export function loadCatalogAction(request: CatalogRequest | null): TransientAction {
+  return transient({
     action: 'Load',
     args: { model: 'CatalogWithFilters', args: request ? { request } : null },
-  };
+  });
 }
 
-export function loadLibraryAction(request: LibraryRequest | null): CoreAction {
-  return {
+export const loadNextCatalogPageAction: TransientAction = transient({
+  action: 'CatalogWithFilters',
+  args: { action: 'LoadNextPage' },
+});
+
+export function loadLibraryAction(request: LibraryRequest | null): TransientAction {
+  return transient({
     action: 'Load',
     args: {
       model: 'LibraryWithFilters',
       args: { request: request ?? { page: 1, sort: 'lastwatched', type: null } },
     },
-  };
+  });
 }
 
-export function loadMetaDetailsAction(meta: CoreMetaPreview, videoId: string | null): CoreAction {
-  return {
+export function loadMetaDetailsAction(
+  meta: CoreMetaPreview,
+  videoId: string | null,
+): TransientAction {
+  return transient({
     action: 'Load',
     args: {
       model: 'MetaDetails',
@@ -64,8 +81,13 @@ export function loadMetaDetailsAction(meta: CoreMetaPreview, videoId: string | n
         guessStream: meta.type !== 'series',
       },
     },
-  };
+  });
 }
+
+export const unloadAction: TransientAction = transient({ action: 'Unload' });
+
+/** Unloading the player can advance Continue Watching to the next episode, so it is a save too. */
+export const unloadPlayerAction: DurableAction = durable({ action: 'Unload' });
 
 function present<Value>(name: string, value: Value | null) {
   return value === null ? {} : { [name]: value };
@@ -123,9 +145,9 @@ export function playerStreamPayload(source: CoreSource) {
   };
 }
 
-export function loadPlayerAction(selection: PlaybackSelection): CoreAction {
+export function loadPlayerAction(selection: PlaybackSelection): TransientAction {
   const videoId = selection.video?.id ?? selection.meta.id;
-  return {
+  return transient({
     action: 'Load',
     args: {
       model: 'Player',
@@ -157,21 +179,41 @@ export function loadPlayerAction(selection: PlaybackSelection): CoreAction {
         },
       },
     },
-  };
+  });
 }
+
+/**
+ * Sign-in is confirmed by Core's UserAuthenticated event, not by storage, and
+ * closing the Core that signed in stores the session.
+ */
+export function loginAction(email: string, password: string): TransientAction {
+  return transient({
+    action: 'Ctx',
+    args: { action: 'Authenticate', args: { type: 'Login', email, password } },
+  });
+}
+
+export const logoutAction: DurableAction = durable({ action: 'Ctx', args: { action: 'Logout' } });
 
 export function updateProfileSettingsAction(
   settings: CoreProfileSettings,
   patch: Record<string, unknown>,
-): CoreAction {
+): DurableAction {
   // Core replaces the whole settings record, so the unread values go back too.
-  return {
+  return durable({
     action: 'Ctx',
     args: { action: 'UpdateSettings', args: { ...settings.values, ...patch } },
-  };
+  });
 }
 
-function addonPayload(addon: CoreAddon) {
+/** The add-on record Core stores. */
+export interface AddonDescriptor {
+  flags: { official: boolean; protected: boolean };
+  manifest: Readonly<Record<string, unknown>>;
+  transportUrl: string;
+}
+
+function addonPayload(addon: CoreAddon): AddonDescriptor {
   return {
     flags: { official: addon.flags.official, protected: addon.flags.protected },
     manifest: addon.manifest.values,
@@ -179,16 +221,21 @@ function addonPayload(addon: CoreAddon) {
   };
 }
 
-export function installAddonAction(addon: CoreAddon): CoreAction {
-  return { action: 'Ctx', args: { action: 'InstallAddon', args: addonPayload(addon) } };
+/** Installs a descriptor Kino built from a fetched manifest, such as the guest catalog. */
+export function installDescriptorAction(descriptor: AddonDescriptor): DurableAction {
+  return durable({ action: 'Ctx', args: { action: 'InstallAddon', args: descriptor } });
 }
 
-export function uninstallAddonAction(addon: CoreAddon): CoreAction {
-  return { action: 'Ctx', args: { action: 'UninstallAddon', args: addonPayload(addon) } };
+export function installAddonAction(addon: CoreAddon): DurableAction {
+  return installDescriptorAction(addonPayload(addon));
 }
 
-export function addToLibraryAction(meta: CoreMetaPreview): CoreAction {
-  return {
+export function uninstallAddonAction(addon: CoreAddon): DurableAction {
+  return durable({ action: 'Ctx', args: { action: 'UninstallAddon', args: addonPayload(addon) } });
+}
+
+export function addToLibraryAction(meta: CoreMetaPreview): DurableAction {
+  return durable({
     action: 'Ctx',
     args: {
       action: 'AddToLibrary',
@@ -215,43 +262,54 @@ export function addToLibraryAction(meta: CoreMetaPreview): CoreAction {
         },
       },
     },
-  };
+  });
 }
 
-export function rewindLibraryItemAction(id: string): CoreAction {
-  return { action: 'Ctx', args: { action: 'RewindLibraryItem', args: id } };
+export function rewindLibraryItemAction(id: string): DurableAction {
+  return durable({ action: 'Ctx', args: { action: 'RewindLibraryItem', args: id } });
 }
 
-export function removeFromLibraryAction(id: string): CoreAction {
-  return { action: 'Ctx', args: { action: 'RemoveFromLibrary', args: id } };
+export function removeFromLibraryAction(id: string): DurableAction {
+  return durable({ action: 'Ctx', args: { action: 'RemoveFromLibrary', args: id } });
 }
 
-export function playerAction(action: string, args?: unknown): CoreAction {
-  return { action: 'Player', args: { action, ...(args === undefined ? {} : { args }) } };
+/** Reports playback to Core while it runs. The final save supersedes these reports. */
+export function playerAction(action: string, args?: unknown): TransientAction {
+  return transient({ action: 'Player', args: { action, ...(args === undefined ? {} : { args }) } });
 }
+
+/**
+ * TimeChanged is throttled by Core. PausedChanged forces the current library
+ * item into storage and account sync before Unload clears it, so the player's
+ * final save commits this.
+ */
+export const finalPauseAction: DurableAction = durable({
+  action: 'Player',
+  args: { action: 'PausedChanged', args: { paused: true } },
+});
 
 /**
  * Marks the open title watched or unwatched. Core records it on the title's library item, which
  * it creates for a title outside the library, so this works from any details page.
  */
-export function markWatchedAction(watched: boolean): CoreAction {
-  return { action: 'MetaDetails', args: { action: 'MarkAsWatched', args: watched } };
+export function markWatchedAction(watched: boolean): DurableAction {
+  return durable({ action: 'MetaDetails', args: { action: 'MarkAsWatched', args: watched } });
 }
 
 /** Core reads only the episode's id, and its release date to order the library's last watched. */
-export function markVideoWatchedAction(video: CoreVideo, watched: boolean): CoreAction {
-  return {
+export function markVideoWatchedAction(video: CoreVideo, watched: boolean): DurableAction {
+  return durable({
     action: 'MetaDetails',
     args: {
       action: 'MarkVideoAsWatched',
       args: [{ id: video.id, title: video.title, released: video.released }, watched],
     },
-  };
+  });
 }
 
-export function markSeasonWatchedAction(season: number, watched: boolean): CoreAction {
-  return {
+export function markSeasonWatchedAction(season: number, watched: boolean): DurableAction {
+  return durable({
     action: 'MetaDetails',
     args: { action: 'MarkSeasonAsWatched', args: [season, watched] },
-  };
+  });
 }

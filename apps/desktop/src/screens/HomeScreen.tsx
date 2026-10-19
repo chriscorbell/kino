@@ -9,7 +9,7 @@ import { useActionFeedback } from '../components/useActionFeedback';
 import { ResourceFailures } from '../components/ResourceFailures';
 import { useResourceStates } from '../core/useResourceStates';
 import { MediaCard } from '../components/MediaCard';
-import { loadBoardAction, rewindLibraryItemAction } from '../core/actions';
+import { loadBoardAction, loadCatalogRangeAction, rewindLibraryItemAction } from '../core/actions';
 import { useCore } from '../core/context';
 import { savedTitlePreview } from '../core/preview';
 import { episodeFromVideoId } from '../core/seasons';
@@ -83,13 +83,7 @@ export function HomeScreen({
   useEffect(() => {
     if (!core.transport || board.loading || catalogs.length === 0) return;
     void core.transport
-      .dispatch(
-        {
-          action: 'CatalogsWithExtra',
-          args: { action: 'LoadRange', args: { start: 0, end: catalogs.length } },
-        },
-        'board',
-      )
+      .dispatch(loadCatalogRangeAction(catalogs.length), 'board')
       .catch(() => undefined);
   }, [board.loading, catalogs.length, core.transport]);
 
@@ -125,17 +119,11 @@ export function HomeScreen({
   const dismissContinueWatching = (id: string, name: string) => {
     const transport = core.transport;
     if (!transport) return;
-    dismissal.run(
-      async () => {
-        await transport.dispatch(rewindLibraryItemAction(id));
-        await transport.flush();
-      },
-      {
-        pending: enUS.home.dismissing(name),
-        success: enUS.home.dismissed(name),
-        failed: enUS.home.dismissFailed(name),
-      },
-    );
+    dismissal.run(() => transport.commit(rewindLibraryItemAction(id)), {
+      pending: enUS.home.dismissing(name),
+      success: enUS.home.dismissed(name),
+      failed: enUS.home.dismissFailed(name),
+    });
   };
 
   return (

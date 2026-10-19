@@ -5,7 +5,7 @@ import styles from '../styles/browse.module.css';
 import { ResourceFailures } from '../components/ResourceFailures';
 import { useResourceStates } from '../core/useResourceStates';
 import { MediaCard } from '../components/MediaCard';
-import { loadSearchAction } from '../core/actions';
+import { loadCatalogRangeAction, loadSearchAction } from '../core/actions';
 import { useCore } from '../core/context';
 import type { CoreMetaPreview } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
@@ -38,15 +38,7 @@ export function SearchScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => vo
 
   useEffect(() => {
     if (!transport || result.loading || !submittedQuery || catalogCount === 0) return;
-    void transport
-      .dispatch(
-        {
-          action: 'CatalogsWithExtra',
-          args: { action: 'LoadRange', args: { start: 0, end: catalogCount } },
-        },
-        'search',
-      )
-      .catch(() => undefined);
+    void transport.dispatch(loadCatalogRangeAction(catalogCount), 'search').catch(() => undefined);
   }, [catalogCount, result.loading, submittedQuery, transport]);
   const inputs = useMemo(
     () =>

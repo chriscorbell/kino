@@ -173,7 +173,7 @@ export function AddonsScreen() {
 
   const uninstall = (addon: CoreAddon) => {
     if (!transport || busy) return;
-    void transport.dispatch(uninstallAddonAction(addon)).catch((cause: unknown) => {
+    void transport.commit(uninstallAddonAction(addon)).catch((cause: unknown) => {
       setError(enUS.addons.removeFailed);
       console.error('[kino:addons] remove failed', cause);
     });
