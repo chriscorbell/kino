@@ -60,7 +60,7 @@ Use Node 24, as pinned in `.node-version`. Before opening a pull request, run th
 pnpm install --frozen-lockfile && pnpm check
 ```
 
-Passing means both commands exit zero, including every gate and the production client build. The checks use the committed Core WASM and generate their own fixtures; they need no credentials, environment file, browser, Docker, or native build. The icon and banner checks in this command read committed images and run on Linux. Native playback and Shield checks remain separate; report the applicable checks you could not run.
+Passing means both commands exit zero, including every gate and the production client build. Run it without a pipe and read its exit code, because a pipe reports the exit code of its last command. The checks use the committed Core WASM and generate their own fixtures; they need no credentials, environment file, browser, Docker, or native build. The icon and banner checks in this command read committed images and run on Linux. Native playback and Shield checks remain separate; report the applicable checks you could not run.
 
 ## Memory and documentation
 

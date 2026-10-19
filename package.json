@@ -9,9 +9,32 @@
   "engines": {
     "node": ">=24.0.0"
   },
+  "checkSteps": [
+    "format:check",
+    "version:check",
+    "gates:check-wiring",
+    "lint",
+    "typecheck",
+    "test",
+    "core:check-contract",
+    "core:check-seasons",
+    "core:check-watched",
+    "core:check-streams",
+    "core:check-pagination",
+    "core:check-subtitles",
+    "core:check-shutdown",
+    "intro:check",
+    "core:check-addon-transports",
+    "engine:check-vendor",
+    "notices:check",
+    "macos:check-icon",
+    "windows:check-icon",
+    "android:check-banner",
+    "build"
+  ],
   "scripts": {
     "build": "pnpm --filter @kino/desktop build",
-    "check": "pnpm format:check && pnpm version:check && pnpm gates:check-wiring && pnpm lint && pnpm typecheck && pnpm test && pnpm core:check-contract && pnpm core:check-seasons && pnpm core:check-watched && pnpm core:check-streams && pnpm core:check-pagination && pnpm core:check-subtitles && pnpm core:check-shutdown && pnpm intro:check && pnpm core:check-addon-transports && pnpm engine:check-vendor && pnpm notices:check && pnpm macos:check-icon && pnpm windows:check-icon && pnpm android:check-banner && pnpm build",
+    "check": "node scripts/run-check.mjs",
     "core:capture-fixtures": "node scripts/capture-core-fixtures.mjs",
     "core:check-seasons": "node scripts/check-core-seasons.mjs",
     "core:check-watched": "node scripts/check-core-watched.mjs",
