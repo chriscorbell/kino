@@ -1,4 +1,6 @@
+import { installDescriptorAction } from './actions';
 import type { CoreTransport } from './transport';
+import type { DurableAction } from './writes';
 import { createAddonNetwork } from './addonNetwork';
 import { fetchNativeAddonRedirect } from '../native/player';
 
@@ -13,11 +15,38 @@ function isManifest(value: unknown): value is Record<string, unknown> {
   );
 }
 
-export class GuestCatalogError extends Error {}
+export class GuestCatalogError extends Error {
+  readonly step: 'load' | 'save';
+
+  constructor(step: 'load' | 'save', options: ErrorOptions) {
+    super(
+      `The default guest catalog could not be ${step === 'load' ? 'loaded' : 'saved'}.`,
+      options,
+    );
+    this.step = step;
+  }
+}
+
+// Core keeps an install in memory even when its save fails, so a retry that
+// read the profile would find the catalog and stop. It commits the same
+// install again instead.
+const unsaved = new WeakMap<CoreTransport, DurableAction>();
 
 export async function ensureGuestCatalog(transport: CoreTransport, signal?: AbortSignal) {
+  const install = unsaved.get(transport) ?? (await guestCatalogInstall(transport, signal));
+  if (!install) return;
+  try {
+    await transport.commit(install);
+  } catch (error) {
+    unsaved.set(transport, install);
+    throw new GuestCatalogError('save', { cause: error });
+  }
+  unsaved.delete(transport);
+}
+
+async function guestCatalogInstall(transport: CoreTransport, signal?: AbortSignal) {
   const context = await transport.getState('ctx');
-  if (context.profile.addons.length > 0) return;
+  if (context.profile.addons.length > 0) return null;
 
   let manifest: unknown;
   try {
@@ -34,20 +63,13 @@ export async function ensureGuestCatalog(transport: CoreTransport, signal?: Abor
     manifest = await response.json();
     if (!isManifest(manifest)) throw new Error('Cinemeta returned an invalid manifest.');
   } catch (error) {
-    throw new GuestCatalogError('The default guest catalog could not be loaded.', { cause: error });
+    throw new GuestCatalogError('load', { cause: error });
   }
   // A response arriving after a session switch must not mutate the old profile.
   signal?.throwIfAborted();
-
-  await transport.dispatch({
-    action: 'Ctx',
-    args: {
-      action: 'InstallAddon',
-      args: {
-        flags: { official: true, protected: true },
-        manifest,
-        transportUrl: CINEMETA_MANIFEST_URL,
-      },
-    },
+  return installDescriptorAction({
+    flags: { official: true, protected: true },
+    manifest,
+    transportUrl: CINEMETA_MANIFEST_URL,
   });
 }

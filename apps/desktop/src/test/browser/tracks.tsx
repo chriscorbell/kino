@@ -68,7 +68,7 @@ const probe = {
     const transport = {
       init: async () => {},
       destroy: async () => {},
-      flush: async () => {},
+      commit: async () => {},
       prepareClose: async () => {},
       onBeforeDestroy: () => () => {},
       dispatch: async () => {},

@@ -294,10 +294,9 @@ export function MetaDetailsScreen({
       async () => {
         setLibraryOverride(change);
         try {
-          await transport.dispatch(
+          await transport.commit(
             next ? addToLibraryAction(display) : removeFromLibraryAction(display.id),
           );
-          await transport.flush();
         } catch (error) {
           // A late failure must not overwrite another profile's action.
           setLibraryOverride((current) => (current === change ? null : current));
@@ -323,8 +322,7 @@ export function MetaDetailsScreen({
       async () => {
         setWatchedOverrides((current) => new Map([...current, ...change]));
         try {
-          await transport.dispatch(action, 'meta_details');
-          await transport.flush();
+          await transport.commit(action, 'meta_details');
         } catch (error) {
           setWatchedOverrides((current) => {
             const next = new Map(current);

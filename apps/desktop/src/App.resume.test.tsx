@@ -40,7 +40,7 @@ function mount() {
     destroy: vi.fn(),
     init: vi.fn().mockResolvedValue(undefined),
     dispatch: vi.fn().mockResolvedValue(undefined),
-    flush: vi.fn().mockResolvedValue(undefined),
+    commit: vi.fn().mockResolvedValue(undefined),
     prepareClose: vi.fn().mockResolvedValue(undefined),
     onBeforeDestroy: () => () => {},
     getState: (async (model: string) => {

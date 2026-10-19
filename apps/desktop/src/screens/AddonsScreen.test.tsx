@@ -8,7 +8,12 @@ import { AddonsScreen } from './AddonsScreen';
 const fixture = vi.hoisted(() => {
   const dispatch = vi.fn();
   const getState = vi.fn();
-  return { dispatch, getState, transport: { dispatch, getState }, addons: [] as CoreAddon[] };
+  return {
+    dispatch,
+    getState,
+    transport: { commit: dispatch, dispatch, getState },
+    addons: [] as CoreAddon[],
+  };
 });
 vi.mock('../core/context', () => ({
   useCore: () => ({ transport: fixture.transport }),

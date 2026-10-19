@@ -48,7 +48,7 @@ function mountTorrentPlayer(stream: CoreSource) {
   });
   const transport: CoreTransport = {
     destroy: vi.fn(),
-    flush: vi.fn().mockResolvedValue(undefined),
+    commit: vi.fn().mockResolvedValue(undefined),
     prepareClose: vi.fn().mockResolvedValue(undefined),
     onBeforeDestroy: () => () => {},
     dispatch: vi.fn().mockResolvedValue(undefined),

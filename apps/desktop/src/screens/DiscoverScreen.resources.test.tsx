@@ -34,7 +34,7 @@ it('distinguishes pending, failed, and empty catalogs and retains titles during 
   const target: CoreTransport = {
     init: vi.fn(),
     destroy: vi.fn(),
-    flush: vi.fn(),
+    commit: vi.fn(),
     prepareClose: vi.fn(),
     onBeforeDestroy: () => () => {},
     getState: (async () => state) as CoreTransport['getState'],

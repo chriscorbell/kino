@@ -9,7 +9,7 @@ import { MediaCard } from '../components/MediaCard';
 import { LoadMore } from '../components/LoadMore';
 import { useCore } from '../core/context';
 import type { CoreTransport } from '../core/transport';
-import { loadCatalogAction } from '../core/actions';
+import { loadCatalogAction, loadNextCatalogPageAction } from '../core/actions';
 import { catalogRequestKey } from '../core/catalog';
 import type { CatalogRequest, CoreMetaPreview } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
@@ -55,7 +55,7 @@ export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => 
     setOperation(current);
     setFailure(null);
     void transport
-      .dispatch({ action: 'CatalogWithFilters', args: { action: 'LoadNextPage' } }, 'discover')
+      .dispatch(loadNextCatalogPageAction, 'discover')
       .catch(() => setFailure(current))
       .finally(() => setOperation((previous) => (previous === current ? null : previous)));
   };

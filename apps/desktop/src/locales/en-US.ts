@@ -15,6 +15,7 @@ export const enUS = {
     catalogLoading: 'Loading the default guest catalog…',
     catalogFailed:
       'The default guest catalog could not be loaded. Check your connection and retry.',
+    catalogSaveFailed: 'The default guest catalog could not be saved. Retry to save it.',
     retryCatalog: 'Retry guest catalog',
     accountUnavailable: 'Account preparation failed',
     modelFailed: 'The Stremio model failed to load.',
@@ -39,6 +40,9 @@ export const enUS = {
     signInTitle: 'Sign in with Stremio',
     signedIn: 'Signed in',
     signOut: 'Sign out',
+    signingOut: 'Signing out…',
+    signOutFailed:
+      'Sign-out could not be saved. This account may still be signed in after Kino restarts.',
     description: 'Your credentials go directly to Stremio. Kino keeps guest activity separate.',
     email: 'Email',
     password: 'Password',
@@ -151,6 +155,8 @@ export const enUS = {
     install: 'Install',
     installing: 'Installing…',
     installFailed: 'That add-on could not be installed.',
+    installNotSaved:
+      'The add-on was installed but could not be saved. It may be missing after Kino restarts.',
     transportIssues: {
       invalid: 'Blocked. Use a valid HTTPS manifest URL without a username or password.',
       insecure: 'Blocked. This add-on requires an HTTPS manifest URL.',
@@ -158,6 +164,8 @@ export const enUS = {
     },
     remove: 'Remove',
     removeFailed: 'That add-on could not be removed.',
+    removeNotSaved:
+      'The add-on was removed but the change could not be saved. It may return after Kino restarts.',
     configure: 'Configure',
     configureTitle: (name: string) => `Configure ${name}`,
     removeTitle: (name: string) => `Remove ${name}`,
@@ -172,6 +180,8 @@ export const enUS = {
       'A required add-on cannot be replaced. You can install the new configuration alongside it.',
     keepBoth: 'Keep both',
     configurationReplaced: 'The previous configuration was replaced.',
+    replacementNotSaved:
+      'The previous configuration was replaced but the change could not be saved. It may return after Kino restarts.',
     installed: 'The add-on was installed.',
     replaceFailed:
       'The new configuration is installed, but a previous configuration could not be removed. Try Replace existing again.',

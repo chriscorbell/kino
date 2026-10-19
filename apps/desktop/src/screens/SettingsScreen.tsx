@@ -66,8 +66,7 @@ export function SettingsScreen({
       async () => {
         // UpdateSettings replaces the record; read current values before retrying.
         const latest = await transport.getState('ctx');
-        await transport.dispatch(updateProfileSettingsAction(latest.profile.settings, patch));
-        await transport.flush();
+        await transport.commit(updateProfileSettingsAction(latest.profile.settings, patch));
       },
       {
         pending: enUS.settings.savingLanguage,

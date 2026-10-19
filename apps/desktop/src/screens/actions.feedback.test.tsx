@@ -5,6 +5,7 @@ import { CoreContext } from '../core/context';
 import type { CoreTransport } from '../core/transport';
 import type { CoreRuntimeEvent } from '../core/types';
 import { profile } from '../test/coreState';
+import { commitThrough } from '../test/transport';
 import { defaultSettings } from '../settings';
 import { HomeScreen } from './HomeScreen';
 import { SettingsScreen } from './SettingsScreen';
@@ -19,13 +20,16 @@ function fixture() {
   });
   let dismissed = false;
   const listeners = new Set<(event: CoreRuntimeEvent) => void>();
-  const target: CoreTransport = {
+  const dispatch = vi.fn().mockResolvedValue(undefined);
+  const flush = vi.fn().mockResolvedValue(undefined);
+  const target: CoreTransport & { flush: typeof flush } = {
     init: vi.fn(),
     destroy: vi.fn(),
-    flush: vi.fn().mockResolvedValue(undefined),
+    commit: commitThrough(dispatch, flush),
+    flush,
     prepareClose: vi.fn(),
     onBeforeDestroy: () => () => {},
-    dispatch: vi.fn().mockResolvedValue(undefined),
+    dispatch,
     getState: (async (model: string) =>
       model === 'ctx'
         ? currentProfile

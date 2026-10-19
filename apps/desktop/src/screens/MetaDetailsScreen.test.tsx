@@ -3,7 +3,13 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 import { CoreContext } from '../core/context';
 import type { CoreTransport } from '../core/transport';
-import type { CoreMetaItem, CoreRuntimeEvent, MetaDetailsState } from '../core/types';
+import type {
+  CoreAction,
+  CoreMetaItem,
+  CoreModelName,
+  CoreRuntimeEvent,
+  MetaDetailsState,
+} from '../core/types';
 import { metaItem, source, urlSource, video } from '../test/coreState';
 import { MetaDetailsScreen } from './MetaDetailsScreen';
 
@@ -59,10 +65,12 @@ function mountDetails(
 ) {
   let state = initial;
   const listeners = new Set<(event: CoreRuntimeEvent) => void>();
-  const dispatch = vi.fn<CoreTransport['dispatch']>().mockResolvedValue(undefined);
+  const dispatch = vi
+    .fn<(action: CoreAction, model?: CoreModelName) => Promise<void>>()
+    .mockResolvedValue(undefined);
   const transport: CoreTransport = {
     destroy: vi.fn(),
-    flush: vi.fn().mockResolvedValue(undefined),
+    commit: dispatch,
     prepareClose: vi.fn().mockResolvedValue(undefined),
     onBeforeDestroy: () => () => {},
     dispatch,

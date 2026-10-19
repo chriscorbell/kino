@@ -4,27 +4,40 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { App } from '../App';
 import { CoreRecovery } from '../components/CoreRecovery';
 import { t as enUS } from '../locales';
-import { profile } from '../test/coreState';
+import { addon, profile } from '../test/coreState';
+import { commitThrough } from '../test/transport';
 import { CoreProvider } from './CoreProvider';
 import { useCore } from './context';
 import type { CoreSession } from './storage';
 import type { CoreTransport } from './transport';
+import type { CoreAction, CoreAddon } from './types';
 
 const control = vi.hoisted(() => ({
   init: vi.fn(),
+  store: vi.fn(),
   transports: [] as CoreTransport[],
 }));
 vi.mock('./transport', () => ({
   createCoreTransport: (session: CoreSession) => {
+    const addons: CoreAddon[] = [];
+    // Core keeps an install in memory even when its save fails.
+    const dispatch = vi.fn(async (action: CoreAction) => {
+      const ctx = action.args as {
+        action?: string;
+        args?: { manifest: Record<string, unknown>; transportUrl: string };
+      };
+      if (ctx.action === 'InstallAddon' && ctx.args)
+        addons.push(addon(ctx.args.transportUrl, ctx.args.manifest));
+    });
     const transport: CoreTransport = {
       init: () => control.init(session),
       destroy: vi.fn().mockResolvedValue(undefined),
-      dispatch: vi.fn().mockResolvedValue(undefined),
-      flush: vi.fn().mockResolvedValue(undefined),
+      commit: commitThrough(dispatch, control.store),
+      dispatch,
       prepareClose: vi.fn().mockResolvedValue(undefined),
       onBeforeDestroy: () => () => {},
       getState: vi.fn(async (model: string) => {
-        if (model === 'ctx') return profile();
+        if (model === 'ctx') return profile({ addons });
         if (model === 'board') return { catalogs: [], selected: null };
         return { items: [] };
       }) as CoreTransport['getState'],
@@ -39,6 +52,7 @@ beforeEach(() => {
   window.localStorage.clear();
   control.transports.length = 0;
   control.init.mockReset().mockResolvedValue(undefined);
+  control.store.mockReset().mockResolvedValue(undefined);
   vi.stubGlobal('Worker', class {});
   vi.stubGlobal(
     'fetch',
@@ -101,6 +115,25 @@ it('keeps Core and Settings usable after an optional catalog failure, then retri
       expect.objectContaining({ args: expect.objectContaining({ action: 'InstallAddon' }) }),
     ),
   );
+  expect(control.transports).toHaveLength(1);
+});
+
+it('keeps Core running when the guest catalog cannot be stored, and commits it again on retry', async () => {
+  control.store.mockRejectedValueOnce(new Error('Core storage did not finish in time.'));
+  render(
+    <CoreProvider>
+      <Probe />
+    </CoreProvider>,
+  );
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'The default guest catalog could not be saved. Retry to save it.',
+  );
+  expect(screen.getByTestId('status')).toHaveTextContent('ready');
+  fireEvent.click(screen.getByRole('button', { name: 'Retry guest catalog' }));
+  await waitFor(() => expect(control.store).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  expect(control.transports[0]!.dispatch).toHaveBeenCalledTimes(2);
+  expect(fetch).toHaveBeenCalledOnce();
   expect(control.transports).toHaveLength(1);
 });
 

@@ -28,7 +28,7 @@ it('labels a saved episode on its Continue Watching card', async () => {
   ];
   const transport: CoreTransport = {
     destroy: vi.fn(),
-    flush: vi.fn().mockResolvedValue(undefined),
+    commit: vi.fn().mockResolvedValue(undefined),
     prepareClose: vi.fn().mockResolvedValue(undefined),
     onBeforeDestroy: () => () => {},
     dispatch: vi.fn().mockResolvedValue(undefined),

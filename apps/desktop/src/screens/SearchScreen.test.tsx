@@ -18,7 +18,7 @@ function setup() {
     listeners.forEach((listener) => listener({ name: 'NewState', args: ['search'] }));
   const target: CoreTransport = {
     destroy: async () => {},
-    flush: async () => {},
+    commit: async () => {},
     prepareClose: async () => {},
     init: async () => {},
     onBeforeDestroy: () => () => {},

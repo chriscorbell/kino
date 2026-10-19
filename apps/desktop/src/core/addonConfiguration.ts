@@ -1,6 +1,6 @@
 import { installAddonAction, uninstallAddonAction } from './actions';
 import { addonTransportIssue } from './addonNetwork';
-import type { CoreTransport } from './transport';
+import { CoreSaveError, type CoreTransport } from './transport';
 import type { CoreAddon } from './types';
 
 export function addonManifestUrl(value: string) {
@@ -25,12 +25,19 @@ export class AddonReplacementError extends Error {
   }
 }
 
+/** Core removed the previous configuration, but the removal was not stored. */
+export class AddonReplacementNotSavedError extends Error {
+  constructor(cause: CoreSaveError) {
+    super('The previous configuration was removed, but the removal was not saved.', { cause });
+  }
+}
+
 export async function installAddonConfiguration(
   transport: CoreTransport,
   addon: CoreAddon,
   previous: CoreAddon[] = [],
 ) {
-  await transport.dispatch(installAddonAction(addon));
+  await transport.commit(installAddonAction(addon));
   let state = await transport.getState('ctx');
   if (!state.profile.addons.some((installed) => installed.transportUrl === addon.transportUrl)) {
     throw new Error('The add-on could not be installed.');
@@ -44,12 +51,13 @@ export async function installAddonConfiguration(
       throw new AddonReplacementError();
     }
     try {
-      await transport.dispatch(uninstallAddonAction(installed));
+      await transport.commit(uninstallAddonAction(installed));
       state = await transport.getState('ctx');
       if (state.profile.addons.some((candidate) => candidate.transportUrl === old.transportUrl)) {
         throw new AddonReplacementError();
       }
-    } catch {
+    } catch (error) {
+      if (error instanceof CoreSaveError) throw new AddonReplacementNotSavedError(error);
       throw new AddonReplacementError();
     }
   }

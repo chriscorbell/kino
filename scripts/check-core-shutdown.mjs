@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 
-import { playerAction } from '../apps/desktop/src/core/actions.ts';
+import {
+  finalPauseAction,
+  playerAction,
+  unloadPlayerAction,
+} from '../apps/desktop/src/core/actions.ts';
 import { PendingCoreWork, trackCoreSync } from '../apps/desktop/src/core/pendingWork.ts';
 import { initializeCore, resolveCoreStream } from './test-support/core-stream.mjs';
 
@@ -105,7 +109,7 @@ if (!mode) {
   await resolveCoreStream(core, { url: 'https://media.invalid/fixture.mp4' });
   held = true;
   progress(34567);
-  core.dispatch(playerAction('PausedChanged', { paused: true }), 'player', '');
+  core.dispatch(finalPauseAction, 'player', '');
   let flushed = false;
   const flushing = work.flush().then(() => {
     flushed = true;
@@ -123,7 +127,7 @@ if (!mode) {
   await flushing;
   assert.equal(savedTime(), 34567);
   if (mode === 'account') assert.equal(synced.at(-1).state.timeOffset, 34567);
-  core.dispatch({ action: 'Unload' }, 'player', '');
+  core.dispatch(unloadPlayerAction, 'player', '');
   await work.flush();
   assert.equal(savedTime(), 34567);
   console.log(
