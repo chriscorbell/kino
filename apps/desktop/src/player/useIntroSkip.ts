@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 
 import type { PlaybackSelection } from '../core/actions';
 import {
+  introFromChapters,
   lookupCommunityIntro,
-  markerFromChapterCues,
   type ChapterCue,
   type IntroMarker,
 } from '../intro/markers';
@@ -52,18 +52,19 @@ export function useIntroSkip({
   const [automaticSkipComplete, setAutomaticSkipComplete] = useState(false);
   const [automaticNotice, setAutomaticNotice] = useState(false);
   const autoSkipSuppressedRef = useRef(false);
-  const chapterMarker = useMemo(
-    () => markerFromChapterCues(chapterCues, duration),
+  const chapterIntro = useMemo(
+    () => introFromChapters(chapterCues, duration),
     [chapterCues, duration],
   );
   const communityMarker =
     communityLookup?.selection === selection && communityLookup.duration === duration
       ? communityLookup.marker
       : null;
-  const marker = chapterMarker ?? communityMarker;
+  const marker =
+    chapterIntro === 'absent' ? communityMarker : chapterIntro === 'unknown' ? null : chapterIntro;
 
   useEffect(() => {
-    if (!duration || chapterMarker) return;
+    if (!duration || chapterIntro !== 'absent') return;
 
     const controller = new AbortController();
     void lookupCommunityIntro(introIdentity(selection, duration), controller.signal)
@@ -85,7 +86,7 @@ export function useIntroSkip({
         );
       });
     return () => controller.abort();
-  }, [chapterMarker, duration, selection]);
+  }, [chapterIntro, duration, selection]);
 
   useEffect(() => {
     if (!marker || !automatic || automaticSkipComplete || autoSkipSuppressedRef.current) return;

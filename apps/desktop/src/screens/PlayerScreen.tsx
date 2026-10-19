@@ -47,6 +47,7 @@ import { useIdleControls } from '../player/useIdleControls';
 import { useIntroSkip } from '../player/useIntroSkip';
 import { usePlayerKeyboard } from '../player/usePlayerKeyboard';
 import { useTorrentStream } from '../player/useTorrentStream';
+import { inUpNextWindow } from '../player/upNext';
 import { mediaFailureMessage } from '../playback/failures';
 import type { MediaBackend, MediaEvent } from '../playback/media';
 import { mpvBackend } from '../playback/mpvBackend';
@@ -170,11 +171,7 @@ export function PlayerScreen({
   const resumeTime = result.state?.libraryItem?.timeOffset ?? 0;
   const addonSubtitles = useMemo(() => result.state?.subtitles ?? [], [result.state?.subtitles]);
   const selectedSubtitleId = subtitleTracks.find((track) => track.selected)?.id ?? null;
-  const nearEnd =
-    Number.isFinite(duration) &&
-    duration > 0 &&
-    Number.isFinite(time) &&
-    time >= duration - Math.min(120_000, duration * 0.1);
+  const nearEnd = inUpNextWindow(time, duration);
 
   const updateTime = useCallback((milliseconds: number) => {
     if (milliseconds < playbackRef.current.time) setEnded(false);

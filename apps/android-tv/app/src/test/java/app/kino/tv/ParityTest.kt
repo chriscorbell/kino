@@ -3,7 +3,11 @@ package app.kino.tv
 import com.stremio.core.types.resource.Stream
 import com.stremio.core.types.resource.StreamBehaviorHints
 import com.stremio.core.types.resource.StreamDeepLinks
+import com.stremio.core.types.resource.Video
+import com.stremio.core.types.resource.VideoDeepLinks
 import java.io.File
+import java.math.BigInteger
+import java.nio.ByteBuffer
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -11,9 +15,12 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
 import kotlinx.serialization.json.longOrNull
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -84,7 +91,150 @@ class ParityTest {
             }
         }
     }
+
+    @RunWith(Parameterized::class)
+    class VersionCases(@Suppress("unused") private val name: String, private val case: JsonObject) {
+        companion object {
+            @JvmStatic
+            @Parameterized.Parameters(name = "{0}")
+            fun cases() =
+                cases("versions").map {
+                    arrayOf("${it.string("left")} against ${it.string("right")}", it)
+                }
+        }
+
+        @Test
+        fun matchesTheSharedCase() {
+            val left = case.string("left")!!
+            val right = case.string("right")!!
+            val order = case.getValue("expect").jsonPrimitive.intOrNull
+            assertEquals(order, compareKinoVersions(left, right))
+            assertEquals(order?.let { -it }, compareKinoVersions(right, left))
+        }
+    }
+
+    @RunWith(Parameterized::class)
+    class SeasonCases(@Suppress("unused") private val name: String, private val case: JsonObject) {
+        companion object {
+            @JvmStatic
+            @Parameterized.Parameters(name = "{0}")
+            fun cases() = cases("seasons").map { arrayOf(it.string("name"), it) }
+        }
+
+        @Test
+        fun matchesTheSharedCase() {
+            val videos = case.getValue("videos").jsonArray.map { video(it.jsonObject) }
+            val observed =
+                availableSeasons(videos).map { season ->
+                    mapOf(
+                        "season" to season.takeIf { it >= 0 },
+                        "episodes" to seasonEpisodes(videos, season).map { it.id },
+                    )
+                }
+            assertEquals(case.getValue("expect"), json(observed))
+        }
+    }
+
+    @RunWith(Parameterized::class)
+    class UpNextCases(@Suppress("unused") private val name: String, private val case: JsonObject) {
+        companion object {
+            @JvmStatic
+            @Parameterized.Parameters(name = "{0}")
+            fun cases() = cases("up-next").map { arrayOf(it.string("name"), it) }
+        }
+
+        @Test
+        fun matchesTheSharedCase() {
+            assertEquals(
+                case.getValue("expect").jsonPrimitive.boolean,
+                inUpNextWindow(case.long("positionMs"), case.long("durationMs")),
+            )
+        }
+    }
+
+    @RunWith(Parameterized::class)
+    class IntroChapterCases(
+        @Suppress("unused") private val name: String,
+        private val case: JsonObject,
+    ) {
+        companion object {
+            @JvmStatic
+            @Parameterized.Parameters(name = "{0}")
+            fun cases() = cases("intro-chapters").map { arrayOf(it.string("name"), it) }
+        }
+
+        @Test
+        fun matchesTheSharedCase() {
+            val discovery =
+                MatroskaChapters.parse(
+                    chaptersPayload(case.getValue("chapters").jsonArray),
+                    case.long("durationMs"),
+                )
+            val observed =
+                when (discovery) {
+                    is IntroDiscovery.Found ->
+                        mapOf(
+                            "result" to "found",
+                            "startMs" to discovery.marker.startMs,
+                            "endMs" to discovery.marker.endMs,
+                        )
+                    IntroDiscovery.Absent -> mapOf("result" to "absent")
+                    IntroDiscovery.Unknown -> mapOf("result" to "unknown")
+                }
+            assertEquals(case.getValue("expect"), json(observed))
+        }
+    }
 }
+
+// A video as Core lists it, where season and episode come together or not at all.
+private fun video(listed: JsonObject) =
+    Video(
+        id = listed.string("id")!!,
+        title = "",
+        seriesInfo =
+            listed["season"]?.let { Video.SeriesInfo(it.jsonPrimitive.long, listed.long("episode")) },
+        upcoming = false,
+        watched = false,
+        currentVideo = false,
+        deepLinks =
+            VideoDeepLinks(
+                metaDetailsVideos = "",
+                metaDetailsStreams = "",
+                externalPlayer = VideoDeepLinks.ExternalPlayerLink(),
+            ),
+    )
+
+// The Chapters payload the Matroska extractor hands to MatroskaChapters: one edition whose
+// chapters each carry one title.
+private fun chaptersPayload(chapters: JsonArray): ByteArray {
+    val atoms =
+        chapters.mapIndexed { index, item ->
+            val chapter = item.jsonObject
+            val title = ebml(CHAP_STRING, chapter.string("title")!!.encodeToByteArray())
+            ebml(
+                CHAPTER_ATOM,
+                ebml(CHAPTER_UID, index + 1L) +
+                    ebml(CHAPTER_TIME_START, chapter.long("startMs") * 1_000_000) +
+                    ebml(CHAPTER_DISPLAY, title),
+            )
+        }
+    return ebml(EDITION_ENTRY, atoms.fold(ByteArray(0), ByteArray::plus))
+}
+
+// Every size is written as an eight-byte VINT, which the parser accepts for any length.
+private fun ebml(id: Long, content: ByteArray) =
+    BigInteger.valueOf(id).toByteArray().dropWhile { it == 0.toByte() }.toByteArray() +
+        ByteBuffer.allocate(8).putLong(content.size.toLong()).array().also { it[0] = 1 } +
+        content
+
+private fun ebml(id: Long, value: Long) = ebml(id, ByteBuffer.allocate(8).putLong(value).array())
+
+private const val EDITION_ENTRY = 0x45b9L
+private const val CHAPTER_ATOM = 0xb6L
+private const val CHAPTER_UID = 0x73c4L
+private const val CHAPTER_TIME_START = 0x91L
+private const val CHAPTER_DISPLAY = 0x80L
+private const val CHAP_STRING = 0x85L
 
 private fun cases(fixture: String): List<JsonObject> {
     val text =
@@ -125,6 +275,8 @@ private fun string(name: String) = strings.getValue(name)
 private fun JsonObject.string(key: String) =
     (get(key) as? JsonPrimitive)?.takeIf { it.isString }?.content
 
+private fun JsonObject.long(key: String) = getValue(key).jsonPrimitive.long
+
 private fun json(value: Any?): JsonElement =
     when (value) {
         null -> JsonNull
@@ -132,5 +284,6 @@ private fun json(value: Any?): JsonElement =
         is Number -> JsonPrimitive(value)
         is Boolean -> JsonPrimitive(value)
         is List<*> -> JsonArray(value.map(::json))
+        is Map<*, *> -> JsonObject(value.entries.associate { (key, item) -> key as String to json(item) })
         else -> error("no JSON form for $value")
     }

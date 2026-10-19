@@ -1200,8 +1200,7 @@ fun FullscreenPlayer(
                     !closing &&
                     !closed &&
                     !saveFailed &&
-                    (ended ||
-                        (duration > 0 && position >= duration - minOf(120_000L, duration / 10)))
+                    (ended || inUpNextWindow(position, duration))
             }
         val nextTitle =
             next?.let {
