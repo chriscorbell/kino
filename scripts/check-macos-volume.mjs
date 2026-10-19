@@ -41,6 +41,24 @@ new QWebChannel(qt.webChannelTransport, async channel => {
         native.setVolume(requested);
       });
     }
+    const afterRepeat = [];
+    const record = (name, payload) => { if (name === 'volume') afterRepeat.push(payload.percent); };
+    native.playerEvent.connect(record);
+    native.setVolume(100);
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Volume did not change after a repeat.')), 5000);
+      const changed = (name, payload) => {
+        if (name !== 'volume' || payload.percent !== 37.5) return;
+        clearTimeout(timer);
+        native.playerEvent.disconnect(changed);
+        resolve();
+      };
+      native.playerEvent.connect(changed);
+      native.setVolume(37.5);
+    });
+    native.playerEvent.disconnect(record);
+    result.afterRepeat = afterRepeat;
   } catch (error) { result.error = error.message; }
   await fetch('/result', { method: 'POST', body: JSON.stringify(result) });
   lifecycle.setReady(true);
@@ -68,9 +86,11 @@ try {
     }),
   ]);
   assert.deepEqual(result, [0, null], `The native shell must close normally: ${diagnostics}`);
-  assert.deepEqual(report, { changes: [37.5, 0, 100, 0, 100] });
+  // Kino's volume reconciliation lets a send expire because mpv never reports
+  // a volume it already holds.
+  assert.deepEqual(report, { changes: [37.5, 0, 100, 0, 100], afterRepeat: [37.5] });
   console.log(
-    'Native WebChannel sets and observes libmpv volume, including mute level and bounded values.',
+    'Native WebChannel sets and observes libmpv volume, including mute level, bounded values, and no report for a volume mpv already holds.',
   );
 } finally {
   clearTimeout(timer);

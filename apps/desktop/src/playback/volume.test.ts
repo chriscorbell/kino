@@ -1,70 +1,55 @@
 import { describe, expect, it } from 'vitest';
 
-import { noVolumeEchoes, observeVolume, sentVolume, type VolumeEchoes } from './volume';
+import { observeVolume, sentVolume, type InFlightVolumes } from './volume';
 
-const send = (echoes: VolumeEchoes, ...values: number[]) => values.reduce(sentVolume, echoes);
-const settled = observeVolume(send(noVolumeEchoes, 30), 30).echoes;
+const send = (inFlight: InFlightVolumes, now: number, ...values: number[]) =>
+  values.reduce((sent, percent) => sentVolume(sent, percent, now), inFlight);
+const percents = (inFlight: InFlightVolumes) => inFlight.map(({ percent }) => percent);
 
-describe('volume echoes', () => {
-  it('acknowledges a reported value and every value sent before it', () => {
-    const { echoes, adopt } = observeVolume(send(settled, 42, 47, 52), 47);
+describe('volume reports', () => {
+  it('acknowledges a reported send and every send before it', () => {
+    const { inFlight, adopt } = observeVolume(send([], 0, 42, 47, 52), 47, 10);
 
     expect(adopt).toBeNull();
-    expect(echoes.pending).toEqual([52]);
+    expect(percents(inFlight)).toEqual([52]);
   });
 
   it('ignores a late report of 30 after 42 and 47 were sent', () => {
-    const { echoes, adopt } = observeVolume(send(noVolumeEchoes, 30, 42, 47), 30);
+    const { inFlight, adopt } = observeVolume(send([], 0, 30, 42, 47), 30, 10);
 
     expect(adopt).toBeNull();
-    expect(echoes.pending).toEqual([42, 47]);
-    expect(observeVolume(echoes, 47).adopt).toBeNull();
+    expect(percents(inFlight)).toEqual([42, 47]);
   });
 
-  it('adopts a value Kino never sent', () => {
-    expect(observeVolume(settled, 65).adopt).toBe(65);
-    expect(observeVolume(send(settled, 42), 65).adopt).toBe(65);
+  it('adopts a value reported with nothing in flight', () => {
+    expect(observeVolume([], 65, 0).adopt).toBe(65);
   });
 
-  it("ignores the player's start-up volume until a sent value is reported", () => {
-    const startup = observeVolume(send(noVolumeEchoes, 30), 100);
-    expect(startup.adopt).toBeNull();
-
-    const acknowledged = observeVolume(startup.echoes, 30).echoes;
-    expect(observeVolume(acknowledged, 100).adopt).toBe(100);
+  it('ignores a report a send in flight will replace', () => {
+    expect(observeVolume(send([], 0, 35), 20, 10).adopt).toBeNull();
+    expect(observeVolume(send([], 0, 30), 100, 10).adopt).toBeNull();
   });
 
-  it('settles when the player already holds the value Kino sends', () => {
-    const startup = observeVolume(noVolumeEchoes, 100);
-    expect(startup.adopt).toBeNull();
+  it('expires a send the player never answers', () => {
+    const unanswered = send([], 0, 100);
 
-    const echoes = sentVolume(startup.echoes, 100);
-    expect(echoes.pending).toEqual([]);
-    expect(observeVolume(echoes, 65).adopt).toBe(65);
+    expect(observeVolume(unanswered, 30, 999).adopt).toBeNull();
+    expect(observeVolume(unanswered, 30, 1000)).toEqual({ inFlight: [], adopt: 30 });
   });
 
-  it('leaves nothing pending when Kino resends the volume the player holds', () => {
-    const resent = sentVolume(settled, 30);
+  it('adopts a stranded value once its send expires', () => {
+    const merged = send([], 0, 47, 42);
 
-    expect(resent.pending).toEqual([]);
-    expect(observeVolume(send(resent, 42), 30).adopt).toBe(30);
+    expect(observeVolume(merged, 47, 1000).adopt).toBe(47);
   });
 
-  it('expects one report for the same value sent twice in a row', () => {
-    const { echoes } = observeVolume(send(settled, 95, 100, 100), 100);
-
-    expect(echoes.pending).toEqual([]);
-    const lowered = observeVolume(echoes, 70).echoes;
-    expect(observeVolume(lowered, 100).adopt).toBe(100);
+  it('drops expired sends when it records a new one', () => {
+    expect(percents(sentVolume(send([], 0, 47), 50, 1000))).toEqual([50]);
   });
 
   it("matches the browser's float reports within half a percent", () => {
-    const pending = send(settled, 42);
-    expect(observeVolume(pending, 0.42 * 100)).toMatchObject({
-      adopt: null,
-      echoes: { pending: [] },
-    });
-    expect(observeVolume(pending, 42.6).adopt).toBe(43);
-    expect(observeVolume(settled, 65.4).adopt).toBe(65);
+    expect(observeVolume(send([], 0, 29), 0.29 * 100, 10)).toEqual({ inFlight: [], adopt: null });
+    expect(observeVolume(send([], 0, 42), 42.4, 10).inFlight).toEqual([]);
+    expect(observeVolume([], 65.4, 0).adopt).toBe(65);
   });
 });

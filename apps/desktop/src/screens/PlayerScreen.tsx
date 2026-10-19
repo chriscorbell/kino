@@ -60,7 +60,7 @@ import {
   type ProgressReporter,
 } from '../playback/progress';
 import { videoBackend } from '../playback/videoBackend';
-import { noVolumeEchoes, observeVolume, sentVolume } from '../playback/volume';
+import { observeVolume, sentVolume, type InFlightVolumes } from '../playback/volume';
 
 export function PlayerScreen({
   onBack,
@@ -276,13 +276,17 @@ export function PlayerScreen({
     [backend, updateTime],
   );
 
-  // Both backends report each volume they apply. A send that skipped
-  // sentVolume would come back looking like a change made outside Kino.
-  const volumeEchoesRef = useRef(noVolumeEchoes);
+  // A send that skipped sentVolume would come back looking like a change made
+  // outside Kino.
+  const inFlightVolumesRef = useRef<InFlightVolumes>([]);
   const sendVolume = useCallback(
     (percent: number) => {
       if (!backend || !streamUrl) return;
-      volumeEchoesRef.current = sentVolume(volumeEchoesRef.current, percent);
+      inFlightVolumesRef.current = sentVolume(
+        inFlightVolumesRef.current,
+        percent,
+        performance.now(),
+      );
       backend.setVolume(percent);
     },
     [backend, streamUrl],
@@ -534,8 +538,12 @@ export function PlayerScreen({
         progress?.ended(playbackRef.current);
         break;
       case 'volume': {
-        const { echoes, adopt } = observeVolume(volumeEchoesRef.current, event.percent);
-        volumeEchoesRef.current = echoes;
+        const { inFlight, adopt } = observeVolume(
+          inFlightVolumesRef.current,
+          event.percent,
+          performance.now(),
+        );
+        inFlightVolumesRef.current = inFlight;
         if (adopt !== null) updateSettings({ volume: adopt });
         break;
       }

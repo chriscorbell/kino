@@ -52,9 +52,37 @@ vi.mock('../core/useCoreModel', () => ({
     unload: fixture.unload,
   }),
 }));
+// mpv applies commands in order and reports an observed property only when it
+// differs from the last value it reported, so quick changes merge into one
+// report and a volume it already holds is never reported.
+const mpv = { holds: 100, reported: null as number | null, queued: [] as number[] };
+const mpvReports = () =>
+  act(async () => {
+    if (mpv.holds === mpv.reported) return;
+    mpv.reported = mpv.holds;
+    fixture.native.playerEvent.connect.mock.calls.at(-1)?.[0]('volume', { percent: mpv.holds });
+  });
+const mpvApplies = () => {
+  mpv.holds = mpv.queued.at(-1) ?? mpv.holds;
+  mpv.queued = [];
+  return mpvReports();
+};
+const mpvChangesOnItsOwn = (percent: number) => {
+  mpv.holds = percent;
+  return mpvReports();
+};
+const realNow = performance.now.bind(performance);
+let skipped = 0;
+const skipAhead = (milliseconds: number) => {
+  skipped += milliseconds;
+};
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  Object.assign(mpv, { holds: 100, reported: 100, queued: [] });
+  fixture.native.setVolume.mockImplementation((percent: number) => mpv.queued.push(percent));
+  skipped = 0;
+  vi.spyOn(performance, 'now').mockImplementation(() => realNow() + skipped);
 });
 const selection = {
   meta: preview({ id: 'fixture', name: 'Fixture', type: 'movie' }),
@@ -65,7 +93,7 @@ const selection = {
   nextVideo: null,
 };
 const noop = () => {};
-const renderPlayer = () =>
+const renderPlayer = (volume = 30) =>
   renderWithSettings(
     <PlayerScreen
       selection={selection}
@@ -74,19 +102,19 @@ const renderPlayer = () =>
       onSourceFailure={noop}
       onUpNext={noop}
     />,
-    { settings: { volume: 30 }, storage: localStorage },
+    { settings: { volume }, storage: localStorage },
   );
-const reportVolume = (percent: number) =>
-  act(async () => fixture.native.playerEvent.connect.mock.calls.at(-1)?.[0]('volume', { percent }));
+const volumeSlider = () => screen.findByRole('slider', { name: 'Volume' });
+
 it.each([true, false])(
   'adjusts, saves and observes volume without reloading (native=%s)',
   async (nativeShell) => {
     fixture.nativeShell = nativeShell;
     const view = renderPlayer();
-    const range = await screen.findByRole('slider', { name: 'Volume' });
+    const range = await volumeSlider();
     if (nativeShell) {
       await waitFor(() => expect(fixture.native.setVolume).toHaveBeenCalledWith(30));
-      await reportVolume(30);
+      await mpvApplies();
     } else expect(view.container.querySelector('video')!.volume).toBe(0.3);
     expect(range).toHaveValue('30');
     fireEvent.change(range, { target: { value: '42' } });
@@ -100,7 +128,9 @@ it.each([true, false])(
     expect(loadSettings(localStorage).volume).toBe(42);
     if (nativeShell) {
       expect(fixture.native.setVolume).toHaveBeenLastCalledWith(42);
-      await reportVolume(65);
+      await mpvApplies();
+      skipAhead(1000);
+      await mpvChangesOnItsOwn(65);
       expect(fixture.native.load).toHaveBeenCalledTimes(1);
     } else {
       const video = view.container.querySelector('video')!;
@@ -113,31 +143,78 @@ it.each([true, false])(
   },
 );
 
-it('keeps the newest volume when a report of an older one arrives late', async () => {
+it.each([
+  { player: 'mpv at its default', nativeShell: true, saved: 100 },
+  { player: 'mpv on a second title', nativeShell: true, saved: 65 },
+  { player: '<video> at its default', nativeShell: false, saved: 100 },
+])(
+  'saves a change the player makes when it already held the saved volume ($player)',
+  async ({ nativeShell, saved }) => {
+    fixture.nativeShell = nativeShell;
+    Object.assign(mpv, { holds: saved, reported: saved });
+    const view = renderPlayer(saved);
+    const range = await volumeSlider();
+    if (nativeShell) {
+      await waitFor(() => expect(fixture.native.setVolume).toHaveBeenCalledWith(saved));
+      await mpvApplies();
+    }
+    skipAhead(1000);
+
+    if (nativeShell) await mpvChangesOnItsOwn(30);
+    else
+      act(() => {
+        view.container.querySelector('video')!.volume = 0.3;
+      });
+
+    expect(loadSettings(localStorage).volume).toBe(30);
+    expect(range).toHaveValue('30');
+  },
+);
+
+it("keeps the viewer's step when an older volume is reported before it applies", async () => {
   fixture.nativeShell = true;
   renderPlayer();
-  const range = await screen.findByRole('slider', { name: 'Volume' });
+  const range = await volumeSlider();
   await waitFor(() => expect(fixture.native.setVolume).toHaveBeenCalledWith(30));
-  await reportVolume(30);
+  await mpvApplies();
 
-  fireEvent.change(range, { target: { value: '42' } });
   fireEvent.keyDown(window, { key: 'ArrowUp' });
-  await reportVolume(42);
+  await mpvChangesOnItsOwn(20);
+  await mpvApplies();
+
+  expect(fixture.native.setVolume).toHaveBeenLastCalledWith(35);
+  expect(loadSettings(localStorage).volume).toBe(35);
+  expect(range).toHaveValue('35');
+});
+
+it("keeps the saved volume when mpv reports its start-up default after Kino's send", async () => {
+  fixture.nativeShell = true;
+  mpv.reported = null;
+  renderPlayer();
+  const range = await volumeSlider();
+  await waitFor(() => expect(fixture.native.setVolume).toHaveBeenCalledWith(30));
+
+  await mpvReports();
+  expect(loadSettings(localStorage).volume).toBe(30);
+  await mpvApplies();
+
+  expect(loadSettings(localStorage).volume).toBe(30);
+  expect(range).toHaveValue('30');
+});
+
+it('saves a change to a value whose send mpv merged away, once that send expires', async () => {
+  fixture.nativeShell = true;
+  Object.assign(mpv, { holds: 42, reported: 42 });
+  renderPlayer(42);
+  const range = await volumeSlider();
+  await waitFor(() => expect(fixture.native.setVolume).toHaveBeenCalledWith(42));
+
+  fireEvent.keyDown(window, { key: 'ArrowUp' });
+  fireEvent.keyDown(window, { key: 'ArrowDown' });
+  await mpvApplies();
+  skipAhead(1000);
+  await mpvChangesOnItsOwn(47);
 
   expect(loadSettings(localStorage).volume).toBe(47);
   expect(range).toHaveValue('47');
-  await reportVolume(47);
-  await reportVolume(65);
-  expect(loadSettings(localStorage).volume).toBe(65);
-});
-
-it("keeps the saved volume when the player reports its own default before Kino's", async () => {
-  fixture.nativeShell = true;
-  renderPlayer();
-  await waitFor(() => expect(fixture.native.setVolume).toHaveBeenCalledWith(30));
-
-  await reportVolume(100);
-
-  expect(loadSettings(localStorage).volume).toBe(30);
-  expect(screen.getByRole('slider', { name: 'Volume' })).toHaveValue('30');
 });
