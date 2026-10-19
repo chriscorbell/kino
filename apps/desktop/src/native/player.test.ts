@@ -22,7 +22,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const shell = (bridge: { platform: unknown; capabilities: unknown }) =>
+const shell = (bridge: Record<string, unknown>) =>
   stubNativeShell({ kinoNative: { ...player, ...bridge } });
 
 const connect = async () => (await import('./player')).connectShellReport();
@@ -39,7 +39,9 @@ it('reads the platform and capabilities from the bridge, not the user agent, sta
 
 it.each([
   { platform: 'freebsd', capabilities: [] },
+  { capabilities: [] },
   { platform: 'macos', capabilities: 'refreshRateMatching' },
+  { platform: 'macos' },
 ])('refuses a bridge that does not report a known platform and a list', async (bridge) => {
   shell(bridge);
   await expect(connect()).rejects.toThrow();

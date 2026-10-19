@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
 
-import { connectShellReport, knownShellReport } from './player';
+import { t } from '../locales';
+import { connectShellReport, knownShellReport, type ShellReport } from './player';
 
-/** The shell's report of its platform and capabilities, or null until it answers. */
+/**
+ * The shell's report of its platform and capabilities, null until it answers, or the error that
+ * kept it from answering, which a screen shows rather than guessing a platform.
+ */
 export function useShellReport() {
-  const [report, setReport] = useState(knownShellReport);
+  const [report, setReport] = useState<ShellReport | Error | null>(knownShellReport);
   useEffect(() => {
     if (report) return;
     let active = true;
@@ -12,7 +16,10 @@ export function useShellReport() {
       (answer) => {
         if (active) setReport(answer);
       },
-      () => undefined,
+      (error: unknown) => {
+        if (active)
+          setReport(error instanceof Error ? error : new Error(t.core.nativeServicesUnavailable));
+      },
     );
     return () => {
       active = false;

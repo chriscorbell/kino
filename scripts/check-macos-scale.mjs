@@ -4,7 +4,7 @@ import { once } from 'node:events';
 import { createServer } from 'node:http';
 import { resolve } from 'node:path';
 
-import { hostPlatform } from './test-support/host-platform.mjs';
+import { shellReportProblems } from './test-support/shell-capabilities.mjs';
 
 const binary = process.env.KINO_APP_BINARY ?? resolve('build/macos/Kino.app/Contents/MacOS/Kino');
 let report;
@@ -78,10 +78,13 @@ try {
   );
   assert.deepEqual(report?.rejected, [false, false, false, false, false, false]);
   assert.deepEqual(report?.reset, { width: 1000, height: 650 });
-  assert.equal(report?.shell.platform, hostPlatform, 'the bridge names the platform');
-  assert.ok(report?.shell.capabilities.includes('interfaceScale'), 'the bridge reports scaling');
+  assert.deepEqual(
+    shellReportProblems(report.shell),
+    [],
+    'the bridge reports what the schema lists',
+  );
   console.log(
-    `Native interface zoom resizes the minimum-window viewport through 100–200%, rejects unsupported values, and resets to 100%. The ${hostPlatform} bridge reports ${report.shell.capabilities.join(', ')}.`,
+    `Native interface zoom resizes the minimum-window viewport through 100–200%, rejects unsupported values, and resets to 100%. The ${report.shell.platform} bridge reports ${report.shell.capabilities.join(', ')}.`,
   );
 } finally {
   clearTimeout(timer);

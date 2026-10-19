@@ -26,10 +26,14 @@ const shell = (platform: string, capabilities: string[]) =>
     kinoDiagnostics: { cacheBytes: async () => 0 },
   });
 
-async function openSettings() {
+async function render() {
   const { SettingsScreen } = await import('./SettingsScreen');
   const { renderWithSettings } = await import('../test/renderWithSettings');
   renderWithSettings(<SettingsScreen />);
+}
+
+async function openSettings() {
+  await render();
   await screen.findByRole('switch', { name: /Skip intro button/ });
   return {
     matchRefreshRate: screen.queryByRole('switch', { name: /Match refresh rate/ }),
@@ -65,4 +69,13 @@ it('offers neither shell setting in the web build, which has no shell', async ()
   const settings = await openSettings();
   expect(settings.matchRefreshRate).not.toBeInTheDocument();
   expect(settings.interfaceSize).not.toBeInTheDocument();
+});
+
+it('says so in Settings when the shell names a platform the schema does not know', async () => {
+  shell('freebsd', bothCapabilities);
+  await render();
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'Native shell services are unavailable.',
+  );
+  expect(screen.queryByRole('switch', { name: /Match refresh rate/ })).not.toBeInTheDocument();
 });

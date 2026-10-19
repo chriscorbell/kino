@@ -52,7 +52,9 @@ export function SettingsScreen({
   const nativeShell = nativeShellPresent();
   const shell = useShellReport();
   const shown = (key: SettingKey) =>
-    shell !== null && settingShown(key, shell.platform, shell.capabilities);
+    shell !== null &&
+    !(shell instanceof Error) &&
+    settingShown(key, shell.platform, shell.capabilities);
   const profileSettings = profile.state?.profile.settings;
 
   const updateProfile = (patch: Record<string, string>) => {
@@ -132,6 +134,11 @@ export function SettingsScreen({
   return (
     <div className={`${sharedStyles.page} ${styles.settingsPage}`}>
       <h1>{enUS.settings.title}</h1>
+      {shell instanceof Error ? (
+        <p className={sharedStyles.loadError} role="alert">
+          {shell.message}
+        </p>
+      ) : null}
       {shown('interfaceScale') ? (
         <section className={styles.settingsGroup} aria-labelledby="appearance-settings-title">
           <h2 id="appearance-settings-title">{enUS.settings.appearance}</h2>

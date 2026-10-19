@@ -92,7 +92,9 @@ export function PlayerScreen({
   const [buffering, setBuffering] = useState(false);
   const [nativePlayer, setNativePlayer] = useState<NativePlayer | null>(null);
   const nativeShell = nativeShellPresent();
-  const shell = useShellReport();
+  const report = useShellReport();
+  // A failed report fails the same connection the player needs, which reports it.
+  const shell = report instanceof Error ? null : report;
   const nativeBackend = useMemo(
     () => (nativePlayer ? mpvBackend(nativePlayer) : null),
     [nativePlayer],

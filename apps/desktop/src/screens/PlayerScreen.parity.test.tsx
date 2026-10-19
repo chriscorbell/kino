@@ -2,6 +2,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import type { CoreSource } from '../core/types';
+import type { ShellReport } from '../native/player';
 import type { KinoSettings } from '../settings';
 import { preview, video } from '../test/coreState';
 import { renderWithSettings } from '../test/renderWithSettings';
@@ -17,6 +18,9 @@ const fixture = vi.hoisted(() => {
   const listeners = new Set<Listener>();
   return {
     nativeShell: true,
+    // Undefined answers as the backend's platform does; null is a shell that has not answered.
+    report: undefined as ShellReport | null | undefined,
+    answer: Promise.resolve({ platform: 'macos', capabilities: new Set() }) as Promise<ShellReport>,
     resumeAt: 0,
     listeners,
     stream: {
@@ -55,10 +59,11 @@ const fixture = vi.hoisted(() => {
 });
 vi.mock('../native/player', () => ({
   nativeShellPresent: () => fixture.nativeShell,
-  knownShellReport: () => ({
-    platform: fixture.nativeShell ? 'macos' : 'web',
-    capabilities: new Set(),
-  }),
+  knownShellReport: () =>
+    fixture.report === undefined
+      ? { platform: fixture.nativeShell ? 'macos' : 'web', capabilities: new Set() }
+      : fixture.report,
+  connectShellReport: () => fixture.answer,
   connectNativePlayer: async () => fixture.native,
 }));
 vi.mock('../core/context', () => ({ useCore: () => ({ transport: fixture.transport }) }));
@@ -78,6 +83,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   fixture.listeners.clear();
   fixture.resumeAt = 0;
+  fixture.report = undefined;
   // jsdom does not implement playback.
   vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
 });
@@ -92,6 +98,12 @@ function reports() {
   });
 }
 
+function devices() {
+  return fixture.transport.dispatch.mock.calls.map(
+    ([action]) => (action as { args: { args?: { device?: string } } }).args.args?.device,
+  );
+}
+
 const selection = {
   meta: preview({ id: 'show', name: 'Fixture', type: 'series' }),
   stream: fixture.stream,
@@ -101,10 +113,10 @@ const selection = {
   nextVideo: video({ id: 'ep2', title: 'Episode two', season: 1, episode: 2 }),
 };
 
-async function play(kind: 'native' | 'browser') {
+function open(kind: 'native' | 'browser') {
   fixture.nativeShell = kind === 'native';
   const noop = () => {};
-  const view = renderWithSettings(
+  return renderWithSettings(
     <PlayerScreen
       selection={selection}
       preferredSubtitleLanguage={null}
@@ -113,6 +125,10 @@ async function play(kind: 'native' | 'browser') {
       onUpNext={noop}
     />,
   );
+}
+
+async function play(kind: 'native' | 'browser') {
+  const view = open(kind);
   const element = () => view.container.querySelector('video')!;
   if (kind === 'native') await waitFor(() => expect(fixture.native.load).toHaveBeenCalled());
   else await waitFor(() => expect(element().getAttribute('src')).toBe(fixture.stream.source.url));
@@ -173,6 +189,28 @@ it.each(backends)('reports a pause as TimeChanged then PausedChanged (%s)', asyn
   fixture.transport.dispatch.mockClear();
   await media.paused(false);
   expect(reports()).toEqual(['PausedChanged:false']);
+});
+
+it('names the platform the shell reports as the device in progress reports', async () => {
+  fixture.report = { platform: 'windows', capabilities: new Set() };
+  const { media } = await play('native');
+  await media.duration(120_000);
+  await media.time(30_000);
+  expect(reports()).toEqual(['TimeChanged:30000']);
+  expect(devices()).toEqual(['kino-windows']);
+});
+
+it('loads a source once, after the shell reports its platform', async () => {
+  let answer: (report: ShellReport) => void = () => {};
+  fixture.report = null;
+  fixture.answer = new Promise((resolve) => (answer = resolve));
+  open('native');
+  await act(async () => {});
+  expect(fixture.native.load).not.toHaveBeenCalled();
+  await act(async () => answer({ platform: 'linux', capabilities: new Set() }));
+  await waitFor(() => expect(fixture.native.load).toHaveBeenCalled());
+  await act(async () => {});
+  expect(fixture.native.load).toHaveBeenCalledTimes(1);
 });
 
 it.each(backends)('reports an end as TimeChanged then Ended (%s)', async (kind) => {
