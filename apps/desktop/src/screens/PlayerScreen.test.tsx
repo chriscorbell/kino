@@ -8,18 +8,10 @@ import { hints, preview, urlSource } from '../test/coreState';
 import { renderWithSettings } from '../test/renderWithSettings';
 import { PlayerScreen } from './PlayerScreen';
 
-const native = vi.hoisted(() => ({
-  load: vi.fn(),
-  pauseAndSnapshot: vi.fn().mockResolvedValue({ time: 0, duration: 0 }),
-  stop: vi.fn(),
-  fullscreen: false,
-  fullscreenChanged: { connect: vi.fn(), disconnect: vi.fn() },
-  playerEvent: { connect: vi.fn(), disconnect: vi.fn() },
-  setVolume: vi.fn(),
-  setSubtitleScale: vi.fn(),
-  setSubtitlePosition: vi.fn(),
-  setNowPlayingMetadata: vi.fn(),
-}));
+const native = await vi.hoisted(async () => {
+  const { fakeNativePlayer } = await import('../test/nativePlayer');
+  return fakeNativePlayer();
+});
 vi.mock('../native/player', () => ({
   nativeShellPresent: () => true,
   knownShellReport: () => ({ platform: 'macos', capabilities: new Set() }),

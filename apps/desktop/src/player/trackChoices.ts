@@ -1,6 +1,6 @@
 import type { CoreMetaPreview } from '../core/types';
 import type { AudioTrack } from './audio';
-import { languagesMatch, type AddonSubtitle, type SubtitleTrack } from './subtitles';
+import { languagesMatch, type AddonSubtitle, type SubtitleTrack } from './subtitles.ts';
 
 type Track = AudioTrack | SubtitleTrack;
 type Title = Pick<CoreMetaPreview, 'id' | 'type'>;

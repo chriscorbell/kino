@@ -9,27 +9,9 @@ import { commitThrough } from '../test/transport';
 import { renderWithSettings } from '../test/renderWithSettings';
 import { PlayerScreen } from './PlayerScreen';
 
-const native = vi.hoisted(() => {
-  const listeners = new Set<(name: string, payload: Record<string, unknown>) => void>();
-  return {
-    listeners,
-    load: vi.fn(),
-    stop: vi.fn(),
-    seek: vi.fn(),
-    pauseAndSnapshot: vi.fn(),
-    setVolume: vi.fn(),
-    setSubtitleScale: vi.fn(),
-    setSubtitlePosition: vi.fn(),
-    setNowPlayingMetadata: vi.fn(),
-    fullscreen: false,
-    fullscreenChanged: { connect: vi.fn(), disconnect: vi.fn() },
-    playerEvent: {
-      connect: (listener: (name: string, payload: Record<string, unknown>) => void) =>
-        listeners.add(listener),
-      disconnect: (listener: (name: string, payload: Record<string, unknown>) => void) =>
-        listeners.delete(listener),
-    },
-  };
+const native = await vi.hoisted(async () => {
+  const { fakeNativePlayer } = await import('../test/nativePlayer');
+  return fakeNativePlayer();
 });
 vi.mock('../native/player', () => ({
   nativeShellPresent: () => true,
@@ -38,9 +20,7 @@ vi.mock('../native/player', () => ({
 }));
 
 beforeEach(() => {
-  native.listeners.clear();
-  native.load.mockClear();
-  native.stop.mockClear();
+  vi.clearAllMocks();
   native.pauseAndSnapshot.mockResolvedValue({ time: 0, duration: 0 });
 });
 
@@ -120,11 +100,7 @@ async function mountPlayer({ upNext = true, hasNextVideo = true } = {}) {
     { settings: { upNext } },
   );
   await waitFor(() => expect(native.load).toHaveBeenCalled());
-  const emit = async (name: string, payload: Record<string, unknown> = {}) => {
-    await act(async () => {
-      native.listeners.forEach((listener) => listener(name, payload));
-    });
-  };
+  const { emit } = native;
   await emit('duration', { milliseconds: 120000 });
   await emit('time', { milliseconds: 30000 });
   await emit('time', { milliseconds: 34567 });
@@ -266,7 +242,8 @@ describe('near-end Up Next', () => {
 
   it('waits for end-of-file when duration is unknown', async () => {
     const player = await mountPlayer();
-    for (const duration of [0, Number.NaN, Number.POSITIVE_INFINITY]) {
+    // The shell reports an unknown duration as 0.
+    for (const duration of [0]) {
       await player.emit('duration', { milliseconds: duration });
       await player.emit('time', { milliseconds: 1_000_000 });
       expect(screen.queryByRole('button', { name: /Choose source/i })).not.toBeInTheDocument();

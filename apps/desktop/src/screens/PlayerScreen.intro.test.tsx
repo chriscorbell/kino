@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { CoreSource } from '../core/types';
 import type { KinoSettings } from '../settings';
@@ -6,37 +6,28 @@ import { preview, video } from '../test/coreState';
 import { renderWithSettings } from '../test/renderWithSettings';
 import { PlayerScreen } from './PlayerScreen';
 
-const fixture = vi.hoisted(() => ({
-  stream: {
-    description: null,
-    name: null,
-    source: { kind: 'url', url: 'https://media.invalid/episode.mkv' },
-    hints: {
-      bingeGroup: null,
-      countryWhitelist: null,
-      filename: null,
-      notWebReady: null,
-      proxyRequestHeaders: null,
-      proxyResponseHeaders: null,
-      videoHash: null,
-      videoSize: null,
-    },
-  } satisfies CoreSource,
-  transport: { dispatch: vi.fn().mockResolvedValue(undefined) },
-  native: {
-    load: vi.fn(),
-    stop: vi.fn(),
-    seek: vi.fn(),
-    setVolume: vi.fn(),
-    setMuted: vi.fn(),
-    fullscreen: false,
-    fullscreenChanged: { connect: vi.fn(), disconnect: vi.fn() },
-    playerEvent: { connect: vi.fn(), disconnect: vi.fn() },
-    setSubtitleScale: vi.fn(),
-    setSubtitlePosition: vi.fn(),
-    setNowPlayingMetadata: vi.fn(),
-  },
-}));
+const fixture = await vi.hoisted(async () => {
+  const { fakeNativePlayer } = await import('../test/nativePlayer');
+  return {
+    stream: {
+      description: null,
+      name: null,
+      source: { kind: 'url', url: 'https://media.invalid/episode.mkv' },
+      hints: {
+        bingeGroup: null,
+        countryWhitelist: null,
+        filename: null,
+        notWebReady: null,
+        proxyRequestHeaders: null,
+        proxyResponseHeaders: null,
+        videoHash: null,
+        videoSize: null,
+      },
+    } satisfies CoreSource,
+    transport: { dispatch: vi.fn().mockResolvedValue(undefined) },
+    native: fakeNativePlayer(),
+  };
+});
 vi.mock('../native/player', () => ({
   nativeShellPresent: () => true,
   knownShellReport: () => ({ platform: 'macos', capabilities: new Set() }),
@@ -111,8 +102,7 @@ async function play(settings: Partial<KinoSettings> = {}) {
     { settings },
   );
   await waitFor(() => expect(fixture.native.playerEvent.connect).toHaveBeenCalled());
-  return (name: string, payload: Record<string, unknown>) =>
-    act(async () => fixture.native.playerEvent.connect.mock.calls.at(-1)?.[0](name, payload));
+  return fixture.native.emit;
 }
 
 it('offers Skip Intro inside a chapter intro and seeks to its end', async () => {

@@ -1,4 +1,4 @@
-import { localeTag, t } from '../locales';
+import { localeTag, t } from '../locales/index.ts';
 
 export interface AudioTrack {
   id: number;

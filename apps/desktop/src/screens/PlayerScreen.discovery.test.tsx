@@ -6,36 +6,29 @@ import { hints, preview, urlSource } from '../test/coreState';
 import { renderWithSettings } from '../test/renderWithSettings';
 import { PlayerScreen } from './PlayerScreen';
 
-const fixture = vi.hoisted(() => ({
-  nativeShell: true,
-  stream: {
-    description: null,
-    name: null,
-    source: { kind: 'url', url: 'https://media.invalid/fixture.mp4' },
-    hints: {
-      bingeGroup: null,
-      countryWhitelist: null,
-      filename: null,
-      notWebReady: null,
-      proxyRequestHeaders: null,
-      proxyResponseHeaders: null,
-      videoHash: null,
-      videoSize: null,
-    },
-  } satisfies CoreSource,
-  transport: { dispatch: vi.fn().mockResolvedValue(undefined) },
-  native: {
-    load: vi.fn(),
-    stop: vi.fn(),
-    fullscreen: false,
-    fullscreenChanged: { connect: vi.fn(), disconnect: vi.fn() },
-    playerEvent: { connect: vi.fn(), disconnect: vi.fn() },
-    setVolume: vi.fn(),
-    setSubtitleScale: vi.fn(),
-    setSubtitlePosition: vi.fn(),
-    setNowPlayingMetadata: vi.fn(),
-  },
-}));
+const fixture = await vi.hoisted(async () => {
+  const { fakeNativePlayer } = await import('../test/nativePlayer');
+  return {
+    nativeShell: true,
+    stream: {
+      description: null,
+      name: null,
+      source: { kind: 'url', url: 'https://media.invalid/fixture.mp4' },
+      hints: {
+        bingeGroup: null,
+        countryWhitelist: null,
+        filename: null,
+        notWebReady: null,
+        proxyRequestHeaders: null,
+        proxyResponseHeaders: null,
+        videoHash: null,
+        videoSize: null,
+      },
+    } satisfies CoreSource,
+    transport: { dispatch: vi.fn().mockResolvedValue(undefined) },
+    native: fakeNativePlayer(),
+  };
+});
 vi.mock('../native/player', () => ({
   nativeShellPresent: () => fixture.nativeShell,
   knownShellReport: () => ({
@@ -64,7 +57,7 @@ it.each([true, false])(
     expect(fixture.transport.dispatch).not.toHaveBeenCalled();
     await act(async () => {
       for (let count = 0; count < 2; count++) {
-        if (nativeShell) fixture.native.playerEvent.connect.mock.calls.at(-1)?.[0]('ready', {});
+        if (nativeShell) fixture.native.playerEvent.fire('ready', {});
         else fireEvent.loadedMetadata(container.querySelector('video')!);
       }
     });
@@ -89,7 +82,7 @@ it('includes supplied file hints when reporting native readiness', async () => {
     }),
   );
   await waitFor(() => expect(fixture.native.load).toHaveBeenCalled());
-  await act(async () => fixture.native.playerEvent.connect.mock.calls.at(-1)?.[0]('ready', {}));
+  await fixture.native.emit('ready');
   expect(fixture.transport.dispatch).toHaveBeenCalledWith(
     {
       action: 'Player',

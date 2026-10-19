@@ -8,19 +8,10 @@ import { preview, torrentSource } from '../test/coreState';
 import { renderWithSettings } from '../test/renderWithSettings';
 import { PlayerScreen } from './PlayerScreen';
 
-const native = vi.hoisted(() => ({
-  load: vi.fn(),
-  stop: vi.fn(),
-  startStreamingEngine: vi.fn(),
-  streamingEngineChanged: { connect: vi.fn(), disconnect: vi.fn() },
-  fullscreen: false,
-  fullscreenChanged: { connect: vi.fn(), disconnect: vi.fn() },
-  playerEvent: { connect: vi.fn(), disconnect: vi.fn() },
-  setVolume: vi.fn(),
-  setSubtitleScale: vi.fn(),
-  setSubtitlePosition: vi.fn(),
-  setNowPlayingMetadata: vi.fn(),
-}));
+const native = await vi.hoisted(async () => {
+  const { fakeNativePlayer } = await import('../test/nativePlayer');
+  return fakeNativePlayer();
+});
 vi.mock('../native/player', () => ({
   nativeShellPresent: () => true,
   knownShellReport: () => ({ platform: 'macos', capabilities: new Set() }),
@@ -88,11 +79,7 @@ function mountTorrentPlayer(stream: CoreSource) {
         listeners.forEach((listener) => listener({ name: 'NewState', args: ['player'] }));
       });
     },
-    async reportEngine(url: string) {
-      await act(async () => {
-        native.streamingEngineChanged.connect.mock.calls.at(-1)?.[0](url, '');
-      });
-    },
+    reportEngine: (url: string) => native.streamingEngineChanged.emit(url, ''),
   };
 }
 

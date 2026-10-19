@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 
@@ -7,45 +7,29 @@ import { preview } from '../test/coreState';
 import { renderWithSettings } from '../test/renderWithSettings';
 import { PlayerScreen } from './PlayerScreen';
 
-const fixture = vi.hoisted(() => ({
-  stream: {
-    description: null,
-    name: null,
-    source: { kind: 'url', url: 'https://media.invalid/fixture.mp4' },
-    hints: {
-      bingeGroup: null,
-      countryWhitelist: null,
-      filename: null,
-      notWebReady: null,
-      proxyRequestHeaders: null,
-      proxyResponseHeaders: null,
-      videoHash: null,
-      videoSize: null,
-    },
-  } satisfies CoreSource,
-  transport: { dispatch: vi.fn().mockResolvedValue(undefined) },
-  unload: vi.fn().mockResolvedValue(undefined),
-  native: {
-    fullscreen: false,
-    fullscreenChanged: {
-      connect: vi.fn<(listener: () => void) => void>(),
-      disconnect: vi.fn(),
-    },
-    load: vi.fn(),
-    stop: vi.fn(),
-    pauseAndSnapshot: vi.fn().mockResolvedValue({ time: 0, duration: 0 }),
-    playerEvent: { connect: vi.fn(), disconnect: vi.fn() },
-    setPaused: vi.fn(),
-    seek: vi.fn(),
-    setMuted: vi.fn(),
-    setFullscreen: vi.fn(),
-    setSubtitleTrack: vi.fn(),
-    setVolume: vi.fn(),
-    setSubtitleScale: vi.fn(),
-    setSubtitlePosition: vi.fn(),
-    setNowPlayingMetadata: vi.fn(),
-  },
-}));
+const fixture = await vi.hoisted(async () => {
+  const { fakeNativePlayer } = await import('../test/nativePlayer');
+  return {
+    stream: {
+      description: null,
+      name: null,
+      source: { kind: 'url', url: 'https://media.invalid/fixture.mp4' },
+      hints: {
+        bingeGroup: null,
+        countryWhitelist: null,
+        filename: null,
+        notWebReady: null,
+        proxyRequestHeaders: null,
+        proxyResponseHeaders: null,
+        videoHash: null,
+        videoSize: null,
+      },
+    } satisfies CoreSource,
+    transport: { dispatch: vi.fn().mockResolvedValue(undefined) },
+    unload: vi.fn().mockResolvedValue(undefined),
+    native: fakeNativePlayer(),
+  };
+});
 vi.mock('../native/player', () => ({
   nativeShellPresent: () => true,
   knownShellReport: () => ({ platform: 'macos', capabilities: new Set() }),
@@ -146,10 +130,8 @@ it('toggles from actual native fullscreen state and exits with Escape from focus
   await mountPlayer();
   fireEvent.click(screen.getByRole('button', { name: 'Enter fullscreen' }));
   expect(fixture.native.setFullscreen).toHaveBeenLastCalledWith(true);
-  act(() => {
-    fixture.native.fullscreen = true;
-    fixture.native.fullscreenChanged.connect.mock.lastCall?.[0]();
-  });
+  fixture.native.fullscreen = true;
+  await fixture.native.fullscreenChanged.emit();
   const exit = screen.getByRole('button', { name: 'Exit fullscreen' });
   fireEvent.click(exit);
   expect(fixture.native.setFullscreen).toHaveBeenLastCalledWith(false);

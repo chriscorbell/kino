@@ -12,17 +12,14 @@ import { PlayerScreen } from './PlayerScreen';
 // Each case drives one backend through what it reports and reads back what
 // PlayerScreen sent to Core.
 
-type Listener = (name: string, payload: Record<string, unknown>) => void;
-
-const fixture = vi.hoisted(() => {
-  const listeners = new Set<Listener>();
+const fixture = await vi.hoisted(async () => {
+  const { fakeNativePlayer } = await import('../test/nativePlayer');
   return {
     nativeShell: true,
     // Undefined answers as the backend's platform does; null is a shell that has not answered.
     report: undefined as ShellReport | null | undefined,
     answer: Promise.resolve({ platform: 'macos', capabilities: new Set() }) as Promise<ShellReport>,
     resumeAt: 0,
-    listeners,
     stream: {
       description: null,
       name: null,
@@ -39,22 +36,7 @@ const fixture = vi.hoisted(() => {
       },
     } satisfies CoreSource,
     transport: { dispatch: vi.fn().mockResolvedValue(undefined) },
-    native: {
-      load: vi.fn(),
-      stop: vi.fn(),
-      seek: vi.fn(),
-      setPaused: vi.fn(),
-      setVolume: vi.fn(),
-      setSubtitleScale: vi.fn(),
-      setSubtitlePosition: vi.fn(),
-      setNowPlayingMetadata: vi.fn(),
-      fullscreen: false,
-      fullscreenChanged: { connect: vi.fn(), disconnect: vi.fn() },
-      playerEvent: {
-        connect: (listener: Listener) => listeners.add(listener),
-        disconnect: (listener: Listener) => listeners.delete(listener),
-      },
-    },
+    native: fakeNativePlayer(),
   };
 });
 vi.mock('../native/player', () => ({
@@ -81,7 +63,6 @@ vi.mock('../core/useCoreModel', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  fixture.listeners.clear();
   fixture.resumeAt = 0;
   fixture.report = undefined;
   // jsdom does not implement playback.
@@ -133,8 +114,7 @@ async function play(kind: 'native' | 'browser') {
   if (kind === 'native') await waitFor(() => expect(fixture.native.load).toHaveBeenCalled());
   else await waitFor(() => expect(element().getAttribute('src')).toBe(fixture.stream.source.url));
 
-  const emit = (name: string, payload: Record<string, unknown> = {}) =>
-    act(async () => fixture.listeners.forEach((listener) => listener(name, payload)));
+  const { emit } = fixture.native;
   const dom = (event: string, property?: 'currentTime' | 'duration', milliseconds = 0) =>
     act(async () => {
       if (property) {

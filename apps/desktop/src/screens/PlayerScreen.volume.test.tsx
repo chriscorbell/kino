@@ -6,38 +6,30 @@ import { preview } from '../test/coreState';
 import { renderWithSettings } from '../test/renderWithSettings';
 import { PlayerScreen } from './PlayerScreen';
 
-const fixture = vi.hoisted(() => ({
-  nativeShell: true,
-  stream: {
-    description: null,
-    name: null,
-    source: { kind: 'url', url: 'https://media.invalid/fixture.mp4' },
-    hints: {
-      bingeGroup: null,
-      countryWhitelist: null,
-      filename: null,
-      notWebReady: null,
-      proxyRequestHeaders: null,
-      proxyResponseHeaders: null,
-      videoHash: null,
-      videoSize: null,
-    },
-  } satisfies CoreSource,
-  transport: { dispatch: vi.fn().mockResolvedValue(undefined) },
-  unload: async () => {},
-  native: {
-    load: vi.fn(),
-    stop: vi.fn(),
-    setVolume: vi.fn(),
-    setMuted: vi.fn(),
-    fullscreen: false,
-    fullscreenChanged: { connect: vi.fn(), disconnect: vi.fn() },
-    playerEvent: { connect: vi.fn(), disconnect: vi.fn() },
-    setSubtitleScale: vi.fn(),
-    setSubtitlePosition: vi.fn(),
-    setNowPlayingMetadata: vi.fn(),
-  },
-}));
+const fixture = await vi.hoisted(async () => {
+  const { fakeNativePlayer } = await import('../test/nativePlayer');
+  return {
+    nativeShell: true,
+    stream: {
+      description: null,
+      name: null,
+      source: { kind: 'url', url: 'https://media.invalid/fixture.mp4' },
+      hints: {
+        bingeGroup: null,
+        countryWhitelist: null,
+        filename: null,
+        notWebReady: null,
+        proxyRequestHeaders: null,
+        proxyResponseHeaders: null,
+        videoHash: null,
+        videoSize: null,
+      },
+    } satisfies CoreSource,
+    transport: { dispatch: vi.fn().mockResolvedValue(undefined) },
+    unload: async () => {},
+    native: fakeNativePlayer(),
+  };
+});
 vi.mock('../native/player', () => ({
   nativeShellPresent: () => fixture.nativeShell,
   knownShellReport: () => ({
@@ -59,12 +51,11 @@ vi.mock('../core/useCoreModel', () => ({
 // differs from the last value it reported, so quick changes merge into one
 // report and a volume it already holds is never reported.
 const mpv = { holds: 100, reported: null as number | null, queued: [] as number[] };
-const mpvReports = () =>
-  act(async () => {
-    if (mpv.holds === mpv.reported) return;
-    mpv.reported = mpv.holds;
-    fixture.native.playerEvent.connect.mock.calls.at(-1)?.[0]('volume', { percent: mpv.holds });
-  });
+const mpvReports = async () => {
+  if (mpv.holds === mpv.reported) return;
+  mpv.reported = mpv.holds;
+  await fixture.native.emit('volume', { percent: mpv.holds });
+};
 const mpvApplies = () => {
   mpv.holds = mpv.queued.at(-1) ?? mpv.holds;
   mpv.queued = [];
