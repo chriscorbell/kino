@@ -110,13 +110,6 @@
   font-weight: 500;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .switch,
-  .switch span {
-    transition: none;
-  }
-}
-
 .updateActions {
   display: flex;
   flex-wrap: wrap;

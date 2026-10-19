@@ -466,31 +466,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .catalogTab,
-  .catalogTabActive,
-  .continueDismiss,
-  .playOverlay,
-  .genreSelect,
-  .seeAll {
-    transition: none;
-  }
-
-  .fullMediaTitle,
-  .mediaCard .posterFrame {
-    transition: none;
-  }
-
-  .mediaCard:hover .posterFrame,
-  .mediaCard:focus-visible .posterFrame {
-    transform: none;
-  }
-
-  .mediaSkeleton {
-    animation: none;
-  }
-}
-
 @keyframes pulse {
   from {
     opacity: 0.55;

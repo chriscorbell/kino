@@ -64,3 +64,17 @@ select:focus-visible {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* With reduced motion requested, this one rule stops every animation and transition, so a new
+   one needs no rule of its own. A near-zero duration would still start each animation on its first
+   keyframe, a one-frame flash for anything that fades in. With none, animationend and
+   transitionend never fire, so nothing may wait for them. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after,
+  ::backdrop {
+    animation: none !important;
+    transition: none !important;
+  }
+}

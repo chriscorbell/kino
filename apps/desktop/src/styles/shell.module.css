@@ -175,18 +175,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .content {
-    animation: none;
-  }
-
-  .logoButton,
-  .navButton,
-  .skipLink {
-    transition: none;
-  }
-}
-
 .coreRecovery {
   margin-block-end: 24px;
   overflow-wrap: anywhere;
