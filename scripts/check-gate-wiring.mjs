@@ -7,8 +7,10 @@
 //
 //   node scripts/check-gate-wiring.mjs [repository root]
 //
-// The wiring is read from the files as they stand, by pattern rather than by parsing YAML, so an
-// unusual way of invoking a script, such as a path built at run time, is invisible to it.
+// The wiring is read from the files as they stand, by pattern rather than by parsing YAML. It
+// traces local imports of JavaScript scripts, and the scripts/ paths named in shell, Python,
+// workflow, CMake and package text. It does not trace scripts/ paths in string literals inside
+// JavaScript, reads of third_party/ or packaging/, or a path built at run time.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 
@@ -18,11 +20,13 @@ const read = (path) => readFileSync(join(root, path), 'utf8');
 const SCRIPT_REF = /scripts\/[\w./-]+\.(?:mjs|js|sh|py)\b/g;
 const PNPM_RUN = /\bpnpm (?:run )?([\w:-]+)/g;
 const BY_HAND = /^(?:\/\/|#) Gate: by hand, \S/m;
+// Selecting tests would make every add_test script count as run when only some are.
+const CTEST_FILTER =
+  /\s(?:-[REIN]|-LE?|--(?:tests|exclude|label)-[\w-]+|--show-only|--preset|--rerun-failed)\b/;
 
 const pkg = JSON.parse(read('package.json'));
 const scripts = pkg.scripts;
 
-// The script files a command runs, following `pnpm x` into the package scripts it calls.
 const filesIn = (text, seen = new Set()) => [
   ...(text.match(SCRIPT_REF) ?? []),
   ...[...text.matchAll(PNPM_RUN)].flatMap(([, name]) => packageFiles(name, seen)),
@@ -52,12 +56,14 @@ for (const file of readdirSync(join(root, 'apps/macos-shell'), { recursive: true
 }
 
 function readWorkflow(path) {
-  const text = read(path);
-  const lines = text.split('\n');
+  const lines = read(path)
+    .split('\n')
+    .map((line) => line.replace(/(?:^|\s)#.*$/, ''))
+    .filter((line) => line.trim());
+  const text = lines.join('\n');
   const jobsAt = lines.indexOf('jobs:');
   const trigger = lines.slice(0, jobsAt);
 
-  // Every `paths:` list under `on:`, block or flow style, with the event it filters.
   const pathLists = [];
   trigger.forEach((line, i) => {
     const key = line.match(/^(\s*)paths:\s*(.*)$/);
@@ -90,7 +96,15 @@ function readWorkflow(path) {
   }
   for (const job of jobs) {
     const runs = filesIn(job.body);
-    const ctest = /\bctest\b/.test(job.body);
+    const ctestLines = job.body
+      .replace(/\s*\\\n\s*/g, ' ')
+      .split('\n')
+      .filter((line) => /\bctest\b/.test(line));
+    const ctest = ctestLines.length > 0;
+    job.ctestFilter = ctestLines
+      .find((line) => CTEST_FILTER.test(line))
+      ?.trim()
+      .replace(/^run:\s*/, '');
     const buildsShell =
       ctest ||
       runs.includes('scripts/build-macos.sh') ||
@@ -107,9 +121,8 @@ function readWorkflow(path) {
   return { path, pathLists, filters, jobs };
 }
 
-// What a set of scripts reads, mapped to the script that pulled each file in: local imports of
-// JavaScript, and scripts/ paths that shell and Python scripts call. Client sources Vite bundles
-// are not imports of any script, so the workflows' filters cover them with a directory glob.
+// Client sources Vite bundles are not imports of any script, so the workflows' filters cover them
+// with a directory glob.
 function inputsOf(files) {
   const via = new Map();
   const visit = (file, parent) => {
@@ -118,7 +131,7 @@ function inputsOf(files) {
     let next = [];
     if (/^scripts\/.*\.(?:sh|py)$/.test(file)) next = read(file).match(SCRIPT_REF) ?? [];
     else if (/^scripts\/.*\.(?:mjs|js)$/.test(file))
-      next = [...read(file).matchAll(/(?:from\s+|import\(\s*)['"](\.\.?\/[^'"]+)['"]/g)].map(
+      next = [...read(file).matchAll(/\b(?:from|import)\s*\(?\s*['"](\.\.?\/[^'"]+)['"]/g)].map(
         ([, spec]) => relative(root, join(root, dirname(file), spec)),
       );
     for (const n of next) visit(n, file);
@@ -164,6 +177,10 @@ for (const wf of workflows) {
     problems.push(
       `${wf.path} gates jobs on the changes job, but no \`const xPaths = /^...$/;\` filter was found in it. Keep the filter in that form, or teach this check its new one.`,
     );
+  for (const job of wf.jobs.filter((job) => job.ctestFilter))
+    problems.push(
+      `${wf.path} runs \`${job.ctestFilter}\`, which selects tests, so this check cannot tell which add_test scripts it runs. Run the whole suite there, or teach this check to resolve the selection.`,
+    );
   if (wf.filters.length) {
     const via = inputsOf(wf.jobs.filter((job) => job.native).flatMap((job) => job.runs));
     const names = wf.filters.map((f) => f.name).join(' or ');
@@ -186,7 +203,7 @@ for (const wf of workflows) {
 
 for (const problem of problems) console.error(problem);
 if (problems.length) {
-  console.error(`Gate wiring: ${problems.length} problems.`);
+  console.error(`Gate wiring: ${problems.length} problem${problems.length === 1 ? '' : 's'}.`);
   process.exit(1);
 }
 console.log(`${gates.length} gates are wired, and every path filter covers what its jobs read.`);

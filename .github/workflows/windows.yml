@@ -12,11 +12,11 @@ on:
       - apps/stream-engine/**
       - scripts/build-engine.sh
       - scripts/build-windows-mpv.sh
+      - scripts/generate-native-locale.mjs
       - scripts/license-notices.mjs
       - scripts/macho.mjs
       - scripts/record-notices.mjs
       - scripts/windows-notices.mjs
-      - scripts/generate-native-locale.mjs
       - scripts/check-engine-profile.mjs
       - scripts/check-macos-launch.sh
       - scripts/check-macos-navigation.mjs
