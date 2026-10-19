@@ -1,12 +1,18 @@
+import { settingShown } from '@kino/settings';
 import { useEffect, useState } from 'react';
 
 import type { InterfaceScale } from '../settings';
-import { connectNativeInterface, nativeShellPresent } from './player';
+import { connectNativeInterface } from './player';
+import { useShellReport } from './useShellReport';
 
 export function useInterfaceScale(scale: InterfaceScale) {
   const [attempt, setAttempt] = useState(0);
   const [failed, setFailed] = useState(false);
-  const available = nativeShellPresent();
+  const report = useShellReport();
+  const available =
+    report !== null &&
+    !(report instanceof Error) &&
+    settingShown('interfaceScale', report.platform, report.capabilities);
   useEffect(() => {
     if (!available) return;
     let active = true;

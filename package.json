@@ -32,6 +32,7 @@
     "windows:check-icon",
     "android:check-banner",
     "android:check-settings",
+    "settings:check-consumers",
     "build"
   ],
   "macosProbeSteps": [
@@ -129,6 +130,7 @@
     "android:check-banner": "node scripts/check-tv-banner.mjs",
     "android:settings": "node scripts/generate-tv-settings.mjs",
     "android:check-settings": "node scripts/generate-tv-settings.mjs --check",
+    "settings:check-consumers": "node scripts/check-setting-consumers.mjs",
     "android:check-signature": "node scripts/check-android-signature.mjs",
     "intro:check": "node scripts/check-intro-community.mjs",
     "intro:check-live": "node scripts/check-intro-live.mjs",
