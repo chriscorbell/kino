@@ -168,7 +168,7 @@ private fun estimatedMegabits(size: SourceSize?, runtimeMinutes: Int?): Double? 
     return megabits.takeIf { it.isFinite() && it >= 0.1 }
 }
 
-/** The size column's text, given the gigabyte and megabyte templates from strings.xml. */
+/** The size column's text, given the gigabyte and megabyte string resource templates. */
 internal fun sizeLabel(size: SourceSize?, gigabytes: String, megabytes: String): String? =
     when (size) {
         null -> null
@@ -181,7 +181,7 @@ internal fun sizeLabel(size: SourceSize?, gigabytes: String, megabytes: String):
         }
     }
 
-/** The bitrate column's text, given the stated and estimated templates from strings.xml. */
+/** The bitrate column's text, given the stated and estimated string resource templates. */
 internal fun bitrateLabel(
     fields: SourceFields,
     runtime: String?,

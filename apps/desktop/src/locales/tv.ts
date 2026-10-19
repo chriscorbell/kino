@@ -8,7 +8,6 @@ type TvString = string | readonly [(...args: never[]) => string, ...Format[]];
 // lives only in en-US.ts and a wording change reaches both clients. A message with parameters
 // lists each one's Android format type in order: s for text, d for an integer.
 export const tvStrings: Record<string, TvString> = {
-  app_name: enUS.appName,
   home: enUS.navigation.home,
   movies: enUS.home.movies,
   movie: enUS.media.movie,
@@ -80,7 +79,6 @@ export const tvStrings: Record<string, TvString> = {
   addons: enUS.navigation.addons,
   install: enUS.addons.install,
   cancel: enUS.actions.cancel,
-  remove_addon: enUS.addons.remove,
   configure_addon: enUS.addons.configure,
   configure_addon_title: [enUS.addons.configureTitle, 's'],
   season: [enUS.details.season, 'd'],
@@ -99,12 +97,6 @@ export const tvStrings: Record<string, TvString> = {
   languages: enUS.settings.languages,
   audio_language: enUS.settings.audioLanguage,
   subtitle_language: enUS.settings.subtitleLanguage,
-  settings_on: enUS.settings.on,
-  settings_off: enUS.settings.off,
-  settings_default: enUS.settings.default,
-  settings_unknown: enUS.settings.unavailable,
-  settings_saving: enUS.settings.savingPreference,
-  settings_save_failed: enUS.settings.preferenceFailed,
   storage: enUS.settings.storage,
   clear_cache: enUS.settings.clearCache,
   clearing: enUS.settings.clearing,
@@ -125,7 +117,6 @@ export const tvStrings: Record<string, TvString> = {
   licenses: enUS.settings.licenses,
   licenses_description: enUS.settings.licensesDescription,
   read_notices: enUS.settings.readNotices,
-  licenses_scope_application: enUS.appName,
   language_eng: enUS.languages.eng,
   language_spa: enUS.languages.spa,
   language_fre: enUS.languages.fre,

@@ -1,5 +1,4 @@
 export const enUS = {
-  appName: 'Kino',
   native: {
     interfaceFailed: 'Kino could not load its interface.',
     checkLog: 'Check the local Kino log for details.',
@@ -162,7 +161,6 @@ export const enUS = {
       insecure: 'Blocked. This add-on requires an HTTPS manifest URL.',
       redirect: 'Blocked. This add-on redirects requests. Install its final HTTPS manifest URL.',
     },
-    remove: 'Remove',
     removeFailed: 'That add-on could not be removed.',
     removeNotSaved:
       'The add-on was removed but the change could not be saved. It may return after Kino restarts.',
@@ -206,12 +204,6 @@ export const enUS = {
     upNextDescription: 'Offer the next episode near the ending',
     languages: 'Languages',
     languagesNote: 'Language preferences come from your Stremio profile and sync across devices.',
-    on: 'On',
-    off: 'Off',
-    default: 'Default',
-    unavailable: 'Unavailable',
-    savingPreference: 'Saving preference…',
-    preferenceFailed: 'The preference could not be saved. Try again.',
     subtitleLanguage: 'Subtitle language',
     subtitleLanguageDescription: 'Preferred language when subtitles load automatically',
     audioLanguage: 'Audio language',

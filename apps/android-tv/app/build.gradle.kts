@@ -188,8 +188,8 @@ val requireSharedStrings by
     tasks.registering {
         doLast {
             check(sharedStrings.exists()) {
-                "Missing $sharedStrings. Run `pnpm android:build`, which generates the text both " +
-                    "clients show from en-US.ts before Gradle."
+                "Missing $sharedStrings. Run `node scripts/generate-tv-strings.mjs`, which " +
+                    "generates the text both clients show from en-US.ts, or `pnpm android:build`."
             }
         }
     }

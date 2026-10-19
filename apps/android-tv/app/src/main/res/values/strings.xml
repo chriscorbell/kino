@@ -1,5 +1,6 @@
 <resources>
     <!-- Text the desktop also shows is not here. apps/desktop/src/locales/tv.ts maps it to en-US.ts, and the build generates it. -->
+    <string name="app_name">Kino</string>
     <string name="account">Account</string>
     <string name="view_addons">View add-ons</string>
     <string name="video_output">Video output</string>
@@ -53,6 +54,7 @@
     <string name="addon_loading">Loading add-on…</string>
     <string name="addon_invalid">Enter an HTTPS address ending in manifest.json, or a stremio:// link.</string>
     <string name="addon_failed">This add-on could not be loaded. Check the address and try again.</string>
+    <string name="remove_addon">Remove</string>
     <string name="remove_addon_title">Remove %1$s?</string>
     <string name="addon_built_in">Built in</string>
     <string name="configure_addon_body">Choose the add-on\'s settings on your phone, then send the address it gives you to this TV.</string>
@@ -78,6 +80,12 @@
     <string name="episode">Episode</string>
     <string name="director">Director</string>
     <string name="directors">Directors</string>
+    <string name="settings_on">On</string>
+    <string name="settings_off">Off</string>
+    <string name="settings_default">Default</string>
+    <string name="settings_unknown">Unavailable</string>
+    <string name="settings_saving">Saving preference…</string>
+    <string name="settings_save_failed">The preference could not be saved. Try again.</string>
     <string name="tv_languages_note">Defaults for new playback in this profile on this TV. Remembered track choices take precedence.</string>
     <string name="tv_cache_description">Cached artwork and torrent downloads for this profile. Both load again when needed.</string>
     <string name="updates_description">Kino checks GitHub for a new release once a day</string>
@@ -106,6 +114,7 @@
     <string name="licenses_intro">Kino is free software under the GNU General Public License 3.0. It includes the components below, each under its own license, with every text it requires.</string>
     <string name="licenses_failed">The license notices could not be read.</string>
     <string name="licenses_terms_in_text">Terms in the notice text</string>
+    <string name="licenses_scope_application">Kino</string>
     <string name="licenses_scope_playback">Playback and Core</string>
     <string name="licenses_scope_core">Stremio Core</string>
     <string name="licenses_scope_engine">Torrent engine</string>

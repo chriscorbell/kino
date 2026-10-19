@@ -2,7 +2,9 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import ts from 'typescript';
 import { expect, it } from 'vitest';
+import { desktopMessagePaths } from '../test/messagePaths';
 import { tvStrings } from './tv';
 
 const tvMain = '../android-tv/app/src/main';
@@ -24,6 +26,34 @@ it('names only string resources the TV uses and does not also write by hand', ()
     expect(used.has(name), `${name} is unused on the TV`).toBe(true);
     expect(written.has(name), `${name} is also in strings.xml`).toBe(false);
   }
+});
+
+it('names only en-US messages the desktop client reads', () => {
+  // A message only the TV reads would let an en-US.ts edit change one client, the drift this
+  // table exists to prevent; that text belongs in strings.xml.
+  const table = ts.createSourceFile(
+    'tv.ts',
+    readFileSync('src/locales/tv.ts', 'utf8'),
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  const read = desktopMessagePaths();
+  const rows = new Map<string, string>();
+  const visit = (node: ts.Node) => {
+    if (ts.isPropertyAssignment(node)) {
+      const message = (function find(child: ts.Node): string | undefined {
+        if (ts.isPropertyAccessExpression(child)) return child.getText(table);
+        return ts.forEachChild(child, find);
+      })(node.initializer);
+      rows.set(node.name.getText(table), message?.replace(/^enUS\./, '') ?? '');
+    } else ts.forEachChild(node, visit);
+  };
+  visit(table);
+  expect([...rows.keys()]).toEqual(Object.keys(tvStrings));
+  const unread = [...rows]
+    .filter(([, path]) => !read.has(path))
+    .map(([name, path]) => `${name}: ${path}`);
+  expect(unread).toEqual([]);
 });
 
 // Decodes generated resource text the way Android does, with the format arguments filled in. The
