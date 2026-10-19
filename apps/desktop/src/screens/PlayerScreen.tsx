@@ -14,7 +14,7 @@ import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } fro
 import styles from '../styles/player.module.css';
 import { AudioTrackPicker } from '../components/AudioTrackPicker';
 import { SubtitlePanel } from '../components/SubtitlePanel';
-import { parseAudioTracks, type AudioTrack } from '../player/audio';
+import type { AudioTrack } from '../player/audio';
 import {
   describeAddonSubtitle,
   describeTrack,
@@ -24,13 +24,7 @@ import {
   saveTitleTrackChoice,
   type TitleTrackChoices,
 } from '../player/trackChoices';
-import {
-  finalPauseAction,
-  loadPlayerAction,
-  playerAction,
-  type PlaybackSelection,
-  type PlayerReport,
-} from '../core/actions';
+import { finalPauseAction, loadPlayerAction, type PlaybackSelection } from '../core/actions';
 import { useCore } from '../core/context';
 import type { CoreTransport } from '../core/transport';
 import type { CoreVideo } from '../core/types';
@@ -42,10 +36,9 @@ import {
   playbackDevice,
   type NativePlayer,
 } from '../native/player';
-import { formatTime, nativeChapterCues, nativeErrorMessage } from '../player/nativeEvents';
+import { formatTime } from '../player/nativeEvents';
 import {
   addonSubtitleLabel,
-  parseSubtitleTracks,
   preferredSubtitleTrack,
   type AddonSubtitle,
   type SubtitleTrack,
@@ -57,6 +50,15 @@ import { useIdleControls } from '../player/useIdleControls';
 import { useIntroSkip } from '../player/useIntroSkip';
 import { usePlayerKeyboard } from '../player/usePlayerKeyboard';
 import { useTorrentStream } from '../player/useTorrentStream';
+import { mediaFailureMessage } from '../playback/failures';
+import type { MediaBackend, MediaEvent } from '../playback/media';
+import { mpvBackend } from '../playback/mpvBackend';
+import {
+  createProgressReporter,
+  timeChangedAction,
+  type ProgressReporter,
+} from '../playback/progress';
+import { videoBackend } from '../playback/videoBackend';
 
 export function PlayerScreen({
   onBack,
@@ -86,7 +88,7 @@ export function PlayerScreen({
   const closingRef = useRef(false);
   const navigationPendingRef = useRef(false);
   const [shutdownError, setShutdownError] = useState<string | null>(null);
-  const lastProgressRef = useRef(0);
+  const progressRef = useRef<ProgressReporter | null>(null);
   const resumeAppliedRef = useRef(false);
   const [duration, setDuration] = useState(0);
   const [time, setTime] = useState(0);
@@ -95,6 +97,27 @@ export function PlayerScreen({
   const [volume, setVolume] = useState(settings.volume);
   const [buffering, setBuffering] = useState(false);
   const [nativePlayer, setNativePlayer] = useState<NativePlayer | null>(null);
+  const nativeShell = nativeShellPresent();
+  const nativeBackend = useMemo(
+    () => (nativePlayer ? mpvBackend(nativePlayer) : null),
+    [nativePlayer],
+  );
+  const browserBackend = useMemo(() => (nativeShell ? null : videoBackend()), [nativeShell]);
+  const backend: MediaBackend | null = nativeBackend ?? browserBackend;
+  const trackBackend = backend?.capabilities.tracks ? backend : null;
+  const attachVideo = useCallback(
+    (video: HTMLVideoElement | null) => {
+      if (!video) return;
+      // useIntroSkip still reads the element to know a player exists.
+      videoRef.current = video;
+      const detach = browserBackend?.attach(video);
+      return () => {
+        videoRef.current = null;
+        detach?.();
+      };
+    },
+    [browserBackend],
+  );
   const {
     error: fullscreenError,
     exit: exitFullscreen,
@@ -117,16 +140,18 @@ export function PlayerScreen({
   const audioAutoDoneRef = useRef(false);
   const subtitleAutoDoneRef = useRef(false);
   const subtitleFallbackDoneRef = useRef(false);
-  const nativeLoadReadyRef = useRef(false);
-  const [nativeReadyVersion, setNativeReadyVersion] = useState(0);
+  const mediaReadyRef = useRef(false);
+  const [mediaReadyVersion, setMediaReadyVersion] = useState(0);
+  // What the current load has reported, for the track restoration.
+  const loadRef = useRef({
+    starting: true,
+    audio: [] as AudioTrack[],
+    subtitles: [] as SubtitleTrack[],
+  });
   const trackChoicesRef = useRef<TitleTrackChoices>({});
   const addedAddonSubtitlesRef = useRef(new Map<number, AddonSubtitle>());
   const addonSubtitlesByTokenRef = useRef(new Map<string, AddonSubtitle>());
-  const subtitleDefaults = useEffectEvent(() => ({
-    enabled: settings.subtitles,
-    language: preferredSubtitleLanguage,
-  }));
-  const videoParamsReportedRef = useRef(false);
+  const refreshRatePreference = useEffectEvent(() => settings.matchRefreshRate);
   const [ended, setEnded] = useState(false);
   const result = useCoreModel(
     'player',
@@ -146,7 +171,6 @@ export function PlayerScreen({
     [directUrl, selection.stream],
   );
   const resumeTime = result.state?.libraryItem?.timeOffset ?? 0;
-  const nativeShell = nativeShellPresent();
   const addonSubtitles = useMemo(() => result.state?.subtitles ?? [], [result.state?.subtitles]);
   const selectedSubtitleId = subtitleTracks.find((track) => track.selected)?.id ?? null;
   const nearEnd =
@@ -155,95 +179,29 @@ export function PlayerScreen({
     Number.isFinite(time) &&
     time >= duration - Math.min(120_000, duration * 0.1);
 
-  const updateDuration = useCallback((milliseconds: number) => {
-    playbackRef.current.duration = milliseconds;
-    setDuration(milliseconds);
-  }, []);
-
   const updateTime = useCallback((milliseconds: number) => {
     if (milliseconds < playbackRef.current.time) setEnded(false);
     playbackRef.current.time = milliseconds;
     setTime(milliseconds);
   }, []);
 
-  const dispatchPlayer = useCallback(
-    (action: PlayerReport, args?: unknown) => {
-      if (!transport) return;
-      void transport.dispatch(playerAction(action, args), 'player').catch((error: unknown) => {
-        console.error(
-          '[kino:player] progress update failed',
-          error instanceof Error ? error.message : error,
-        );
-      });
-    },
-    [transport],
-  );
-
-  const reportProgress = useCallback(
-    (isSeek = false) => {
-      if (closingRef.current) return;
-      const video = videoRef.current;
-      const progressDuration =
-        video && Number.isFinite(video.duration)
-          ? Math.round(video.duration * 1000)
-          : playbackRef.current.duration;
-      const progressTime = video ? Math.round(video.currentTime * 1000) : playbackRef.current.time;
-      if (progressDuration <= 0) return;
-      const args = {
-        device: playbackDevice(),
-        duration: progressDuration,
-        time: progressTime,
-      };
-      dispatchPlayer(isSeek ? 'Seek' : 'TimeChanged', args);
-    },
-    [dispatchPlayer],
-  );
-
-  const reportMediaReady = useCallback(() => {
-    if (!transport || closingRef.current || videoParamsReportedRef.current) return;
-    videoParamsReportedRef.current = true;
-    dispatchPlayer('VideoParamsChanged', { videoParams: videoParams(selection.stream) });
-  }, [dispatchPlayer, selection.stream, transport]);
+  // Callers pair every seek with this, so Core can move a stored offset backwards.
+  const reportSeek = useCallback(() => {
+    if (!closingRef.current) progressRef.current?.seek(playbackRef.current);
+  }, []);
 
   async function saveBeforeUnload(target: CoreTransport, loaded: Promise<void>) {
     closingRef.current = true;
     setPaused(true);
     setShutdownError(null);
     try {
-      if (nativePlayer) {
-        const snapshot = await nativePlayer.pauseAndSnapshot();
-        if (
-          Number.isFinite(snapshot.duration) &&
-          snapshot.duration > 0 &&
-          Number.isFinite(snapshot.time)
-        ) {
-          playbackRef.current = snapshot;
-        }
-      } else if (videoRef.current) {
-        const video = videoRef.current;
-        playbackRef.current = {
-          duration: Math.round(video.duration * 1000),
-          time: Math.round(video.currentTime * 1000),
-        };
-        video.pause();
-      }
+      const frozen = await backend?.freeze();
+      if (frozen) playbackRef.current = frozen;
       await loaded.catch(() => undefined);
-      const progress = playbackRef.current;
-      if (
-        Number.isFinite(progress.duration) &&
-        progress.duration > 0 &&
-        Number.isFinite(progress.time)
-      ) {
-        await target.dispatch(
-          playerAction('TimeChanged', {
-            ...progress,
-            device: playbackDevice(),
-          }),
-          'player',
-        );
-      }
+      const finalTime = timeChangedAction(playbackRef.current, playbackDevice());
+      if (finalTime) await target.dispatch(finalTime, 'player');
       await target.commit(finalPauseAction, 'player');
-      nativePlayer?.stop();
+      backend?.stop();
     } catch (error) {
       closingRef.current = false;
       setShutdownError(enUS.player.saveFailed);
@@ -301,28 +259,13 @@ export function PlayerScreen({
       Boolean(shutdownError || fullscreenError),
   );
 
+  // Core hears the change from the player's own pause event, not from here.
   const togglePlayback = useCallback(() => {
-    if (closingRef.current) return;
-    if (nativePlayer) {
-      const nextPaused = !paused;
-      setPaused(nextPaused);
-      dispatchPlayer('PausedChanged', { paused: nextPaused });
-      nativePlayer.setPaused(nextPaused);
-      return;
-    }
-    const video = videoRef.current;
-    if (!video) return;
-    if (!video.paused) {
-      video.pause();
-      return;
-    }
-    void video.play().catch((error: unknown) => {
-      setPaused(true);
-      reportFailure(enUS.player.startFailed, {
-        code: error instanceof DOMException ? error.name : 'UnknownError',
-      });
-    });
-  }, [dispatchPlayer, nativePlayer, paused, reportFailure]);
+    if (closingRef.current || !backend) return;
+    const nextPaused = !paused;
+    setPaused(nextPaused);
+    backend.setPaused(nextPaused);
+  }, [backend, paused]);
 
   const seekTo = useCallback(
     (milliseconds: number) => {
@@ -330,13 +273,9 @@ export function PlayerScreen({
       setEnded(false);
       const safeTime = Math.max(0, milliseconds);
       updateTime(safeTime);
-      if (nativePlayer) {
-        nativePlayer.seek(safeTime / 1000);
-      } else if (videoRef.current) {
-        videoRef.current.currentTime = safeTime / 1000;
-      }
+      backend?.seek(safeTime);
     },
-    [nativePlayer, updateTime],
+    [backend, updateTime],
   );
 
   const changeVolume = useCallback(
@@ -347,33 +286,27 @@ export function PlayerScreen({
       onSettingsChange({ ...settings, volume: next });
       if (next > 0 && muted) {
         setMuted(false);
-        if (nativePlayer) nativePlayer.setMuted(false);
-        else if (videoRef.current) videoRef.current.muted = false;
+        backend?.setMuted(false);
       }
     },
-    [muted, nativePlayer, onSettingsChange, settings],
+    [backend, muted, onSettingsChange, settings],
   );
 
   useEffect(() => {
-    if (nativePlayer) nativePlayer.setVolume(settings.volume);
-    else if (videoRef.current) videoRef.current.volume = settings.volume / 100;
-  }, [nativePlayer, settings.volume, streamUrl]);
+    backend?.setVolume(settings.volume);
+  }, [backend, settings.volume, streamUrl]);
 
   const toggleMuted = useCallback(() => {
     const nextMuted = !muted;
     setMuted(nextMuted);
-    if (nativePlayer) {
-      nativePlayer.setMuted(nextMuted);
-    } else if (videoRef.current) {
-      videoRef.current.muted = nextMuted;
-    }
-  }, [muted, nativePlayer]);
+    backend?.setMuted(nextMuted);
+  }, [backend, muted]);
 
   const intro = useIntroSkip({
     automatic: settings.automaticIntroSkipping,
     duration,
     nativePlayer,
-    reportProgress,
+    reportProgress: reportSeek,
     seekTo,
     selection,
     time,
@@ -381,12 +314,8 @@ export function PlayerScreen({
   });
   const { marker, setChapterCues } = intro;
 
-  const currentTime = useCallback(
-    () => (nativePlayer ? playbackRef.current.time : (videoRef.current?.currentTime ?? 0) * 1000),
-    [nativePlayer],
-  );
-  const reportSeek = useCallback(() => reportProgress(true), [reportProgress]);
-  const hasPlayer = useCallback(() => Boolean(nativePlayer || videoRef.current), [nativePlayer]);
+  const currentTime = useCallback(() => playbackRef.current.time, []);
+  const hasPlayer = useCallback(() => Boolean(backend && streamUrl), [backend, streamUrl]);
   usePlayerKeyboard({
     hasPlayer,
     changeVolume,
@@ -403,7 +332,7 @@ export function PlayerScreen({
   });
 
   const selectSubtitleTrack = (id: number | null) => {
-    if (!nativePlayer) return;
+    if (!trackBackend) return;
     subtitleAutoDoneRef.current = true;
     const track = subtitleTracks.find((candidate) => candidate.id === id);
     const addon = track?.external ? addedAddonSubtitlesRef.current.get(track.id) : undefined;
@@ -417,7 +346,7 @@ export function PlayerScreen({
               : describeTrack(track!, subtitleTracks),
       });
     }
-    nativePlayer.setSubtitleTrack(id ?? 0);
+    trackBackend.setSubtitleTrack(id);
     if (settings.subtitles !== (id !== null)) {
       onSettingsChange({ ...settings, subtitles: id !== null });
     }
@@ -425,19 +354,19 @@ export function PlayerScreen({
 
   const attachAddonSubtitle = useCallback(
     (subtitle: AddonSubtitle) => {
-      if (!nativePlayer) return;
+      if (!trackBackend) return;
       // mpv reports the supplied title but no add-request ID. An opaque title
       // correlates each result even when another same-language download fails.
       // Track snapshots replace it with the normal display label below.
       const token = crypto.randomUUID();
       addonSubtitlesByTokenRef.current.set(token, subtitle);
-      nativePlayer.addSubtitles(subtitle.url, token, subtitle.lang);
+      trackBackend.addSubtitles(subtitle.url, token, subtitle.lang);
     },
-    [nativePlayer],
+    [trackBackend],
   );
 
   const addAddonSubtitle = (subtitle: AddonSubtitle) => {
-    if (!nativePlayer || addedSubtitleUrls.has(subtitle.url)) return;
+    if (!trackBackend || addedSubtitleUrls.has(subtitle.url)) return;
     subtitleAutoDoneRef.current = true;
     saveTitleTrackChoice(selection.meta, {
       subtitle: describeAddonSubtitle(subtitle, addonSubtitles),
@@ -451,7 +380,7 @@ export function PlayerScreen({
   const changeSubtitleDelay = (deltaMs: number) => {
     const next = Math.max(-60_000, Math.min(60_000, subtitleDelayMs + deltaMs));
     setSubtitleDelayMs(next);
-    nativePlayer?.setSubtitleDelay(next / 1000);
+    trackBackend?.setSubtitleDelay(next);
   };
 
   const changeSubtitleSize = (delta: number) => {
@@ -530,104 +459,93 @@ export function PlayerScreen({
     };
   }, [subtitleMenuOpen]);
 
-  // Declared before the load below, so the shell has the setting before the
-  // first file opens. Changing it later reaches the player without reloading.
-  useEffect(() => {
-    nativePlayer?.setMatchFrameRate?.(settings.matchRefreshRate);
-  }, [nativePlayer, settings.matchRefreshRate]);
+  // Called from onMedia only. Switching tracks while mpv initializes its
+  // decoders can prevent the first frame from arriving, so overrides wait
+  // until playback is ready.
+  const restoreTracks = (target: MediaBackend) => {
+    if (!mediaReadyRef.current) return;
+    const { audio, subtitles } = loadRef.current;
+    if (!audioAutoDoneRef.current && audio.length > 0) {
+      audioAutoDoneRef.current = true;
+      const track = rememberedTrack(audio, trackChoicesRef.current.audio);
+      if (track) target.setAudioTrack(track.id);
+    }
+    if (subtitleAutoDoneRef.current) return;
+    const choice = trackChoicesRef.current.subtitle;
+    if (choice?.kind === 'off') {
+      subtitleAutoDoneRef.current = true;
+      target.setSubtitleTrack(null);
+    } else if (subtitles.length > 0 && !subtitleFallbackDoneRef.current) {
+      subtitleFallbackDoneRef.current = true;
+      // Add-on snapshots may arrive later. Keep their restoration pending
+      // while using the ordinary embedded subtitle defaults.
+      subtitleAutoDoneRef.current = choice?.kind !== 'addon';
+      const remembered = rememberedTrack(subtitles, choice?.kind === 'track' ? choice : undefined);
+      const track =
+        remembered ??
+        (settings.subtitles ? preferredSubtitleTrack(subtitles, preferredSubtitleLanguage) : null);
+      if (track) target.setSubtitleTrack(track.id);
+    }
+  };
 
-  useEffect(() => {
-    if (!nativePlayer || !streamUrl) return;
-    audioAutoDoneRef.current = false;
-    subtitleAutoDoneRef.current = false;
-    subtitleFallbackDoneRef.current = false;
-    nativeLoadReadyRef.current = false;
-    trackChoicesRef.current = loadTitleTrackChoices({
-      id: selection.meta.id,
-      type: selection.meta.type,
-    });
-    addedAddonSubtitlesRef.current = new Map();
-    addonSubtitlesByTokenRef.current = new Map();
-    let starting = true;
-    closingRef.current = false;
-    videoParamsReportedRef.current = false;
-    let availableAudio: AudioTrack[] = [];
-    let availableSubtitles: SubtitleTrack[] = [];
-    const restoreTracks = () => {
-      // Switching tracks while mpv initializes its decoders can prevent the
-      // first frame from arriving. Apply overrides after playback is ready.
-      if (!nativeLoadReadyRef.current) return;
-      if (!audioAutoDoneRef.current && availableAudio.length > 0) {
-        audioAutoDoneRef.current = true;
-        const track = rememberedTrack(availableAudio, trackChoicesRef.current.audio);
-        if (track) nativePlayer.setAudioTrack(track.id);
-      }
-      if (subtitleAutoDoneRef.current) return;
-      const choice = trackChoicesRef.current.subtitle;
-      if (choice?.kind === 'off') {
-        subtitleAutoDoneRef.current = true;
-        nativePlayer.setSubtitleTrack(0);
-      } else if (availableSubtitles.length > 0 && !subtitleFallbackDoneRef.current) {
-        subtitleFallbackDoneRef.current = true;
-        // Add-on snapshots may arrive later. Keep their restoration pending
-        // while using the ordinary embedded subtitle defaults.
-        subtitleAutoDoneRef.current = choice?.kind !== 'addon';
-        const remembered = rememberedTrack(
-          availableSubtitles,
-          choice?.kind === 'track' ? choice : undefined,
-        );
-        const defaults = subtitleDefaults();
-        const track =
-          remembered ??
-          (defaults.enabled ? preferredSubtitleTrack(availableSubtitles, defaults.language) : null);
-        if (track) nativePlayer.setSubtitleTrack(track.id);
-      }
-    };
-    const onEvent = (name: string, payload: Record<string, unknown>) => {
-      if (closingRef.current) return;
-      if (name === 'time' && typeof payload.milliseconds === 'number') {
-        const nextTime = payload.milliseconds;
-        updateTime(nextTime);
-        if (nextTime - lastProgressRef.current >= 5_000 || nextTime < lastProgressRef.current) {
-          lastProgressRef.current = nextTime;
-          reportProgress();
-        }
-      } else if (name === 'duration' && typeof payload.milliseconds === 'number') {
-        updateDuration(payload.milliseconds);
-      } else if (name === 'buffered' && typeof payload.milliseconds === 'number') {
-        setBufferedTime(payload.milliseconds);
-      } else if (name === 'paused' && typeof payload.paused === 'boolean') {
-        setPaused(payload.paused);
-        if (!payload.paused) setEnded(false);
-        dispatchPlayer('PausedChanged', { paused: payload.paused });
-      } else if (name === 'muted' && typeof payload.muted === 'boolean') {
-        setMuted(payload.muted);
-      } else if (
-        name === 'volume' &&
-        typeof payload.percent === 'number' &&
-        Number.isFinite(payload.percent)
-      ) {
-        setVolume(Math.max(0, Math.min(100, payload.percent)));
-      } else if (name === 'buffering' && typeof payload.active === 'boolean') {
-        if (starting) {
-          starting = false;
+  // Both backends' events arrive here already parsed, so progress, pause and
+  // end are handled once whichever player produced them.
+  const onMedia = useEffectEvent((event: MediaEvent, source: MediaBackend) => {
+    if (closingRef.current) return;
+    const progress = progressRef.current;
+    switch (event.type) {
+      case 'time':
+        updateTime(event.milliseconds);
+        progress?.time(playbackRef.current);
+        break;
+      case 'duration':
+        playbackRef.current.duration = event.milliseconds;
+        setDuration(event.milliseconds);
+        break;
+      case 'buffered':
+        setBufferedTime(event.milliseconds);
+        break;
+      case 'paused':
+        setPaused(event.paused);
+        if (!event.paused) setEnded(false);
+        progress?.paused(event.paused, playbackRef.current);
+        break;
+      case 'buffering':
+        if (loadRef.current.starting) {
+          loadRef.current.starting = false;
           setAddedSubtitleUrls(new Set());
         }
-        setBuffering(payload.active);
-      } else if (name === 'ready') {
-        nativeLoadReadyRef.current = true;
-        restoreTracks();
-        setNativeReadyVersion((version) => version + 1);
+        setBuffering(event.active);
+        break;
+      case 'ready':
+        mediaReadyRef.current = true;
+        if (event.paused !== undefined) setPaused(event.paused);
+        restoreTracks(source);
+        setMediaReadyVersion((version) => version + 1);
+        progress?.mediaReady(videoParams(selection.stream));
+        break;
+      case 'ended':
         setBuffering(false);
-        reportMediaReady();
-      } else if (name === 'chapters') {
-        setChapterCues(nativeChapterCues(payload.items));
-      } else if (name === 'audioTracks') {
-        availableAudio = parseAudioTracks(payload.items);
-        setAudioTracks(availableAudio);
-        restoreTracks();
-      } else if (name === 'subtitleTracks') {
-        const tracks = parseSubtitleTracks(payload.items).map((track) => {
+        setPaused(true);
+        setEnded(true);
+        progress?.ended(playbackRef.current);
+        break;
+      case 'volume':
+        setVolume(event.percent);
+        break;
+      case 'muted':
+        setMuted(event.muted);
+        break;
+      case 'chapters':
+        setChapterCues(event.cues);
+        break;
+      case 'audioTracks':
+        loadRef.current.audio = event.tracks;
+        setAudioTracks(event.tracks);
+        restoreTracks(source);
+        break;
+      case 'subtitleTracks': {
+        const tracks = event.tracks.map((track) => {
           const subtitle = track.external
             ? addonSubtitlesByTokenRef.current.get(track.title ?? '')
             : undefined;
@@ -635,71 +553,75 @@ export function PlayerScreen({
           addedAddonSubtitlesRef.current.set(track.id, subtitle);
           return { ...track, title: addonSubtitleLabel(subtitle) };
         });
-        availableSubtitles = tracks;
+        loadRef.current.subtitles = tracks;
         setSubtitleTracks(tracks);
-        restoreTracks();
-      } else if (name === 'error') {
-        setBuffering(false);
-        setPaused(true);
-        reportFailure(nativeErrorMessage(payload.code), { code: payload.code });
-      } else if (name === 'ended') {
-        setBuffering(false);
-        setPaused(true);
-        setEnded(true);
-        reportProgress();
-        dispatchPlayer('Ended');
+        restoreTracks(source);
+        break;
       }
-    };
-
-    nativePlayer.playerEvent.connect(onEvent);
-    if (nativePlayer.loadWithAudioLanguage) {
-      nativePlayer.loadWithAudioLanguage(
-        streamUrl,
-        settings.audioOutput === 'stereo',
-        requestHeaders,
-        preferredAudioLanguage ?? '',
-      );
-    } else {
-      nativePlayer.load(streamUrl, settings.audioOutput === 'stereo', requestHeaders);
+      case 'failed':
+        setBuffering(false);
+        setPaused(true);
+        reportFailure(mediaFailureMessage(event.failure), event.detail);
+        break;
     }
+  });
 
+  useEffect(() => {
+    if (!backend || !streamUrl) return;
+    audioAutoDoneRef.current = false;
+    subtitleAutoDoneRef.current = false;
+    subtitleFallbackDoneRef.current = false;
+    mediaReadyRef.current = false;
+    loadRef.current = { starting: true, audio: [], subtitles: [] };
+    trackChoicesRef.current = loadTitleTrackChoices({
+      id: selection.meta.id,
+      type: selection.meta.type,
+    });
+    addedAddonSubtitlesRef.current = new Map();
+    addonSubtitlesByTokenRef.current = new Map();
+    closingRef.current = false;
+    progressRef.current = transport ? createProgressReporter(transport, playbackDevice()) : null;
+    const unsubscribe = backend.subscribe((event) => onMedia(event, backend));
+    backend.load({
+      url: streamUrl,
+      headers: requestHeaders,
+      stereo: settings.audioOutput === 'stereo',
+      audioLanguage: preferredAudioLanguage ?? '',
+      matchRefreshRate: refreshRatePreference(),
+    });
     return () => {
-      nativePlayer.playerEvent.disconnect(onEvent);
-      if (!closingRef.current) nativePlayer.stop();
+      unsubscribe();
+      if (!closingRef.current) backend.stop();
     };
   }, [
-    dispatchPlayer,
-    nativePlayer,
-    reportFailure,
-    reportMediaReady,
-    reportProgress,
-    requestHeaders,
-    setChapterCues,
-    settings.audioOutput,
+    backend,
     preferredAudioLanguage,
+    requestHeaders,
     selection.meta.id,
     selection.meta.type,
+    settings.audioOutput,
     streamUrl,
-    updateDuration,
-    updateTime,
+    transport,
   ]);
 
+  // `load` sends the value a source opens with; this sends later changes.
   useEffect(() => {
-    if (!nativePlayer) return;
-    nativePlayer.setSubtitleScale(settings.subtitleSize / 100);
-    nativePlayer.setSubtitlePosition(settings.subtitlePosition);
-  }, [nativePlayer, settings.subtitlePosition, settings.subtitleSize]);
+    backend?.setMatchRefreshRate(settings.matchRefreshRate);
+  }, [backend, settings.matchRefreshRate]);
 
   useEffect(() => {
-    if (!nativePlayer) return;
-    nativePlayer.setNowPlayingMetadata(
+    backend?.setSubtitleStyle({ size: settings.subtitleSize, position: settings.subtitlePosition });
+  }, [backend, settings.subtitlePosition, settings.subtitleSize]);
+
+  useEffect(() => {
+    backend?.setNowPlaying(
       result.state?.title ?? selection.meta.name,
       selection.video?.title ?? selection.meta.name,
     );
-  }, [nativePlayer, result.state?.title, selection]);
+  }, [backend, result.state?.title, selection]);
 
   useEffect(() => {
-    if (!nativePlayer || subtitleAutoDoneRef.current || !streamUrl || !nativeLoadReadyRef.current)
+    if (!trackBackend || subtitleAutoDoneRef.current || !streamUrl || !mediaReadyRef.current)
       return;
     const choice = trackChoicesRef.current.subtitle;
     if (choice?.kind !== 'addon') return;
@@ -708,7 +630,7 @@ export function PlayerScreen({
     subtitleAutoDoneRef.current = true;
     setAddedSubtitleUrls((previous) => new Set(previous).add(subtitle.url));
     attachAddonSubtitle(subtitle);
-  }, [nativePlayer, addonSubtitles, streamUrl, nativeReadyVersion, attachAddonSubtitle]);
+  }, [trackBackend, addonSubtitles, streamUrl, mediaReadyVersion, attachAddonSubtitle]);
 
   useEffect(() => {
     if (resumeAppliedRef.current || duration <= 0 || resumeTime <= 0 || resumeTime >= duration)
@@ -716,91 +638,17 @@ export function PlayerScreen({
     const timeout = window.setTimeout(() => {
       resumeAppliedRef.current = true;
       seekTo(resumeTime);
+      reportSeek();
     }, 0);
     return () => window.clearTimeout(timeout);
-  }, [duration, resumeTime, seekTo]);
+  }, [duration, reportSeek, resumeTime, seekTo]);
 
   return (
     <div
       className={`${styles.player} ${nativeShell ? styles.nativePlayer : ''} ${controlsVisible ? '' : styles.controlsHidden}`}
       ref={containerRef}
     >
-      {streamUrl && !nativeShell ? (
-        <video
-          autoPlay
-          onCanPlay={() => setBuffering(false)}
-          onDurationChange={(event) => updateDuration(event.currentTarget.duration * 1000)}
-          onEnded={() => {
-            setBuffering(false);
-            setPaused(true);
-            setEnded(true);
-            dispatchPlayer('Ended');
-          }}
-          onError={(event) => {
-            const video = event.currentTarget;
-            setBuffering(false);
-            reportFailure(enUS.player.playbackFailed, {
-              code: video.error?.code ?? 0,
-              networkState: video.networkState,
-              readyState: video.readyState,
-            });
-          }}
-          onLoadedMetadata={(event) => {
-            const video = event.currentTarget;
-            updateDuration(video.duration * 1000);
-            setPaused(video.paused);
-            reportMediaReady();
-          }}
-          onLoadStart={() => {
-            videoParamsReportedRef.current = false;
-            setBuffering(true);
-          }}
-          onPause={() => {
-            setPaused(true);
-            dispatchPlayer('PausedChanged', { paused: true });
-            reportProgress();
-          }}
-          onPlay={() => {
-            setEnded(false);
-            setPaused(false);
-            dispatchPlayer('PausedChanged', { paused: false });
-          }}
-          onPlaying={() => setBuffering(false)}
-          onProgress={(event) => {
-            const video = event.currentTarget;
-            for (let index = 0; index < video.buffered.length; index += 1) {
-              if (
-                video.buffered.start(index) <= video.currentTime &&
-                video.currentTime <= video.buffered.end(index)
-              ) {
-                setBufferedTime(video.buffered.end(index) * 1000);
-              }
-            }
-          }}
-          onSeeking={(event) => {
-            setEnded(false);
-            updateTime(event.currentTarget.currentTime * 1000);
-          }}
-          onSeeked={() => reportProgress(true)}
-          onStalled={() => setBuffering(true)}
-          onTimeUpdate={(event) => {
-            const nextTime = event.currentTarget.currentTime * 1000;
-            updateTime(nextTime);
-            if (nextTime - lastProgressRef.current >= 5_000 || nextTime < lastProgressRef.current) {
-              lastProgressRef.current = nextTime;
-              reportProgress();
-            }
-          }}
-          playsInline
-          ref={videoRef}
-          src={streamUrl}
-          onVolumeChange={(event) => {
-            setVolume(event.currentTarget.volume * 100);
-            setMuted(event.currentTarget.muted);
-          }}
-          onWaiting={() => setBuffering(true)}
-        />
-      ) : null}
+      {streamUrl && browserBackend ? <video autoPlay playsInline ref={attachVideo} /> : null}
 
       {streamUrl ? (
         // A click on the picture plays or pauses, and a double click toggles
@@ -886,7 +734,7 @@ export function PlayerScreen({
 
       {streamUrl ? (
         <div className={styles.playerControls} ref={controlsRef}>
-          {subtitleMenuOpen && nativePlayer ? (
+          {subtitleMenuOpen && trackBackend ? (
             <SubtitlePanel
               addonSubtitles={addonSubtitles.filter(
                 (subtitle) => !addedSubtitleUrls.has(subtitle.url),
@@ -943,7 +791,7 @@ export function PlayerScreen({
               min={0}
               onChange={(event) => {
                 seekTo(Number(event.target.value));
-                reportProgress(true);
+                reportSeek();
               }}
               step={1000}
               type="range"
@@ -987,7 +835,7 @@ export function PlayerScreen({
             <span className={styles.timeLabel}>
               {formatTime(time)} / {formatTime(duration)}
             </span>
-            {nativePlayer ? (
+            {trackBackend ? (
               <AudioTrackPicker
                 open={audioMenuOpen}
                 onOpenChange={changeAudioMenu}
@@ -998,12 +846,12 @@ export function PlayerScreen({
                     saveTitleTrackChoice(selection.meta, {
                       audio: describeTrack(track, audioTracks),
                     });
-                  nativePlayer.setAudioTrack(id);
+                  trackBackend.setAudioTrack(id);
                 }}
                 tracks={audioTracks}
               />
             ) : null}
-            {nativePlayer ? (
+            {trackBackend ? (
               <button
                 aria-expanded={subtitleMenuOpen}
                 aria-label={enUS.player.subtitles}
