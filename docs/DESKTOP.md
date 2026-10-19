@@ -18,6 +18,8 @@ Every Core model is read through validating adapters, so screens receive navigat
 
 Navigation moves focus to the page or heading without drawing an outline. Keyboard controls and Skip to content keep their visible focus indicators. `pnpm macos:check-focus` exercises the production bundle in Qt WebEngine through launch, navigation, Tab, and Skip to content.
 
+Kino settings are declared once, with the platforms that honor each, in `packages/settings` ([ADR 0031](adr/0031-declare-each-kino-setting-once-with-the-platforms-that-honor-it.md)). The client keeps every setting a desktop platform lists in one record on the device, and takes the schema's default for a value that is missing or outside the setting's domain. `settings.test.ts` checks the record against the schema.
+
 ## Player
 
 The player saves volume locally between launches. Its slider and Up/Down shortcuts adjust 0-100% volume; M toggles mute, and raising volume unmutes playback. Focused sliders keep their native keyboard step. `pnpm macos:check-volume` verifies the production WebChannel method and libmpv volume notifications, including bounds.

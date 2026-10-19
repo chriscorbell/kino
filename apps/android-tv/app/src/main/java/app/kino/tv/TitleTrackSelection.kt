@@ -114,7 +114,7 @@ internal class TitleTrackSelection(
             if (oldOverride == override && disabled == (type in previous.disabledTrackTypes))
                 continue
             restored.add(type)
-            if (type == C.TRACK_TYPE_TEXT) edit.putBoolean("subtitles", !disabled)
+            if (type == C.TRACK_TYPE_TEXT) edit.putSubtitles(!disabled)
             val field = type.toString()
             if (type == C.TRACK_TYPE_TEXT && disabled) {
                 choices.put(field, JSONObject().put("off", true))

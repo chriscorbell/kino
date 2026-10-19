@@ -1,50 +1,48 @@
+import { type DesktopPlatform, type SettingValue, settingsSchema } from '@kino/settings';
+
 export const SETTINGS_STORAGE_KEY = 'kino.settings.v1';
 
-export const interfaceScales = [100, 125, 150, 175, 200] as const;
-export type InterfaceScale = (typeof interfaceScales)[number];
+type Schema = typeof settingsSchema;
 
-export type AudioOutput = 'auto' | 'stereo';
+type DesktopKey = {
+  [Key in keyof Schema]: [Extract<keyof Schema[Key]['platforms'], DesktopPlatform>] extends [never]
+    ? never
+    : Key;
+}[keyof Schema];
 
-export interface KinoSettings {
-  automaticIntroSkipping: boolean;
-  audioOutput: AudioOutput;
-  interfaceScale: InterfaceScale;
-  matchRefreshRate: boolean;
-  skipIntroButton: boolean;
-  subtitlePosition: number;
-  subtitleSize: number;
-  subtitles: boolean;
-  upNext: boolean;
-  volume: number;
-}
+type ValueOf<Value extends SettingValue> = Value extends { kind: 'boolean' }
+  ? boolean
+  : Value extends { kind: 'choice'; values: readonly (infer Choice)[] }
+    ? Choice
+    : number;
 
-export const subtitlePositionRange = { max: 94, min: 50 } as const;
-export const subtitleSizeRange = { max: 200, min: 50 } as const;
+/** Every Kino setting a desktop platform lists, in one record the client keeps on the device. */
+export type KinoSettings = { -readonly [Key in DesktopKey]: ValueOf<Schema[Key]['value']> };
 
-export const defaultSettings: KinoSettings = {
-  automaticIntroSkipping: false,
-  audioOutput: 'auto',
-  interfaceScale: 100,
-  matchRefreshRate: false,
-  skipIntroButton: true,
-  subtitlePosition: 94,
-  subtitleSize: 100,
-  subtitles: false,
-  upNext: true,
-  volume: 100,
-};
+const desktopPlatforms: readonly DesktopPlatform[] = ['macos', 'windows', 'linux'];
+const desktopKeys = (Object.keys(settingsSchema) as (keyof Schema)[]).filter((key) =>
+  desktopPlatforms.some((platform) => platform in settingsSchema[key].platforms),
+) as DesktopKey[];
 
-function isAudioOutput(value: unknown): value is AudioOutput {
-  return value === 'auto' || value === 'stereo';
-}
+export const interfaceScales = settingsSchema.interfaceScale.value.values;
+export type InterfaceScale = KinoSettings['interfaceScale'];
 
-function boundedNumber(value: unknown, range: { max: number; min: number }, fallback: number) {
-  return typeof value === 'number' &&
-    Number.isFinite(value) &&
-    value >= range.min &&
-    value <= range.max
-    ? value
-    : fallback;
+export const subtitlePositionRange = settingsSchema.subtitlePosition.value;
+export const subtitleSizeRange = settingsSchema.subtitleSize.value;
+
+export const defaultSettings = Object.fromEntries(
+  desktopKeys.map((key) => [key, settingsSchema[key].value.default]),
+) as KinoSettings;
+
+function accepts(value: SettingValue, candidate: unknown) {
+  switch (value.kind) {
+    case 'boolean':
+      return typeof candidate === 'boolean';
+    case 'choice':
+      return (value.values as readonly unknown[]).includes(candidate);
+    case 'range':
+      return typeof candidate === 'number' && candidate >= value.min && candidate <= value.max;
+  }
 }
 
 export function loadSettings(storage: Pick<Storage, 'getItem'>): KinoSettings {
@@ -69,40 +67,12 @@ export function loadSettings(storage: Pick<Storage, 'getItem'>): KinoSettings {
 
     const values = candidate as Record<string, unknown>;
 
-    return {
-      automaticIntroSkipping:
-        typeof values.automaticIntroSkipping === 'boolean'
-          ? values.automaticIntroSkipping
-          : defaultSettings.automaticIntroSkipping,
-      audioOutput: isAudioOutput(values.audioOutput)
-        ? values.audioOutput
-        : defaultSettings.audioOutput,
-      interfaceScale: interfaceScales.includes(values.interfaceScale as InterfaceScale)
-        ? (values.interfaceScale as InterfaceScale)
-        : defaultSettings.interfaceScale,
-      matchRefreshRate:
-        typeof values.matchRefreshRate === 'boolean'
-          ? values.matchRefreshRate
-          : defaultSettings.matchRefreshRate,
-      skipIntroButton:
-        typeof values.skipIntroButton === 'boolean'
-          ? values.skipIntroButton
-          : defaultSettings.skipIntroButton,
-      subtitlePosition: boundedNumber(
-        values.subtitlePosition,
-        subtitlePositionRange,
-        defaultSettings.subtitlePosition,
-      ),
-      subtitleSize: boundedNumber(
-        values.subtitleSize,
-        subtitleSizeRange,
-        defaultSettings.subtitleSize,
-      ),
-      subtitles:
-        typeof values.subtitles === 'boolean' ? values.subtitles : defaultSettings.subtitles,
-      upNext: typeof values.upNext === 'boolean' ? values.upNext : defaultSettings.upNext,
-      volume: boundedNumber(values.volume, { min: 0, max: 100 }, defaultSettings.volume),
-    };
+    return Object.fromEntries(
+      desktopKeys.map((key) => {
+        const { value } = settingsSchema[key];
+        return [key, accepts(value, values[key]) ? values[key] : value.default];
+      }),
+    ) as KinoSettings;
   } catch {
     return defaultSettings;
   }

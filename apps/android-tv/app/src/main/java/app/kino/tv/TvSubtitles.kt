@@ -115,26 +115,20 @@ internal fun subtitleLabel(subtitle: AddonSubtitle) =
         .distinct()
         .joinToString(" · ")
 
-/** The subtitle sizes and positions TV Settings and the player offer, as device-local choices. */
+/**
+ * The one writer of the subtitles setting. Settings turns it on and off, and so does turning
+ * subtitles on or off in the player, as on desktop, so new playback starts as the viewer last chose.
+ */
+internal fun KinoSettingsStore.Editor.putSubtitles(enabled: Boolean) =
+    put(KinoSettings.subtitles, enabled)
+
+/** The subtitle size and position the player's subtitle panel offers, kept on the device. */
 internal object SubtitleAppearance {
-    val sizes = listOf(75, 100, 125, 150)
-    val positions = listOf(0, 8, 16)
-
-    fun size(context: Context) =
-        kinoSettings(context).getString("subtitle_size", null)?.toIntOrNull()?.takeIf {
-            it in sizes
-        } ?: 100
-
-    fun position(context: Context) =
-        kinoSettings(context).getString("subtitle_position", null)?.toIntOrNull()?.takeIf {
-            it in positions
-        } ?: 0
-
     fun save(context: Context, size: Int, position: Int) {
         kinoSettings(context)
             .edit()
-            .putString("subtitle_size", size.toString())
-            .putString("subtitle_position", position.toString())
+            .put(KinoSettings.subtitleSize, size)
+            .put(KinoSettings.subtitlePosition, position)
             .apply()
     }
 

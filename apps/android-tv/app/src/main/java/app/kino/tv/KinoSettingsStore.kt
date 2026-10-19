@@ -30,6 +30,62 @@ internal interface KinoSettingsStore {
     }
 }
 
+/**
+ * A Kino setting the TV honors. [KinoSettings] lists them, generated from the settings schema; a
+ * stored value outside the setting's domain reads as its default.
+ */
+internal sealed class KinoSetting<T>(val key: String, val default: T) {
+    internal abstract fun read(store: KinoSettingsStore): T
+
+    internal abstract fun write(editor: KinoSettingsStore.Editor, value: T)
+}
+
+internal class BooleanSetting(key: String, default: Boolean) : KinoSetting<Boolean>(key, default) {
+    override fun read(store: KinoSettingsStore) = store.getBoolean(key, default)
+
+    override fun write(editor: KinoSettingsStore.Editor, value: Boolean) {
+        editor.putBoolean(key, value)
+    }
+}
+
+/** A choice of whole numbers, stored as text. */
+internal class NumberChoiceSetting(key: String, default: Int, val values: List<Int>) :
+    KinoSetting<Int>(key, default) {
+    override fun read(store: KinoSettingsStore) =
+        store.getString(key, null)?.toIntOrNull()?.takeIf { it in values } ?: default
+
+    override fun write(editor: KinoSettingsStore.Editor, value: Int) {
+        editor.putString(key, value.toString())
+    }
+}
+
+/** A value of a choice that [KinoSettings] generates as an enum. */
+internal interface StoredChoice {
+    val stored: String
+}
+
+/** A choice of text, stored as the chosen value's text. */
+internal class TextChoiceSetting<T>(key: String, default: T, private val values: List<T>) :
+    KinoSetting<T>(key, default) where T : Enum<T>, T : StoredChoice {
+    override fun read(store: KinoSettingsStore) =
+        store.getString(key, null)?.let { text -> values.firstOrNull { it.stored == text } }
+            ?: default
+
+    override fun write(editor: KinoSettingsStore.Editor, value: T) {
+        editor.putString(key, value.stored)
+    }
+}
+
+internal operator fun <T> KinoSettingsStore.get(setting: KinoSetting<T>): T = setting.read(this)
+
+internal fun <T> KinoSettingsStore.Editor.put(
+    setting: KinoSetting<T>,
+    value: T,
+): KinoSettingsStore.Editor {
+    setting.write(this, value)
+    return this
+}
+
 internal class SharedKinoSettings(
     context: Context,
     private val uri: Uri = Uri.parse("content://${BuildConfig.APPLICATION_ID}.settings"),

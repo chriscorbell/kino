@@ -31,6 +31,7 @@
     "macos:check-icon",
     "windows:check-icon",
     "android:check-banner",
+    "android:check-settings",
     "build"
   ],
   "scripts": {
@@ -94,6 +95,8 @@
     "android:banner": "swift scripts/build-tv-banner.swift",
     "android:check": "python3 scripts/check-android.py",
     "android:check-banner": "node scripts/check-tv-banner.mjs",
+    "android:settings": "node scripts/generate-tv-settings.mjs",
+    "android:check-settings": "node scripts/generate-tv-settings.mjs --check",
     "android:check-signature": "node scripts/check-android-signature.mjs",
     "intro:check": "node scripts/check-intro-community.mjs",
     "intro:check-live": "node scripts/check-intro-live.mjs",
