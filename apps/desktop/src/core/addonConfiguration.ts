@@ -1,6 +1,6 @@
 import { installAddonAction, uninstallAddonAction } from './actions';
 import { addonTransportIssue } from './addonNetwork';
-import type { CoreTransport } from './transport';
+import { CoreSaveError, type CoreTransport } from './transport';
 import type { CoreAddon } from './types';
 
 export function addonManifestUrl(value: string) {
@@ -22,6 +22,13 @@ export function addonConfigurationUrl(addon: CoreAddon, development: boolean): s
 export class AddonReplacementError extends Error {
   constructor() {
     super('The new configuration is installed, but a previous configuration could not be removed.');
+  }
+}
+
+/** Core removed the previous configuration, but the removal was not stored. */
+export class AddonReplacementNotSavedError extends Error {
+  constructor(cause: CoreSaveError) {
+    super('The previous configuration was removed, but the removal was not saved.', { cause });
   }
 }
 
@@ -49,7 +56,8 @@ export async function installAddonConfiguration(
       if (state.profile.addons.some((candidate) => candidate.transportUrl === old.transportUrl)) {
         throw new AddonReplacementError();
       }
-    } catch {
+    } catch (error) {
+      if (error instanceof CoreSaveError) throw new AddonReplacementNotSavedError(error);
       throw new AddonReplacementError();
     }
   }

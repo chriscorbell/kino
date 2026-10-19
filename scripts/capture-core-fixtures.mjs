@@ -13,6 +13,7 @@ import { writeFileSync } from 'node:fs';
 
 import { addonFromManifest } from '../apps/desktop/src/core/adapters.ts';
 import {
+  finalPauseAction,
   installAddonAction,
   loadCatalogAction,
   loadLibraryAction,
@@ -20,6 +21,7 @@ import {
   loadPlayerAction,
   loadSearchAction,
   playerAction,
+  unloadPlayerAction,
 } from '../apps/desktop/src/core/actions.ts';
 import { initializeCore } from './test-support/core-stream.mjs';
 
@@ -183,9 +185,9 @@ core.dispatch(
   'player',
   '',
 );
-core.dispatch(playerAction('PausedChanged', { paused: true }), 'player', '');
+core.dispatch(finalPauseAction, 'player', '');
 await tick();
-core.dispatch({ action: 'Unload' }, 'player', '');
+core.dispatch(unloadPlayerAction, 'player', '');
 await tick();
 take('continue_watching', 'continue_watching_preview');
 

@@ -104,3 +104,29 @@ it('reports a removal that Core applied but could not store', async () => {
   ).toBeInTheDocument();
   expect(core.calls).toEqual(['dispatch UninstallAddon', 'flush']);
 });
+
+it('reports a replacement whose removal Core applied but could not store', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  core.addons = [buildAddon('https://addon.invalid/old/manifest.json', manifest)];
+  let flushes = 0;
+  core.flush = () =>
+    (flushes += 1) === 2 ? Promise.reject(new Error('Storage is full.')) : Promise.resolve();
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(manifest)));
+  render(<AddonsScreen />);
+  fireEvent.change(screen.getByLabelText('Add-on manifest URL'), {
+    target: { value: 'https://addon.invalid/new/manifest.json' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Install' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Replace existing' }));
+  expect(
+    await screen.findByText(
+      'The previous configuration was replaced but the change could not be saved. It may return after Kino restarts.',
+    ),
+  ).toBeInTheDocument();
+  expect(core.calls).toEqual([
+    'dispatch InstallAddon',
+    'flush',
+    'dispatch UninstallAddon',
+    'flush',
+  ]);
+});

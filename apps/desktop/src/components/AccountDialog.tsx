@@ -51,11 +51,15 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
+  // Core clears the signed-in user as soon as Logout is dispatched, before the
+  // save settles, so the dialog holds the name until the save finishes.
+  const [signingOut, setSigningOut] = useState<string | null>(null);
   const [creationError, setCreationError] = useState(false);
   const [openingRegistration, setOpeningRegistration] = useState(false);
   const user = profile.state?.profile.auth?.user;
   const signedIn = Boolean(user);
+  const accountName =
+    signingOut ?? (user ? user.email || user.name || enUS.account.signedIn : null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -161,13 +165,13 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
       ref={dialogRef}
       onCancel={(event) => {
         event.preventDefault();
-        if (!submitting) close();
+        if (!submitting && signingOut === null) close();
       }}
     >
       <button
         aria-label={enUS.actions.close}
         className={settingsStyles.dialogClose}
-        disabled={submitting}
+        disabled={submitting || signingOut !== null}
         onClick={close}
         ref={closeRef}
         type="button"
@@ -176,10 +180,10 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
       </button>
       <img alt="" src={logo} />
       <CoreRecovery onGuest={onClose} />
-      {user ? (
+      {accountName !== null ? (
         <>
           <h1 id="account-title">{enUS.account.title}</h1>
-          <p>{user.email || user.name || enUS.account.signedIn}</p>
+          <p>{accountName}</p>
           {error ? (
             <p className={styles.formError} id="account-error" role="alert">
               {error}
@@ -187,10 +191,10 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
           ) : null}
           <button
             className={styles.secondaryAction}
-            disabled={signingOut}
+            disabled={signingOut !== null}
             onClick={() => {
-              if (!transport || signingOut) return;
-              setSigningOut(true);
+              if (!transport || signingOut !== null) return;
+              setSigningOut(accountName);
               setError(null);
               void transport.commit(logoutAction).then(
                 () => {
@@ -198,14 +202,14 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
                   onClose();
                 },
                 () => {
-                  setSigningOut(false);
+                  setSigningOut(null);
                   setError(enUS.account.signOutFailed);
                 },
               );
             }}
             type="button"
           >
-            {signingOut ? enUS.account.signingOut : enUS.account.signOut}
+            {signingOut !== null ? enUS.account.signingOut : enUS.account.signOut}
           </button>
         </>
       ) : (

@@ -180,6 +180,8 @@ export const enUS = {
       'A required add-on cannot be replaced. You can install the new configuration alongside it.',
     keepBoth: 'Keep both',
     configurationReplaced: 'The previous configuration was replaced.',
+    replacementNotSaved:
+      'The previous configuration was replaced but the change could not be saved. It may return after Kino restarts.',
     installed: 'The add-on was installed.',
     replaceFailed:
       'The new configuration is installed, but a previous configuration could not be removed. Try Replace existing again.',
