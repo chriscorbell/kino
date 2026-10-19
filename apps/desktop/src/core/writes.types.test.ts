@@ -1,6 +1,6 @@
 import { it } from 'vitest';
 
-import { loadBoardAction, logoutAction } from './actions';
+import { loadBoardAction, logoutAction, playerAction } from './actions';
 import type { CoreTransport } from './transport';
 
 const transport: Pick<CoreTransport, 'commit' | 'dispatch'> = {
@@ -22,4 +22,10 @@ it('compiles no object literal on either method, so every action comes from a bu
   await transport.dispatch({ action: 'Ctx', args: { action: 'Logout' } });
   // @ts-expect-error literal on commit
   await transport.commit({ action: 'Ctx', args: { action: 'Logout' } });
+});
+
+it('compiles playerAction only for the progress reports the final save supersedes', async () => {
+  await transport.dispatch(playerAction('PausedChanged', { paused: false }));
+  // @ts-expect-error a Player write
+  await transport.dispatch(playerAction('NextVideo'));
 });

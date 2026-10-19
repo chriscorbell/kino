@@ -29,6 +29,7 @@ import {
   loadPlayerAction,
   playerAction,
   type PlaybackSelection,
+  type PlayerReport,
 } from '../core/actions';
 import { useCore } from '../core/context';
 import type { CoreTransport } from '../core/transport';
@@ -166,7 +167,7 @@ export function PlayerScreen({
   }, []);
 
   const dispatchPlayer = useCallback(
-    (action: string, args?: unknown) => {
+    (action: PlayerReport, args?: unknown) => {
       if (!transport) return;
       void transport.dispatch(playerAction(action, args), 'player').catch((error: unknown) => {
         console.error(

@@ -18,8 +18,19 @@ import type { DurableAction, TransientAction } from './writes';
 
 type CoreEventListener = (event: CoreRuntimeEvent) => void;
 
+/** Core applied a committed action, but its storage writes or account sync did not finish. */
+export class CoreSaveError extends Error {
+  constructor(cause: unknown) {
+    super(cause instanceof Error ? cause.message : t.core.storageFailed, { cause });
+  }
+}
+
 export interface CoreTransport {
-  /** Dispatches, then resolves once Core's storage writes and account sync finish. */
+  /**
+   * Dispatches, then resolves once Core's storage writes and account sync
+   * finish. Rejects with `CoreSaveError` when Core applied the action but the
+   * save did not finish.
+   */
   commit(action: DurableAction, model?: CoreModelName): Promise<void>;
   destroy(): Promise<void>;
   dispatch(action: TransientAction, model?: CoreModelName): Promise<void>;
@@ -175,7 +186,9 @@ export function createCoreTransport(
   return {
     async commit(action, model) {
       await dispatch(action, model);
-      await flush();
+      await flush().catch((error: unknown) => {
+        throw new CoreSaveError(error);
+      });
     },
     destroy() {
       destroying ??= prepareClose().finally(() => {

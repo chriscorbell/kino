@@ -51,6 +51,7 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const [creationError, setCreationError] = useState(false);
   const [openingRegistration, setOpeningRegistration] = useState(false);
   const user = profile.state?.profile.auth?.user;
@@ -179,18 +180,32 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
         <>
           <h1 id="account-title">{enUS.account.title}</h1>
           <p>{user.email || user.name || enUS.account.signedIn}</p>
+          {error ? (
+            <p className={styles.formError} id="account-error" role="alert">
+              {error}
+            </p>
+          ) : null}
           <button
             className={styles.secondaryAction}
+            disabled={signingOut}
             onClick={() => {
-              if (!transport) return;
-              void transport.commit(logoutAction).finally(() => {
-                selectSession('guest');
-                onClose();
-              });
+              if (!transport || signingOut) return;
+              setSigningOut(true);
+              setError(null);
+              void transport.commit(logoutAction).then(
+                () => {
+                  selectSession('guest');
+                  onClose();
+                },
+                () => {
+                  setSigningOut(false);
+                  setError(enUS.account.signOutFailed);
+                },
+              );
             }}
             type="button"
           >
-            {enUS.account.signOut}
+            {signingOut ? enUS.account.signingOut : enUS.account.signOut}
           </button>
         </>
       ) : (

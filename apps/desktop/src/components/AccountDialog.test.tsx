@@ -19,7 +19,7 @@ vi.mock('../native/player', () => ({
   openAccountCreation: vi.fn(),
 }));
 
-function fakeTransport() {
+function fakeTransport(auth: unknown = null) {
   const listeners = new Set<(event: CoreRuntimeEvent) => void>();
   const calls: string[] = [];
   const transport = {
@@ -32,7 +32,7 @@ function fakeTransport() {
       calls.push(`dispatch:${action.args?.action ?? ''}`);
     }),
     commit: vi.fn().mockResolvedValue(undefined),
-    getState: vi.fn(async () => ({ profile: { auth: null } })),
+    getState: vi.fn(async () => ({ profile: { auth } })),
     init: vi.fn(async () => {
       calls.push('init');
     }),
@@ -120,5 +120,53 @@ describe('account dialog from a guest session', () => {
     expect(selectSession).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled();
+  });
+});
+
+describe('account dialog in a signed-in account session', () => {
+  function mountSignedIn() {
+    const account = fakeTransport({ key: 'synthetic', user: { email: 'viewer@kino.invalid' } });
+    const selectSession = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <CoreContext.Provider
+        value={{
+          error: null,
+          status: 'ready',
+          session: 'account',
+          transport: account as unknown as CoreTransport,
+          selectSession,
+        }}
+      >
+        <AccountDialog onClose={onClose} />
+      </CoreContext.Provider>,
+    );
+    return { account, onClose, selectSession };
+  }
+
+  it('switches to the guest session only after Core stores the sign-out', async () => {
+    const { account, onClose, selectSession } = mountSignedIn();
+    let store!: () => void;
+    account.commit.mockReturnValueOnce(new Promise<void>((resolve) => (store = resolve)));
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Signing out…' }));
+    expect(screen.getByRole('button', { name: 'Signing out…' })).toBeDisabled();
+    expect(account.commit).toHaveBeenCalledOnce();
+    expect(selectSession).not.toHaveBeenCalled();
+    await act(async () => store());
+    expect(selectSession).toHaveBeenCalledExactlyOnceWith('guest');
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the dialog open and reports a sign-out Core could not store', async () => {
+    const { account, onClose, selectSession } = mountSignedIn();
+    account.commit.mockRejectedValueOnce(new Error('Core storage did not finish in time.'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Sign-out could not be saved. This account may still be signed in after Kino restarts.',
+    );
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeEnabled();
+    expect(selectSession).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

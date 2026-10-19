@@ -132,7 +132,11 @@ export function CoreProvider({ children }: { children: ReactNode }) {
       (error: unknown) => {
         if (controller.signal.aborted) return;
         if (error instanceof GuestCatalogError) {
-          setCatalog({ attempt: catalogAttempt, error: t.core.catalogFailed, transport });
+          setCatalog({
+            attempt: catalogAttempt,
+            error: error.step === 'save' ? t.core.catalogSaveFailed : t.core.catalogFailed,
+            transport,
+          });
         } else {
           setRuntime({
             attempt,

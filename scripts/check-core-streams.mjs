@@ -3,7 +3,12 @@
 import assert from 'node:assert/strict';
 
 import { adaptContinueWatchingState, adaptCoreState } from '../apps/desktop/src/core/adapters.ts';
-import { loadPlayerAction, playerAction } from '../apps/desktop/src/core/actions.ts';
+import {
+  finalPauseAction,
+  loadPlayerAction,
+  playerAction,
+  unloadPlayerAction,
+} from '../apps/desktop/src/core/actions.ts';
 import { torrentCreateRequest } from '../apps/desktop/src/player/torrent.ts';
 import {
   fixturePreview,
@@ -71,9 +76,9 @@ for (const stream of [
     'player',
     '',
   );
-  core.dispatch(playerAction('PausedChanged', { paused: true }), 'player', '');
+  core.dispatch(finalPauseAction, 'player', '');
   await new Promise((resolve) => setImmediate(resolve));
-  core.dispatch({ action: 'Unload' }, 'player', '');
+  core.dispatch(unloadPlayerAction, 'player', '');
   await new Promise((resolve) => setImmediate(resolve));
   const item = adaptContinueWatchingState(
     core.get_state('continue_watching_preview'),

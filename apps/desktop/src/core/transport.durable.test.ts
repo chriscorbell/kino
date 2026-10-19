@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 
 import { logoutAction } from './actions';
-import { createCoreTransport } from './transport';
+import { CoreSaveError, createCoreTransport } from './transport';
 
 const state = vi.hoisted(() => ({ call: vi.fn(), terminate: vi.fn() }));
 vi.mock('./core.worker?worker', () => ({
@@ -50,11 +50,11 @@ it('rejects a commit Core cannot store in time without ending the session', asyn
   );
   const transport = createCoreTransport('guest', onFailure);
   await transport.init();
-  const committed = expect(transport.commit(logoutAction)).rejects.toThrow(
-    'Core storage did not finish in time.',
-  );
+  const commit = transport.commit(logoutAction);
+  const committed = expect(commit).rejects.toThrow('Core storage did not finish in time.');
   await vi.advanceTimersByTimeAsync(30_000);
   await committed;
+  await expect(commit).rejects.toBeInstanceOf(CoreSaveError);
   expect(onFailure).not.toHaveBeenCalled();
   expect(state.terminate).not.toHaveBeenCalled();
   await expect(transport.getState('ctx')).resolves.toEqual({});

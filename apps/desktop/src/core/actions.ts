@@ -270,8 +270,11 @@ export function removeFromLibraryAction(id: string): DurableAction {
   return durable({ action: 'Ctx', args: { action: 'RemoveFromLibrary', args: id } });
 }
 
+export type PlayerReport =
+  'Ended' | 'PausedChanged' | 'Seek' | 'TimeChanged' | 'VideoParamsChanged';
+
 /** Reports playback to Core while it runs. The final save supersedes these reports. */
-export function playerAction(action: string, args?: unknown): TransientAction {
+export function playerAction(action: PlayerReport, args?: unknown): TransientAction {
   return transient({ action: 'Player', args: { action, ...(args === undefined ? {} : { args }) } });
 }
 

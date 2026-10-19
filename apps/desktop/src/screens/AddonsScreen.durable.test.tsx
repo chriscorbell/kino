@@ -74,12 +74,33 @@ it('reports an installed add-on only after Core has stored it', async () => {
   expect(await screen.findByText('The add-on was installed.')).toBeInTheDocument();
 });
 
-it('reports a removal that Core could not store', async () => {
+it('reports an install that Core applied but could not store', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  core.flush = () => Promise.reject(new Error('Storage is full.'));
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(manifest)));
+  render(<AddonsScreen />);
+  fireEvent.change(screen.getByLabelText('Add-on manifest URL'), {
+    target: { value: 'https://addon.invalid/manifest.json' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Install' }));
+  expect(
+    await screen.findByText(
+      'The add-on was installed but could not be saved. It may be missing after Kino restarts.',
+    ),
+  ).toBeInTheDocument();
+  expect(core.calls).toEqual(['dispatch InstallAddon', 'flush']);
+});
+
+it('reports a removal that Core applied but could not store', async () => {
   vi.spyOn(console, 'error').mockImplementation(() => {});
   core.addons = [buildAddon('https://addon.invalid/manifest.json', manifest)];
   core.flush = () => Promise.reject(new Error('Storage is full.'));
   render(<AddonsScreen />);
   fireEvent.click(screen.getByRole('button', { name: 'Remove Fixture add-on' }));
-  expect(await screen.findByText('That add-on could not be removed.')).toBeInTheDocument();
+  expect(
+    await screen.findByText(
+      'The add-on was removed but the change could not be saved. It may return after Kino restarts.',
+    ),
+  ).toBeInTheDocument();
   expect(core.calls).toEqual(['dispatch UninstallAddon', 'flush']);
 });

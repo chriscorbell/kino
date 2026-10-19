@@ -16,6 +16,7 @@ import { nativeShellPresent } from '../native/player';
 import { AddonTransportError, addonTransportIssue, createAddonNetwork } from '../core/addonNetwork';
 import { fetchNativeAddonRedirect } from '../native/player';
 import { useCore } from '../core/context';
+import { CoreSaveError } from '../core/transport';
 import type { CoreAddon } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
@@ -69,7 +70,9 @@ export function AddonsScreen() {
       setError(
         cause instanceof AddonReplacementError
           ? enUS.addons.replaceFailed
-          : enUS.addons.installFailed,
+          : cause instanceof CoreSaveError
+            ? enUS.addons.installNotSaved
+            : enUS.addons.installFailed,
       );
     } finally {
       if (current === epoch.current) setBusy(false);
@@ -129,7 +132,9 @@ export function AddonsScreen() {
       setError(
         cause instanceof AddonTransportError
           ? enUS.addons.transportIssues[cause.issue]
-          : enUS.addons.installFailed,
+          : cause instanceof CoreSaveError
+            ? enUS.addons.installNotSaved
+            : enUS.addons.installFailed,
       );
       console.error(
         '[kino:addons] install failed',
@@ -174,7 +179,9 @@ export function AddonsScreen() {
   const uninstall = (addon: CoreAddon) => {
     if (!transport || busy) return;
     void transport.commit(uninstallAddonAction(addon)).catch((cause: unknown) => {
-      setError(enUS.addons.removeFailed);
+      setError(
+        cause instanceof CoreSaveError ? enUS.addons.removeNotSaved : enUS.addons.removeFailed,
+      );
       console.error('[kino:addons] remove failed', cause);
     });
   };
