@@ -5,6 +5,7 @@ import { CoreContext } from '../core/context';
 import type { CoreTransport } from '../core/transport';
 import type { CoreAction, CoreModelName } from '../core/types';
 import { metaItem, preview } from '../test/coreState';
+import { commitThrough } from '../test/transport';
 import { MetaDetailsScreen } from './MetaDetailsScreen';
 
 const item = preview({ id: 'movie', name: 'Profile fixture', type: 'movie' });
@@ -16,11 +17,7 @@ function transport(inLibrary: boolean) {
   const flush = vi.fn();
   return {
     destroy: vi.fn(),
-    // Built like the production commit, so a test can fail either step.
-    commit: async (...args) => {
-      await dispatch(...args);
-      await flush();
-    },
+    commit: commitThrough(dispatch, flush),
     flush,
     prepareClose: vi.fn(),
     init: vi.fn(),

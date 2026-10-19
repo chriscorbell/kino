@@ -6,8 +6,6 @@ import type { CoreAddon } from '../core/types';
 import { addon as buildAddon, profile } from '../test/coreState';
 import { AddonsScreen } from './AddonsScreen';
 
-// The production transport runs over a fake worker, so the screen's writes
-// reach the same dispatch and flush calls Core answers.
 const core = vi.hoisted(() => ({
   addons: [] as CoreAddon[],
   calls: [] as string[],

@@ -182,8 +182,8 @@ export function loadPlayerAction(selection: PlaybackSelection): TransientAction 
 }
 
 /**
- * Sign-in is confirmed by Core's UserAuthenticated event, not by storage, and
- * closing the Core that signed in stores the session.
+ * Sign-in succeeds on Core's UserAuthenticated event, after the dispatch has
+ * returned, so waiting for storage here would wait for nothing.
  */
 export function loginAction(email: string, password: string): TransientAction {
   return transient({
@@ -205,7 +205,6 @@ export function updateProfileSettingsAction(
   });
 }
 
-/** The add-on record Core stores. */
 interface AddonDescriptor {
   flags: { official: boolean; protected: boolean };
   manifest: Readonly<Record<string, unknown>>;
@@ -220,7 +219,6 @@ function addonPayload(addon: CoreAddon): AddonDescriptor {
   };
 }
 
-/** Installs a descriptor Kino built from a fetched manifest, such as the guest catalog. */
 export function installDescriptorAction(descriptor: AddonDescriptor): DurableAction {
   return durable({ action: 'Ctx', args: { action: 'InstallAddon', args: descriptor } });
 }
@@ -279,8 +277,7 @@ export function playerAction(action: string, args?: unknown): TransientAction {
 
 /**
  * TimeChanged is throttled by Core. PausedChanged forces the current library
- * item into storage and account sync before Unload clears it, so the player's
- * final save commits this.
+ * item into storage and account sync before Unload clears it.
  */
 export const finalPauseAction: DurableAction = durable({
   action: 'Player',

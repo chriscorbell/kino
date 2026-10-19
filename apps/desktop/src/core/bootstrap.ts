@@ -49,8 +49,8 @@ export async function ensureGuestCatalog(transport: CoreTransport, signal?: Abor
       }),
     );
   } catch (error) {
-    // A save that fails or times out leaves the catalog installed for this
-    // session, so it is the optional catalog's failure, not the session's.
+    // The catalog stays installed for this session, so a failed save is not
+    // the session's failure.
     throw new GuestCatalogError('The default guest catalog could not be saved.', { cause: error });
   }
 }

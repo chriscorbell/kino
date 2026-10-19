@@ -3,21 +3,23 @@ import { it } from 'vitest';
 import { loadBoardAction, logoutAction } from './actions';
 import type { CoreTransport } from './transport';
 
-// `pnpm typecheck` compiles this file, and each directive fails it if the call
-// below the directive compiles.
-it('accepts a durable action only on commit and a transient one only on dispatch', async () => {
-  const transport: Pick<CoreTransport, 'commit' | 'dispatch'> = {
-    commit: async () => {},
-    dispatch: async () => {},
-  };
+const transport: Pick<CoreTransport, 'commit' | 'dispatch'> = {
+  commit: async () => {},
+  dispatch: async () => {},
+};
+
+it('compiles a durable action only on commit and a transient one only on dispatch', async () => {
   await transport.commit(logoutAction);
   await transport.dispatch(loadBoardAction);
-  // @ts-expect-error A durable action has to wait for storage, so dispatch refuses it.
+  // @ts-expect-error durable on dispatch
   await transport.dispatch(logoutAction);
-  // @ts-expect-error commit refuses an action that may be lost on close.
+  // @ts-expect-error transient on commit
   await transport.commit(loadBoardAction);
-  // @ts-expect-error An object literal has no brand, so it needs a builder to reach Core.
+});
+
+it('compiles no object literal on either method, so every action comes from a builder', async () => {
+  // @ts-expect-error literal on dispatch
   await transport.dispatch({ action: 'Ctx', args: { action: 'Logout' } });
-  // @ts-expect-error An object literal has no brand, so it needs a builder to reach Core.
+  // @ts-expect-error literal on commit
   await transport.commit({ action: 'Ctx', args: { action: 'Logout' } });
 });

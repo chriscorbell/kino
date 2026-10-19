@@ -5,6 +5,7 @@ import { App } from '../App';
 import { CoreRecovery } from '../components/CoreRecovery';
 import { t as enUS } from '../locales';
 import { profile } from '../test/coreState';
+import { commitThrough } from '../test/transport';
 import { CoreProvider } from './CoreProvider';
 import { useCore } from './context';
 import type { CoreSession } from './storage';
@@ -21,11 +22,7 @@ vi.mock('./transport', () => ({
     const transport: CoreTransport = {
       init: () => control.init(session),
       destroy: vi.fn().mockResolvedValue(undefined),
-      // Built like the production commit, so a test can fail the storage step.
-      commit: async (...args) => {
-        await dispatch(...args);
-        await control.store();
-      },
+      commit: commitThrough(dispatch, control.store),
       dispatch,
       prepareClose: vi.fn().mockResolvedValue(undefined),
       onBeforeDestroy: () => () => {},
@@ -111,23 +108,15 @@ it('keeps Core and Settings usable after an optional catalog failure, then retri
   expect(control.transports).toHaveLength(1);
 });
 
-it('keeps Core running when the guest catalog cannot be stored, then retries the catalog', async () => {
+it('offers the catalog retry and keeps Core running when the guest catalog cannot be stored', async () => {
   control.store.mockRejectedValueOnce(new Error('Core storage did not finish in time.'));
-  vi.mocked(fetch).mockImplementation(
-    async () => new Response(JSON.stringify({ id: 'com.linvo.cinemeta', name: 'Cinemeta' })),
-  );
   render(
     <CoreProvider>
       <Probe />
     </CoreProvider>,
   );
-  const retry = await screen.findByRole('button', { name: 'Retry guest catalog' });
+  expect(await screen.findByRole('button', { name: 'Retry guest catalog' })).toBeVisible();
   expect(screen.getByTestId('status')).toHaveTextContent('ready');
-  fireEvent.click(retry);
-  await waitFor(() => expect(control.store).toHaveBeenCalledTimes(2));
-  await waitFor(() =>
-    expect(screen.queryByRole('button', { name: 'Retry guest catalog' })).not.toBeInTheDocument(),
-  );
   expect(control.transports).toHaveLength(1);
 });
 

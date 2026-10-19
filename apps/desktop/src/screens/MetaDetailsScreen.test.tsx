@@ -70,7 +70,6 @@ function mountDetails(
     .mockResolvedValue(undefined);
   const transport: CoreTransport = {
     destroy: vi.fn(),
-    // Library and watched writes land in the same record as every other action.
     commit: dispatch,
     prepareClose: vi.fn().mockResolvedValue(undefined),
     onBeforeDestroy: () => () => {},

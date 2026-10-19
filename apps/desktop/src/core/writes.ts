@@ -4,24 +4,13 @@ import type { CoreAction } from './types';
 
 declare const durability: unique symbol;
 
-/**
- * A change that must survive a closed window: library and watched state,
- * profile settings, add-ons, sign-out, and the player's final save. Only
- * `transport.commit` accepts it.
- */
+/** A change that must survive a closed window. */
 export type DurableAction = CoreAction & { readonly [durability]: 'durable' };
 
-/**
- * An action whose effect may be lost on close: loads, paging, ranges, and the
- * progress reports the final save supersedes. Only `transport.dispatch`
- * accepts it.
- */
+/** An action whose effect may be lost on close. */
 export type TransientAction = CoreAction & { readonly [durability]: 'transient' };
 
-/**
- * For the builders in core/actions.ts. An object literal carries neither
- * brand, so it reaches no transport method without a builder that decided.
- */
+/** For action builders only, so every action that reaches Core had its durability decided. */
 export function durable(action: CoreAction): DurableAction {
   return action as DurableAction;
 }

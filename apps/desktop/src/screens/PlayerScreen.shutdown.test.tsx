@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CoreContext } from '../core/context';
 import type { CoreTransport } from '../core/transport';
-import type { DurableAction } from '../core/writes';
 import { preview, urlSource, video } from '../test/coreState';
+import { commitThrough } from '../test/transport';
 import { defaultSettings } from '../settings';
 import { PlayerScreen } from './PlayerScreen';
 
@@ -52,15 +52,21 @@ async function mountPlayer({ upNext = true, hasNextVideo = true } = {}) {
   const pending = new Promise<void>((resolve) => {
     finishFlush = resolve;
   });
+  const dispatch = vi.fn(async (action: { action: string; args?: unknown }) => {
+    const args = action.args as { action?: string; args?: { time?: number } } | undefined;
+    calls.push(
+      action.action === 'Player' ? `${args?.action}:${args?.args?.time ?? ''}` : action.action,
+    );
+  });
+  const flush = vi.fn(async () => {
+    calls.push('flush');
+    if (holdFlush) await pending;
+    calls.push('saved');
+  });
   const transport = {
     init: vi.fn(),
     destroy: vi.fn(),
-    dispatch: vi.fn(async (action: { action: string; args?: unknown }) => {
-      const args = action.args as { action?: string; args?: { time?: number } } | undefined;
-      calls.push(
-        action.action === 'Player' ? `${args?.action}:${args?.args?.time ?? ''}` : action.action,
-      );
-    }),
+    dispatch,
     getState: (async () => ({
       libraryItem: null,
       selected: { stream },
@@ -76,16 +82,8 @@ async function mountPlayer({ upNext = true, hasNextVideo = true } = {}) {
     prepareClose: async () => {
       await Promise.all([...closing].map((callback) => callback()));
     },
-    flush: vi.fn(async () => {
-      calls.push('flush');
-      if (holdFlush) await pending;
-      calls.push('saved');
-    }),
-    // Built like the production commit, so the record shows each save's flush.
-    commit: async (action: DurableAction): Promise<void> => {
-      await transport.dispatch(action);
-      await transport.flush();
-    },
+    flush,
+    commit: commitThrough(dispatch, flush),
   };
   const stream = urlSource('https://media.invalid/fixture.mp4');
   const onBack = vi.fn();

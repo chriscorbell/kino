@@ -5,6 +5,7 @@ import { CoreContext } from '../core/context';
 import type { CoreTransport } from '../core/transport';
 import type { CoreRuntimeEvent } from '../core/types';
 import { profile } from '../test/coreState';
+import { commitThrough } from '../test/transport';
 import { defaultSettings } from '../settings';
 import { HomeScreen } from './HomeScreen';
 import { SettingsScreen } from './SettingsScreen';
@@ -24,11 +25,7 @@ function fixture() {
   const target: CoreTransport & { flush: typeof flush } = {
     init: vi.fn(),
     destroy: vi.fn(),
-    // Built like the production commit, so a test can fail either step.
-    commit: async (...args) => {
-      await dispatch(...args);
-      await flush();
-    },
+    commit: commitThrough(dispatch, flush),
     flush,
     prepareClose: vi.fn(),
     onBeforeDestroy: () => () => {},
