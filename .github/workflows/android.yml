@@ -6,6 +6,9 @@ on:
       [
         'apps/android-tv/**',
         'fixtures/parity/**',
+        'apps/desktop/src/locales/en-US.ts',
+        'apps/desktop/src/locales/tv.ts',
+        'scripts/generate-tv-strings.mjs',
         'packages/design-tokens/**',
         'scripts/*android*',
         'scripts/build-engine.sh',
@@ -23,6 +26,9 @@ on:
       [
         'apps/android-tv/**',
         'fixtures/parity/**',
+        'apps/desktop/src/locales/en-US.ts',
+        'apps/desktop/src/locales/tv.ts',
+        'scripts/generate-tv-strings.mjs',
         'packages/design-tokens/**',
         'scripts/*android*',
         'scripts/build-engine.sh',

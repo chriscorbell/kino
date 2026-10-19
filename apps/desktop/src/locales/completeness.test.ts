@@ -5,12 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runInNewContext } from 'node:vm';
 import { expect, it } from 'vitest';
+import { desktopMessagePaths, sources, valueAt } from '../test/messagePaths';
 import { locales, resolveLocaleTag } from './index';
-
-const sources = import.meta.glob<string>(
-  ['../**/*.{ts,tsx}', '!../**/*.test.*', '!../test/**', '!../locales/**', '!../**/*.d.ts'],
-  { eager: true, import: 'default', query: '?raw' },
-);
 
 it('generates the native fallback from the same messages and locale resolver', () => {
   const directory = mkdtempSync(join(tmpdir(), 'kino-locale-'));
@@ -27,45 +23,8 @@ it('generates the native fallback from the same messages and locale resolver', (
   }
 });
 
-function leafPaths(value: unknown, prefix = ''): string[] {
-  if (typeof value === 'string' || typeof value === 'function') return [prefix];
-  return Object.entries(value as Record<string, unknown>).flatMap(([key, child]) =>
-    leafPaths(child, prefix ? `${prefix}.${key}` : key),
-  );
-}
-
-function valueAt(value: unknown, keys: string[]) {
-  return keys.reduce<unknown>(
-    (parent, key) =>
-      parent && typeof parent === 'object' ? (parent as Record<string, unknown>)[key] : undefined,
-    value,
-  );
-}
-
 it('covers the actual UI message paths in every registered locale', () => {
-  const paths = new Set<string>();
-  for (const [path, source] of Object.entries(sources)) {
-    const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true);
-    const visit = (node: ts.Node) => {
-      if (ts.isPropertyAccessExpression(node)) {
-        const keys: string[] = [];
-        let root: ts.Expression = node;
-        while (ts.isPropertyAccessExpression(root)) {
-          keys.unshift(root.name.text);
-          root = root.expression;
-        }
-        if (ts.isIdentifier(root) && (root.text === 't' || root.text === 'enUS')) {
-          const value = valueAt(locales['en-US'], keys);
-          // A dynamic lookup such as transportIssues[issue] consumes its group.
-          if (value && typeof value === 'object')
-            leafPaths(value, keys.join('.')).forEach((key) => paths.add(key));
-          else paths.add(keys.join('.'));
-        }
-      }
-      ts.forEachChild(node, visit);
-    };
-    visit(file);
-  }
+  const paths = desktopMessagePaths();
   expect(paths.size).toBeGreaterThan(200);
   for (const [tag, messages] of Object.entries(locales)) {
     for (const path of paths) {

@@ -36,7 +36,7 @@ Editing a document includes removing what it no longer needs: a limitation now f
 
 ## Conventions
 
-- Visible text goes through `apps/desktop/src/locales/en-US.ts`. `completeness.test.ts` fails on a gap.
+- Visible text goes through `apps/desktop/src/locales/en-US.ts`. `completeness.test.ts` fails on a gap. TV text that means the same as a desktop message stays out of `strings.xml`: map its resource name to the message in `apps/desktop/src/locales/tv.ts`, and the TV build generates it.
 - Everything under `build/` is generated and disposable, vendored upstream checkouts included. Upstream changes live as patch files next to the pinned revision and lock file, under `apps/stream-engine/patches` or `apps/android-tv/core/patches`. ADR 0008 explains why.
 - Native logs and diagnostics carry stable event names and sanitized fields only. Source URLs, request headers, credentials, media titles, and filesystem paths stay out of them; `docs/PRODUCT.md` promises this and several gates enforce it.
 - Comments explain why the code is shaped the way it is: the constraint, the upstream quirk, or the failure that produced it. Match the density and register of the file you are in.

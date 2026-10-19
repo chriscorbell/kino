@@ -84,7 +84,8 @@ export function LibraryScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => v
               >
                 {selectable.sorts.map((option) => (
                   <option key={option.sort} value={option.sort}>
-                    {enUS.library.sorts[option.sort] ?? sortLabel(option.sort)}
+                    {(enUS.library.sorts as Record<string, string>)[option.sort] ??
+                      sortLabel(option.sort)}
                   </option>
                 ))}
               </select>

@@ -1,5 +1,4 @@
 export const enUS = {
-  appName: 'Kino',
   native: {
     interfaceFailed: 'Kino could not load its interface.',
     checkLog: 'Check the local Kino log for details.',
@@ -142,7 +141,7 @@ export const enUS = {
       timeswatched: 'Most watched',
       watched: 'Watched first',
       notwatched: 'Unwatched first',
-    } as Record<string, string>,
+    } satisfies Record<string, string>,
     newEpisodes: (count: number) => `${count} new`,
   },
   addons: {
@@ -162,7 +161,6 @@ export const enUS = {
       insecure: 'Blocked. This add-on requires an HTTPS manifest URL.',
       redirect: 'Blocked. This add-on redirects requests. Install its final HTTPS manifest URL.',
     },
-    remove: 'Remove',
     removeFailed: 'That add-on could not be removed.',
     removeNotSaved:
       'The add-on was removed but the change could not be saved. It may return after Kino restarts.',
@@ -206,28 +204,6 @@ export const enUS = {
     upNextDescription: 'Offer the next episode near the ending',
     languages: 'Languages',
     languagesNote: 'Language preferences come from your Stremio profile and sync across devices.',
-    tvLanguagesNote:
-      'Defaults for new playback in this profile on this TV. Remembered track choices take precedence.',
-    tvCacheDescription: 'Cached artwork for this profile. Artwork loads again when needed.',
-    on: 'On',
-    off: 'Off',
-    default: 'Default',
-    unavailable: 'Unavailable',
-    savingPreference: 'Saving preference…',
-    preferenceFailed: 'The preference could not be saved. Try again.',
-    tvDiagnosticSummary: (
-      version: string,
-      build: number,
-      android: string,
-      api: number,
-      abi: string,
-      core: string,
-      media3: string,
-      ffmpeg: string,
-      audio: string,
-    ) =>
-      `Kino: ${version} (build ${build})\nAndroid: ${android} (API ${api})\nABI: ${abi}\nStremio Core revision: ${core}\nMedia3: ${media3}\nFFmpeg audio: ${ffmpeg}\nVideo decoding: hardware only\nVideo output: SDR\nAudio output: ${audio}`,
-
     subtitleLanguage: 'Subtitle language',
     subtitleLanguageDescription: 'Preferred language when subtitles load automatically',
     audioLanguage: 'Audio language',

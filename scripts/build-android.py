@@ -256,6 +256,7 @@ def main():
     rustup = shutil.which("rustup") or str(Path.home() / ".cargo/bin/rustup")
     run(rustup, "toolchain", "install", TOOLCHAIN, "--profile", "minimal", "--target", "aarch64-linux-android")
     BUILD.mkdir(exist_ok=True)
+    run("node", ROOT / "scripts/generate-tv-strings.mjs")
     patches = sorted((APP / "core/patches").glob("*.patch"))
     lock = APP / "core/Cargo.lock"
     stamp = VENDOR.with_suffix(".stamp")

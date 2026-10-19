@@ -234,7 +234,7 @@ class TvBrowseTest {
             remote.waitFor(context.getString(R.string.sort_name_reverse))
             remote.focus(context.getString(R.string.sort_name_reverse))
             remote.key(KeyEvent.KEYCODE_DPAD_CENTER)
-            remote.waitUntil("Z to A puts the last title first") {
+            remote.waitUntil("Title Z–A puts the last title first") {
                 core.state.value.libraryPages.items
                     .firstOrNull { it.title.startsWith("Shelved") }
                     ?.title == "Shelved 130"
