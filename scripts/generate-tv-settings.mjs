@@ -40,7 +40,9 @@ function entry({ name, key, value }) {
         value.values.map((choice) => `    ${constant(choice)}("${choice}"),\n`).join('') +
         '}\n',
     );
-    return declare(`TextChoiceSetting("${key}", ${type}.${constant(value.default)}, ${type}.entries)`);
+    return declare(
+      `TextChoiceSetting("${key}", ${type}.${constant(value.default)}, ${type}.entries)`,
+    );
   }
   if (value.kind === 'choice' && value.values.every(Number.isSafeInteger))
     return declare(

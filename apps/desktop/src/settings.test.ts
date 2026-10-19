@@ -15,6 +15,8 @@ function createStorage(initial?: string) {
   };
 }
 
+const load = (values: object) => loadSettings(createStorage(JSON.stringify(values)));
+
 describe('settings storage', () => {
   it('uses product defaults when no settings exist', () => {
     const storage = createStorage();
@@ -97,8 +99,6 @@ describe('settings storage', () => {
   });
 
   it('keeps a ranged value at either limit and repairs one past it or of another type', () => {
-    const load = (values: object) => loadSettings(createStorage(JSON.stringify(values)));
-
     expect(load({ subtitlePosition: 50, subtitleSize: 200, volume: 0 })).toMatchObject({
       subtitlePosition: 50,
       subtitleSize: 200,
@@ -112,8 +112,6 @@ describe('settings storage', () => {
   });
 
   it('keeps only listed choices and real booleans', () => {
-    const load = (values: object) => loadSettings(createStorage(JSON.stringify(values)));
-
     expect(load({ audioOutput: 'stereo', interfaceScale: 125, upNext: false })).toMatchObject({
       audioOutput: 'stereo',
       interfaceScale: 125,
@@ -121,11 +119,16 @@ describe('settings storage', () => {
     });
     expect(
       load({ audioOutput: 'Stereo', interfaceScale: '125', skipIntroButton: 'false', upNext: 0 }),
-    ).toMatchObject({ audioOutput: 'auto', interfaceScale: 100, skipIntroButton: true, upNext: true });
+    ).toMatchObject({
+      audioOutput: 'auto',
+      interfaceScale: 100,
+      skipIntroButton: true,
+      upNext: true,
+    });
   });
 
   it('reads subtitle size and position on the desktop scale, not the TV one', () => {
-    expect(loadSettings(createStorage('{"subtitlePosition":16}')).subtitlePosition).toBe(94);
+    expect(load({ subtitlePosition: 16 }).subtitlePosition).toBe(94);
   });
 
   it('stores no setting that only the TV lists', async () => {

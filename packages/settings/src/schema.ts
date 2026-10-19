@@ -6,7 +6,8 @@
 //
 // Node loads this file directly for the generator, so it keeps to TypeScript that Node can strip.
 
-export type DesktopPlatform = 'macos' | 'windows' | 'linux';
+export const desktopPlatforms = ['macos', 'windows', 'linux'] as const;
+export type DesktopPlatform = (typeof desktopPlatforms)[number];
 
 export interface BooleanValue {
   readonly kind: 'boolean';
@@ -30,8 +31,7 @@ export type ShellCapability = 'interfaceScale' | 'refreshRateMatching';
 
 /** Who applies a setting on a desktop platform: the React client, or a capability of the shell. */
 export type DesktopConsumer =
-  | { readonly by: 'client' }
-  | { readonly by: 'shell'; readonly capability: ShellCapability };
+  { readonly by: 'client' } | { readonly by: 'shell'; readonly capability: ShellCapability };
 
 /** The TV stores booleans as booleans and choices as text, and has nowhere to store a range. */
 type TvValue = BooleanValue | ChoiceValue;

@@ -1,4 +1,9 @@
-import { type DesktopPlatform, type SettingValue, settingsSchema } from '@kino/settings';
+import {
+  type DesktopPlatform,
+  desktopPlatforms,
+  type SettingValue,
+  settingsSchema,
+} from '@kino/settings';
 
 export const SETTINGS_STORAGE_KEY = 'kino.settings.v1';
 
@@ -19,7 +24,6 @@ type ValueOf<Value extends SettingValue> = Value extends { kind: 'boolean' }
 /** Every Kino setting a desktop platform lists, in one record the client keeps on the device. */
 export type KinoSettings = { -readonly [Key in DesktopKey]: ValueOf<Schema[Key]['value']> };
 
-const desktopPlatforms: readonly DesktopPlatform[] = ['macos', 'windows', 'linux'];
 const desktopKeys = (Object.keys(settingsSchema) as (keyof Schema)[]).filter((key) =>
   desktopPlatforms.some((platform) => platform in settingsSchema[key].platforms),
 ) as DesktopKey[];
