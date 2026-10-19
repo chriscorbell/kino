@@ -8,8 +8,10 @@
 // already holds, and mpv merges quick changes into one report of where it
 // ended. A send therefore stays in flight until a report matches it or
 // `inFlightMs` passes. While anything is in flight, a report that matches
-// nothing describes a state a send will replace, such as mpv's start-up
-// default or a volume from before the viewer's last step, so it is ignored.
+// nothing is ignored, because it is usually a state a send will replace, such
+// as mpv's start-up default or a volume from before the viewer's last step.
+// When the send in flight is a value the player already held, nothing replaces
+// that report, and an outside change is lost until the next change.
 
 export type InFlightVolumes = readonly { readonly percent: number; readonly sentAt: number }[];
 
