@@ -65,6 +65,8 @@ The Android TV GitHub Actions workflow builds the APK, compiles the device tests
 
 ## JVM tests
 
+Like the Kotlin-only commands above, these need the native inputs `pnpm android:build` produces under `build/` first.
+
 ```sh
 cd apps/android-tv
 ./gradlew :app:testBenchmarkUnitTest

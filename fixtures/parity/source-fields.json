@@ -89,13 +89,13 @@
     },
     {
       "name": "runtime in minutes",
-      "input": { "description": "Film 1080p", "videoSize": 1073741824, "runtime": "142 min" },
-      "expect": { "bitrateLabel": "~1.0 Mbps" }
+      "input": { "description": "Film 1080p", "videoSize": 8053063680, "runtime": "142 min" },
+      "expect": { "bitrateLabel": "~7.6 Mbps" }
     },
     {
       "name": "runtime in hours and minutes",
-      "input": { "description": "Film 1080p", "videoSize": 1073741824, "runtime": "2h 22min" },
-      "expect": { "bitrateLabel": "~1.0 Mbps" }
+      "input": { "description": "Film 1080p", "videoSize": 8053063680, "runtime": "2h 22min" },
+      "expect": { "bitrateLabel": "~7.6 Mbps" }
     },
     {
       "name": "bare runtime counts minutes",
