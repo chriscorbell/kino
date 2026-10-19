@@ -9,6 +9,7 @@ on:
       - .github/workflows/windows.yml
       - apps/macos-shell/**
       - apps/desktop/**
+      - packages/design-tokens/**
       - packages/settings/**
       - apps/stream-engine/**
       - scripts/build-engine.sh
@@ -30,6 +31,8 @@ on:
       - third_party/notices/**
       - package.json
       - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - .node-version
   push:
     branches:
       - main

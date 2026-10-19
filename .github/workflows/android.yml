@@ -19,6 +19,7 @@ on:
         'scripts/test-support/pe.mjs',
         'third_party/notices/**',
         '.github/workflows/android.yml',
+        '.node-version',
       ]
   push:
     branches: [main]
@@ -39,6 +40,7 @@ on:
         'scripts/test-support/pe.mjs',
         'third_party/notices/**',
         '.github/workflows/android.yml',
+        '.node-version',
       ]
 
 permissions:

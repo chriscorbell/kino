@@ -5,25 +5,42 @@
 // skips the job that would have caught the break. Six macOS gates sat unrun until #204, and
 // #272 found the native filter missing a script packaging imports.
 //
+// The same reading decides whether CI's native jobs run: the files they read are computed here,
+// so a new probe or helper needs no filter edit.
+//
 //   node scripts/check-gate-wiring.mjs [repository root]
+//   node scripts/check-gate-wiring.mjs --native-inputs        print what the native jobs read
+//   node scripts/check-gate-wiring.mjs --native-changed BASE HEAD
 //
 // The wiring is read from the files as they stand, by pattern rather than by parsing YAML. It
-// traces local imports of JavaScript scripts, and the scripts/ paths named in shell, Python,
-// workflow, CMake and package text. It does not trace scripts/ paths in string literals inside
-// JavaScript, reads of third_party/ or packaging/, or a path built at run time.
+// traces local imports of JavaScript and TypeScript, and the scripts/ paths named in scripts,
+// workflow, CMake and package text. It does not see a path built at run time, and a script's reads
+// of other directories are listed in SCRIPT_READS.
+import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { dirname, join, posix } from 'node:path';
 
-const root = process.argv[2] ?? join(import.meta.dirname, '..');
+const [mode, ...rest] = process.argv[2]?.startsWith('--')
+  ? process.argv.slice(2)
+  : ['--check', ...process.argv.slice(2)];
+const root = (mode === '--native-changed' ? undefined : rest[0]) ?? join(import.meta.dirname, '..');
 const read = (path) => readFileSync(join(root, path), 'utf8');
 
-const SCRIPT_REF = /scripts\/[\w./-]+\.(?:mjs|js|sh|py)\b/g;
+const SCRIPT_REF = /scripts\/[\w./-]+\.(?:mjs|js|sh|py|cpp)\b/g;
 const PNPM_RUN = /\bpnpm (?:run )?([\w:-]+)/g;
+const RUNNER = /\brun-check\.mjs(?:[ \t]+(\w+))?/g;
+const CLIENT_BUILD = /--filter @kino\/desktop build/;
 const BY_HAND = /^(?:\/\/|#) Gate: by hand, \S/m;
 // Selecting tests would make every add_test script count as run when only some are. Short flags
 // can carry their value glued on, as in -Rname, so they take no word boundary.
 const CTEST_FILTER =
   /\s(?:-[REILN]|--(?:(?:tests|exclude|label)-[\w-]+|show-only|preset|rerun-failed)\b)/;
+// vitest runs only in the web job, which every change runs.
+const UNIT_TESTS = ['!apps/desktop/**/*.test.ts', '!apps/desktop/**/*.test.tsx'];
+const SCRIPT_READS = {
+  'scripts/build-engine.sh': 'apps/stream-engine/**',
+  'scripts/license-notices.mjs': 'third_party/notices/**',
+};
 
 const pkg = JSON.parse(read('package.json'));
 const scripts = pkg.scripts;
@@ -31,6 +48,9 @@ const scripts = pkg.scripts;
 const filesIn = (text, seen = new Set()) => [
   ...(text.match(SCRIPT_REF) ?? []),
   ...[...text.matchAll(PNPM_RUN)].flatMap(([, name]) => packageFiles(name, seen)),
+  ...[...text.matchAll(RUNNER)].flatMap(([, list = 'checkSteps']) =>
+    (pkg[list] ?? []).flatMap((step) => packageFiles(step, seen)),
+  ),
 ];
 function packageFiles(name, seen = new Set()) {
   if (!scripts[name] || seen.has(name)) return [];
@@ -38,22 +58,42 @@ function packageFiles(name, seen = new Set()) {
   return filesIn(scripts[name], seen);
 }
 
-const checkSteps = pkg.checkSteps ?? [...scripts.check.matchAll(PNPM_RUN)].map(([, name]) => name);
-const checked = new Set(checkSteps.flatMap((step) => packageFiles(step)));
+const checked = new Set(packageFiles('check'));
 const packaged = new Set(
   Object.values(scripts).flatMap((command) => command.match(SCRIPT_REF) ?? []),
 );
 
-// CMake configure runs any script the build files name outside add_test, so every job that builds
-// the shell reads it; a script named inside add_test runs only where a job runs ctest.
-const cmake = { configure: new Set(), ctest: new Set() };
+// The client the shell bundles, with the workspace packages it depends on.
+const workspace = new Map(
+  readdirSync(join(root, 'packages')).map((dir) => [
+    JSON.parse(read(`packages/${dir}/package.json`)).name,
+    `packages/${dir}/**`,
+  ]),
+);
+const client = [
+  'apps/desktop/**',
+  ...Object.keys(JSON.parse(read('apps/desktop/package.json')).dependencies ?? {})
+    .filter((name) => workspace.has(name))
+    .map((name) => workspace.get(name)),
+];
+
+// CMake configure reads every repository path the build files name outside add_test, so every job
+// that builds the shell reads it; a script named inside add_test runs only where a job runs ctest.
+const cmake = { configure: new Set(['apps/macos-shell/**']), ctest: new Set() };
 const ADD_TEST = /\badd_test\s*\([^)]*\)/gi;
+const CMAKE_PATH = /\$\{(CMAKE_CURRENT_SOURCE_DIR|KINO_REPOSITORY_ROOT)\}\/([\w./*-]+)/g;
+const cmakePaths = (text) =>
+  [...text.matchAll(CMAKE_PATH)]
+    .map(([, base, path]) =>
+      posix.normalize(base === 'KINO_REPOSITORY_ROOT' ? path : `apps/macos-shell/${path}`),
+    )
+    .filter((path) => !/^(?:\.|\.\.\/.*|apps\/macos-shell\/.*)$/.test(path));
 for (const file of readdirSync(join(root, 'apps/macos-shell'), { recursive: true })) {
   if (!/(?:^|\/)CMakeLists\.txt$|\.cmake$/.test(file)) continue;
   const source = read(join('apps/macos-shell', file)).replace(/^\s*#.*$/gm, '');
-  for (const ref of source.match(ADD_TEST)?.join('\n').match(SCRIPT_REF) ?? [])
-    cmake.ctest.add(ref);
-  for (const ref of source.replace(ADD_TEST, '').match(SCRIPT_REF) ?? []) cmake.configure.add(ref);
+  for (const path of cmakePaths(source.match(ADD_TEST)?.join('\n') ?? '')) cmake.ctest.add(path);
+  for (const path of cmakePaths(source.replace(ADD_TEST, ''))) cmake.configure.add(path);
+  if (CLIENT_BUILD.test(source)) client.forEach((glob) => cmake.configure.add(glob));
 }
 
 function readWorkflow(path) {
@@ -61,7 +101,6 @@ function readWorkflow(path) {
     .split('\n')
     .map((line) => line.replace(/(?:^|\s)#.*$/, ''))
     .filter((line) => line.trim());
-  const text = lines.join('\n');
   const jobsAt = lines.indexOf('jobs:');
   const trigger = lines.slice(0, jobsAt);
 
@@ -112,29 +151,40 @@ function readWorkflow(path) {
       /cmake -S apps\/macos-shell|flatpak-builder/.test(job.body);
     job.native = /needs\.changes\.outputs\.native\b/.test(job.body);
     job.runs = [...runs, ...(buildsShell ? cmake.configure : []), ...(ctest ? cmake.ctest : [])];
+    job.via = inputsOf(job.runs);
+    const reads = (files, reason) => files.forEach((f) => job.via.has(f) || job.via.set(f, reason));
+    reads([path], null);
+    if (/\bpnpm install\b/.test(job.body))
+      reads(['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml'], 'pnpm install');
+    for (const [, file] of job.body.matchAll(/node-version-file:\s*(\S+)/g)) reads([file], null);
+    if (CLIENT_BUILD.test(job.body)) reads(client, 'the client build');
   }
-
-  // The changes job's `const xPaths = /^.../;` filters, whose union decides whether native jobs run.
-  const filters = [...text.matchAll(/const (\w+Paths) = \/(\^.*)\/;/g)].map(([, name, source]) => ({
-    name,
-    pattern: new RegExp(source),
-  }));
-  return { path, pathLists, filters, jobs };
+  return { path, pathLists, jobs };
 }
 
-// Client sources Vite bundles are not imports of any script, so the workflows' filters cover them
-// with a directory glob.
+// Every file the given files read, each mapped to the file that led to it. A glob such as a
+// directory is kept as it stands.
 function inputsOf(files) {
   const via = new Map();
   const visit = (file, parent) => {
-    if (via.has(file) || !existsSync(join(root, file))) return;
+    if (via.has(file)) return;
+    if (file.includes('*')) return via.set(file, parent);
+    if (!existsSync(join(root, file))) return;
     via.set(file, parent);
-    let next = [];
-    if (/^scripts\/.*\.(?:sh|py)$/.test(file)) next = read(file).match(SCRIPT_REF) ?? [];
-    else if (/^scripts\/.*\.(?:mjs|js)$/.test(file))
-      next = [...read(file).matchAll(/\b(?:from|import)\s*\(?\s*['"](\.\.?\/[^'"]+)['"]/g)].map(
-        ([, spec]) => relative(root, join(root, dirname(file), spec)),
-      );
+    const next = SCRIPT_READS[file] ? [SCRIPT_READS[file]] : [];
+    if (/^scripts\/.*\.(?:sh|py|mjs|js)$/.test(file))
+      next.push(...(read(file).match(SCRIPT_REF) ?? []));
+    if (/\.(?:mjs|js|ts|tsx)$/.test(file))
+      for (const [, spec] of read(file).matchAll(
+        /\b(?:from|import)\s*\(?\s*['"](\.\.?\/[^'"]+)['"]/g,
+      )) {
+        const path = posix.join(dirname(file), spec);
+        next.push(
+          ['', '.ts', '.tsx', '/index.ts']
+            .map((ending) => path + ending)
+            .find((candidate) => existsSync(join(root, candidate))) ?? path,
+        );
+      }
     for (const n of next) visit(n, file);
   };
   for (const file of files) visit(file, null);
@@ -145,20 +195,68 @@ const globMatch = (glob, file) =>
   new RegExp(
     '^' +
       glob
-        .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-        .replace(/\*\*/g, '\0')
+        .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+        .replace(/\*\*\//g, '\0')
+        .replace(/\*\*/g, '\x01')
         .replace(/\*/g, '[^/]*')
-        .replace(/\0/g, '.*') +
+        .replace(/\0/g, '(?:.*/)?')
+        .replace(/\x01/g, '.*') +
       '$',
   ).test(file);
+// As GitHub reads a paths list: the last pattern that matches decides, and ! excludes.
+const matches = (globs, file) =>
+  globs.reduce(
+    (hit, glob) =>
+      glob.startsWith('!') ? hit && !globMatch(glob.slice(1), file) : hit || globMatch(glob, file),
+    false,
+  );
 
 const workflows = readdirSync(join(root, '.github/workflows'))
   .filter((name) => name.endsWith('.yml'))
   .map((name) => readWorkflow(`.github/workflows/${name}`));
-const ranInCI = new Set(workflows.flatMap((wf) => wf.jobs.flatMap((job) => job.runs)));
+
+const nativeInputs = [
+  ...new Set(
+    workflows.flatMap((wf) =>
+      wf.jobs.filter((job) => job.native).flatMap((job) => [...job.via.keys()]),
+    ),
+  ),
+]
+  .sort()
+  .concat(UNIT_TESTS);
+
+if (mode === '--native-inputs') {
+  console.log(nativeInputs.join('\n'));
+  process.exit(0);
+}
+if (mode === '--native-changed') {
+  const [base, head] = rest;
+  // A new branch has no base to compare, so everything may have changed.
+  if (!base || /^0+$/.test(base)) {
+    console.log('native=true');
+    process.exit(0);
+  }
+  const changed = execFileSync('git', ['diff', '--name-only', '-z', base, head], {
+    cwd: root,
+    encoding: 'utf8',
+  })
+    .split('\0')
+    .filter((file) => file && matches(nativeInputs, file));
+  for (const file of changed) console.error(`native input changed: ${file}`);
+  console.log(`native=${changed.length > 0}`);
+  process.exit(0);
+}
+
+const tracked = execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8' })
+  .split('\0')
+  .filter(Boolean);
+const filesOf = (glob) =>
+  glob.includes('*') ? tracked.filter((file) => matches([glob, ...UNIT_TESTS], file)) : [glob];
+
 const gates = readdirSync(join(root, 'scripts'))
   .filter((name) => name.startsWith('check-'))
   .map((name) => `scripts/${name}`);
+const ranInCI = new Set(workflows.flatMap((wf) => wf.jobs.flatMap((job) => job.runs)));
 
 const problems = [];
 for (const gate of gates) {
@@ -172,34 +270,28 @@ for (const gate of gates) {
   if (!packaged.has(gate) && !cmake.ctest.has(gate))
     problems.push(`${gate} has no package script. Add a package.json script that runs it.`);
 }
-const through = (via, file) => (via.get(file) ? ` through ${via.get(file)}` : '');
 for (const wf of workflows) {
-  if (wf.jobs.some((job) => job.native) && !wf.filters.length)
+  if (
+    wf.jobs.some((job) => job.native) &&
+    !wf.jobs.some((job) => /check-gate-wiring\.mjs --native-changed\b/.test(job.body))
+  )
     problems.push(
-      `${wf.path} gates jobs on the changes job, but no \`const xPaths = /^...$/;\` filter was found in it. Keep the filter in that form, or teach this check its new one.`,
+      `${wf.path} gates jobs on the changes job, but no job runs \`node scripts/check-gate-wiring.mjs --native-changed\` to decide it.`,
     );
   for (const job of wf.jobs.filter((job) => job.ctestFilter))
     problems.push(
       `${wf.path} runs \`${job.ctestFilter}\`, which selects tests, so this check cannot tell which add_test scripts it runs. Run the whole suite there, or teach this check to resolve the selection.`,
     );
-  if (wf.filters.length) {
-    const via = inputsOf(wf.jobs.filter((job) => job.native).flatMap((job) => job.runs));
-    const names = wf.filters.map((f) => f.name).join(' or ');
-    for (const file of via.keys())
-      if (!wf.filters.some((f) => f.pattern.test(file)))
-        problems.push(
-          `${file} is read by ${wf.path}'s native jobs${through(via, file)}, but ${names} misses it. Add it to ${names} in the changes job.`,
-        );
-  }
-  if (wf.pathLists.length) {
-    const via = inputsOf(wf.jobs.flatMap((job) => job.runs));
-    for (const { event, globs } of wf.pathLists)
-      for (const file of via.keys())
-        if (!globs.some((glob) => globMatch(glob, file)))
-          problems.push(
-            `${file} is read by ${wf.path}${through(via, file)}, but its ${event} paths miss it. Add ${file} to that list.`,
-          );
-  }
+  const reads = new Map(wf.jobs.flatMap((job) => [...job.via]));
+  for (const { event, globs } of wf.pathLists)
+    for (const [input, parent] of reads) {
+      const missed = filesOf(input).find((file) => !matches(globs, file));
+      if (!missed) continue;
+      const through = parent ? ` through ${parent}` : '';
+      problems.push(
+        `${missed} is read by ${wf.path}${through}, but its ${event} paths miss it. Add ${input} to that list.`,
+      );
+    }
 }
 
 for (const problem of problems) console.error(problem);

@@ -24,28 +24,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      # The native jobs run when a change touches a file they read, which the gate wiring check
+      # computes from what they run. It prints each changed input in the log.
       - id: paths
         name: Check native build inputs
         env:
           KINO_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
           KINO_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: |
-          node <<'JS'
-          const { execFileSync } = require('node:child_process');
-          const { appendFileSync } = require('node:fs');
-          const { KINO_BASE: base, KINO_HEAD: head } = process.env;
-          const files = !base || /^0+$/.test(base)
-            ? ['.github/workflows/ci.yml']
-            : execFileSync('git', ['diff', '--name-only', '-z', base, head], { encoding: 'utf8' }).split('\0');
-          // Inputs to the native build, its tests, and its startup probes. A
-          // change anywhere else, including the Android workflow and its
-          // scripts, leaves the macOS job skipped.
-          // The probes build the production interface and drive it screen by
-          // screen, so every client source counts; only its unit tests do not.
-          const nativePaths = /^(\.github\/workflows\/ci\.yml$|apps\/(macos-shell|stream-engine)\/|apps\/desktop\/(index\.html$|vite\.config\.ts$|package\.json$|src\/(?!.*\.test\.tsx?$))|packages\/settings\/|scripts\/(build-engine\.sh|build-macos\.sh|check-engine-|check-macos-|check-intro-community\.mjs$|check-native-addon-redirects\.mjs$|check-version\.mjs$|generate-native-locale\.mjs$|test-support\/|package-macos\.mjs$|macho\.mjs$|license-notices\.mjs$)|third_party\/|package\.json$|pnpm-lock\.yaml$|\.node-version$)/;
-          const native = files.some((file) => nativePaths.test(file));
-          appendFileSync(process.env.GITHUB_OUTPUT, `native=${native}\n`);
-          JS
+        run: node scripts/check-gate-wiring.mjs --native-changed "$KINO_BASE" "$KINO_HEAD" >> "$GITHUB_OUTPUT"
 
   web:
     name: Web validation
@@ -173,27 +162,7 @@ jobs:
         timeout-minutes: 5
         run: |
           ctest --test-dir build/macos --output-on-failure --timeout 30
-          pnpm macos:check-launch
-          pnpm macos:check-engine
-          pnpm macos:check-cache-clear
-          pnpm macos:check-scale
-          pnpm macos:check-focus
-          pnpm macos:check-resume
-          pnpm macos:check-intro
-          pnpm macos:check-seasons
-          pnpm macos:check-fullscreen
-          pnpm macos:check-volume
-          pnpm macos:check-audio
-          pnpm macos:check-track-choices
-          pnpm macos:check-web-console
-          pnpm macos:check-navigation
-          pnpm macos:check-interface-recovery
-          pnpm macos:check-tls
-          pnpm macos:check-engine-ui
-          pnpm macos:check-engine-retry
-          pnpm macos:check-request-headers
-          pnpm macos:check-shutdown
-          pnpm macos:check-addon-transports
+          pnpm macos:check-probes
       - name: Run the playback contract matrix
         timeout-minutes: 15
         # The hosted runner's virtual GPU draws video a capture reads back as black, so the pixel
@@ -254,12 +223,7 @@ jobs:
         env:
           KINO_APP_BINARY: ${{ github.workspace }}/build/linux/Kino
           QTWEBENGINE_DISABLE_SANDBOX: '1'
-        run: |
-          xvfb-run -a -s "-screen 0 1920x1080x24" pnpm macos:check-launch
-          xvfb-run -a -s "-screen 0 1920x1080x24" pnpm macos:check-navigation
-          xvfb-run -a -s "-screen 0 1920x1080x24" pnpm macos:check-focus
-          xvfb-run -a -s "-screen 0 1920x1080x24" pnpm macos:check-scale
-          xvfb-run -a -s "-screen 0 1920x1080x24" pnpm macos:check-interface-recovery
+        run: xvfb-run -a -s "-screen 0 1920x1080x24" pnpm linux:check-probes
 
   validate:
     name: Validate
