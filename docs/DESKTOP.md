@@ -22,7 +22,7 @@ Kino settings are declared once, with the platforms that honor each, in `package
 
 ## Player
 
-The player saves volume locally between launches. Its slider and Up/Down shortcuts adjust 0-100% volume; M toggles mute, and raising volume unmutes playback. Focused sliders keep their native keyboard step. `pnpm macos:check-volume` verifies the production WebChannel method and libmpv volume notifications, including bounds.
+The player saves volume locally between launches, including a change the shell reports that Kino did not make, though one made within a second of a Kino change the player has not reported yet can be missed. Its slider and Up/Down shortcuts adjust 0-100% volume; M toggles mute, and raising volume unmutes playback. Focused sliders keep their native keyboard step. `pnpm macos:check-volume` verifies the production WebChannel method and libmpv volume notifications, including bounds and that mpv sends no notification for a volume it already holds.
 
 The fullscreen button and F toggle the current window state. Escape exits fullscreen after closing any open subtitle menu. The native bridge follows Qt window visibility, including changes through macOS window controls. `pnpm macos:check-fullscreen` verifies the actual WebChannel property and change notifications through repeated entry and exit.
 

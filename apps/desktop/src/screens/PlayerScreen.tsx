@@ -60,6 +60,7 @@ import {
   type ProgressReporter,
 } from '../playback/progress';
 import { videoBackend } from '../playback/videoBackend';
+import { observeVolume, sentVolume, type InFlightVolumes } from '../playback/volume';
 
 export function PlayerScreen({
   onBack,
@@ -92,7 +93,6 @@ export function PlayerScreen({
   const [time, setTime] = useState(0);
   const [paused, setPaused] = useState(true);
   const [muted, setMuted] = useState(false);
-  const [volume, setVolume] = useState(settings.volume);
   const [buffering, setBuffering] = useState(false);
   const [nativePlayer, setNativePlayer] = useState<NativePlayer | null>(null);
   const nativeShell = nativeShellPresent();
@@ -276,23 +276,36 @@ export function PlayerScreen({
     [backend, updateTime],
   );
 
+  // A send that skipped sentVolume would come back looking like a change made
+  // outside Kino.
+  const inFlightVolumesRef = useRef<InFlightVolumes>([]);
+  const sendVolume = useCallback(
+    (percent: number) => {
+      if (!backend || !streamUrl) return;
+      inFlightVolumesRef.current = sentVolume(
+        inFlightVolumesRef.current,
+        percent,
+        performance.now(),
+      );
+      backend.setVolume(percent);
+    },
+    [backend, streamUrl],
+  );
+  const savedVolume = useEffectEvent(() => settings.volume);
+
   const changeVolume = useCallback(
     (percent: number) => {
       if (!Number.isFinite(percent)) return;
       const next = Math.max(0, Math.min(100, percent));
-      setVolume(next);
       updateSettings({ volume: next });
+      sendVolume(next);
       if (next > 0 && muted) {
         setMuted(false);
         backend?.setMuted(false);
       }
     },
-    [backend, muted, updateSettings],
+    [backend, muted, sendVolume, updateSettings],
   );
-
-  useEffect(() => {
-    backend?.setVolume(settings.volume);
-  }, [backend, settings.volume, streamUrl]);
 
   const toggleMuted = useCallback(() => {
     const nextMuted = !muted;
@@ -326,7 +339,7 @@ export function PlayerScreen({
     toggleFullscreen,
     toggleMuted,
     togglePlayback,
-    volume,
+    volume: settings.volume,
   });
 
   const selectSubtitleTrack = (id: number | null) => {
@@ -524,9 +537,16 @@ export function PlayerScreen({
         setEnded(true);
         progress?.ended(playbackRef.current);
         break;
-      case 'volume':
-        setVolume(event.percent);
+      case 'volume': {
+        const { inFlight, adopt } = observeVolume(
+          inFlightVolumesRef.current,
+          event.percent,
+          performance.now(),
+        );
+        inFlightVolumesRef.current = inFlight;
+        if (adopt !== null) updateSettings({ volume: adopt });
         break;
+      }
       case 'muted':
         setMuted(event.muted);
         break;
@@ -576,6 +596,7 @@ export function PlayerScreen({
     closingRef.current = false;
     progressRef.current = transport ? createProgressReporter(transport, playbackDevice()) : null;
     const unsubscribe = backend.subscribe((event) => onMedia(event, backend));
+    sendVolume(savedVolume());
     backend.load({
       url: streamUrl,
       headers: requestHeaders,
@@ -593,6 +614,7 @@ export function PlayerScreen({
     requestHeaders,
     selection.meta.id,
     selection.meta.type,
+    sendVolume,
     settings.audioOutput,
     streamUrl,
     transport,
@@ -809,7 +831,7 @@ export function PlayerScreen({
               onClick={toggleMuted}
               type="button"
             >
-              {muted || volume === 0 ? (
+              {muted || settings.volume === 0 ? (
                 <SpeakerSlash aria-hidden size={20} />
               ) : (
                 <SpeakerHigh aria-hidden size={20} />
@@ -817,13 +839,13 @@ export function PlayerScreen({
             </button>
             <input
               aria-label={enUS.player.volume}
-              aria-valuetext={enUS.format.percent(Math.round(volume))}
+              aria-valuetext={enUS.format.percent(Math.round(settings.volume))}
               className={styles.volumeSlider}
               min={0}
               max={100}
               step={1}
               type="range"
-              value={volume}
+              value={settings.volume}
               onChange={(event) => changeVolume(Number(event.target.value))}
             />
             <span className={styles.timeLabel}>
