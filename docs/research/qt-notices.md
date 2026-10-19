@@ -33,4 +33,12 @@ Qt generates `chromium_attributions.qdoc` with the GN target `:QtWebEngineCore` 
 
 The published attribution index explicitly identifies Qt 6.11.2. These are module-wide lists, so they include optional components and code for other platforms. They are a conservative notice collection, not proof that every listed component is compiled into this Homebrew build. Separately linked Homebrew libraries still need the notices for their installed versions. `qtshadertools` is included as an available bundle, but the inspected framework/plugin inventory did not require it. [Qt's third-party attribution index](https://doc.qt.io/qt-6/licenses-used-in-qt.html).
 
-For packaging, copy the required formula bundles and preserve their reviewed hashes. No runtime network request is needed to read them. When an installed Qt formula version changes, require a newly reviewed notice bundle instead of silently using these 6.11.2 files. The collection scripts in `build/license-research/qt/` retain the retrieval and assembly mechanism; they do not modify app code or packaging scripts.
+For packaging, copy the required formula bundles and preserve their reviewed hashes. No runtime network request is needed to read them. When an installed Qt formula version changes, require a newly reviewed notice bundle instead of silently using these 6.11.2 files. `scripts/review-qt-notices.mjs` records one, as `third_party/notices/README.md` describes.
+
+## Qt 6.12.0
+
+By October 19, 2026, Homebrew had moved every Qt formula Kino uses to 6.12.0 except Qt WebEngine, which stays at 6.11.2. The Mac app now ships Qt Base, Qt Declarative, Qt Positioning and Qt WebChannel at 6.12.0 beside Qt WebEngine 6.11.2. Windows and the Flatpak still build 6.11.2, so `reviewed.json` keeps the 6.11.2 reviews for their records to reuse.
+
+`scripts/review-qt-notices.mjs` recorded the 6.12.0 bundles on October 19, 2026, from the `v6.12.0` tags and the Qt 6.12 documentation. Pointed at 6.11.2 and Qt's 6.11 documentation, the same tool rebuilt the five non-WebEngine 6.11.2 bundles byte for byte once the versioned `doc.qt.io/qt-6.11/` URLs read as the `doc.qt.io/qt-6/` URLs the first review cited. That check covers the license files, the attribution page list and the conversion of each page to text.
+
+Against 6.11.2, the four 6.12.0 bundles carry the same `LICENSES/` texts byte for byte and the same 57 attribution pages. `licenseRule.json` gained classification rules for new files. Four attribution pages name newer upstream releases: PCRE2 10.48, D3D12 Memory Allocator v3.1.0 with its copyright years extended to 2026, HarfBuzz-NG 14.5.0 and Vulkan Memory Allocator 3.3.0. No license terms changed.

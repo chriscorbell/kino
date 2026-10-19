@@ -26,15 +26,21 @@ export function record(name) {
 
 // A component can take its review from another record, as "reviewed.json#qt/qtbase" or
 // "linux.json#mpv", when the same release ships on both platforms. Its own fields add to that
-// review: the files it claims, its scope, and notes about this platform's build.
+// review: the files it claims, its scope, and notes about this platform's build. A record can
+// review several releases of one component, so the review is the one of the component's release.
 function reused(item) {
   const [file, path] = item.reuse.split('#');
   const [group, name] = path.includes('/') ? path.split('/') : ['components', path];
-  const found = record(file)[group]?.find((entry) => entry.name === name || entry.version === name);
-  if (!found) throw new Error(`${item.name} reuses ${item.reuse}, which no record holds`);
-  const version = found.sourceVersion ?? found.version.replace(/_\d+$/, '');
-  if (version !== item.version)
-    throw new Error(`${item.name} ${item.version} reuses ${item.reuse}, which reviews ${version}`);
+  const release = (entry) => entry.sourceVersion ?? entry.version.replace(/_\d+$/, '');
+  const named = record(file)[group]?.filter(
+    (entry) => entry.name === name || entry.version === name,
+  );
+  if (!named?.length) throw new Error(`${item.name} reuses ${item.reuse}, which no record holds`);
+  const found = named.find((entry) => release(entry) === item.version);
+  if (!found)
+    throw new Error(
+      `${item.name} ${item.version} reuses ${item.reuse}, which reviews ${named.map(release).join(', ')}`,
+    );
   const { binaries: _binaries, scope: _scope, flatpakModule: _module, notes, ...review } = found;
   return {
     ...review,

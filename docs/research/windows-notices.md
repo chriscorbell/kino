@@ -16,7 +16,7 @@ The notices job runs on Linux, where the npm packages and the engine's crates ar
 
 ## Reused reviews
 
-A component can take its review from another record (`"reuse": "reviewed.json#qt/qtbase"`) when the same release ships on both platforms; the version must match. Windows reuses:
+A component can take its review from another record (`"reuse": "reviewed.json#qt/qtbase"`) when the same release ships on both platforms; the version must match. A record can hold reviews of several releases of one component, and the reuse takes the one Windows builds. The Mac has moved on to Qt 6.12.0, FreeType 2.15.0 and HarfBuzz 14.6.0, so the macOS record keeps the older reviews below for Windows. Windows reuses:
 
 - Qt 6.11.2 (`qtbase`, `qtdeclarative`, `qtsvg`, `qtpositioning`, `qtwebchannel`, `qtwebengine`) from the macOS record. Those bundles are Qt's module-wide attribution pages, which list the third-party code each module bundles whether or not a build configures it in, so they cover Qt's own Windows binaries too.
 - FreeType 2.14.3 and HarfBuzz 14.5.0 from the macOS record, the releases `libmpv-2.dll` builds.
