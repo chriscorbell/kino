@@ -65,10 +65,9 @@ select:focus-visible {
   background: transparent;
 }
 
-/* With reduced motion requested, this one rule stops every animation and transition, so a new
-   one needs no rule of its own. A near-zero duration would still start each animation on its first
-   keyframe, a one-frame flash for anything that fades in. With none, animationend and
-   transitionend never fire, so nothing may wait for them. */
+/* Stylesheets need no reduced-motion rules of their own. This is none rather than a near-zero
+   duration, which would still start each animation on its first keyframe, a one-frame flash for
+   anything that fades in. */
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,
