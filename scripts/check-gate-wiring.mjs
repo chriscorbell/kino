@@ -20,9 +20,10 @@ const read = (path) => readFileSync(join(root, path), 'utf8');
 const SCRIPT_REF = /scripts\/[\w./-]+\.(?:mjs|js|sh|py)\b/g;
 const PNPM_RUN = /\bpnpm (?:run )?([\w:-]+)/g;
 const BY_HAND = /^(?:\/\/|#) Gate: by hand, \S/m;
-// Selecting tests would make every add_test script count as run when only some are.
+// Selecting tests would make every add_test script count as run when only some are. Short flags
+// can carry their value glued on, as in -Rname, so they take no word boundary.
 const CTEST_FILTER =
-  /\s(?:-[REIN]|-LE?|--(?:tests|exclude|label)-[\w-]+|--show-only|--preset|--rerun-failed)\b/;
+  /\s(?:-[REILN]|--(?:(?:tests|exclude|label)-[\w-]+|show-only|preset|rerun-failed)\b)/;
 
 const pkg = JSON.parse(read('package.json'));
 const scripts = pkg.scripts;
