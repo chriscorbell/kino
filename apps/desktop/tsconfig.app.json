@@ -9,5 +9,7 @@
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "types": ["vite/client", "@testing-library/jest-dom"]
   },
-  "include": ["src"]
+  // tsc reports no errors in a workspace package's source it reaches through node_modules, so
+  // the packages the client imports as TypeScript are listed here to be checked.
+  "include": ["src", "../../packages/settings/src"]
 }
