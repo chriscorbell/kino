@@ -7,10 +7,16 @@ on:
       - packaging/flatpak/**
       - apps/macos-shell/**
       - apps/desktop/**
+      - packages/design-tokens/**
       - packages/settings/**
       - apps/stream-engine/**
       - package.json
       - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - .node-version
+      - .npmrc
+      - LICENSE
+      - tsconfig.base.json
       - scripts/build-engine.sh
       - scripts/check-engine-profile.mjs
       - scripts/check-version.mjs
