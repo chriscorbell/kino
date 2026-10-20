@@ -42,10 +42,7 @@ const serviceFetch = globalThis.fetch;
 globalThis.fetch = async (...request) => {
   try {
     const response = await serviceFetch(...request);
-    // Cloudflare fronts the service and names a challenge or block in cf-mitigated.
-    const mitigated = response.headers.get('cf-mitigated');
-    if (!response.ok)
-      unanswered.push(`HTTP ${response.status}${mitigated ? `, Cloudflare ${mitigated}` : ''}`);
+    if (!response.ok) unanswered.push(`HTTP ${response.status}`);
     return response;
   } catch (error) {
     unanswered.push(error.cause?.code ?? error.name);
