@@ -156,6 +156,31 @@ it('names the platform the shell reports in the save window close runs', async (
   );
 });
 
+it('reports nothing once the save stopped the player, even when Unload then fails', async () => {
+  const selection = movie();
+  const core = fakeCore(selection);
+  const save = core.commit.getMockImplementation()!;
+  core.commit.mockImplementation(async (action: CoreAction) => {
+    if (action.action === 'Unload') throw new Error('Storage is full.');
+    await save(action);
+  });
+  const native = fakeNativePlayer();
+  native.pauseAndSnapshot.mockResolvedValue({ time: 34567, duration: 120000 });
+  const session = startPlayback(
+    selection,
+    deps(core, { native: { present: true, connect: async () => native } }),
+  );
+  await waitFor(() => expect(native.load).toHaveBeenCalled());
+
+  session.controls.leave({ kind: 'back' });
+  await waitFor(() => expect(session.getSnapshot().exit).toBe('save-failed'));
+  expect(native.stop).toHaveBeenCalledOnce();
+  const written = core.written.length;
+  session.controls.seek(60_000);
+
+  expect(core.written.slice(written)).toEqual([]);
+});
+
 it('joins a running Back save when the source fails, and Back wins', async () => {
   const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
   const selection = movie(torrentSource({ fileIdx: 0, sources: [] }));

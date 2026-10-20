@@ -51,6 +51,7 @@ vi.mock('./screens/PlayerScreen', () => ({
         Fail playback
       </button>
       <button onClick={() => onFinished({ kind: 'back' })}>Back from playback</button>
+      <button onClick={() => onFinished({ kind: 'closed' })}>Close the window</button>
       <button
         onClick={() =>
           selection.nextVideo && onFinished({ kind: 'upNext', video: selection.nextVideo })
@@ -148,7 +149,7 @@ it('marks only the failed torrent file and keeps another episode independent', a
   expect(screen.queryByText('Synthetic source failure')).not.toBeInTheDocument();
 });
 
-it.each(['Back from playback', 'Fail playback', 'Up Next'])(
+it.each(['Back from playback', 'Fail playback', 'Up Next', 'Close the window'])(
   'restores the selected season and episode after %s',
   async (exit) => {
     mountApp();
