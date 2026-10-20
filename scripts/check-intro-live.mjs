@@ -1,9 +1,11 @@
+// Gate: by hand, it needs the network. Run it when the service or the client changes.
 // Checks the production intro client against the live TheIntroDB service, which
 // the fixtures in check-intro-community.mjs imitate. Twice the fixtures have
 // matched Kino's assumptions rather than the service: the client once read
 // confidence fields the service does not send (#28), and then matched runtimes
-// to the millisecond when the service groups them by the minute. The TheIntroDB
-// workflow runs it.
+// to the millisecond when the service groups them by the minute. TheIntroDB
+// refuses GitHub-hosted runners (HTTP 403, observed 2026-10-20), so a scheduled
+// run needs a machine the service accepts.
 //
 //   pnpm intro:check-live
 
