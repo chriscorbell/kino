@@ -87,6 +87,19 @@ export function verifyLinuxReview() {
   for (const name of modules.keys())
     if (!covered.has(name))
       problems.push(`The Flatpak module ${name} has no reviewed notices in linux.json.`);
+  // The Flatpak cannot source engine.lock, so it repeats the stream-server pin. A bump to one
+  // alone would build the old revision with the new patches.
+  const lock = readFileSync(join(root, 'apps/stream-engine/engine.lock'), 'utf8');
+  const lockValue = (key) => lock.match(new RegExp(`^${key}=(\\S+)$`, 'm'))?.[1];
+  const engineRepository = lockValue('KINO_ENGINE_REPOSITORY');
+  const engineRevision = lockValue('KINO_ENGINE_REVISION');
+  const enginePins = modules.get('kino-stream-engine')?.pins ?? new Set();
+  if (!enginePins.has(`url:${engineRepository}`) || !enginePins.has(`commit:${engineRevision}`)) {
+    const built = [...enginePins].find((pin) => pin.startsWith('commit:'))?.slice(7) ?? 'nothing';
+    problems.push(
+      `packaging/flatpak/com.chriscorbell.Kino.yml builds stream-server ${built}, but apps/stream-engine/engine.lock pins ${engineRevision} from ${engineRepository}. Set the kino-stream-engine module's stream-server url and commit to engine.lock's KINO_ENGINE_REPOSITORY and KINO_ENGINE_REVISION.`,
+    );
+  }
   if (problems.length) throw new Error(problems.join('\n'));
 }
 

@@ -68,7 +68,9 @@ export function verifyReviewedNotices() {
     hash(readFileSync(join(dirname(core), 'stremio_core_web_bg.wasm'))) !==
     reviewed.coreProvenance.wasm.sha256
   )
-    throw new Error('Core WASM changed. Review its source graph and notices.');
+    throw Object.assign(new Error('Core WASM changed. Review its source graph and notices.'), {
+      coreMoved: true,
+    });
   for (const [path, expected] of [
     ['apps/stream-engine/Cargo.lock', reviewed.engineLockSha256],
     ['apps/stream-engine/engine.lock', reviewed.engineSourceSha256],
