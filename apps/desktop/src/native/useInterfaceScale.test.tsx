@@ -42,6 +42,23 @@ it('applies the chosen scale where the shell reports the interfaceScale capabili
   expect(applied.scale).toBe(150);
 });
 
+it('offers Retry after a failed first handshake, and applies the scale once the shell answers', async () => {
+  stubNativeShell({});
+  const { useInterfaceScale } = await import('./useInterfaceScale');
+  const { result, rerender } = renderHook((scale: InterfaceScale) => useInterfaceScale(scale), {
+    initialProps: 150,
+  });
+  await waitFor(() => expect(result.current.failed).toBe(true));
+
+  const applied = shell(['interfaceScale']);
+  act(() => result.current.retry());
+  await waitFor(() => expect(applied.scale).toBe(150));
+  expect(result.current.failed).toBe(false);
+
+  rerender(175);
+  await waitFor(() => expect(applied.scale).toBe(175));
+});
+
 it('leaves the interface at 100% where the shell reports no interfaceScale capability', async () => {
   const applied = shell(['refreshRateMatching']);
   const interfaceScale = await chooseScale(150);

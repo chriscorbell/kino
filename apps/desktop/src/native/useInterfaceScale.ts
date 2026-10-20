@@ -2,34 +2,34 @@ import { settingShown } from '@kino/settings';
 import { useEffect, useState } from 'react';
 
 import type { InterfaceScale } from '../settings';
-import { connectNativeInterface } from './player';
-import { useShellReport } from './useShellReport';
+import { connectNativeInterface, connectShellReport } from './player';
 
 export function useInterfaceScale(scale: InterfaceScale) {
   const [attempt, setAttempt] = useState(0);
   const [failed, setFailed] = useState(false);
-  const report = useShellReport();
-  const available =
-    report !== null &&
-    !(report instanceof Error) &&
-    settingShown('interfaceScale', report.platform, report.capabilities);
   useEffect(() => {
-    if (!available) return;
     let active = true;
-    void connectNativeInterface()
-      .then(async (native) => {
+    // Each attempt asks the shell again, so a failed first handshake still offers Retry.
+    void connectShellReport()
+      .then(async ({ platform, capabilities }) => {
+        if (!settingShown('interfaceScale', platform, capabilities)) return;
+        const native = await connectNativeInterface();
         if (!active) return;
         if (!native || !(await native.setScale(scale)))
           throw new Error('Interface scale was not applied.');
-        if (active) setFailed(false);
       })
-      .catch(() => {
-        if (active) setFailed(true);
-      });
+      .then(
+        () => {
+          if (active) setFailed(false);
+        },
+        () => {
+          if (active) setFailed(true);
+        },
+      );
     return () => {
       active = false;
     };
-  }, [attempt, available, scale]);
+  }, [attempt, scale]);
   return { failed, retry: () => setAttempt((value) => value + 1) };
 }
 
