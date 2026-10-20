@@ -5,7 +5,8 @@ import { App } from './App';
 import { CoreContext } from './core/context';
 import type { CoreTransport } from './core/transport';
 import type { PlaybackSelection } from './core/actions';
-import type { CoreMetaItem, CoreRuntimeEvent, CoreVideo } from './core/types';
+import type { CoreMetaItem, CoreRuntimeEvent } from './core/types';
+import type { PlaybackDeps } from './playback/types';
 import { metaItem, profile, torrentSource, video } from './test/coreState';
 import { renderWithSettings } from './test/renderWithSettings';
 
@@ -31,23 +32,32 @@ vi.mock('./screens/HomeScreen', () => ({
     <button onClick={() => onOpen(meta)}>Open test series</button>
   ),
 }));
+// App only learns how playback ended, so the fake session hands each outcome straight back.
+vi.mock('./playback/session', () => ({
+  startPlayback: (selection: PlaybackSelection, { onFinished }: PlaybackDeps) => ({
+    selection,
+    onFinished,
+  }),
+}));
 vi.mock('./screens/PlayerScreen', () => ({
   PlayerScreen: ({
-    onSourceFailure,
-    onBack,
-    onUpNext,
-    selection,
+    session: { onFinished, selection },
   }: {
-    onSourceFailure: (message: string) => void;
-    onBack: () => void;
-    onUpNext: (video: CoreVideo) => void;
-    selection: PlaybackSelection;
+    session: Pick<PlaybackDeps, 'onFinished'> & { selection: PlaybackSelection };
   }) => (
     <>
       <p>Playing {selection.video?.title}</p>
-      <button onClick={() => onSourceFailure('Synthetic source failure')}>Fail playback</button>
-      <button onClick={onBack}>Back from playback</button>
-      <button onClick={() => selection.nextVideo && onUpNext(selection.nextVideo)}>Up Next</button>
+      <button onClick={() => onFinished({ kind: 'failed', message: 'Synthetic source failure' })}>
+        Fail playback
+      </button>
+      <button onClick={() => onFinished({ kind: 'back' })}>Back from playback</button>
+      <button
+        onClick={() =>
+          selection.nextVideo && onFinished({ kind: 'upNext', video: selection.nextVideo })
+        }
+      >
+        Up Next
+      </button>
     </>
   ),
 }));

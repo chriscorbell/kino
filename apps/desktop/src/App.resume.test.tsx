@@ -7,22 +7,30 @@ import { CoreContext } from './core/context';
 import { checkResumeSource } from './core/resume';
 import type { CoreTransport } from './core/transport';
 import type { CoreRuntimeEvent } from './core/types';
+import type { PlaybackDeps } from './playback/types';
 import { hints, profile, torrentSource, urlSource } from './test/coreState';
 import { addon, details, episode, item, remembered } from './test/resumeState';
 import { renderWithSettings } from './test/renderWithSettings';
 
 const played = vi.hoisted(() => vi.fn());
+// App only learns how playback ended, so the fake session hands each outcome straight back.
+vi.mock('./playback/session', () => ({
+  startPlayback: (selection: PlaybackSelection, { onFinished }: PlaybackDeps) => ({
+    selection,
+    onFinished,
+  }),
+}));
 vi.mock('./screens/PlayerScreen', () => ({
   PlayerScreen: ({
-    selection,
-    onSourceFailure,
+    session: { onFinished, selection },
   }: {
-    selection: PlaybackSelection;
-    onSourceFailure: (message: string) => void;
+    session: Pick<PlaybackDeps, 'onFinished'> & { selection: PlaybackSelection };
   }) => {
     played(selection);
     return (
-      <button onClick={() => onSourceFailure('Synthetic playback failure')}>Fail playback</button>
+      <button onClick={() => onFinished({ kind: 'failed', message: 'Synthetic playback failure' })}>
+        Fail playback
+      </button>
     );
   },
 }));

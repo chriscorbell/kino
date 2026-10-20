@@ -8,10 +8,10 @@
 import type { ClientPlatform } from '@kino/settings';
 
 import { playerAction } from '../core/actions.ts';
-import type { CoreTransport } from '../core/transport';
 import type { TransientAction } from '../core/writes';
 import type { videoParams } from '../player/videoParams';
 import { mediaPosition, type MediaPosition } from './media.ts';
+import type { PlayerCorePort } from './types';
 
 /** Core stores progress this often while playing, and after any backwards jump. */
 const progressIntervalMs = 5_000;
@@ -49,7 +49,7 @@ export function timeChangedAction(
 }
 
 export function createProgressReporter(
-  core: Pick<CoreTransport, 'dispatch'>,
+  core: Pick<PlayerCorePort, 'dispatch'>,
   platform: ClientPlatform,
 ): ProgressReporter {
   const device = playbackDevice(platform);

@@ -1,22 +1,12 @@
-import { act, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 
-import { CoreContext } from '../core/context';
-import type { CoreTransport } from '../core/transport';
-import type { CoreRuntimeEvent, CoreSource, PlayerState } from '../core/types';
+import type { CoreSource, PlayerState } from '../core/types';
 import { preview, torrentSource } from '../test/coreState';
-import { renderWithSettings } from '../test/renderWithSettings';
-import { PlayerScreen } from './PlayerScreen';
+import { fakeNativePlayer } from '../test/nativePlayer';
+import { mountPlayback } from '../test/playback';
 
-const native = await vi.hoisted(async () => {
-  const { fakeNativePlayer } = await import('../test/nativePlayer');
-  return fakeNativePlayer();
-});
-vi.mock('../native/player', () => ({
-  nativeShellPresent: () => true,
-  knownShellReport: () => ({ platform: 'macos', capabilities: new Set() }),
-  connectNativePlayer: async () => native,
-}));
+const native = fakeNativePlayer();
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -27,9 +17,8 @@ afterEach(() => {
  * Mount the player on a torrent whose Player snapshots are rebuilt on every
  * read, exactly as the worker does after a progress or subtitle update.
  */
-function mountTorrentPlayer(stream: CoreSource) {
+async function mountTorrentPlayer(stream: CoreSource) {
   let title = 'Fixture';
-  const listeners = new Set<(event: CoreRuntimeEvent) => void>();
   const snapshot = (): PlayerState => ({
     libraryItem: { id: 'fixture', timeOffset: 0, videoId: null },
     selected: { stream: structuredClone(stream) },
@@ -37,47 +26,23 @@ function mountTorrentPlayer(stream: CoreSource) {
     subtitles: [],
     title,
   });
-  const transport: CoreTransport = {
-    destroy: vi.fn(),
-    commit: vi.fn().mockResolvedValue(undefined),
-    prepareClose: vi.fn().mockResolvedValue(undefined),
-    onBeforeDestroy: () => () => {},
-    dispatch: vi.fn().mockResolvedValue(undefined),
-    init: vi.fn().mockResolvedValue(undefined),
-    getState: (async () => snapshot()) as CoreTransport['getState'],
-    subscribe: (listener) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
+  const { publish } = await mountPlayback({
+    selection: {
+      meta: preview({ id: 'fixture', name: 'Fixture', type: 'movie' }),
+      metaTransportUrl: 'https://addon.invalid/manifest.json',
+      stream,
+      streamTransportUrl: 'https://addon.invalid/manifest.json',
+      video: null,
+      nextVideo: null,
     },
-  };
-
-  renderWithSettings(
-    <CoreContext.Provider
-      value={{ error: null, status: 'ready', session: 'guest', transport, selectSession: vi.fn() }}
-    >
-      <PlayerScreen
-        selection={{
-          meta: preview({ id: 'fixture', name: 'Fixture', type: 'movie' }),
-          metaTransportUrl: 'https://addon.invalid/manifest.json',
-          stream,
-          streamTransportUrl: 'https://addon.invalid/manifest.json',
-          video: null,
-          nextVideo: null,
-        }}
-        preferredSubtitleLanguage={null}
-        onBack={vi.fn()}
-        onSourceFailure={vi.fn()}
-        onUpNext={vi.fn()}
-      />
-    </CoreContext.Provider>,
-  );
+    native,
+    player: snapshot,
+  });
 
   return {
     async publishSnapshot(nextTitle: string) {
       title = nextTitle;
-      await act(async () => {
-        listeners.forEach((listener) => listener({ name: 'NewState', args: ['player'] }));
-      });
+      await publish();
     },
     reportEngine: (url: string) => native.streamingEngineChanged.emit(url, ''),
   };
@@ -86,7 +51,7 @@ function mountTorrentPlayer(stream: CoreSource) {
 it('starts the streaming engine once across repeated Player snapshots', async () => {
   // Reconstructing the torrent must not tear the engine down and start it again
   // underneath a running transfer.
-  const player = mountTorrentPlayer(
+  const player = await mountTorrentPlayer(
     torrentSource({ fileIdx: 0, sources: ['tracker:https://tracker.invalid/announce'] }),
   );
 
@@ -118,7 +83,7 @@ it('hands the engine the add-on peer hints exactly as the adapter kept them', as
     }),
   );
 
-  const player = mountTorrentPlayer(torrentSource({ fileIdx: 0, sources }));
+  const player = await mountTorrentPlayer(torrentSource({ fileIdx: 0, sources }));
   await waitFor(() => expect(native.startStreamingEngine).toHaveBeenCalledOnce());
   await player.reportEngine('http://127.0.0.1:11470/kino/test');
   await waitFor(() => expect(created).toHaveLength(1));

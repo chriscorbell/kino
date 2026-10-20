@@ -81,7 +81,7 @@ Back, source failure, Up Next, window close, and application Quit share the same
 
 The web interface process holds Core and this sequence, so on desktop its loss changes what the shell waits for. If that process ends, the shell stops playback, stops holding window close and Quit for a save nothing can acknowledge, and reloads the interface at once, since Qt WebEngine 6.11 leaves the dead page's accessibility tree pointing at freed memory until a new page replaces it and an accessibility client reading it then crashes Kino; three losses within a minute leave the failure screen instead of reloading again. A save request that goes unanswered for 15 seconds keeps the window open, and the next close proceeds. `pnpm macos:check-interface-recovery` kills the interface process, which DevTools names, and checks the reload, then has the shell end it and checks that Quit exits promptly. Linux CI runs it as well.
 
-`pnpm core:check-shutdown` runs the pinned Core WASM with guest and synthetic account profiles, delayed storage acknowledgements, and delayed sync response bodies. `pnpm macos:check-shutdown` checks window close and application Quit against a running shell and libmpv using the legal H.264 fixture. Set `KINO_FIXTURES_DIR` when the fixtures are outside `build/fixtures`.
+`pnpm core:check-shutdown` runs the client's own save sequence against the pinned Core WASM with guest and synthetic account profiles, delayed storage acknowledgements, and delayed sync response bodies. `pnpm macos:check-shutdown` checks window close and application Quit against a running shell and libmpv using the legal H.264 fixture. Set `KINO_FIXTURES_DIR` when the fixtures are outside `build/fixtures`.
 
 ## Up Next
 

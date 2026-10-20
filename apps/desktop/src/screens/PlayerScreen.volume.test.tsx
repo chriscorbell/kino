@@ -3,50 +3,28 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import type { CoreSource } from '../core/types';
 import { loadSettings } from '../settings';
 import { preview } from '../test/coreState';
-import { renderWithSettings } from '../test/renderWithSettings';
-import { PlayerScreen } from './PlayerScreen';
+import { fakeNativePlayer } from '../test/nativePlayer';
+import { mountPlayback } from '../test/playback';
 
-const fixture = await vi.hoisted(async () => {
-  const { fakeNativePlayer } = await import('../test/nativePlayer');
-  return {
-    nativeShell: true,
-    stream: {
-      description: null,
-      name: null,
-      source: { kind: 'url', url: 'https://media.invalid/fixture.mp4' },
-      hints: {
-        bingeGroup: null,
-        countryWhitelist: null,
-        filename: null,
-        notWebReady: null,
-        proxyRequestHeaders: null,
-        proxyResponseHeaders: null,
-        videoHash: null,
-        videoSize: null,
-      },
-    } satisfies CoreSource,
-    transport: { dispatch: vi.fn().mockResolvedValue(undefined) },
-    unload: async () => {},
-    native: fakeNativePlayer(),
-  };
-});
-vi.mock('../native/player', () => ({
-  nativeShellPresent: () => fixture.nativeShell,
-  knownShellReport: () => ({
-    platform: fixture.nativeShell ? 'macos' : 'web',
-    capabilities: new Set(),
-  }),
-  connectNativePlayer: async () => fixture.native,
-}));
-vi.mock('../core/context', () => ({ useCore: () => ({ transport: fixture.transport }) }));
-vi.mock('../core/useCoreModel', () => ({
-  useCoreModel: () => ({
-    state: { stream: { type: 'Ready', content: fixture.stream } },
-    loading: false,
-    error: null,
-    unload: fixture.unload,
-  }),
-}));
+const fixture = {
+  nativeShell: true,
+  stream: {
+    description: null,
+    name: null,
+    source: { kind: 'url', url: 'https://media.invalid/fixture.mp4' },
+    hints: {
+      bingeGroup: null,
+      countryWhitelist: null,
+      filename: null,
+      notWebReady: null,
+      proxyRequestHeaders: null,
+      proxyResponseHeaders: null,
+      videoHash: null,
+      videoSize: null,
+    },
+  } satisfies CoreSource,
+  native: fakeNativePlayer(),
+};
 // mpv applies commands in order and reports an observed property only when it
 // differs from the last value it reported, so quick changes merge into one
 // report and a volume it already holds is never reported.
@@ -86,25 +64,22 @@ const selection = {
   video: null,
   nextVideo: null,
 };
-const noop = () => {};
-const renderPlayer = (volume = 30) =>
-  renderWithSettings(
-    <PlayerScreen
-      selection={selection}
-      preferredSubtitleLanguage={null}
-      onBack={noop}
-      onSourceFailure={noop}
-      onUpNext={noop}
-    />,
-    { settings: { volume }, storage: localStorage },
-  );
+const renderPlayer = async (volume = 30) => {
+  const { view } = await mountPlayback({
+    selection,
+    native: fixture.nativeShell ? fixture.native : null,
+    settings: { volume },
+    storage: localStorage,
+  });
+  return view;
+};
 const volumeSlider = () => screen.findByRole('slider', { name: 'Volume' });
 
 it.each([true, false])(
   'adjusts, saves and observes volume without reloading (native=%s)',
   async (nativeShell) => {
     fixture.nativeShell = nativeShell;
-    const view = renderPlayer();
+    const view = await renderPlayer();
     const range = await volumeSlider();
     if (nativeShell) {
       await waitFor(() => expect(fixture.native.setVolume).toHaveBeenCalledWith(30));
@@ -146,7 +121,7 @@ it.each([
   async ({ nativeShell, saved }) => {
     fixture.nativeShell = nativeShell;
     Object.assign(mpv, { holds: saved, reported: saved });
-    const view = renderPlayer(saved);
+    const view = await renderPlayer(saved);
     const range = await volumeSlider();
     if (nativeShell) {
       await waitFor(() => expect(fixture.native.setVolume).toHaveBeenCalledWith(saved));
@@ -167,7 +142,7 @@ it.each([
 
 it("keeps the viewer's step when an older volume is reported before it applies", async () => {
   fixture.nativeShell = true;
-  renderPlayer();
+  await renderPlayer();
   const range = await volumeSlider();
   await waitFor(() => expect(fixture.native.setVolume).toHaveBeenCalledWith(30));
   await mpvApplies();
@@ -184,7 +159,7 @@ it("keeps the viewer's step when an older volume is reported before it applies",
 it("keeps the saved volume when mpv reports its start-up default after Kino's send", async () => {
   fixture.nativeShell = true;
   mpv.reported = null;
-  renderPlayer();
+  await renderPlayer();
   const range = await volumeSlider();
   await waitFor(() => expect(fixture.native.setVolume).toHaveBeenCalledWith(30));
 
@@ -199,7 +174,7 @@ it("keeps the saved volume when mpv reports its start-up default after Kino's se
 it('saves a change to a value whose send mpv merged away, once that send expires', async () => {
   fixture.nativeShell = true;
   Object.assign(mpv, { holds: 42, reported: 42 });
-  renderPlayer(42);
+  await renderPlayer(42);
   const range = await volumeSlider();
   await waitFor(() => expect(fixture.native.setVolume).toHaveBeenCalledWith(42));
 

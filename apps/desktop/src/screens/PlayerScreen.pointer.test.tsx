@@ -2,49 +2,30 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 
 import type { CoreSource } from '../core/types';
+import type { PlayerCorePort } from '../playback/types';
 import { preview } from '../test/coreState';
-import { renderWithSettings } from '../test/renderWithSettings';
-import { PlayerScreen } from './PlayerScreen';
+import { fakeNativePlayer } from '../test/nativePlayer';
+import { mountPlayback } from '../test/playback';
 
-const fixture = await vi.hoisted(async () => {
-  const { fakeNativePlayer } = await import('../test/nativePlayer');
-  return {
-    stream: {
-      description: null,
-      name: null,
-      source: { kind: 'url', url: 'https://media.invalid/fixture.mp4' },
-      hints: {
-        bingeGroup: null,
-        countryWhitelist: null,
-        filename: null,
-        notWebReady: null,
-        proxyRequestHeaders: null,
-        proxyResponseHeaders: null,
-        videoHash: null,
-        videoSize: null,
-      },
-    } satisfies CoreSource,
-    transport: { dispatch: vi.fn().mockResolvedValue(undefined) },
-    unload: vi.fn().mockResolvedValue(undefined),
-    native: fakeNativePlayer(),
-  };
-});
-vi.mock('../native/player', () => ({
-  nativeShellPresent: () => true,
-  knownShellReport: () => ({ platform: 'macos', capabilities: new Set() }),
-  connectNativePlayer: async () => fixture.native,
-}));
-vi.mock('../core/context', () => ({
-  useCore: () => ({ transport: fixture.transport }),
-}));
-vi.mock('../core/useCoreModel', () => ({
-  useCoreModel: () => ({
-    state: { stream: { type: 'Ready', content: fixture.stream } },
-    loading: false,
-    error: null,
-    unload: fixture.unload,
-  }),
-}));
+const fixture = {
+  stream: {
+    description: null,
+    name: null,
+    source: { kind: 'url', url: 'https://media.invalid/fixture.mp4' },
+    hints: {
+      bingeGroup: null,
+      countryWhitelist: null,
+      filename: null,
+      notWebReady: null,
+      proxyRequestHeaders: null,
+      proxyResponseHeaders: null,
+      videoHash: null,
+      videoSize: null,
+    },
+  } satisfies CoreSource,
+  commit: vi.fn<PlayerCorePort['commit']>().mockResolvedValue(undefined),
+  native: fakeNativePlayer(),
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -52,26 +33,21 @@ beforeEach(() => {
 });
 
 async function mountPlayer() {
-  const onBack = vi.fn();
-  const view = renderWithSettings(
-    <PlayerScreen
-      selection={{
-        meta: preview({ id: 'fixture', name: 'Fixture', type: 'movie' }),
-        stream: fixture.stream,
-        metaTransportUrl: 'https://addon.invalid/manifest.json',
-        streamTransportUrl: 'https://addon.invalid/manifest.json',
-        video: null,
-        nextVideo: null,
-      }}
-      preferredSubtitleLanguage={null}
-      onBack={onBack}
-      onSourceFailure={vi.fn()}
-      onUpNext={vi.fn()}
-    />,
-  );
+  const { onFinished, view } = await mountPlayback({
+    selection: {
+      meta: preview({ id: 'fixture', name: 'Fixture', type: 'movie' }),
+      stream: fixture.stream,
+      metaTransportUrl: 'https://addon.invalid/manifest.json',
+      streamTransportUrl: 'https://addon.invalid/manifest.json',
+      video: null,
+      nextVideo: null,
+    },
+    native: fixture.native,
+    core: { commit: fixture.commit },
+  });
   await screen.findByRole('button', { name: 'Subtitles' });
   await waitFor(() => expect(fixture.native.load).toHaveBeenCalled());
-  return { container: view.container, emit: fixture.native.emit, onBack };
+  return { container: view.container, emit: fixture.native.emit, onFinished };
 }
 
 it('plays or pauses on a click on the picture and toggles fullscreen on a double click', async () => {
@@ -97,17 +73,17 @@ it('shows the time under the pointer on the timeline', async () => {
 
 it('says progress is being saved while Back waits for the save', async () => {
   let finish!: () => void;
-  fixture.unload.mockReturnValueOnce(
+  fixture.commit.mockReturnValueOnce(
     new Promise<void>((resolve) => {
       finish = resolve;
     }),
   );
-  const { onBack } = await mountPlayer();
+  const { onFinished } = await mountPlayer();
   fireEvent.click(screen.getByRole('button', { name: /Back/ }));
   expect(await screen.findByText('Saving progress…')).toBeInTheDocument();
-  expect(onBack).not.toHaveBeenCalled();
+  expect(onFinished).not.toHaveBeenCalled();
   await act(async () => finish());
-  expect(onBack).toHaveBeenCalledOnce();
+  await waitFor(() => expect(onFinished).toHaveBeenCalledExactlyOnceWith({ kind: 'back' }));
 });
 
 it('moves focus into the subtitle panel and back to its button', async () => {

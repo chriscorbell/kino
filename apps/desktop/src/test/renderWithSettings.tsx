@@ -6,19 +6,23 @@ import { createKinoSettingsStore, type KinoSettingsStore } from '../settingsStor
 import { KinoSettingsProvider } from '../useKinoSettings';
 import { memoryStorage } from './memoryStorage';
 
-/** Renders under a Kino settings store, by default over storage no other test shares. */
+/**
+ * Renders under a Kino settings store, by default a new one over storage no
+ * other test shares.
+ */
 export function renderWithSettings(
   ui: ReactElement,
   {
     settings = {},
     storage = memoryStorage(),
+    store = createKinoSettingsStore(storage),
     ...options
   }: RenderOptions & {
     settings?: Partial<KinoSettings>;
     storage?: Pick<Storage, 'getItem' | 'setItem'>;
+    store?: KinoSettingsStore;
   } = {},
 ): RenderResult & { store: KinoSettingsStore } {
-  const store = createKinoSettingsStore(storage);
   store.update(settings);
   const wrapper = ({ children }: { children: ReactNode }) => (
     <KinoSettingsProvider value={store}>{children}</KinoSettingsProvider>
