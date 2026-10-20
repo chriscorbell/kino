@@ -1,4 +1,4 @@
-import { localeTag, t as enUS } from '../locales';
+import { localeTag, t as enUS } from '../locales/index.ts';
 import type { AddonSubtitle } from '../core/types';
 
 export type { AddonSubtitle };

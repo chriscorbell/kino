@@ -6,39 +6,31 @@ import { preview } from '../test/coreState';
 import { renderWithSettings } from '../test/renderWithSettings';
 import { PlayerScreen } from './PlayerScreen';
 
-const fixture = vi.hoisted(() => ({
-  nativeShell: true,
-  progress: 0,
-  stream: {
-    description: null,
-    name: null,
-    source: { kind: 'url', url: 'https://media.invalid/fixture.mp4' },
-    hints: {
-      bingeGroup: null,
-      countryWhitelist: null,
-      filename: null,
-      notWebReady: null,
-      proxyRequestHeaders: null,
-      proxyResponseHeaders: null,
-      videoHash: null,
-      videoSize: null,
-    },
-  } satisfies CoreSource,
-  transport: { dispatch: vi.fn().mockResolvedValue(undefined) },
-  unload: async () => {},
-  native: {
-    fullscreen: false,
-    fullscreenChanged: { connect: vi.fn(), disconnect: vi.fn() },
-    load: vi.fn(),
-    stop: vi.fn(),
-    setVolume: vi.fn(),
-    seek: vi.fn(),
-    playerEvent: { connect: vi.fn(), disconnect: vi.fn() },
-    setSubtitleScale: vi.fn(),
-    setSubtitlePosition: vi.fn(),
-    setNowPlayingMetadata: vi.fn(),
-  },
-}));
+const fixture = await vi.hoisted(async () => {
+  const { fakeNativePlayer } = await import('../test/nativePlayer');
+  return {
+    nativeShell: true,
+    progress: 0,
+    stream: {
+      description: null,
+      name: null,
+      source: { kind: 'url', url: 'https://media.invalid/fixture.mp4' },
+      hints: {
+        bingeGroup: null,
+        countryWhitelist: null,
+        filename: null,
+        notWebReady: null,
+        proxyRequestHeaders: null,
+        proxyResponseHeaders: null,
+        videoHash: null,
+        videoSize: null,
+      },
+    } satisfies CoreSource,
+    transport: { dispatch: vi.fn().mockResolvedValue(undefined) },
+    unload: async () => {},
+    native: fakeNativePlayer(),
+  };
+});
 vi.mock('../native/player', () => ({
   nativeShellPresent: () => fixture.nativeShell,
   knownShellReport: () => ({
@@ -87,7 +79,7 @@ it.each([true, false])(
     const video = view.container.querySelector('video');
     await act(async () => {
       if (nativeShell)
-        fixture.native.playerEvent.connect.mock.calls.at(-1)?.[0]('duration', {
+        fixture.native.playerEvent.fire('duration', {
           milliseconds: 120000,
         });
       else {

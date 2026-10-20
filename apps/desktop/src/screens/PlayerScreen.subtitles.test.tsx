@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 
 import type { CoreSource } from '../core/types';
@@ -6,37 +6,29 @@ import { preview } from '../test/coreState';
 import { renderWithSettings } from '../test/renderWithSettings';
 import { PlayerScreen } from './PlayerScreen';
 
-const fixture = vi.hoisted(() => ({
-  stream: {
-    description: null,
-    name: null,
-    source: { kind: 'url', url: 'https://media.invalid/fixture.mp4' },
-    hints: {
-      bingeGroup: null,
-      countryWhitelist: null,
-      filename: null,
-      notWebReady: null,
-      proxyRequestHeaders: null,
-      proxyResponseHeaders: null,
-      videoHash: null,
-      videoSize: null,
-    },
-  } satisfies CoreSource,
-  transport: { dispatch: vi.fn().mockResolvedValue(undefined) },
-  unload: vi.fn().mockResolvedValue(undefined),
-  native: {
-    load: vi.fn(),
-    stop: vi.fn(),
-    fullscreen: false,
-    fullscreenChanged: { connect: vi.fn(), disconnect: vi.fn() },
-    playerEvent: { connect: vi.fn(), disconnect: vi.fn() },
-    setSubtitleTrack: vi.fn(),
-    setVolume: vi.fn(),
-    setSubtitleScale: vi.fn(),
-    setSubtitlePosition: vi.fn(),
-    setNowPlayingMetadata: vi.fn(),
-  },
-}));
+const fixture = await vi.hoisted(async () => {
+  const { fakeNativePlayer } = await import('../test/nativePlayer');
+  return {
+    stream: {
+      description: null,
+      name: null,
+      source: { kind: 'url', url: 'https://media.invalid/fixture.mp4' },
+      hints: {
+        bingeGroup: null,
+        countryWhitelist: null,
+        filename: null,
+        notWebReady: null,
+        proxyRequestHeaders: null,
+        proxyResponseHeaders: null,
+        videoHash: null,
+        videoSize: null,
+      },
+    } satisfies CoreSource,
+    transport: { dispatch: vi.fn().mockResolvedValue(undefined) },
+    unload: vi.fn().mockResolvedValue(undefined),
+    native: fakeNativePlayer(),
+  };
+});
 vi.mock('../native/player', () => ({
   nativeShellPresent: () => true,
   knownShellReport: () => ({ platform: 'macos', capabilities: new Set() }),
@@ -73,15 +65,13 @@ it('gives subtitle variants distinct visible and accessible names and selects th
   );
   const menu = await screen.findByRole('button', { name: 'Subtitles' });
   await waitFor(() => expect(fixture.native.load).toHaveBeenCalledTimes(1));
-  await act(async () => {
-    fixture.native.playerEvent.connect.mock.calls.at(-1)?.[0]('subtitleTracks', {
-      items: [
-        { id: 1, lang: 'eng', codec: 'subrip', title: 'English SDH', hearingImpaired: true },
-        { id: 2, lang: 'eng', codec: 'subrip', title: 'English Forced', forced: true },
-        { id: 4, lang: 'eng', codec: 'subrip' },
-        { id: 7, lang: 'eng', codec: 'subrip' },
-      ],
-    });
+  await fixture.native.emit('subtitleTracks', {
+    items: [
+      { id: 1, lang: 'eng', codec: 'subrip', title: 'English SDH', hearingImpaired: true },
+      { id: 2, lang: 'eng', codec: 'subrip', title: 'English Forced', forced: true },
+      { id: 4, lang: 'eng', codec: 'subrip' },
+      { id: 7, lang: 'eng', codec: 'subrip' },
+    ],
   });
   fireEvent.click(menu);
   expect(fixture.native.load).toHaveBeenCalledTimes(1);
