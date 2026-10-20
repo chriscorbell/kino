@@ -40,7 +40,10 @@ const serviceFetch = globalThis.fetch;
 globalThis.fetch = async (...request) => {
   try {
     const response = await serviceFetch(...request);
-    if (!response.ok) unanswered.push(`HTTP ${response.status}`);
+    // Cloudflare fronts the service and names a challenge or block in cf-mitigated.
+    const mitigated = response.headers.get('cf-mitigated');
+    if (!response.ok)
+      unanswered.push(`HTTP ${response.status}${mitigated ? `, Cloudflare ${mitigated}` : ''}`);
     return response;
   } catch (error) {
     unanswered.push(error.cause?.code ?? error.name);
@@ -50,8 +53,8 @@ globalThis.fetch = async (...request) => {
 function requireAnswers(step) {
   if (!unanswered.length) return;
   console.error(
-    `TheIntroDB did not answer ${step} (${unanswered.join(', ')}). This is an outage or a rate ` +
-      'limit, not a change in the response shape. Run the check again later.',
+    `TheIntroDB did not answer ${step} (${unanswered.join('; ')}). The service was unreachable, ` +
+      'failed, or refused the request, so this says nothing about the response shape.',
   );
   process.exit(1);
 }
