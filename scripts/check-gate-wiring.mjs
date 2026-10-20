@@ -45,6 +45,10 @@ const SCRIPT_READS = {
     'apps/android-tv/core/Cargo.lock',
   ],
   'scripts/build-engine.sh': ['apps/stream-engine/**'],
+  'scripts/check-intro-live.mjs': [
+    'apps/desktop/package.json',
+    'apps/desktop/src/intro/markers.ts',
+  ],
   'scripts/check-version.mjs': ['package.json'],
   'scripts/license-notices.mjs': ['LICENSE', 'third_party/notices/**'],
   'scripts/linux-notices.mjs': ['packaging/flatpak/com.chriscorbell.Kino.yml'],
