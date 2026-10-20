@@ -1,18 +1,18 @@
 import assert from 'node:assert/strict';
 
+const pseudoElements = [
+  '::before',
+  '::after',
+  '::backdrop',
+  '::marker',
+  '::placeholder',
+  '::file-selector-button',
+  '::-webkit-scrollbar',
+  '::-webkit-scrollbar-track',
+  '::-webkit-scrollbar-thumb',
+];
 const moving = `[...new Set([...document.querySelectorAll('*')].flatMap((element) =>
-  [
-    null,
-    '::before',
-    '::after',
-    '::backdrop',
-    '::marker',
-    '::placeholder',
-    '::file-selector-button',
-    '::-webkit-scrollbar',
-    '::-webkit-scrollbar-track',
-    '::-webkit-scrollbar-thumb',
-  ].flatMap((pseudo) => {
+  [null, ...${JSON.stringify(pseudoElements)}].flatMap((pseudo) => {
     const style = getComputedStyle(element, pseudo);
     const durations = (style.animationDuration + ',' + style.transitionDuration).split(',');
     return durations.some((duration) => parseFloat(duration) > 0)

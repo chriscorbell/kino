@@ -1,67 +1,83 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import ts from 'typescript';
 import { expect, it } from 'vitest';
-import { sources } from './test/messagePaths';
 
 const root = resolve(import.meta.dirname, '../../..');
-const read = (dir: string, extension: string) =>
-  readdirSync(resolve(root, dir), { recursive: true, encoding: 'utf8' })
-    .filter((path) => path.endsWith(extension) && !path.includes('.test.'))
-    .map((path) => [join(dir, path), readFileSync(resolve(root, dir, path), 'utf8')]);
+const text = (path: string) => readFileSync(resolve(root, path), 'utf8');
 
-// The design tokens and the settings schema ship in the client bundle too.
-const stylesheets = Object.fromEntries([
-  ...read('apps/desktop/src', '.css'),
-  ...read('packages/design-tokens/src', '.css'),
-]);
-const scripts = Object.fromEntries([
-  ...Object.entries(sources).map(([path, text]) => [
-    relative(root, resolve(import.meta.dirname, 'test', path)),
-    text,
-  ]),
-  ...read('packages/settings/src', '.ts'),
-]);
-const { 'apps/desktop/src/global.css': rule, ...moduleStylesheets } = stylesheets;
+// Workspace packages such as the design tokens and the settings schema ship in the bundle too.
+const { dependencies } = JSON.parse(text('apps/desktop/package.json')) as {
+  dependencies: Record<string, string>;
+};
+const shipped = [
+  'apps/desktop/src',
+  ...Object.entries(dependencies)
+    .filter(([, version]) => version.startsWith('workspace:'))
+    .map(([name]) => `packages/${name.replace('@kino/', '')}/src`),
+];
 
-function comments(path: string, text: string): ts.TextRange[] {
-  if (path.endsWith('.css'))
-    return [...text.matchAll(/\/\*[\s\S]*?\*\//g)].map((match) => ({
-      pos: match.index,
-      end: match.index + match[0].length,
-    }));
-  const file = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true);
-  const ranges: ts.TextRange[] = [];
+// Comments are blanked rather than removed, so a match reports the line it is on in the source.
+const blank = (comment: string) => comment.replace(/[^\n]/g, ' ');
+function code(path: string, source: string) {
+  if (path.endsWith('.css')) return source.replace(/\/\*[\s\S]*?\*\//g, blank);
+  const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true);
+  const comments = new Map<number, number>();
   const visit = (node: ts.Node) => {
-    ranges.push(
-      ...(ts.getLeadingCommentRanges(text, node.pos) ?? []),
-      ...(ts.getTrailingCommentRanges(text, node.end) ?? []),
-    );
+    for (const { pos, end } of [
+      ...(ts.getLeadingCommentRanges(source, node.pos) ?? []),
+      ...(ts.getTrailingCommentRanges(source, node.end) ?? []),
+    ])
+      comments.set(pos, end);
     node.getChildren(file).forEach(visit);
   };
   visit(file);
-  return ranges;
+  return [...comments].reduce(
+    (blanked, [pos, end]) =>
+      blanked.slice(0, pos) + blank(blanked.slice(pos, end)) + blanked.slice(end),
+    source,
+  );
 }
 
-// Comments are blanked rather than removed, so each match reports the line it is on in the source.
-function matches(files: Record<string, string>, pattern: RegExp) {
-  return Object.entries(files).flatMap(([path, text]) => {
-    const code = comments(path, text).reduce(
-      (blanked, { pos, end }) =>
-        blanked.slice(0, pos) + blanked.slice(pos, end).replace(/[^\n]/g, ' ') + blanked.slice(end),
-      text,
-    );
-    return [...code.matchAll(pattern)].map(
-      (match) => `${path}:${code.slice(0, match.index).split('\n').length}: ${match[0]}`,
-    );
-  });
+const files = Object.fromEntries(
+  shipped.flatMap((dir) =>
+    readdirSync(resolve(root, dir), { recursive: true, encoding: 'utf8' })
+      .filter(
+        (path) => /\.(css|tsx?)$/.test(path) && !/\.test\.|\.d\.ts$|^(test|locales)\//.test(path),
+      )
+      .map((path) => join(dir, path))
+      .map((path) => [path, code(path, text(path))]),
+  ),
+);
+const { 'apps/desktop/src/global.css': rule = '', ...rest } = files;
+const moduleStylesheets = Object.fromEntries(
+  Object.entries(rest).filter(([path]) => path.endsWith('.css')),
+);
+
+function matches(sources: Record<string, string>, pattern: RegExp) {
+  return Object.entries(sources).flatMap(([path, source]) =>
+    [...source.matchAll(pattern)].map(
+      (match) => `${path}:${source.slice(0, match.index).split('\n').length}: ${match[0]}`,
+    ),
+  );
 }
 
-it('reads the stylesheets and scripts the client ships', () => {
+it('reads what the client ships', () => {
   expect(rule).toContain('prefers-reduced-motion');
-  expect(Object.keys(moduleStylesheets)).toContain('packages/design-tokens/src/tokens.css');
-  expect(Object.keys(scripts)).toContain('packages/settings/src/schema.ts');
-  expect(Object.keys(scripts)).toContain('apps/desktop/src/App.tsx');
+  expect(Object.keys(files)).toEqual(
+    expect.arrayContaining([
+      'apps/desktop/src/App.tsx',
+      'packages/design-tokens/src/tokens.css',
+      'packages/settings/src/schema.ts',
+    ]),
+  );
+});
+
+it('probes the pseudo-elements the reduced-motion rules cover', () => {
+  const pseudoElements = (source: string) => [...new Set(source.match(/::[\w-]+/g))].sort();
+  expect(pseudoElements(text('scripts/test-support/reduced-motion.mjs'))).toEqual(
+    pseudoElements(rule.slice(rule.indexOf('@media (prefers-reduced-motion'))),
+  );
 });
 
 // Hand-kept selector lists missed new animations: #18 and #97 fixed misses, and the profile
@@ -81,7 +97,7 @@ it('leaves reduced motion to the rules in global.css', () => {
 it('keeps motion where the reduced-motion rules reach it', () => {
   expect(
     matches(
-      { ...scripts, ...stylesheets },
+      files,
       /\.animate\(|\bnew Animation\b|KeyframeEffect|startViewTransition|behavior\s*:\s*['"]?smooth|(?:animation|transition)(?:start|end|iteration|run|cancel)/gi,
     ),
     'animate in CSS, which global.css stops under reduced motion, and wait for no animation or transition event',
