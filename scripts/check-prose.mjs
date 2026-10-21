@@ -6,20 +6,12 @@
 //   node scripts/check-prose.mjs               lines added since the merge base with origin/main
 //   node scripts/check-prose.mjs BASE [HEAD]   lines added between two commits
 //
-// Only added lines count, so wording already on main does not fail every change. In CI the base
-// is the checked-out commit's first parent: the pull request's base for the merge commit GitHub
-// checks out, and the previous commit for a push to main.
-import { execFileSync } from 'node:child_process';
+// Only added lines count, so wording already on main does not fail every change.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { changedLines } from './added-lines.mjs';
 
 const root = join(import.meta.dirname, '..');
-const git = (...args) =>
-  execFileSync('git', ['-c', 'core.quotePath=false', ...args], {
-    cwd: root,
-    encoding: 'utf8',
-    maxBuffer: 256 * 1024 * 1024,
-  });
 
 const PATHS = [
   ...['md', 'ts', 'tsx', 'mjs', 'kt', 'xml', 'cpp', 'h', 'qml'].map((ext) => `*.${ext}`),
@@ -102,69 +94,11 @@ const matchers = [...listed.filter(({ term }) => !(term in UNMATCHED)), ...NARRO
   }),
 );
 
-function range() {
-  const args = process.argv.slice(2, 4);
-  if (args.length) return args;
-  if (process.env.GITHUB_ACTIONS === 'true') {
-    // actions/checkout fetches one commit; the first parent is the base.
-    try {
-      git('fetch', '--no-tags', '--quiet', '--depth=2', 'origin', git('rev-parse', 'HEAD').trim());
-    } catch {
-      console.error('Could not fetch the base commit for the prose check.');
-      process.exit(1);
-    }
-    return ['HEAD^1', 'HEAD'];
-  }
-  try {
-    return [git('merge-base', 'origin/main', 'HEAD').trim()];
-  } catch {
-    console.error(
-      'No origin/main to compare against. Fetch it, or pass a base: node scripts/check-prose.mjs BASE',
-    );
-    process.exit(1);
-  }
-}
-
-const [base, head] = range();
-const short = (rev) => git('rev-parse', '--short', rev).trim();
-const label = `${short(base)}..${head ? short(head) : 'working tree'}`;
-// A pass over an empty range would look like a clean change.
-if (
-  process.env.GITHUB_ACTIONS === 'true' &&
-  git('rev-list', '--count', `${base}..${head}`).trim() === '0'
-) {
-  console.error(`The prose check's range ${label} looks empty, so it would check nothing.`);
-  process.exit(1);
-}
-
+const { label, lines } = changedLines('prose', PATHS);
 const problems = [];
 const files = new Set();
-let added = 0;
-let file;
-let lineNumber;
-let inHeader = false;
-const diff = git(
-  'diff',
-  '--no-color',
-  '--no-ext-diff',
-  '-M',
-  '--unified=0',
-  ...[base, head].filter(Boolean),
-  '--',
-  ...PATHS,
-);
-for (const line of diff.split('\n')) {
-  if (line.startsWith('diff --git ')) inHeader = true;
-  if (inHeader && line.startsWith('+++ ')) file = line.slice(4).replace(/^b\//, '');
-  const hunk = line.match(/^@@ -\S+ \+(\d+)/);
-  if (hunk) {
-    inHeader = false;
-    lineNumber = Number(hunk[1]);
-  }
-  if (inHeader || !line.startsWith('+')) continue;
-  const text = line.slice(1);
-  const at = `${file}:${lineNumber++}`;
-  added++;
+for (const { file, number, text } of lines) {
+  const at = `${file}:${number}`;
   files.add(file);
   if (text.includes('\u2014'))
     problems.push(`${at}: em dash. AGENTS.md "Conventions" asks for a period or comma instead.`);
@@ -185,6 +119,6 @@ if (problems.length) {
 }
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 console.log(
-  `Examined ${plural(added, 'added line')} in ${plural(files.size, 'file')}, ${label}, against ${matchers.length} terms.`,
+  `Examined ${plural(lines.length, 'added line')} in ${plural(files.size, 'file')}, ${label}, against ${matchers.length} terms.`,
 );
-if (!added) console.log('No added lines in the file types this check reads.');
+if (!lines.length) console.log('No added lines in the file types this check reads.');

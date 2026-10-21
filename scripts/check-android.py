@@ -1,15 +1,98 @@
 #!/usr/bin/env python3
 # Gate: by hand, it needs the development Shield on the local network.
 """Run isolated Core and hardware playback checks on a selected Shield."""
+import argparse
 import os
 from pathlib import Path
+import shlex
 import subprocess
 import sys
 
 root = Path(__file__).resolve().parent.parent
-device = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("ANDROID_SERIAL")
-if not device:
-    sys.exit("Usage: pnpm android:check <ADB serial>")
+parser = argparse.ArgumentParser(prog="pnpm android:check", description=__doc__)
+parser.add_argument("device", nargs="?", default=os.environ.get("ANDROID_SERIAL"), help="ADB serial")
+parser.add_argument("--class", dest="test_class", metavar="CLASS",
+    help="run only this test class, such as SkipIntroTest or SkipIntroTest#method")
+parser.add_argument("--repeat", type=int, default=1, metavar="N",
+    help="run the class N times and report every failed run")
+parser.add_argument("--dry-run", action="store_true",
+    help="print the instrumentation commands and touch nothing")
+args = parser.parse_args()
+if not args.device:
+    parser.error("name the Shield's ADB serial, or set ANDROID_SERIAL")
+if args.repeat < 1:
+    parser.error("--repeat takes a count of 1 or more")
+if args.repeat > 1 and not args.test_class:
+    parser.error("--repeat reruns one class; name it with --class")
+device = args.device
+test_class = args.test_class
+if test_class and "." not in test_class.split("#")[0]:
+    test_class = f"app.kino.tv.{test_class}"
+adb = ["adb", "-s", device]
+
+
+def instrument(*arguments):
+    command = [*adb, "shell", "am", "instrument", "-w", "-r", *arguments,
+        "app.kino.tv.test/app.kino.tv.ShieldTestRunner"]
+    if args.dry_run:
+        print(shlex.join(command))
+        return True
+    # The whole suite runs in one call and takes about five minutes on the Shield; the limit
+    # only has to catch a hung test, not pace a slow one.
+    result = subprocess.run(command, capture_output=True, text=True, check=True, timeout=900)
+    print(result.stdout)
+    return "OK (" in result.stdout and "FAILURES" not in result.stdout
+
+
+def stop_app():
+    command = [*adb, "shell", "am", "force-stop", "app.kino.tv"]
+    if args.dry_run:
+        print(shlex.join(command))
+    else:
+        subprocess.run(command, check=True)
+
+
+def must(*arguments):
+    if not instrument(*arguments):
+        sys.exit("Shield checks failed")
+
+
+def run_checks():
+    if test_class:
+        # Every run counts and a failed one is not retried, so a flaky timing gate shows.
+        failed = []
+        for run in range(1, args.repeat + 1):
+            print(f"{test_class}, run {run} of {args.repeat}")
+            if not instrument("-e", "class", test_class):
+                failed.append(str(run))
+        if failed:
+            sys.exit(f"{test_class} failed run{'s' if len(failed) > 1 else ''} "
+                f"{', '.join(failed)} of {args.repeat}")
+        return
+    must()
+    # The first process leaves only its isolated instrumentation profile. The
+    # second must restore the actual Unload snapshot without any Core memory.
+    must("-e", "class", "app.kino.tv.PlaybackShutdownTest#backWaitsForTheFinalPositionAndTheUnloadSnapshot",
+        "-e", "persistencePhase", "prepare")
+    stop_app()
+    must("-e", "class", "app.kino.tv.PlaybackShutdownTest#savedEpisodeSurvivesProcessRestart",
+        "-e", "persistencePhase", "verify")
+    # Sign-out must reach Stremio: a stored session loads in a fresh process and signs out.
+    must("-e", "class", "app.kino.tv.LogoutTest", "-e", "logoutPhase", "prepare")
+    stop_app()
+    must("-e", "class", "app.kino.tv.LogoutTest", "-e", "logoutPhase", "verify")
+    # Both profile names must restore their own language defaults through a new JNI Core.
+    for profile in ["guest", "account"]:
+        must("-e", "class", "app.kino.tv.SettingsTest#preferencesSurviveProcessRestart",
+            "-e", "settingsPhase", "prepare", "-e", "settingsProfile", profile)
+        stop_app()
+        must("-e", "class", "app.kino.tv.SettingsTest#preferencesSurviveProcessRestart",
+            "-e", "settingsPhase", "verify", "-e", "settingsProfile", profile)
+
+
+if args.dry_run:
+    run_checks()
+    sys.exit(0)
 # Android refuses to replace a release of Kino with the development builds the suite installs, and
 # the suite resets the app's data anyway. Swapping clears the TV's sign-in and settings, so it
 # stays a deliberate step, taken before minutes of building rather than after.
@@ -37,7 +120,6 @@ subprocess.run(["node", "scripts/test-support/loudness-reference.mjs", str(root 
 remux = Path(subprocess.run(["node", "scripts/test-support/remux-fixture.mjs", str(root / "build/android-remux")],
     cwd=root, check=True, capture_output=True, text=True).stdout.strip())
 subprocess.run([sys.executable, "scripts/build-android.py", ":app:assembleBenchmark", ":app:assembleBenchmarkAndroidTest"], cwd=root, check=True)
-adb = ["adb", "-s", device]
 # UpdateTest needs this build signed by someone else, which the update check must refuse. A
 # throwaway key re-signs it on the host; the test reads it from the device's temporary directory.
 benchmark = root / "apps/android-tv/app/build/outputs/apk/benchmark/app-benchmark.apk"
@@ -74,35 +156,8 @@ try:
     # permission changes, so it is granted here, before any test is running in that process.
     subprocess.run([*adb, "shell", "appops", "set", "app.kino.tv", "REQUEST_INSTALL_PACKAGES", "allow"], check=True)
     subprocess.run([*adb, "shell", "input", "keyevent", "KEYCODE_WAKEUP"], check=True)
-    # The whole suite runs in one call and takes about five minutes on the Shield; the limit
-    # only has to catch a hung test, not pace a slow one.
-    def instrument(*arguments):
-        result = subprocess.run([*adb, "shell", "am", "instrument", "-w", "-r", *arguments,
-            "app.kino.tv.test/app.kino.tv.ShieldTestRunner"], capture_output=True, text=True, check=True, timeout=900)
-        print(result.stdout)
-        if "OK (" not in result.stdout or "FAILURES" in result.stdout:
-            sys.exit("Shield checks failed")
-
-    instrument()
-    # The first process leaves only its isolated instrumentation profile. The
-    # second must restore the actual Unload snapshot without any Core memory.
-    instrument("-e", "class", "app.kino.tv.PlaybackShutdownTest#backWaitsForTheFinalPositionAndTheUnloadSnapshot",
-        "-e", "persistencePhase", "prepare")
-    subprocess.run([*adb, "shell", "am", "force-stop", "app.kino.tv"], check=True)
-    instrument("-e", "class", "app.kino.tv.PlaybackShutdownTest#savedEpisodeSurvivesProcessRestart",
-        "-e", "persistencePhase", "verify")
-    # Sign-out must reach Stremio: a stored session loads in a fresh process and signs out.
-    instrument("-e", "class", "app.kino.tv.LogoutTest", "-e", "logoutPhase", "prepare")
-    subprocess.run([*adb, "shell", "am", "force-stop", "app.kino.tv"], check=True)
-    instrument("-e", "class", "app.kino.tv.LogoutTest", "-e", "logoutPhase", "verify")
-    # Both profile names must restore their own language defaults through a new JNI Core.
-    for profile in ["guest", "account"]:
-        instrument("-e", "class", "app.kino.tv.SettingsTest#preferencesSurviveProcessRestart",
-            "-e", "settingsPhase", "prepare", "-e", "settingsProfile", profile)
-        subprocess.run([*adb, "shell", "am", "force-stop", "app.kino.tv"], check=True)
-        instrument("-e", "class", "app.kino.tv.SettingsTest#preferencesSurviveProcessRestart",
-            "-e", "settingsPhase", "verify", "-e", "settingsProfile", profile)
+    run_checks()
 finally:
     # Leave the same optimized APK that android:run and CI distribute on the device.
-    subprocess.run([*adb, "shell", "am", "force-stop", "app.kino.tv"], check=True)
+    stop_app()
     subprocess.run([*adb, "install", "-r", str(root / "build/android/Kino-TV.apk")], check=True)

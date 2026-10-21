@@ -112,7 +112,15 @@ The instrumented suite covers native Core browsing, device-link creation, saved 
 
 The development Shield is on the local network at `10.0.0.191`. `adb connect 10.0.0.191:5555` attaches it; `adb shell input keyevent KEYCODE_WAKEUP` wakes it before instrumentation, which `pnpm android:check` does itself. Since v0.1.0-rc.2 it runs Kino's release build, Chris's own setup. Android will not replace a release with the development builds the suite installs, and the suite resets the app's data, so `pnpm android:check` stops before building when it finds a release installed. Uninstalling it clears the TV's sign-in and settings; ask before doing that.
 
-Only `pnpm android:check` bundles the fixtures into the test APK. Building with `scripts/build-android.py` or gradle alone and then running instrumentation fails every media test with `FileNotFoundException` on a fixture name; that is a missing asset, not a regression. To rerun one class after the suite restores the distributed APK, first reinstall the benchmark host:
+Only `pnpm android:check` bundles the fixtures into the test APK. Building with `scripts/build-android.py` or gradle alone and then running instrumentation fails every media test with `FileNotFoundException` on a fixture name; that is a missing asset, not a regression. A new or changed timing gate on the TV, a test that waits on the clock, counts frames, or races the player, runs five times before it merges, since no CI job has a Shield to run it on:
+
+```sh
+pnpm android:check "$ANDROID_SERIAL" --class SkipIntroTest --repeat 5
+```
+
+The fixtures, build, and installs happen once; then the class runs five times, and the command fails naming every failed run. `--class` takes a class in `app.kino.tv`, or `Class#method`. `--dry-run` prints the instrumentation commands without touching the device. The instrumentation tests are gate code for `pnpm gates:check-sleeps` too, so a fixed sleep added to them needs a deadline loop around it or a `sleep-ok: <reason>`, as [the desktop document](DESKTOP.md) describes.
+
+To rerun one class after the suite restores the distributed APK, first reinstall the benchmark host:
 
 ```sh
 adb -s "$ANDROID_SERIAL" install -r apps/android-tv/app/build/outputs/apk/benchmark/app-benchmark.apk
