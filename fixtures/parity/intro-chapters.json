@@ -1,5 +1,5 @@
 {
-  "rule": "An intro comes from the one chapter titled intro, introduction, opening, opening credits or op, in any case. It ends where the next chapter starts, or at the end of the video, and must last 5 to 200 seconds within the video. On TV, a chapter's own end time, when the file gives one, comes first. The desktop's chapter list carries start times only, so these cases give none. Two such chapters, one outside those bounds, or any two chapters sharing a start time, labelled or not, leave the intro unknown rather than absent.",
+  "rule": "An intro comes from the one chapter titled intro, introduction, opening, opening credits or op, in any case. It ends where the next chapter starts, or at the end of the video, and must last 5 to 200 seconds within the video. On TV, a chapter's own end time, when the file gives one, comes first. The desktop's chapter list carries start times only, so the desktop never sees a case's endMs. Two such chapters, one outside those bounds, or any two chapters sharing a start time, labelled or not, leave the intro unknown rather than absent.",
   "cases": [
     {
       "name": "a labelled chapter ends where the next chapter starts",
@@ -10,6 +10,20 @@
       ],
       "durationMs": 2400000,
       "expect": { "result": "found", "startMs": 20000, "endMs": 87000 }
+    },
+    {
+      "name": "a labelled chapter's own end time bounds the intro on TV",
+      "chapters": [
+        { "title": "Prologue", "startMs": 0 },
+        { "title": "Intro", "startMs": 20000, "endMs": 80000 },
+        { "title": "", "startMs": 87000 }
+      ],
+      "durationMs": 2400000,
+      "expect": {
+        "result": "found",
+        "startMs": 20000,
+        "endMs": { "intended": "Matroska chapter fields", "desktop": 87000, "tv": 80000 }
+      }
     },
     {
       "name": "labels match in any case, without surrounding spaces",

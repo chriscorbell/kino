@@ -13,7 +13,28 @@ import { compareVersions } from '../updates/releases';
 // cannot change on one side without the shared case failing on the other.
 function cases<Case>(name: string): Case[] {
   const text = readFileSync(`../../fixtures/parity/${name}.json`, 'utf8');
-  return (JSON.parse(text) as { cases: Case[] }).cases;
+  return (JSON.parse(text) as { cases: unknown[] }).cases.map(forDesktop) as Case[];
+}
+
+const intendedDifferences = readFileSync(
+  '../../docs/adr/0033-record-where-desktop-and-tv-differ-on-purpose.md',
+  'utf8',
+);
+
+// An expected value the clients differ on by design names its entry in ADR
+// 0033 and gives each platform's result. This suite takes the desktop's.
+function forDesktop(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(forDesktop);
+  if (typeof value !== 'object' || value === null) return value;
+  if (!('intended' in value)) {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, forDesktop(item)]));
+  }
+  const { intended, desktop, tv } = value as { intended: unknown; desktop: unknown; tv: unknown };
+  if (typeof intended !== 'string' || !intendedDifferences.includes(`\n### ${intended}\n`))
+    throw new Error(`ADR 0033 has no entry named ${JSON.stringify(intended)}`);
+  if (!('desktop' in value && 'tv' in value) || JSON.stringify(desktop) === JSON.stringify(tv))
+    throw new Error(`"${intended}" must give a different desktop and tv value`);
+  return desktop;
 }
 
 interface SourceFieldsCase {
@@ -115,7 +136,7 @@ describe('Up Next window', () => {
 
 interface IntroChaptersCase {
   name: string;
-  chapters: ChapterCue[];
+  chapters: (ChapterCue & { endMs?: number })[];
   durationMs: number;
   expect: { result: 'found' | 'absent' | 'unknown'; startMs?: number; endMs?: number };
 }
@@ -125,7 +146,11 @@ describe('intro chapters', () => {
     'intro-chapters',
   )) {
     it(name, () => {
-      const intro = introFromChapters(chapters, durationMs);
+      // As the shell passes on libmpv's chapter list, without end times.
+      const intro = introFromChapters(
+        chapters.map(({ title, startMs }) => ({ title, startMs })),
+        durationMs,
+      );
       expect(
         typeof intro === 'string'
           ? { result: intro }
