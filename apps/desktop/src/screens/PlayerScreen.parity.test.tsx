@@ -56,7 +56,6 @@ const selection = {
   metaTransportUrl: 'https://addon.invalid/manifest.json',
   streamTransportUrl: 'https://addon.invalid/manifest.json',
   video: video({ id: 'ep1', title: 'Episode one', season: 1, episode: 1 }),
-  nextVideo: video({ id: 'ep2', title: 'Episode two', season: 1, episode: 2 }),
 };
 
 function devices() {
@@ -74,7 +73,8 @@ async function open(
     native: kind === 'native' ? fixture.native : null,
     player: () => ({
       ...resolvedPlayer(selection),
-      libraryItem: { id: 'show', timeOffset: fixture.resumeAt, videoId: null },
+      libraryItem: { id: 'show', timeOffset: fixture.resumeAt, videoId: 'ep1' },
+      nextVideo: video({ id: 'ep2', title: 'Episode two', season: 1, episode: 2 }),
     }),
     platform,
   });

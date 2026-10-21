@@ -6,7 +6,7 @@ import { CoreRecovery } from '../components/CoreRecovery';
 import { t as enUS } from '../locales';
 import { addon, profile } from '../test/coreState';
 import { renderWithSettings } from '../test/renderWithSettings';
-import { commitThrough } from '../test/transport';
+import { commitThrough } from './commit';
 import { CoreProvider } from './CoreProvider';
 import { useCore } from './context';
 import type { CoreSession } from './storage';

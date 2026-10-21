@@ -847,6 +847,9 @@ export function adaptPlayerState(raw: unknown): PlayerState {
   const selected = optionalRecord(source.selected, at(site, 'selected'));
   return {
     libraryItem: adaptPlaybackProgress(source.libraryItem, at(site, 'libraryItem')),
+    nextVideo: absent(source.nextVideo)
+      ? null
+      : adaptVideo(source.nextVideo, at(site, 'nextVideo')),
     selected: selected
       ? { stream: adaptSource(selected.stream, at(site, 'selected.stream')) }
       : null,

@@ -33,7 +33,6 @@ const selection = {
   metaTransportUrl: 'https://addon.invalid/manifest.json',
   streamTransportUrl: 'https://addon.invalid/manifest.json',
   video: video({ id: 'tt0903747:1:1', season: 1, episode: 1 }),
-  nextVideo: null,
 };
 const chapters = [
   { startMs: 0, title: 'Prologue' },

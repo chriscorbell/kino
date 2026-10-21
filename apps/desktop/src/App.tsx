@@ -120,8 +120,11 @@ export function App() {
   const [detailTransport, setDetailTransport] = useState(transport);
   const [resumeRequest, setResumeRequest] = useState<ResumeRequest | null>(null);
   const [failedSources, setFailedSources] = useState<ReadonlyMap<string, string>>(new Map());
-  // Every way playback ends arrives here once, after its progress is durable.
+  const [progressLost, setProgressLost] = useState(false);
+  // Every way playback ends arrives here once, after its progress is durable or,
+  // when Core had stopped, known to be lost.
   const { session: playback, play } = usePlaybackHost((outcome, selection) => {
+    setProgressLost(outcome.unsaved === true);
     switch (outcome.kind) {
       case 'back':
       case 'closed':
@@ -194,6 +197,7 @@ export function App() {
     setDetailSeason(undefined);
     setDetailReturn(null);
     setFailedSources(new Map());
+    setProgressLost(false);
     setScreen('detail');
   };
 
@@ -380,8 +384,12 @@ export function App() {
           ref={browseMain}
           tabIndex={-1}
         >
-          {!playback && screen !== 'detail' && !accountOpen ? <CoreRecovery /> : null}
-          {!playback && screen !== 'detail' ? <UpdateNotice updates={updates} /> : null}
+          {!playback && screen !== 'detail' ? (
+            <>
+              {!accountOpen ? <CoreRecovery /> : null}
+              <UpdateNotice updates={updates} />
+            </>
+          ) : null}
           <BrowseStateContext.Provider value={browseContext}>{content}</BrowseStateContext.Provider>
         </main>
         {screen === 'detail' && detail && !playback ? (
@@ -394,6 +402,11 @@ export function App() {
             tabIndex={-1}
           >
             {!accountOpen ? <CoreRecovery /> : null}
+            {progressLost ? (
+              <p className={sharedStyles.loadError} role="alert">
+                {enUS.player.progressNotSaved}
+              </p>
+            ) : null}
             <UpdateNotice updates={updates} />
             <MetaDetailsScreen
               failedSources={failedSources}

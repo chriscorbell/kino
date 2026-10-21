@@ -398,8 +398,17 @@ describe('sources and playback', () => {
 
   it('rejects an unknown load state and accepts the nulls Core really emits', () => {
     expect(() => adaptPlayerState({ stream: { type: 'Pending' } })).toThrow(/player\.stream\.type/);
-    expect(adaptPlayerState({ selected: null, stream: null, subtitles: [], title: null })).toEqual({
+    expect(
+      adaptPlayerState({
+        selected: null,
+        stream: null,
+        subtitles: [],
+        title: null,
+        nextVideo: null,
+      }),
+    ).toEqual({
       libraryItem: null,
+      nextVideo: null,
       selected: null,
       stream: null,
       subtitles: [],

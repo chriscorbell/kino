@@ -50,11 +50,9 @@ export function checkResumeSource(
       (candidate) => sourceKey(candidate, remembered.transportUrl, selection) === key,
     );
     if (stream) {
-      const index = video ? meta.videos.indexOf(video) : -1;
       return {
         ...selection,
         metaTransportUrl: resource.addon.transportUrl,
-        nextVideo: index >= 0 ? (meta.videos[index + 1] ?? null) : null,
         stream,
         streamTransportUrl: remembered.transportUrl,
       };

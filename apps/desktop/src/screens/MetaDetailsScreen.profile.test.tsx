@@ -5,7 +5,7 @@ import { CoreContext } from '../core/context';
 import type { CoreTransport } from '../core/transport';
 import type { CoreAction, CoreModelName } from '../core/types';
 import { metaItem, preview } from '../test/coreState';
-import { commitThrough } from '../test/transport';
+import { commitThrough } from '../core/commit';
 import { MetaDetailsScreen } from './MetaDetailsScreen';
 
 const item = preview({ id: 'movie', name: 'Profile fixture', type: 'movie' });

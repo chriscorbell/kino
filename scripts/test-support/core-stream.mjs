@@ -103,7 +103,6 @@ export async function resolveCoreStream(core, stream) {
       stream: fixtureSource(stream),
       streamTransportUrl: 'https://addon.invalid/manifest.json',
       video: null,
-      nextVideo: null,
     }),
     'player',
     '',

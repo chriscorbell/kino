@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted. [ADR 0034](0034-leave-without-saving-once-stremio-core-has-stopped.md) changes what leaving does after a save fails because Stremio Core stopped.
 
 ## Context
 

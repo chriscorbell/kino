@@ -64,7 +64,6 @@ for (const stream of [
       streamTransportUrl: 'https://streams.invalid/manifest.json',
       stream,
       video: null,
-      nextVideo: null,
     }),
     'player',
     '',

@@ -21,6 +21,7 @@ async function mountTorrentPlayer(stream: CoreSource) {
   let title = 'Fixture';
   const snapshot = (): PlayerState => ({
     libraryItem: { id: 'fixture', timeOffset: 0, videoId: null },
+    nextVideo: null,
     selected: { stream: structuredClone(stream) },
     stream: { type: 'Ready', content: { source: structuredClone(stream.source) } },
     subtitles: [],
@@ -33,7 +34,6 @@ async function mountTorrentPlayer(stream: CoreSource) {
       stream,
       streamTransportUrl: 'https://addon.invalid/manifest.json',
       video: null,
-      nextVideo: null,
     },
     native,
     player: snapshot,

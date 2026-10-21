@@ -33,7 +33,6 @@ it('gives subtitle variants distinct visible and accessible names and selects th
       metaTransportUrl: 'https://addon.invalid/manifest.json',
       streamTransportUrl: 'https://addon.invalid/manifest.json',
       video: null,
-      nextVideo: null,
     },
     native: fixture.native,
   });

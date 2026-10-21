@@ -8,9 +8,10 @@
 import type { ClientPlatform } from '@kino/settings';
 
 import { finalPauseAction, unloadPlayerAction } from '../core/actions.ts';
+import { coreStopped } from '../core/errors.ts';
 import type { MediaPosition } from './media';
 import { timeChangedAction } from './progress.ts';
-import type { ExitState, PlaybackOutcome, PlayerCorePort } from './types';
+import type { ExitState, PlaybackEnd, PlaybackOutcome, PlayerCorePort } from './types';
 
 interface SaveSteps {
   /** Pauses the player and returns the position to save: its exact one, or the last known. */
@@ -50,7 +51,10 @@ export async function savePlayback(
  * Returns the exit. Running it starts the save, or joins the one in flight,
  * whose outcome wins. It resolves once Unload is durable and `onFinished` has
  * run, and after that every run resolves at once. It rejects when the save
- * failed: the state becomes 'save-failed' and the next run starts over.
+ * failed: the state becomes 'save-failed' and the next run starts over. A save
+ * that failed because the Core worker stopped can never succeed, so that exit
+ * stops the player and reports its outcome as unsaved, and every later run
+ * rejects at once.
  */
 export function createExit({
   core,
@@ -61,7 +65,7 @@ export function createExit({
   core: Pick<PlayerCorePort, 'dispatch' | 'commit'>;
   steps: SaveSteps;
   onState(state: ExitState): void;
-  onFinished(outcome: PlaybackOutcome): void;
+  onFinished(outcome: PlaybackEnd): void;
 }): (outcome: PlaybackOutcome) => Promise<void> {
   let running: Promise<void> | null = null;
   return (outcome) => {
@@ -70,8 +74,14 @@ export function createExit({
       try {
         await savePlayback(core, steps);
       } catch (error) {
-        running = null;
-        onState('save-failed');
+        if (!coreStopped(error)) {
+          running = null;
+          onState('save-failed');
+          throw error;
+        }
+        console.error('[kino:player] progress not saved', { reason: 'core-stopped' });
+        steps.stop();
+        onFinished({ ...outcome, unsaved: true });
         throw error;
       }
       onFinished(outcome);

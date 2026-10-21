@@ -120,7 +120,6 @@ core.dispatch(
     streamTransportUrl: base,
     stream: state.streams[0].content.content[0],
     video: episode(state, 'watched-series:1:1'),
-    nextVideo: episode(state, 'watched-series:1:2'),
   }),
   'player',
   '',

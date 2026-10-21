@@ -213,7 +213,6 @@ const selection = {
   streamTransportUrl: transportUrl,
   stream: torrentRow,
   video: null,
-  nextVideo: null,
 };
 core.dispatch({ action: 'Unload' }, 'player', '');
 core.dispatch(loadPlayerAction(selection), 'player', '');

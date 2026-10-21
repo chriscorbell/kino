@@ -13,17 +13,12 @@ import {
   type CoreSession,
   type SecureAuthStorage,
 } from './storage';
+import { commitThrough } from './commit';
+import { CoreStoppedError } from './errors';
 import type { CoreAction, CoreModelName, CoreRuntimeEvent, CoreStateMap } from './types';
 import type { DurableAction, TransientAction } from './writes';
 
 type CoreEventListener = (event: CoreRuntimeEvent) => void;
-
-/** Core applied a committed action, but its storage writes or account sync did not finish. */
-export class CoreSaveError extends Error {
-  constructor(cause: unknown) {
-    super(cause instanceof Error ? cause.message : t.core.storageFailed, { cause });
-  }
-}
 
 export interface CoreTransport {
   /**
@@ -118,8 +113,8 @@ export function createCoreTransport(
   };
   const bridge = new Bridge(scope, worker);
   const pending = new Set<(error: Error) => void>();
-  let stopped: Error | null = null;
-  const stop = (error: Error, failed = false) => {
+  let stopped: CoreStoppedError | null = null;
+  const stop = (error: CoreStoppedError, failed = false) => {
     if (stopped) return;
     stopped = error;
     worker.removeEventListener('error', workerFailed);
@@ -132,7 +127,7 @@ export function createCoreTransport(
   };
   const workerFailed = (event: Event) => {
     event.preventDefault();
-    stop(new Error(t.core.workerFailed), true);
+    stop(new CoreStoppedError(t.core.workerFailed), true);
   };
   worker.addEventListener('error', workerFailed);
   worker.addEventListener('messageerror', workerFailed);
@@ -143,7 +138,7 @@ export function createCoreTransport(
     if (stopped) return Promise.reject(stopped);
     return new Promise<Result>((resolve, reject) => {
       const timeout = window.setTimeout(() => {
-        if (fatal) stop(new Error(t.core.timeout), true);
+        if (fatal) stop(new CoreStoppedError(t.core.timeout), true);
         else cancel(new Error(t.core.storageTimeout));
       }, 20_000);
       const finish = () => {
@@ -184,15 +179,10 @@ export function createCoreTransport(
   let destroying: Promise<void> | null = null;
 
   return {
-    async commit(action, model) {
-      await dispatch(action, model);
-      await flush().catch((error: unknown) => {
-        throw new CoreSaveError(error);
-      });
-    },
+    commit: commitThrough(dispatch, flush),
     destroy() {
       destroying ??= prepareClose().finally(() => {
-        stop(new Error(t.core.stopped));
+        stop(new CoreStoppedError(t.core.stopped));
       });
       return destroying;
     },

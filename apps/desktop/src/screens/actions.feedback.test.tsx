@@ -6,7 +6,7 @@ import type { CoreTransport } from '../core/transport';
 import type { CoreRuntimeEvent } from '../core/types';
 import { profile } from '../test/coreState';
 import { renderWithSettings } from '../test/renderWithSettings';
-import { commitThrough } from '../test/transport';
+import { commitThrough } from '../core/commit';
 import { HomeScreen } from './HomeScreen';
 import { SettingsScreen } from './SettingsScreen';
 

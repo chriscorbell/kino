@@ -1,0 +1,40 @@
+{
+  "rule": "Up Next offers the next video Core chooses, only for a series, and never one Core marks upcoming or the video being played.",
+  "cases": [
+    {
+      "name": "a series episode Core offers after the one playing",
+      "type": "series",
+      "playingId": "tt0903747:1:1",
+      "next": { "id": "tt0903747:1:2", "upcoming": false },
+      "expect": "tt0903747:1:2"
+    },
+    {
+      "name": "an episode announced but not out",
+      "type": "series",
+      "playingId": "tt0903747:5:15",
+      "next": { "id": "tt0903747:5:16", "upcoming": true },
+      "expect": null
+    },
+    {
+      "name": "the episode being played",
+      "type": "series",
+      "playingId": "tt0903747:1:1",
+      "next": { "id": "tt0903747:1:1", "upcoming": false },
+      "expect": null
+    },
+    {
+      "name": "a movie with another video after it",
+      "type": "movie",
+      "playingId": "tt0133093",
+      "next": { "id": "tt0133093:extra", "upcoming": false },
+      "expect": null
+    },
+    {
+      "name": "the last episode, where Core offers nothing",
+      "type": "series",
+      "playingId": "tt0903747:5:16",
+      "next": null,
+      "expect": null
+    }
+  ]
+}

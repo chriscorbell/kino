@@ -6,7 +6,7 @@ import { defaultSettings, type KinoSettings } from '../settings';
 import type { KinoSettingsStore } from '../settingsStore';
 import { preview, urlSource, video } from '../test/coreState';
 import { fakeNativePlayer } from '../test/nativePlayer';
-import { mountPlayback } from '../test/playback';
+import { mountPlayback, resolvedPlayer } from '../test/playback';
 
 // A setting something reads can still change nothing (#98). Each Kino setting a desktop platform
 // lists either changes playback, shown by running one scripted playback at two of its values and
@@ -21,8 +21,8 @@ const selection = {
   metaTransportUrl: 'https://addon.invalid/manifest.json',
   streamTransportUrl: 'https://addon.invalid/manifest.json',
   video: video({ id: 'tt0903747:1:1', season: 1, episode: 1 }),
-  nextVideo: video({ id: 'tt0903747:1:2', title: 'Cat in the Bag', season: 1, episode: 2 }),
 };
+const nextVideo = video({ id: 'tt0903747:1:2', title: 'Cat in the Bag', season: 1, episode: 2 });
 // The community intro TheIntroDB lists for this runtime, so both backends have an intro.
 const runtime = 3_500_192;
 const intro = { start_ms: 228_664, end_ms: 246_143 };
@@ -229,6 +229,7 @@ async function play(backend: Backend, settings: Partial<KinoSettings>): Promise<
   const native = shellPlayer();
   const { view, store } = await mountPlayback({
     selection,
+    player: () => ({ ...resolvedPlayer(selection), nextVideo }),
     native: backend === 'native' ? native : null,
     settings,
   });

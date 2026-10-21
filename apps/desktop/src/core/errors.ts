@@ -1,6 +1,24 @@
 import { t as enUS } from '../locales/index.ts';
 import { isCoreContractFailure } from './adapters.ts';
 
+/** Core applied a committed action, but its storage writes or account sync did not finish. */
+export class CoreSaveError extends Error {
+  constructor(cause: unknown) {
+    super(cause instanceof Error ? cause.message : enUS.core.storageFailed, { cause });
+  }
+}
+
+/** The Core worker has stopped, so no later call to it can succeed. */
+export class CoreStoppedError extends Error {}
+
+/** True for the stop itself, and for a failed save whose cause was the stop. */
+export function coreStopped(error: unknown) {
+  return (
+    error instanceof CoreStoppedError ||
+    (error instanceof Error && error.cause instanceof CoreStoppedError)
+  );
+}
+
 /**
  * The text for a log. A contract failure keeps its model and field path here,
  * which is the only place that detail is useful.

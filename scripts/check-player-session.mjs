@@ -3,15 +3,18 @@
 // last position, stop the player, then Unload, and report its outcome only once that save is
 // durable. A save that fails before the stop leaves playback usable and starts over when the
 // viewer leaves again; one that fails after the stop leaves pause, seek and progress unable to
-// move the player.
+// move the player. Once the Core worker has stopped, leaving reports the outcome and stops the
+// player instead of retrying a save that cannot succeed. Over a series, the player offers Core's
+// next episode unless it is upcoming, and resumes only an offset saved for the episode it plays.
 import assert from 'node:assert/strict';
 
 import { adaptCoreState } from '../apps/desktop/src/core/adapters.ts';
+import { commitThrough } from '../apps/desktop/src/core/commit.ts';
+import { CoreStoppedError } from '../apps/desktop/src/core/errors.ts';
 import { PendingCoreWork } from '../apps/desktop/src/core/pendingWork.ts';
 import { startPlayback } from '../apps/desktop/src/playback/session.ts';
 import { createKinoSettingsStore } from '../apps/desktop/src/settingsStore.ts';
 import { memoryStorage } from '../apps/desktop/src/test/memoryStorage.ts';
-import { commitThrough } from '../apps/desktop/src/test/transport.ts';
 import { fixturePreview, fixtureSource, initializeCore } from './test-support/core-stream.mjs';
 
 const storage = new Map();
@@ -47,13 +50,16 @@ globalThis.local_storage_set_item = (key, value) =>
 /**
  * core/transport.ts over the in-process Core, which it cannot load under Node because it imports a
  * Vite worker. Window close and Quit wait for `prepareClose`; Core teardown runs it and stops the
- * transport whether or not the save succeeded.
+ * transport whether or not the save succeeded. `die` stops it as a failed worker does, which also
+ * fails a flush still waiting on storage.
  */
 function connectCore() {
   const listeners = new Set();
   deliver = (event) => listeners.forEach((listener) => listener(event));
   const beforeDestroy = new Set();
   let stopped = null;
+  const stopping = Promise.withResolvers();
+  stopping.promise.catch(() => undefined);
   const live = () => {
     if (stopped) throw stopped;
   };
@@ -61,17 +67,26 @@ function connectCore() {
     live();
     core.dispatch(action, model, '');
   };
+  const flush = async () => {
+    live();
+    await Promise.race([work.flush(), stopping.promise]);
+  };
   const prepareClose = async () => {
     await initializing.catch(() => undefined);
     live();
     await Promise.all([...beforeDestroy].map((callback) => callback()));
-    await work.flush();
+    await flush();
   };
   let destroying = null;
+  const stop = (message) => {
+    stopped ??= new CoreStoppedError(message);
+    stopping.reject(stopped);
+    listeners.clear();
+  };
   return {
     port: {
       dispatch,
-      commit: commitThrough(dispatch, () => work.flush()),
+      commit: commitThrough(dispatch, flush),
       async getState(model) {
         live();
         return adaptCoreState(model, core.get_state(model));
@@ -87,12 +102,10 @@ function connectCore() {
     },
     prepareClose,
     destroy() {
-      destroying ??= prepareClose().finally(() => {
-        stopped ??= new Error('Stremio Core has stopped.');
-        listeners.clear();
-      });
+      destroying ??= prepareClose().finally(() => stop('Stremio Core has stopped.'));
       return destroying;
     },
+    die: () => stop('Stremio Core stopped responding. Try starting it again.'),
   };
 }
 
@@ -129,7 +142,6 @@ const selection = (stream) => ({
   stream: fixtureSource(stream),
   streamTransportUrl: 'https://addon.invalid/manifest.json',
   video: null,
-  nextVideo,
 });
 
 /** The shell's player as far as the session uses it, recording what it was asked to do. */
@@ -198,12 +210,12 @@ function scriptedPlayer() {
   return shell;
 }
 
-function start({ stream = { url: fixtureUrl }, fetch } = {}) {
+function start({ stream = { url: fixtureUrl }, fetch, chosen = selection(stream) } = {}) {
   const shell = scriptedPlayer();
   const outcomes = [];
   const settings = createKinoSettingsStore(memoryStorage());
   const connection = connectCore();
-  const session = startPlayback(selection(stream), {
+  const session = startPlayback(chosen, {
     core: connection.port,
     settings,
     native: { present: true, connect: async () => shell.player },
@@ -333,7 +345,7 @@ for (const [exit, kind, run] of exits) {
 
 {
   advance();
-  const { connection, outcomes, session } = await play(time);
+  const { connection, outcomes, session, shell } = await play(time);
   let events = 0;
   connection.port.subscribe(() => (events += 1));
   hold();
@@ -353,9 +365,58 @@ for (const [exit, kind, run] of exits) {
   assert.equal(session.getSnapshot().exit, 'save-failed', 'The teardown save failed.');
   assert.deepEqual(outcomes, [], 'A save that fails at Core teardown reports no outcome.');
   session.controls.leave({ kind: 'back' });
-  await until(() => session.getSnapshot().exit !== 'saving' || outcomes.length > 0, 'the retry');
-  assert.equal(session.getSnapshot().exit, 'save-failed', 'A stopped Core takes no retry.');
-  assert.deepEqual(outcomes, []);
+  await until(() => outcomes.length > 0, 'leaving after Core teardown');
+  assert.deepEqual(
+    outcomes,
+    [{ kind: 'back', unsaved: true }],
+    'Leaving a stopped Core leaves and reports the progress unsaved.',
+  );
+  assert.equal(shell.stops.length, 1, 'Leaving a stopped Core stops the player.');
+}
+
+{
+  advance();
+  const { connection, outcomes, session, shell } = await play(time);
+  hold();
+  session.controls.leave({ kind: 'back' });
+  await heldWrite();
+  connection.die();
+  await until(() => outcomes.length > 0, 'leaving as the Core worker died during the save');
+  assert.deepEqual(
+    outcomes,
+    [{ kind: 'back', unsaved: true }],
+    'A worker that dies while the final pause waits on storage fails the save as stopped.',
+  );
+  assert.equal(shell.stops.length, 1, 'The player stops once, without Unload.');
+  assert.notEqual(session.getSnapshot().exit, 'save-failed', 'No retry is offered.');
+  land();
+}
+
+{
+  advance();
+  const { connection, outcomes, session, shell } = await play(time);
+  const saved = savedTime();
+  connection.die();
+  session.controls.leave({ kind: 'upNext', video: nextVideo });
+  await until(() => outcomes.length > 0, 'leaving after the Core worker died');
+  await settle();
+  assert.deepEqual(
+    outcomes,
+    [{ kind: 'upNext', video: nextVideo, unsaved: true }],
+    'Leaving after the Core worker died reports the outcome, unsaved.',
+  );
+  assert.deepEqual(
+    shell.stops,
+    [{ saved, loaded: true }],
+    'Leaving after the Core worker died stops the player without saving.',
+  );
+  assert.ok(
+    sessionLogs.some(([event]) => event === '[kino:player] progress not saved'),
+    'The lost save is logged.',
+  );
+  session.controls.leave({ kind: 'back' });
+  await settle();
+  assert.equal(outcomes.length, 1, 'Leaving again reports nothing more.');
 }
 
 {
@@ -409,6 +470,68 @@ for (const [exit, kind, run] of exits) {
   );
 }
 
+{
+  // Core loads the series from this add-on and lists the special last. It calls season two's
+  // episode upcoming, because the series has scheduled videos and the release is still to come.
+  const episode = (season, number, released) => ({
+    id: `kino-series:${season}:${number}`,
+    title: `Episode ${number}`,
+    season,
+    episode: number,
+    released,
+  });
+  const series = {
+    id: 'kino-series',
+    type: 'series',
+    name: 'Synthetic series',
+    posterShape: 'poster',
+    behaviorHints: { hasScheduledVideos: true },
+    videos: [
+      episode(1, 1, '2020-01-01T00:00:00.000Z'),
+      episode(1, 2, '2020-01-08T00:00:00.000Z'),
+      episode(2, 1, '2999-01-01T00:00:00.000Z'),
+      episode(0, 1, '2020-01-15T00:00:00.000Z'),
+    ],
+  };
+  const movieFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json({ meta: series });
+  const playEpisode = async (id, at) => {
+    const playback = start({
+      chosen: {
+        ...selection({ url: fixtureUrl }),
+        meta: { ...fixturePreview, id: series.id, name: series.name, type: 'series' },
+        video: { id },
+      },
+    });
+    await until(() => playback.shell.calls.includes(`load ${fixtureUrl}`), 'the episode load');
+    await until(() => core.get_state('player').metaItem?.type === 'Ready', 'the series');
+    playback.shell.pausesAt(at);
+    await work.flush();
+    return playback;
+  };
+  const leave = async ({ outcomes, session }) => {
+    session.controls.leave({ kind: 'back' });
+    await until(() => outcomes.length > 0, 'the episode exit');
+  };
+  const offered = ({ session }) => session.getSnapshot().nextVideo?.id ?? null;
+  const seeks = ({ shell }) => shell.calls.filter((call) => call === 'seek').length;
+
+  const second = await playEpisode('kino-series:1:2', 60000);
+  assert.equal(offered(second), null, 'Up Next offers no upcoming episode.');
+  await leave(second);
+  const again = await playEpisode('kino-series:1:2', 90000);
+  assert.equal(seeks(again), 1, 'The episode resumes at its own saved offset.');
+  await leave(again);
+  const first = await playEpisode('kino-series:1:1', 30000);
+  assert.equal(offered(first), 'kino-series:1:2', "Up Next offers Core's next episode.");
+  assert.equal(seeks(first), 0, 'An offset saved for another episode does not move the player.');
+  await leave(first);
+  const last = await playEpisode('kino-series:2:1', 30000);
+  assert.equal(offered(last), null, 'Up Next offers no special after a numbered season.');
+  await leave(last);
+  globalThis.fetch = movieFetch;
+}
+
 // Last, because an ended playback leaves an offset no later case resumes past.
 {
   advance();
@@ -454,7 +577,7 @@ for (const [exit, kind, run] of exits) {
 }
 
 console.log(
-  'Pinned Core playback session: Back, Up Next, a source failure, window close and Core teardown each saved the last position, stopped, then unloaded; an exit during a save joined it; a save that failed before the stop stayed usable and saved from the top, one that failed at Core teardown reached the teardown, a source or audio output that changed during a failed save loaded once, and a failed Unload after the stop left pause, seek and progress unable to move the player.',
+  "Pinned Core playback session: Back, Up Next, a source failure, window close and Core teardown each saved the last position, stopped, then unloaded; an exit during a save joined it; a save that failed before the stop stayed usable and saved from the top, one that failed at Core teardown reached the teardown; leaving after Core teardown, after the Core worker died, or as it died during the save stopped the player once and reported the outcome as unsaved; a source or audio output that changed during a failed save loaded once; a series resumed only its own episode's offset and offered Core's next episode, but no upcoming one and no special after a numbered season; and a failed Unload after the stop left pause, seek and progress unable to move the player.",
 );
 // Core owns repeating runtime timers, as it does in its browser worker.
 process.exit(0);

@@ -45,6 +45,7 @@ const probe = {
     };
     const state: PlayerState = {
       libraryItem: null,
+      nextVideo: null,
       selected: null,
       title: 'Track fixture',
       stream: { type: 'Ready', content: stream },
@@ -87,7 +88,6 @@ const probe = {
       {
         meta: preview({ id, type: episode ? 'series' : 'movie', name: 'Track fixture' }),
         video: episode ? video({ id: `${id}:1:${episode}`, season: 1, episode }) : null,
-        nextVideo: null,
         stream,
         metaTransportUrl: 'https://addon.invalid/manifest.json',
         streamTransportUrl: 'https://addon.invalid/manifest.json',

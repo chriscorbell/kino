@@ -251,8 +251,6 @@ export function MetaDetailsScreen({
   const currentFailure = sourcesCurrent
     ? [...failedSources].findLast(([key]) => visibleSourceKeys.has(key))?.[1]
     : null;
-  const activeIndex = activeVideo ? videos.findIndex((video) => video.id === activeVideo.id) : -1;
-  const nextEpisode = activeIndex >= 0 ? (videos[activeIndex + 1] ?? null) : null;
   const inLibrary = libraryOverride?.value ?? display.inLibrary;
   const libraryReady = Boolean(transport && meta);
   const coreWatched = (id: string) =>
@@ -404,7 +402,6 @@ export function MetaDetailsScreen({
                 onPlay({
                   meta: display,
                   metaTransportUrl: resource.addon.transportUrl,
-                  nextVideo: nextEpisode,
                   stream: choice.source,
                   streamTransportUrl: choice.transportUrl,
                   video: activeVideo,

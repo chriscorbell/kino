@@ -1,0 +1,35 @@
+{
+  "rule": "Playback resumes at the saved offset only when Core saved it for the video being played.",
+  "cases": [
+    {
+      "name": "an offset saved for the episode being played",
+      "playingId": "tt0903747:1:2",
+      "saved": { "videoId": "tt0903747:1:2", "timeOffsetMs": 1234000 },
+      "expect": 1234000
+    },
+    {
+      "name": "an offset saved for another episode",
+      "playingId": "tt0903747:1:3",
+      "saved": { "videoId": "tt0903747:1:2", "timeOffsetMs": 1234000 },
+      "expect": 0
+    },
+    {
+      "name": "an offset saved without a video",
+      "playingId": "tt0133093",
+      "saved": { "videoId": null, "timeOffsetMs": 1234000 },
+      "expect": 0
+    },
+    {
+      "name": "a movie saved under its own id",
+      "playingId": "tt0133093",
+      "saved": { "videoId": "tt0133093", "timeOffsetMs": 600000 },
+      "expect": 600000
+    },
+    {
+      "name": "nothing saved",
+      "playingId": "tt0133093",
+      "saved": null,
+      "expect": 0
+    }
+  ]
+}

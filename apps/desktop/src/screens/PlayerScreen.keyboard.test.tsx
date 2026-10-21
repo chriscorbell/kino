@@ -39,7 +39,6 @@ async function mountPlayer() {
       metaTransportUrl: 'https://addon.invalid/manifest.json',
       streamTransportUrl: 'https://addon.invalid/manifest.json',
       video: null,
-      nextVideo: null,
     },
     native: fixture.native,
   });

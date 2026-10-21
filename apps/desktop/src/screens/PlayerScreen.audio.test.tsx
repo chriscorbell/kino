@@ -33,7 +33,6 @@ it('passes the preferred language and selects native audio IDs without reloading
       metaTransportUrl: 'https://addon.invalid/manifest.json',
       streamTransportUrl: 'https://addon.invalid/manifest.json',
       video: null,
-      nextVideo: null,
     },
     native: fixture.native,
     languages: { audio: 'spa' },

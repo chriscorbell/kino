@@ -23,6 +23,7 @@ describe('native direct sources', () => {
       // proxy. The native backend sends the headers itself instead.
       const state: PlayerState = {
         libraryItem: null,
+        nextVideo: null,
         selected: { stream },
         stream: {
           type: 'Ready',
@@ -44,7 +45,6 @@ describe('native direct sources', () => {
           stream,
           streamTransportUrl: 'https://addon.invalid/manifest.json',
           video: null,
-          nextVideo: null,
         },
         native,
         player: () => state,
