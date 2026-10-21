@@ -15,6 +15,9 @@ export function durable(action: CoreAction): DurableAction {
   return action as DurableAction;
 }
 
-export function transient(action: CoreAction): TransientAction {
-  return action as TransientAction;
+/** Keeps the literal action name, so a narrower type such as the Player model's is checked, not cast. */
+export function transient<const Action extends CoreAction>(
+  action: Action,
+): Action & TransientAction {
+  return action as Action & TransientAction;
 }

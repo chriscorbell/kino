@@ -1,8 +1,8 @@
 import type { ClientPlatform } from '@kino/settings';
 
-import type { PlaybackSelection } from '../core/actions';
+import type { PlaybackSelection, TransientPlayerAction } from '../core/actions';
 import type { AddonSubtitle, CoreRuntimeEvent, CoreStateMap, CoreVideo } from '../core/types';
-import type { DurableAction, TransientAction } from '../core/writes';
+import type { DurableAction } from '../core/writes';
 import type { ChapterCue } from '../intro/markers';
 import type { NativePlayer } from '../native/player';
 import type { AudioTrack } from '../player/audio';
@@ -101,7 +101,7 @@ export type PlaybackOutcome =
 
 /** What a session needs from Core. `CoreTransport` satisfies it. */
 export interface PlayerCorePort {
-  dispatch(action: TransientAction, model: 'player'): Promise<void>;
+  dispatch(action: TransientPlayerAction, model: 'player'): Promise<void>;
   commit(action: DurableAction, model: 'player'): Promise<void>;
   getState<Model extends 'player' | 'ctx'>(model: Model): Promise<CoreStateMap[Model]>;
   subscribe(listener: (event: CoreRuntimeEvent) => void): () => void;

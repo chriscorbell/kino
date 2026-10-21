@@ -67,13 +67,14 @@ async function mountPlayer({ upNext = true, hasNextVideo = true } = {}) {
   await emit('time', { milliseconds: 30000 });
   await emit('time', { milliseconds: 34567 });
   native.pauseAndSnapshot.mockResolvedValue({ time: 34567, duration: 120000 });
-  calls.length = 0;
+  const mounted = calls.splice(0);
   holdFlush = true;
   return {
     calls,
     closing,
     emit,
     finishFlush,
+    mounted,
     nextVideo,
     onFinished,
     transport,
@@ -180,6 +181,15 @@ it('says progress is being saved while window close waits for the save', async (
     await closing;
   });
   expect(player.onFinished).toHaveBeenCalledExactlyOnceWith({ kind: 'closed' });
+});
+
+it('sends one Load and saves nothing while StrictMode mounts the view twice', async () => {
+  const { mounted } = await mountPlayer();
+  expect(mounted.filter((call) => call === 'Load')).toHaveLength(1);
+  expect(mounted).not.toContain('flush');
+  expect(mounted).not.toContain('Unload');
+  expect(native.load).toHaveBeenCalledOnce();
+  expect(native.stop).not.toHaveBeenCalled();
 });
 
 it('neither saves nor unloads when the view unmounts while playing', async () => {

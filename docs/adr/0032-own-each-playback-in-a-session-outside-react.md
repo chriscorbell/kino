@@ -24,9 +24,9 @@ The view's lifecycle is no longer an exit path. A test asserts that unmounting t
 
 `pnpm core:check-shutdown` runs `savePlayback` itself against the pinned Core, so it checks the client's own order rather than a copy written into the gate. The modules it loads keep explicit `.ts` value imports so plain Node can load them.
 
-A profile change during playback applies to the next playback instead of reloading the stream. Window close and Quit show that progress is being saved while the shell waits for the save, as Back already did.
+A profile change during playback applies to the next playback instead of reloading the stream. Window close and Quit show that progress is being saved while the shell waits for the save, as Back already did. Once that save is durable, App returns to the details page before the window closes. A finished session has no Back, so a stopped player left on screen would strand the viewer if the shell stopped waiting before the save landed.
 
-Playback state lives in an external store that the view reads with `useSyncExternalStore`, a second state style in a client that otherwise keeps state in components.
+Playback state lives in an external store that the view reads with `useSyncExternalStore`, as Kino settings and update state already do.
 
 ## Alternatives considered
 

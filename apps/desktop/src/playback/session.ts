@@ -65,11 +65,12 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
     };
     listeners.forEach((listener) => listener());
   };
-  // While a save runs, media events and commands that move playback are dropped.
-  const saving = () => snapshot.exit === 'saving';
 
   // True once the exit stopped the player: nothing reads, reports or fails after it.
   let stopped = false;
+  // Stopped or saving: nothing loads, and media events and commands that move
+  // playback are dropped. A save that fails after the stop does not reopen it.
+  const frozen = () => stopped || snapshot.exit === 'saving';
   let failed = false;
   let native: NativePlayer | null = null;
   let backend: MediaBackend | null = null;
@@ -230,7 +231,7 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
   }
 
   function load() {
-    if (!backend || !source || !profile || !platform || stopped) return;
+    if (!backend || !source || !profile || !platform || frozen()) return;
     const current = settings.get();
     loadedAudioOutput = current.audioOutput;
     tracks.load(backend);
@@ -254,7 +255,7 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
       backend.setSubtitleStyle({ size: subtitleSize, position: subtitlePosition });
     }
     applied = { matchRefreshRate, size: subtitleSize, position: subtitlePosition };
-    if (loadedAudioOutput !== null && audioOutput !== loadedAudioOutput && !saving() && !stopped) {
+    if (loadedAudioOutput !== null && audioOutput !== loadedAudioOutput && !frozen()) {
       backend.stop();
       load();
     }
@@ -263,7 +264,7 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
   /* What the player reports. ---------------------------------------------- */
 
   function onMedia(event: MediaEvent) {
-    if (saving() || stopped) return;
+    if (frozen()) return;
     const { position } = snapshot;
     switch (event.type) {
       case 'time':
@@ -322,7 +323,8 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
     }
   }
 
-  // Once per session, so a later Core snapshot never moves the viewer.
+  // Seeks once, when a stored offset and the duration are first both known,
+  // so no Core snapshot after that moves the viewer.
   function resume() {
     const { duration } = snapshot.position;
     if (resumed || duration <= 0 || resumeAt <= 0 || resumeAt >= duration) return;
@@ -362,13 +364,13 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
   const controls: PlaybackSession['controls'] = {
     // Core hears the change from the player's own pause event, not from here.
     togglePause() {
-      if (saving() || !backend) return;
+      if (frozen() || !backend) return;
       const paused = !snapshot.paused;
       publish({ paused });
       backend.setPaused(paused);
     },
     seek(milliseconds) {
-      if (saving()) return;
+      if (frozen()) return;
       const time = Math.max(0, milliseconds);
       publish({ ended: false, position: { ...snapshot.position, time } });
       backend?.seek(time);

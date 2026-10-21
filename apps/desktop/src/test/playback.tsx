@@ -1,6 +1,5 @@
 import type { ClientPlatform } from '@kino/settings';
 import { act, waitFor, type RenderResult } from '@testing-library/react';
-import { StrictMode } from 'react';
 import { afterEach, vi, type Mock } from 'vitest';
 
 import type { PlaybackSelection } from '../core/actions';
@@ -111,8 +110,12 @@ export async function mountPlayback({
     storage: memoryStorage(),
     onFinished,
   });
-  const screen = <PlayerScreen session={session} />;
-  const view = renderWithSettings(strict ? <StrictMode>{screen}</StrictMode> : screen, { store });
+  // StrictMode wraps the whole tree, as in main.tsx. Nested inside the settings
+  // provider, React 19.2 ran each effect once on first mount, with no practice unmount.
+  const view = renderWithSettings(<PlayerScreen session={session} />, {
+    store,
+    reactStrictMode: strict,
+  });
   await waitFor(() => {
     if (session.getSnapshot().waitingFor.core) throw new Error('Core has not answered the Load.');
   });
