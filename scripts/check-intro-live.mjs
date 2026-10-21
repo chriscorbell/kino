@@ -47,13 +47,14 @@ globalThis.fetch = async (...request) => {
       unanswered.push(`HTTP ${response.status}`);
       return response;
     }
-    const text = await response.text();
+    // The client decodes strictly, so it gets the raw bytes; text() would replace an invalid byte.
+    const bytes = await response.arrayBuffer();
     try {
-      JSON.parse(text);
+      JSON.parse(new TextDecoder().decode(bytes));
     } catch {
       unanswered.push('a body that is not JSON');
     }
-    return new Response(text, response);
+    return new Response(bytes, response);
   } catch (error) {
     unanswered.push(error.cause?.code ?? error.cause?.message ?? error.message);
     throw error;
@@ -78,6 +79,7 @@ async function lookup(durationMs) {
 const episode = { tmdbId: 1396, season: 1, episode: 1 };
 const response = await fetch(
   'https://api.theintrodb.org/v3/media?tmdb_id=1396&season=1&episode=1&list_versions=true',
+  { signal: AbortSignal.timeout(5000) },
 ).catch(() => null);
 requireAnswers("the check's own request for the pilot's versions");
 const { versions } = await response.json();
