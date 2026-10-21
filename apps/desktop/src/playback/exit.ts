@@ -8,7 +8,7 @@
 import type { ClientPlatform } from '@kino/settings';
 
 import { finalPauseAction, unloadPlayerAction } from '../core/actions.ts';
-import { coreStopped } from '../core/errors.ts';
+import { coreStopped, storageTimedOut } from '../core/errors.ts';
 import type { MediaPosition } from './media';
 import { timeChangedAction } from './progress.ts';
 import type { ExitState, PlaybackEnd, PlaybackOutcome, PlayerCorePort } from './types';
@@ -52,9 +52,12 @@ export async function savePlayback(
  * whose outcome wins. It resolves once Unload is durable and `onFinished` has
  * run, and after that every run resolves at once. It rejects when the save
  * failed: the state becomes 'save-failed' and the next run starts over. A save
- * that failed because the Core worker stopped can never succeed, so that exit
- * stops the player and reports its outcome as unsaved, and every later run
- * rejects at once.
+ * that no retry could complete ends instead: one that failed because the Core
+ * worker stopped, or one whose Unload failed after the player stopped, since
+ * Core has already unloaded and cannot write again what was lost. That exit
+ * stops the player, reports its outcome as unsaved, telling an Unload whose
+ * writes did not finish in time from one whose writes failed, and every later
+ * run rejects at once.
  */
 export function createExit({
   core,
@@ -71,17 +74,26 @@ export function createExit({
   return (outcome) => {
     running ??= (async () => {
       onState('saving');
+      let stopped = false;
+      const stop = () => {
+        if (stopped) return;
+        stopped = true;
+        steps.stop();
+      };
       try {
-        await savePlayback(core, steps);
+        await savePlayback(core, { ...steps, stop });
       } catch (error) {
-        if (!coreStopped(error)) {
+        const unsaved = coreStopped(error)
+          ? 'core-stopped'
+          : stopped && (storageTimedOut(error) ? 'unload-timed-out' : 'unload-failed');
+        if (!unsaved) {
           running = null;
           onState('save-failed');
           throw error;
         }
-        console.error('[kino:player] progress not saved', { reason: 'core-stopped' });
-        steps.stop();
-        onFinished({ ...outcome, unsaved: true });
+        console.error('[kino:player] progress not saved', { reason: unsaved });
+        stop();
+        onFinished({ ...outcome, unsaved });
         throw error;
       }
       onFinished(outcome);

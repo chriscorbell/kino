@@ -29,7 +29,7 @@ import {
   type NavigationEntry,
   type UpdateBrowseState,
 } from './navigation';
-import { usePlaybackHost } from './playback';
+import { usePlaybackHost, type PlaybackEnd } from './playback';
 import { AddonsScreen } from './screens/AddonsScreen';
 import { DiscoverScreen } from './screens/DiscoverScreen';
 import { HomeScreen } from './screens/HomeScreen';
@@ -62,6 +62,12 @@ const utilityNavigation: NavigationItem[] = [
   { icon: Toolbox, label: enUS.navigation.addons, screen: 'addons' },
   { icon: SlidersHorizontal, label: enUS.navigation.settings, screen: 'settings' },
 ];
+
+const progressLostMessage: Record<NonNullable<PlaybackEnd['unsaved']>, string> = {
+  'core-stopped': enUS.player.progressNotSaved,
+  'unload-failed': enUS.player.unloadNotSaved,
+  'unload-timed-out': enUS.player.unloadTimedOut,
+};
 
 function NavigationButton({
   active,
@@ -120,11 +126,11 @@ export function App() {
   const [detailTransport, setDetailTransport] = useState(transport);
   const [resumeRequest, setResumeRequest] = useState<ResumeRequest | null>(null);
   const [failedSources, setFailedSources] = useState<ReadonlyMap<string, string>>(new Map());
-  const [progressLost, setProgressLost] = useState(false);
-  // Every way playback ends arrives here once, after its progress is durable or,
-  // when Core had stopped, known to be lost.
+  const [progressLost, setProgressLost] = useState<PlaybackEnd['unsaved']>();
+  // Every way playback ends arrives here once, after its progress is durable or
+  // known to be lost.
   const { session: playback, play } = usePlaybackHost((outcome, selection) => {
-    setProgressLost(outcome.unsaved === true);
+    setProgressLost(outcome.unsaved);
     switch (outcome.kind) {
       case 'back':
       case 'closed':
@@ -197,7 +203,7 @@ export function App() {
     setDetailSeason(undefined);
     setDetailReturn(null);
     setFailedSources(new Map());
-    setProgressLost(false);
+    setProgressLost(undefined);
     setScreen('detail');
   };
 
@@ -404,7 +410,7 @@ export function App() {
             {!accountOpen ? <CoreRecovery /> : null}
             {progressLost ? (
               <p className={sharedStyles.loadError} role="alert">
-                {enUS.player.progressNotSaved}
+                {progressLostMessage[progressLost]}
               </p>
             ) : null}
             <UpdateNotice updates={updates} />

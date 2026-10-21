@@ -5,8 +5,11 @@ import { loadPlayerAction } from '../../apps/desktop/src/core/actions.ts';
 
 const require = createRequire(new URL('../../apps/desktop/package.json', import.meta.url));
 
+let compiled;
+
 // Run the pinned WASM serializer with synthetic metadata and in-memory storage.
 // Every Core fetch stays in this fixture; it never contacts an add-on or account.
+// Each call loads its own WASM instance, so a gate can give every case a fresh Core.
 export async function initializeCore({ storage = new Map(), onEvent = () => {} } = {}) {
   Object.assign(globalThis, {
     WorkerGlobalScope: { [Symbol.hasInstance]: () => true },
@@ -21,12 +24,12 @@ export async function initializeCore({ storage = new Map(), onEvent = () => {} }
   globalThis.local_storage_set_item = async (key, value) => storage.set(key, value);
   globalThis.local_storage_remove_item = async (key) => storage.delete(key);
   globalThis.fetch = async () => Response.json({ meta: fixtureMeta });
+  delete require.cache[require.resolve('@stremio/stremio-core-web/stremio_core_web.js')];
   const core = require('@stremio/stremio-core-web/stremio_core_web.js');
-  await core.default({
-    module_or_path: readFileSync(
-      require.resolve('@stremio/stremio-core-web/stremio_core_web_bg.wasm'),
-    ),
-  });
+  compiled ??= new WebAssembly.Module(
+    readFileSync(require.resolve('@stremio/stremio-core-web/stremio_core_web_bg.wasm')),
+  );
+  await core.default({ module_or_path: compiled });
   await core.initialize_runtime(onEvent);
   return core;
 }

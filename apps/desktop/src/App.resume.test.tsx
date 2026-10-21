@@ -28,9 +28,16 @@ vi.mock('./screens/PlayerScreen', () => ({
   }) => {
     played(selection);
     return (
-      <button onClick={() => onFinished({ kind: 'failed', message: 'Synthetic playback failure' })}>
-        Fail playback
-      </button>
+      <>
+        <button
+          onClick={() => onFinished({ kind: 'failed', message: 'Synthetic playback failure' })}
+        >
+          Fail playback
+        </button>
+        <button onClick={() => onFinished({ kind: 'back', unsaved: 'unload-failed' })}>
+          Back after Unload failed
+        </button>
+      </>
     );
   },
 }));
@@ -117,6 +124,19 @@ it('waits for the remembered add-on and resumes once, returning to selection aft
   await waitFor(() => expect(source).toBeEnabled());
   expect(screen.queryByRole('button', { name: 'Fail playback' })).not.toBeInTheDocument();
   expect(screen.getByText('Synthetic playback failure')).toBeInTheDocument();
+});
+
+it('shows that progress was not saved on the title a Continue Watching resume returns to', async () => {
+  const fixture = mount();
+  fireEvent.click(await screen.findByRole('button', { name: /^Resume Saved series/ }));
+  await fixture.ready();
+  fireEvent.click(await screen.findByRole('button', { name: 'Back after Unload failed' }));
+
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent('Progress could not be saved.');
+  const landed = alert.closest('main')!;
+  expect(landed).toBeVisible();
+  expect(landed).toContainElement(screen.getByRole('heading', { name: 'Saved episode', level: 1 }));
 });
 
 it('silently offers sources for the saved episode when the remembered URL has changed', async () => {

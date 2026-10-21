@@ -4,7 +4,12 @@ import { isCoreContractFailure } from './adapters.ts';
 /** Core applied a committed action, but its storage writes or account sync did not finish. */
 export class CoreSaveError extends Error {
   constructor(cause: unknown) {
-    super(cause instanceof Error ? cause.message : enUS.core.storageFailed, { cause });
+    super(
+      cause instanceof Error || cause instanceof DOMException
+        ? cause.message
+        : enUS.core.storageFailed,
+      { cause },
+    );
   }
 }
 
@@ -17,6 +22,19 @@ export function coreStopped(error: unknown) {
     error instanceof CoreStoppedError ||
     (error instanceof Error && error.cause instanceof CoreStoppedError)
   );
+}
+
+/**
+ * Core's storage or account sync did not finish in time, which leaves open
+ * whether it will. A DOMException keeps its name across the worker boundary,
+ * where a class of Kino's own would arrive as a plain Error.
+ */
+export const storageTimeout = () => new DOMException(enUS.core.storageTimeout, 'TimeoutError');
+
+/** True for `storageTimeout`, and for a failed save whose cause it was. */
+export function storageTimedOut(error: unknown) {
+  const cause = error instanceof CoreSaveError ? error.cause : error;
+  return cause instanceof DOMException && cause.name === 'TimeoutError';
 }
 
 /**
