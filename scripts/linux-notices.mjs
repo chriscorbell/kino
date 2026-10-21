@@ -40,29 +40,45 @@ const component = (name) => {
   return found;
 };
 
-// The manifest's modules and the values their sources pin. Every module is a list item at two
-// spaces of indentation, and its sources' keys sit deeper, so reading keys per block is enough.
+// The manifest's modules, the values their sources pin, and each list item's own keys. Every module
+// is a list item at two spaces of indentation, and its sources' keys sit deeper, so reading keys per
+// block is enough. An item's own keys sit two columns past its dash; deeper keys belong to a nested
+// map, which must not overwrite them. Shapes this reader would misread are problems, not guesses.
 function flatpakModules() {
   const text = readFileSync(flatpakManifest, 'utf8');
   const modules = new Map();
+  const problems = [];
   let current = null;
   for (const line of text.split('\n')) {
     const start = line.match(/^ {2}- name: (\S+)$/);
     if (start) {
-      current = { name: start[1], pins: new Set() };
+      if (modules.has(start[1]))
+        problems.push(
+          `packaging/flatpak/com.chriscorbell.Kino.yml names the module ${start[1]} twice.`,
+        );
+      current = { name: start[1], pins: new Set(), items: [] };
       modules.set(current.name, current);
       continue;
     }
-    const pin = line.match(/^\s+-?\s*(url|commit|sha256|tag): (\S+)$/);
-    if (current && pin) current.pins.add(`${pin[1]}:${pin[2]}`);
+    if (current?.name === 'kino-stream-engine' && /^\s+- \{/.test(line))
+      problems.push(
+        'packaging/flatpak/com.chriscorbell.Kino.yml writes a kino-stream-engine list item as a flow mapping; write it as a block mapping so its source pin can be checked.',
+      );
+    const entry = line.match(/^(\s+)(- )?([\w-]+): (\S+)$/);
+    if (!current || !entry) continue;
+    const [, indent, itemStart, key, value] = entry;
+    const column = indent.length + (itemStart ? 2 : 0);
+    if (itemStart) current.items.push({ column });
+    const item = current.items.at(-1);
+    if (item?.column === column) item[key] = value;
+    if (['url', 'commit', 'sha256', 'tag'].includes(key)) current.pins.add(`${key}:${value}`);
   }
-  return { text, modules };
+  return { text, modules, problems };
 }
 
 export function verifyLinuxReview() {
   verifyRecordTexts('linux.json');
-  const { text, modules } = flatpakModules();
-  const problems = [];
+  const { text, modules, problems } = flatpakModules();
   const baseBranch = reviewed.pins.baseApp.split('//')[1];
   if (!new RegExp(`^base-version: '${baseBranch.replace('.', '\\.')}'$`, 'm').test(text))
     problems.push(
@@ -87,6 +103,23 @@ export function verifyLinuxReview() {
   for (const name of modules.keys())
     if (!covered.has(name))
       problems.push(`The Flatpak module ${name} has no reviewed notices in linux.json.`);
+  // The Flatpak cannot source engine.lock, so it repeats the stream-server pin. A bump to one
+  // alone would build the old revision with the new patches. Only the source the patches apply
+  // to counts, so another source of the same repository cannot stand in for it.
+  const lock = readFileSync(join(root, 'apps/stream-engine/engine.lock'), 'utf8');
+  const lockValue = (key) => lock.match(new RegExp(`^${key}=(\\S+)$`, 'm'))?.[1];
+  const pinned = `${lockValue('KINO_ENGINE_REPOSITORY')}@${lockValue('KINO_ENGINE_REVISION')}`;
+  const vendored = (modules.get('kino-stream-engine')?.items ?? []).filter(
+    (item) => item.dest === 'build/vendor/stream-server',
+  );
+  const built = vendored.length === 1 ? `${vendored[0].url}@${vendored[0].commit}` : null;
+  const found = built
+    ? `builds stream-server ${built}`
+    : `has ${vendored.length} kino-stream-engine sources with dest build/vendor/stream-server, not one`;
+  if (built !== pinned)
+    problems.push(
+      `packaging/flatpak/com.chriscorbell.Kino.yml ${found}, but apps/stream-engine/engine.lock pins ${pinned}. Set that source's url and commit to engine.lock's KINO_ENGINE_REPOSITORY and KINO_ENGINE_REVISION.`,
+    );
   if (problems.length) throw new Error(problems.join('\n'));
 }
 

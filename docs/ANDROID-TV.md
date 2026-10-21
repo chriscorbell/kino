@@ -78,7 +78,7 @@ Rules that need neither the device nor Android run as plain JVM tests under `app
 
 ## Core and profile boundaries
 
-The Kotlin bridge is pinned to Stremio `stremio-core-kotlin` 1.15.0, commit `2a8083f1026603e7c49f104473340d110902a72c`. Its Cargo lock pins Core to `9a827fdd6f319ba3c22a96436c5f61292cb24ff1`. The bridge's release archive is verified by SHA-256 and supplies Kotlin bindings and protobuf classes. Kino compiles its JNI library from source with the checked-in patches and Cargo lock.
+The Kotlin bridge is pinned to Stremio `stremio-core-kotlin` 1.15.0, commit `2a8083f1026603e7c49f104473340d110902a72c`. Its Cargo lock pins Core to `9a827fdd6f319ba3c22a96436c5f61292cb24ff1`. The bridge's release archive is verified by SHA-256 and supplies Kotlin bindings and protobuf classes. Kino compiles its JNI library from source with the checked-in patches and Cargo lock. The desktop pins Core separately, so the two clients can run different Core revisions; `pnpm notices:check` names both pins whenever either moves.
 
 The patch disables analytics and upstream diagnostic payloads, limits responses to 16 MiB and requests to 20 seconds, and requires HTTPS without URL credentials. GET redirects must remain HTTPS and stop after ten hops. Requests with bodies cannot redirect. Local Files requests are blocked and its descriptor is hidden from the presentation. Generated Rust protobuf files use Cargo's output directory so reconstructing the vendor checkout cannot invalidate a cached build.
 

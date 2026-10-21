@@ -47,7 +47,10 @@ const SCRIPT_READS = {
   'scripts/build-engine.sh': ['apps/stream-engine/**'],
   'scripts/check-version.mjs': ['package.json'],
   'scripts/license-notices.mjs': ['LICENSE', 'third_party/notices/**'],
-  'scripts/linux-notices.mjs': ['packaging/flatpak/com.chriscorbell.Kino.yml'],
+  'scripts/linux-notices.mjs': [
+    'apps/stream-engine/engine.lock',
+    'packaging/flatpak/com.chriscorbell.Kino.yml',
+  ],
 };
 
 const pkg = JSON.parse(read('package.json'));

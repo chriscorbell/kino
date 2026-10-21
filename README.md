@@ -2,7 +2,7 @@
 
 Kino is a Stremio-compatible media client for macOS, Windows, Linux, and Android TV, with its own interface. It uses Stremio accounts, add-ons, libraries, and watch progress, and has no backend of its own.
 
-The desktop app is a Qt shell around libmpv that hosts a React client. The TV app is Kotlin and Compose over Media3. Both run the same pinned Stremio Core.
+The desktop app is a Qt shell around libmpv that hosts a React client. The TV app is Kotlin and Compose over Media3. Both run Stremio Core from separate pins, the desktop through the `@stremio/stremio-core-web` package and the TV through the `stremio-core-kotlin` bridge. The two pins need not name the same Core revision, and `pnpm notices:check` names both whenever either moves.
 
 ## Install
 
