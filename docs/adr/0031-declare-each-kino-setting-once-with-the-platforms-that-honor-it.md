@@ -12,7 +12,7 @@ Nothing said which platforms a setting applied to. Settings controls with nothin
 
 ## Decision
 
-`packages/settings/src/schema.ts` is the one place a Kino setting is declared. Each entry gives the setting's domain and default, and lists the platforms that honor it among macOS, Windows, Linux and the TV. A desktop platform names what applies the setting there, the React client or a capability of the shell, and the TV names the preference that stores it. A platform missing from an entry does not honor the setting.
+`packages/settings/src/schema.ts` is the one place a Kino setting is declared. Each entry gives the setting's domain and default, and lists the platforms that honor it among macOS, Windows, Linux and the TV. A desktop platform names what applies the setting there, the React client, the native player every shell embeds, or a capability of the shell, and the TV names the preference that stores it. A platform missing from an entry does not honor the setting.
 
 The desktop client derives its settings record, defaults and validation from the schema. It stores every setting a desktop platform lists.
 

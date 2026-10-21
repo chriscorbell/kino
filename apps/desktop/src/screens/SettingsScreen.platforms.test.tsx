@@ -38,6 +38,8 @@ async function openSettings() {
   return {
     matchRefreshRate: screen.queryByRole('switch', { name: /Match refresh rate/ }),
     interfaceSize: screen.queryByRole('combobox', { name: /Interface size/ }),
+    audioOutput: screen.queryByRole('combobox', { name: /Audio output/ }),
+    subtitles: screen.queryByRole('switch', { name: /^Subtitles/ }),
   };
 }
 
@@ -51,6 +53,8 @@ it.each([
   const settings = await openSettings();
   expect(settings.matchRefreshRate).toBeInTheDocument();
   expect(settings.interfaceSize).toBeInTheDocument();
+  expect(settings.audioOutput).toBeInTheDocument();
+  expect(settings.subtitles).toBeInTheDocument();
 });
 
 it('hides Match refresh rate in the Linux shell, which reports no refresh rate matching', async () => {
@@ -58,6 +62,8 @@ it('hides Match refresh rate in the Linux shell, which reports no refresh rate m
   const settings = await openSettings();
   expect(settings.matchRefreshRate).not.toBeInTheDocument();
   expect(settings.interfaceSize).toBeInTheDocument();
+  expect(settings.audioOutput).toBeInTheDocument();
+  expect(settings.subtitles).toBeInTheDocument();
 });
 
 it('hides Match refresh rate wherever the shell does not report the capability', async () => {
@@ -65,10 +71,12 @@ it('hides Match refresh rate wherever the shell does not report the capability',
   expect((await openSettings()).matchRefreshRate).not.toBeInTheDocument();
 });
 
-it('offers neither shell setting in the web build, which has no shell', async () => {
+it('offers no shell or native player setting in the web build, which has neither', async () => {
   const settings = await openSettings();
   expect(settings.matchRefreshRate).not.toBeInTheDocument();
   expect(settings.interfaceSize).not.toBeInTheDocument();
+  expect(settings.audioOutput).not.toBeInTheDocument();
+  expect(settings.subtitles).not.toBeInTheDocument();
 });
 
 it('says so in Settings when the shell names a platform the schema does not know', async () => {

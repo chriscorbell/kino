@@ -31,9 +31,15 @@ export type SettingValue = BooleanValue | ChoiceValue | RangeValue;
 export const shellCapabilities = ['interfaceScale', 'refreshRateMatching'] as const;
 export type ShellCapability = (typeof shellCapabilities)[number];
 
-/** Who applies a setting on a desktop platform: the React client, or a capability of the shell. */
+/**
+ * Who applies a setting on a desktop platform: the React client, the native player every shell
+ * embeds, or a capability of the shell. The web build plays in the browser's <video>, which
+ * applies none of what the native player does.
+ */
 export type DesktopConsumer =
-  { readonly by: 'client' } | { readonly by: 'shell'; readonly capability: ShellCapability };
+  | { readonly by: 'client' }
+  | { readonly by: 'player' }
+  | { readonly by: 'shell'; readonly capability: ShellCapability };
 
 /** The TV stores booleans as booleans and choices as text, and has nowhere to store a range. */
 type TvValue = BooleanValue | ChoiceValue;
@@ -70,8 +76,10 @@ const range = (min: number, max: number, fallback: number) =>
   ({ kind: 'range', min, max, default: fallback }) as const;
 
 const client = { by: 'client' } as const;
+const player = { by: 'player' } as const;
 const shell = (capability: ShellCapability) => ({ by: 'shell', capability }) as const;
 const everyDesktop = { macos: client, windows: client, linux: client } as const;
+const everyShell = { macos: player, windows: player, linux: player } as const;
 
 export const settingsSchema = {
   automaticIntroSkipping: {
@@ -80,7 +88,7 @@ export const settingsSchema = {
   },
   audioOutput: {
     value: choice(['auto', 'stereo'], 'auto'),
-    platforms: { ...everyDesktop, tv: { key: 'audio_output' } },
+    platforms: { ...everyShell, tv: { key: 'audio_output' } },
   },
   interfaceScale: {
     value: choice([100, 125, 150, 175, 200], 100),
@@ -109,20 +117,20 @@ export const settingsSchema = {
   subtitlePosition: {
     value: range(50, 94, 94),
     platforms: {
-      ...everyDesktop,
+      ...everyShell,
       tv: { key: 'subtitle_position', value: choice([0, 8, 16], 0) },
     },
   },
   subtitleSize: {
     value: range(50, 200, 100),
     platforms: {
-      ...everyDesktop,
+      ...everyShell,
       tv: { key: 'subtitle_size', value: choice([75, 100, 125, 150], 100) },
     },
   },
   subtitles: {
     value: toggle(false),
-    platforms: { ...everyDesktop, tv: { key: 'subtitles' } },
+    platforms: { ...everyShell, tv: { key: 'subtitles' } },
   },
   upNext: {
     value: toggle(true),
@@ -142,7 +150,7 @@ export type ClientPlatform = DesktopPlatform | 'web';
 /**
  * Whether Settings offers a setting: the platform honors it, and the shell reports the capability
  * that applies it. The web build is the client without a shell, so it offers what the client
- * applies on every desktop platform and nothing that needs a shell.
+ * applies on every desktop platform and nothing that needs the native player or a shell.
  */
 export function settingShown(
   key: SettingKey,
@@ -153,5 +161,5 @@ export function settingShown(
   if (platform === 'web') return desktopPlatforms.every((each) => platforms[each]?.by === 'client');
   const consumer = platforms[platform];
   if (!consumer) return false;
-  return consumer.by === 'client' || capabilities.has(consumer.capability);
+  return consumer.by !== 'shell' || capabilities.has(consumer.capability);
 }
