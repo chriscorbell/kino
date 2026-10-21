@@ -79,7 +79,9 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
   // player do nothing, and no report moves playback. A save that fails before
   // the stop reopens playback and catches up on what it held back.
   const frozen = () => stopped || snapshot.exit === 'saving';
-  let failed = false;
+  // The source's failure. One that arrives during a save that then fails is
+  // what the next exit reports, whatever way the viewer leaves.
+  let failure: string | null = null;
   let native: NativePlayer | null = null;
   let backend: MediaBackend | null = null;
   let resolved: CoreResolvedStream | null = null;
@@ -109,8 +111,8 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
   // The contract on failure: save progress, record a sanitized diagnostic, and
   // report the outcome so App marks the source failed for this selection.
   const fail: ReportFailure = (message, diagnostic = {}) => {
-    if (failed || stopped) return;
-    failed = true;
+    if (failure !== null || stopped) return;
+    failure = message;
     console.error('[kino:player] source failed', { message, ...diagnostic });
     void exit({ kind: 'failed', message }).catch(() => undefined);
   };
@@ -272,7 +274,7 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
 
   // `syncLoad` sends the refresh-rate preference a source opens with; this sends later changes.
   function applySettings() {
-    if (!backend) return;
+    if (!backend || frozen()) return;
     const { matchRefreshRate, subtitlePosition, subtitleSize } = settings.get();
     if (applied?.matchRefreshRate !== matchRefreshRate)
       backend.setMatchRefreshRate(matchRefreshRate);
@@ -285,13 +287,12 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
   /* What the player reports. ---------------------------------------------- */
 
   // The save captured the position and paused the player, so reports that would
-  // move either are dropped while it runs. What the player describes still
-  // applies, so playback a failed save reopens is as the player has it.
+  // move either are dropped while it runs. What the player describes, buffering
+  // included, still applies, so playback a failed save reopens is as the player has it.
   const movesPlayback = new Set<MediaEvent['type']>([
     'time',
     'buffered',
     'paused',
-    'buffering',
     'ended',
     'volume',
   ]);
@@ -387,6 +388,7 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
     onState(state) {
       publish(state === 'saving' ? { exit: state, paused: true } : { exit: state });
       if (state === 'save-failed') {
+        applySettings();
         resolveSource();
         showSource();
         resume();
@@ -447,19 +449,21 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
       publish({ subtitles: { ...snapshot.subtitles, delayMs } });
       if (backend?.capabilities.tracks) backend.setSubtitleDelay(delayMs);
     }),
-    adjustSubtitleSize(delta) {
+    adjustSubtitleSize: unlessFrozen((delta: number) => {
       settings.update({
         subtitleSize: clamp(settings.get().subtitleSize + delta, subtitleSizeRange),
       });
-    },
-    adjustSubtitlePosition(delta) {
+    }),
+    adjustSubtitlePosition: unlessFrozen((delta: number) => {
       settings.update({
         subtitlePosition: clamp(settings.get().subtitlePosition + delta, subtitlePositionRange),
       });
-    },
+    }),
     // A failed save shows in the snapshot, and leaving again retries it.
     leave(intent) {
-      void exit(intent).catch(() => undefined);
+      void exit(failure === null ? intent : { kind: 'failed', message: failure }).catch(
+        () => undefined,
+      );
     },
   };
 

@@ -389,6 +389,7 @@ export const enUS = {
     saveFailed: 'Progress could not be saved. Try again.',
     progressNotSaved: 'Stremio Core had stopped, so progress was not saved.',
     unloadNotSaved: 'Progress could not be saved.',
+    unloadTimedOut: 'Saving progress took too long, so it may not have been saved.',
     savingProgress: 'Saving progress…',
     upNext: 'Up Next',
     chooseSource: 'Choose source',

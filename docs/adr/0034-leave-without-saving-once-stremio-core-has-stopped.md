@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted. [ADR 0035](0035-leave-without-retrying-once-unload-failed-after-the-stop.md) adds a second save that ends instead of retrying, one whose Unload failed after the player stopped.
+Accepted. [ADR 0035](0035-leave-without-retrying-once-unload-failed-after-the-stop.md) also ends playback without a retry when Unload fails after the player stopped.
 
 ## Context
 

@@ -4,8 +4,10 @@ import { afterEach, expect, it, vi } from 'vitest';
 
 import type { PlaybackSelection } from '../core/actions';
 import { CoreContext } from '../core/context';
+import { CoreSaveError, storageTimeout } from '../core/errors';
 import type { CoreTransport } from '../core/transport';
 import type { CoreAction, CoreRuntimeEvent, PlayerState } from '../core/types';
+import { enUS } from '../locales/en-US';
 import { createKinoSettingsStore } from '../settingsStore';
 import { preview, profile, torrentSource, urlSource } from '../test/coreState';
 import { memoryStorage } from '../test/memoryStorage';
@@ -95,12 +97,16 @@ function deps(core: ReturnType<typeof fakeCore>, overrides: Partial<PlaybackDeps
 }
 
 /** Fails the final pause (Player) or Unload once its write settles, until the returned function runs. */
-function failSave(core: ReturnType<typeof fakeCore>, failing: 'Player' | 'Unload') {
+function failSave(
+  core: ReturnType<typeof fakeCore>,
+  failing: 'Player' | 'Unload',
+  error: unknown = new Error('Storage is full.'),
+) {
   const save = core.commit.getMockImplementation()!;
   let fails = true;
   core.commit.mockImplementation(async (action: CoreAction) => {
     await save(action);
-    if (fails && action.action === failing) throw new Error('Storage is full.');
+    if (fails && action.action === failing) throw error;
   });
   return () => {
     fails = false;
@@ -200,49 +206,62 @@ it('names the platform the shell reports in the save window close runs', async (
   );
 });
 
-it('leaves at once, reporting the progress unsaved, when Unload fails after the stop', async () => {
-  const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
-  const selection = movie();
-  const core = fakeCore(selection);
-  failSave(core, 'Unload');
-  const native = fakeNativePlayer();
-  native.pauseAndSnapshot.mockResolvedValue({ time: 34567, duration: 120000 });
-  const onFinished = vi.fn();
-  const session = startPlayback(
-    selection,
-    deps(core, { native: { present: true, connect: async () => native }, onFinished }),
-  );
-  await waitFor(() => expect(native.load).toHaveBeenCalled());
+it.each([
+  {
+    failure: 'fails',
+    error: new CoreSaveError(new Error('Storage is full.')),
+    unsaved: 'unload-failed',
+  },
+  {
+    failure: 'does not finish in time',
+    error: new CoreSaveError(storageTimeout()),
+    unsaved: 'unload-timed-out',
+  },
+])(
+  'leaves at once, reporting the progress unsaved, when Unload $failure after the stop',
+  async ({ error, unsaved }) => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const selection = movie();
+    const core = fakeCore(selection);
+    failSave(core, 'Unload', error);
+    const native = fakeNativePlayer();
+    native.pauseAndSnapshot.mockResolvedValue({ time: 34567, duration: 120000 });
+    const onFinished = vi.fn();
+    const session = startPlayback(
+      selection,
+      deps(core, { native: { present: true, connect: async () => native }, onFinished }),
+    );
+    await waitFor(() => expect(native.load).toHaveBeenCalled());
 
-  session.controls.leave({ kind: 'back' });
-  await waitFor(() => expect(onFinished).toHaveBeenCalled());
-  expect(onFinished).toHaveBeenCalledExactlyOnceWith({ kind: 'back', unsaved: 'unload-failed' });
-  expect(errors).toHaveBeenCalledWith('[kino:player] progress not saved', {
-    reason: 'unload-failed',
-  });
-  expect(native.stop).toHaveBeenCalledOnce();
-  expect(session.getSnapshot().exit).not.toBe('save-failed');
-  const written = core.written.length;
-  session.controls.leave({ kind: 'back' });
-  session.controls.seek(60_000);
-  session.controls.togglePause();
-  await new Promise((resolve) => setTimeout(resolve, 0));
+    session.controls.leave({ kind: 'back' });
+    await waitFor(() => expect(onFinished).toHaveBeenCalled());
+    expect(onFinished).toHaveBeenCalledExactlyOnceWith({ kind: 'back', unsaved });
+    expect(errors).toHaveBeenCalledWith('[kino:player] progress not saved', { reason: unsaved });
+    expect(native.stop).toHaveBeenCalledOnce();
+    expect(session.getSnapshot().exit).not.toBe('save-failed');
+    const written = core.written.length;
+    session.controls.leave({ kind: 'back' });
+    session.controls.seek(60_000);
+    session.controls.togglePause();
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
-  expect(onFinished).toHaveBeenCalledOnce();
-  expect(core.written.slice(written)).toEqual([]);
-  expect(native.seek).not.toHaveBeenCalled();
-  expect(native.setPaused).not.toHaveBeenCalled();
-  expect(session.getSnapshot().paused).toBe(true);
-});
+    expect(onFinished).toHaveBeenCalledOnce();
+    expect(core.written.slice(written)).toEqual([]);
+    expect(native.seek).not.toHaveBeenCalled();
+    expect(native.setPaused).not.toHaveBeenCalled();
+    expect(session.getSnapshot().paused).toBe(true);
+  },
+);
 
 it('sends no command to the player once the save stopped it', async () => {
   const selection = movie();
   const core = fakeCore(selection);
   const release = holdUnload(core);
   const native = fakeNativePlayer();
+  const settings = createKinoSettingsStore(memoryStorage());
   const session = startPlayback(
     selection,
-    deps(core, { native: { present: true, connect: async () => native } }),
+    deps(core, { settings, native: { present: true, connect: async () => native } }),
   );
   await waitFor(() => expect(native.load).toHaveBeenCalled());
   session.controls.toggleMute();
@@ -257,14 +276,24 @@ it('sends no command to the player once the save stopped it', async () => {
     native.setSubtitleTrack,
     native.setSubtitleDelay,
     native.addSubtitles,
+    native.setSubtitleScale,
+    native.setSubtitlePosition,
   ];
   commands.forEach((command) => command.mockClear());
+  const style = {
+    subtitleSize: settings.get().subtitleSize,
+    subtitlePosition: settings.get().subtitlePosition,
+  };
   session.controls.toggleMute();
   session.controls.setVolume(30);
   session.controls.selectAudio(1);
   session.controls.selectSubtitle(null);
   session.controls.addAddonSubtitle({ id: 'en', lang: 'eng', url: 'https://subs.invalid/en.srt' });
   session.controls.adjustSubtitleDelay(100);
+  session.controls.adjustSubtitleSize(10);
+  session.controls.adjustSubtitlePosition(-5);
+  expect(settings.get()).toMatchObject(style);
+  settings.update({ subtitleSize: style.subtitleSize + 20 });
 
   commands.forEach((command) => expect(command).not.toHaveBeenCalled());
   expect(session.getSnapshot()).toMatchObject({ muted: true, subtitles: { delayMs: 0 } });
@@ -383,7 +412,7 @@ it('starts no torrent stream for a source that resolves during a save until that
   await waitFor(() => expect(native.startStreamingEngine).toHaveBeenCalledOnce());
 });
 
-it('keeps what the player describes during a save that fails, but not what moves playback', async () => {
+it('keeps what the player describes during a save that fails, buffering included, but not what moves playback', async () => {
   const selection = movie();
   const core = fakeCore(selection);
   failSave(core, 'Player');
@@ -393,10 +422,12 @@ it('keeps what the player describes during a save that fails, but not what moves
     deps(core, { native: { present: true, connect: async () => native } }),
   );
   await waitFor(() => expect(native.load).toHaveBeenCalled());
+  await native.emit('buffering', { active: true });
   const release = core.holdStorage();
 
   session.controls.leave({ kind: 'back' });
   await waitFor(() => expect(core.commit).toHaveBeenCalled());
+  await native.emit('buffering', { active: false });
   await native.emit('duration', { milliseconds: 120_000 });
   await native.emit('chapters', { items: [{ startMs: 1000, title: 'Intro' }] });
   await native.emit('audioTracks', {
@@ -410,19 +441,21 @@ it('keeps what the player describes during a save that fails, but not what moves
   const snapshot = session.getSnapshot();
   expect(snapshot.position).toMatchObject({ time: 0, duration: 120_000 });
   expect(snapshot.paused).toBe(true);
+  expect(snapshot.buffering).toBe(false);
   expect(snapshot.chapters).toHaveLength(1);
   expect(snapshot.audioTracks.map(({ id }) => id)).toEqual([1]);
 });
 
-it('fails the source when the player fails during a save that then fails', async () => {
+it('reports the source failed when leaving after the player failed during a save that then failed', async () => {
   const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
   const selection = movie();
   const core = fakeCore(selection);
-  failSave(core, 'Player');
+  const succeed = failSave(core, 'Player');
   const native = fakeNativePlayer();
+  const onFinished = vi.fn();
   const session = startPlayback(
     selection,
-    deps(core, { native: { present: true, connect: async () => native } }),
+    deps(core, { native: { present: true, connect: async () => native }, onFinished }),
   );
   await waitFor(() => expect(native.load).toHaveBeenCalled());
   await native.emit('buffering', { active: true });
@@ -438,6 +471,16 @@ it('fails the source when the player fails during a save that then fails', async
     errors.mock.calls.filter(([event]) => event === '[kino:player] source failed'),
   ).toHaveLength(1);
   expect(session.getSnapshot()).toMatchObject({ buffering: false, paused: true });
+  expect(onFinished).not.toHaveBeenCalled();
+
+  succeed();
+  session.controls.leave({ kind: 'back' });
+  await waitFor(() =>
+    expect(onFinished).toHaveBeenCalledExactlyOnceWith({
+      kind: 'failed',
+      message: enUS.player.nativePlaybackFailed,
+    }),
+  );
 });
 
 it('resumes at an offset Core reports during a save once that save fails', async () => {
@@ -488,6 +531,31 @@ it('reloads with an audio output changed during a save once that save fails', as
 
   await waitFor(() => expect(session.getSnapshot().exit).toBe('save-failed'));
   expect(native.load.mock.calls.map(([, stereo]) => stereo)).toEqual([false, true]);
+});
+
+it('applies a subtitle style changed during a save once that save fails', async () => {
+  const selection = movie();
+  const core = fakeCore(selection);
+  failSave(core, 'Player');
+  const native = fakeNativePlayer();
+  const settings = createKinoSettingsStore(memoryStorage());
+  const session = startPlayback(
+    selection,
+    deps(core, { settings, native: { present: true, connect: async () => native } }),
+  );
+  await waitFor(() => expect(native.load).toHaveBeenCalledOnce());
+  const release = core.holdStorage();
+
+  session.controls.leave({ kind: 'back' });
+  await waitFor(() => expect(core.commit).toHaveBeenCalled());
+  native.setSubtitleScale.mockClear();
+  const subtitleSize = settings.get().subtitleSize + 20;
+  settings.update({ subtitleSize });
+  expect(native.setSubtitleScale).not.toHaveBeenCalled();
+  release();
+
+  await waitFor(() => expect(session.getSnapshot().exit).toBe('save-failed'));
+  expect(native.setSubtitleScale).toHaveBeenCalledExactlyOnceWith(subtitleSize / 100);
 });
 
 it('loads nothing when the platform answers after the save stopped the player', async () => {

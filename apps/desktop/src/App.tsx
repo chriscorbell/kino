@@ -63,6 +63,12 @@ const utilityNavigation: NavigationItem[] = [
   { icon: SlidersHorizontal, label: enUS.navigation.settings, screen: 'settings' },
 ];
 
+const progressLostMessage: Record<NonNullable<PlaybackEnd['unsaved']>, string> = {
+  'core-stopped': enUS.player.progressNotSaved,
+  'unload-failed': enUS.player.unloadNotSaved,
+  'unload-timed-out': enUS.player.unloadTimedOut,
+};
+
 function NavigationButton({
   active,
   item,
@@ -404,9 +410,7 @@ export function App() {
             {!accountOpen ? <CoreRecovery /> : null}
             {progressLost ? (
               <p className={sharedStyles.loadError} role="alert">
-                {progressLost === 'core-stopped'
-                  ? enUS.player.progressNotSaved
-                  : enUS.player.unloadNotSaved}
+                {progressLostMessage[progressLost]}
               </p>
             ) : null}
             <UpdateNotice updates={updates} />

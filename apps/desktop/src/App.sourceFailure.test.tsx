@@ -58,6 +58,9 @@ vi.mock('./screens/PlayerScreen', () => ({
       <button onClick={() => onFinished({ kind: 'back', unsaved: 'unload-failed' })}>
         Back after Unload failed
       </button>
+      <button onClick={() => onFinished({ kind: 'back', unsaved: 'unload-timed-out' })}>
+        Back after Unload timed out
+      </button>
       <button
         onClick={() => {
           const next =
@@ -215,9 +218,15 @@ it('tells the viewer that progress was not saved when playback left after Core s
   expect(screen.queryByText(/progress was not saved/)).not.toBeInTheDocument();
 });
 
-it('tells the viewer that progress could not be saved when Unload failed after the player stopped', async () => {
-  await leaveUnsaved('Back after Unload failed');
-  expect(await screen.findByRole('alert')).toHaveTextContent('Progress could not be saved.');
+it.each([
+  { button: 'Back after Unload failed', message: 'Progress could not be saved.' },
+  {
+    button: 'Back after Unload timed out',
+    message: 'Saving progress took too long, so it may not have been saved.',
+  },
+])('tells the viewer what became of progress after "$button"', async ({ button, message }) => {
+  await leaveUnsaved(button);
+  expect(await screen.findByRole('alert')).toHaveTextContent(message);
   expect(screen.queryByText(/Stremio Core had stopped/)).not.toBeInTheDocument();
 });
 

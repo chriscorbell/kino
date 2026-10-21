@@ -8,7 +8,7 @@
 import type { ClientPlatform } from '@kino/settings';
 
 import { finalPauseAction, unloadPlayerAction } from '../core/actions.ts';
-import { coreStopped } from '../core/errors.ts';
+import { coreStopped, storageTimedOut } from '../core/errors.ts';
 import type { MediaPosition } from './media';
 import { timeChangedAction } from './progress.ts';
 import type { ExitState, PlaybackEnd, PlaybackOutcome, PlayerCorePort } from './types';
@@ -55,8 +55,9 @@ export async function savePlayback(
  * that no retry could complete ends instead: one that failed because the Core
  * worker stopped, or one whose Unload failed after the player stopped, since
  * Core has already unloaded and cannot write again what was lost. That exit
- * stops the player, reports its outcome as unsaved, and every later run
- * rejects at once.
+ * stops the player, reports its outcome as unsaved, telling an Unload whose
+ * writes did not finish in time from one whose writes failed, and every later
+ * run rejects at once.
  */
 export function createExit({
   core,
@@ -82,7 +83,9 @@ export function createExit({
       try {
         await savePlayback(core, { ...steps, stop });
       } catch (error) {
-        const unsaved = coreStopped(error) ? 'core-stopped' : stopped ? 'unload-failed' : null;
+        const unsaved = coreStopped(error)
+          ? 'core-stopped'
+          : stopped && (storageTimedOut(error) ? 'unload-timed-out' : 'unload-failed');
         if (!unsaved) {
           running = null;
           onState('save-failed');

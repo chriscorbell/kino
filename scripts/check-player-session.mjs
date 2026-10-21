@@ -2,9 +2,10 @@
 // ends, with a scripted native player standing in for the shell. Each exit must save the player's
 // last position, stop the player, then Unload, and report its outcome only once that save is
 // durable. A save that fails before the stop leaves playback usable and starts over when the
-// viewer leaves again; one that fails after the stop leaves pause, seek and progress unable to
-// move the player. Once the Core worker has stopped, leaving reports the outcome and stops the
-// player instead of retrying a save that cannot succeed. Over a series, the player offers Core's
+// viewer leaves again. Once the player stopped, no control or report reaches it, and an Unload
+// whose write fails or does not finish in time leaves at once and reports why progress is
+// unsaved. Once the Core worker has stopped, leaving reports the outcome and stops the player
+// instead of retrying a save that cannot succeed. Over a series, the player offers Core's
 // next episode unless it is upcoming, and resumes only an offset saved for the episode it plays.
 import assert from 'node:assert/strict';
 
@@ -21,12 +22,15 @@ import { fixturePreview, fixtureSource, initializeCore } from './test-support/co
 let storage;
 let core;
 let work;
+// How long a flush waits for storage and account sync, when a case shortens Core's own limit.
+let flushTimeout;
 // Each case's transport stands for its own worker, so only the newest one hears Core.
 let deliver = () => {};
 let generation = 0;
 async function freshCore() {
   storage = new Map();
   work = new PendingCoreWork();
+  flushTimeout = undefined;
   held = null;
   heldWrites = 0;
   sessionLogs.length = 0;
@@ -83,7 +87,7 @@ function connectCore() {
   };
   const flush = async () => {
     live();
-    await Promise.race([work.flush(), stopping.promise]);
+    await Promise.race([work.flush(flushTimeout), stopping.promise]);
   };
   const prepareClose = async () => {
     live();
@@ -214,8 +218,8 @@ function scriptedPlayer() {
       setMuted: ignore,
       setNowPlayingMetadata: ignore,
       setSubtitleDelay: ignore,
-      setSubtitlePosition: ignore,
-      setSubtitleScale: ignore,
+      setSubtitlePosition: () => calls.push('setSubtitlePosition'),
+      setSubtitleScale: () => calls.push('setSubtitleScale'),
       setSubtitleTrack: ignore,
       setVolume: ignore,
     },
@@ -543,47 +547,68 @@ gateCase('a series resumes its own episode and offers the next one', async () =>
   await leave(last);
 });
 
-gateCase('a failed Unload after an ended playback leaves at once, unsaved', async () => {
-  const { outcomes, session, shell } = await play(35000);
-  const end = 119500;
-  shell.pausesAt(end);
-  shell.emit('ended');
-  // After an ended playback Unload writes the reset offset, so its write is the one that fails.
-  const stop = shell.player.stop;
-  shell.player.stop = () => {
-    stop();
-    hold();
-  };
-  session.controls.leave({ kind: 'back' });
-  await heldWrite();
-  const mark = shell.calls.length;
-  const { position } = session.getSnapshot();
-  session.controls.togglePause();
-  session.controls.seek(10000);
-  shell.emit('time', { milliseconds: end - 1000 });
-  assert.deepEqual(shell.since(mark), [], 'Pause and seek do not reach a stopped player.');
-  assert.deepEqual(
-    session.getSnapshot().position,
-    position,
-    'Progress from a stopped player moves nothing.',
+// After an ended playback Unload writes the reset offset, so its write is the one that fails or stalls.
+for (const [failure, unsaved] of [
+  ['fails', 'unload-failed'],
+  ['does not finish in time', 'unload-timed-out'],
+]) {
+  gateCase(
+    `an Unload that ${failure} after an ended playback leaves at once, unsaved`,
+    async () => {
+      const { outcomes, session, settings, shell } = await play(35000);
+      const end = 119500;
+      shell.pausesAt(end);
+      shell.emit('ended');
+      const stop = shell.player.stop;
+      shell.player.stop = () => {
+        stop();
+        hold();
+      };
+      if (unsaved === 'unload-timed-out') flushTimeout = 50;
+      session.controls.leave({ kind: 'back' });
+      await heldWrite();
+      const mark = shell.calls.length;
+      const { position } = session.getSnapshot();
+      session.controls.togglePause();
+      session.controls.seek(10000);
+      session.controls.adjustSubtitleSize(10);
+      session.controls.adjustSubtitlePosition(-5);
+      settings.update({ subtitleSize: settings.get().subtitleSize + 20 });
+      shell.emit('time', { milliseconds: end - 1000 });
+      assert.deepEqual(
+        shell.since(mark),
+        [],
+        'Pause, seek and the subtitle style do not reach a stopped player.',
+      );
+      assert.deepEqual(
+        session.getSnapshot().position,
+        position,
+        'Progress from a stopped player moves nothing.',
+      );
+      if (unsaved === 'unload-failed') failWrites();
+      await until(
+        () => session.getSnapshot().exit !== 'saving' || outcomes.length > 0,
+        'the Unload that did not land',
+      );
+      assert.deepEqual(
+        outcomes,
+        [{ kind: 'back', unsaved }],
+        `An Unload that ${failure} after the stop leaves at once and reports why progress is unsaved.`,
+      );
+      assert.deepEqual(shell.stops, [{ saved: end, loaded: true }], 'The player stopped once.');
+      assert.ok(!playerLoaded(), 'Core unloaded before its write settled.');
+      assert.equal(
+        savedTime(),
+        end,
+        "Storage still holds the offset Unload's reset would replace.",
+      );
+      session.controls.leave({ kind: 'back' });
+      await settle();
+      assert.equal(outcomes.length, 1, 'Leaving again reports nothing more.');
+      if (held) land();
+    },
   );
-  failWrites();
-  await until(
-    () => session.getSnapshot().exit !== 'saving' || outcomes.length > 0,
-    'the failed Unload',
-  );
-  assert.deepEqual(
-    outcomes,
-    [{ kind: 'back', unsaved: 'unload-failed' }],
-    'A failed Unload after the stop leaves at once and reports the progress unsaved.',
-  );
-  assert.deepEqual(shell.stops, [{ saved: end, loaded: true }], 'The player stopped once.');
-  assert.ok(!playerLoaded(), 'Core unloaded before its write failed.');
-  assert.equal(savedTime(), end, "Storage still holds the offset Unload's reset would replace.");
-  session.controls.leave({ kind: 'back' });
-  await settle();
-  assert.equal(outcomes.length, 1, 'Leaving again reports nothing more.');
-});
+}
 
 // Cases run in a new order each time, so one that leans on another's leftovers fails. A failure
 // names the seed that replays its order.
@@ -611,7 +636,7 @@ for (const [name, run] of cases) {
 }
 
 console.log(
-  `Pinned Core playback session, ${cases.length} cases on fresh Cores in shuffled order (KINO_SESSION_SEED=${seed}): Back, Up Next, a source failure, window close and Core teardown each saved the last position, stopped, then unloaded; an exit during a save joined it; a save that failed before the stop stayed usable and saved from the top, one that failed at Core teardown reached the teardown; leaving after Core teardown, after the Core worker died, or as it died during the save stopped the player once and reported the outcome as unsaved; a source that arrived during a save waited for it, and it or an audio output that changed during a failed save loaded once; a series resumed only its own episode's offset and offered Core's next episode, but no upcoming one and no special after a numbered season; and after an ended playback, a stopped player ignored pause, seek and progress, and an Unload that failed after the stop left at once and reported the progress unsaved.`,
+  `Pinned Core playback session, ${cases.length} cases on fresh Cores in shuffled order (KINO_SESSION_SEED=${seed}): Back, Up Next, a source failure, window close and Core teardown each saved the last position, stopped, then unloaded; an exit during a save joined it; a save that failed before the stop stayed usable and saved from the top, one that failed at Core teardown reached the teardown; leaving after Core teardown, after the Core worker died, or as it died during the save stopped the player once and reported the outcome as unsaved; a source that arrived during a save waited for it, and it or an audio output that changed during a failed save loaded once; a series resumed only its own episode's offset and offered Core's next episode, but no upcoming one and no special after a numbered season; and after an ended playback, a stopped player ignored pause, seek, the subtitle style and progress, and an Unload whose write failed or did not finish in time after the stop left at once and reported which.`,
 );
 // Core owns repeating runtime timers, as it does in its browser worker.
 process.exit(0);

@@ -14,7 +14,7 @@ import {
   type SecureAuthStorage,
 } from './storage';
 import { commitThrough } from './commit';
-import { CoreStoppedError } from './errors';
+import { CoreStoppedError, storageTimeout } from './errors';
 import type {
   CoreAction,
   CoreModelName,
@@ -167,7 +167,7 @@ export function createCoreTransport(
     return new Promise<Result>((resolve, reject) => {
       const timeout = window.setTimeout(() => {
         if (fatal) stop(new CoreStoppedError(t.core.timeout), true);
-        else cancel(new Error(t.core.storageTimeout));
+        else cancel(storageTimeout());
       }, 20_000);
       const finish = () => {
         window.clearTimeout(timeout);
