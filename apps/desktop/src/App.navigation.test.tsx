@@ -5,7 +5,13 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { App } from './App';
 import { CoreContext } from './core/context';
 import type { CoreTransport } from './core/transport';
-import type { CatalogRequest, CoreRuntimeEvent, LibraryRequest } from './core/types';
+import type {
+  CatalogRequest,
+  CoreAction,
+  CoreModelName,
+  CoreRuntimeEvent,
+  LibraryRequest,
+} from './core/types';
 import { metaItem, profile } from './test/coreState';
 import { renderWithSettings } from './test/renderWithSettings';
 
@@ -28,16 +34,18 @@ function fixture() {
       extra: value ? [['genre', value]] : [],
     },
   });
-  const dispatch = vi.fn<CoreTransport['dispatch']>().mockImplementation(async (action, model) => {
-    if (model === 'search' && action.action === 'Load')
-      query = (action.args as { args: { extra: string[][] } }).args.extra[0]?.[1] ?? '';
-    if (model === 'discover' && action.action === 'Load') {
-      const args = action.args as { args: { request: CatalogRequest } | null };
-      genre = args.args?.request.path.extra.find(([name]) => name === 'genre')?.[1] ?? '';
-    }
-    if (model === 'library' && action.action === 'Load')
-      libraryType = (action.args as { args: { request: LibraryRequest } }).args.request.type;
-  });
+  const dispatch = vi
+    .fn<(action: CoreAction, model?: CoreModelName) => Promise<void>>()
+    .mockImplementation(async (action, model) => {
+      if (model === 'search' && action.action === 'Load')
+        query = (action.args as { args: { extra: string[][] } }).args.extra[0]?.[1] ?? '';
+      if (model === 'discover' && action.action === 'Load') {
+        const args = action.args as { args: { request: CatalogRequest } | null };
+        genre = args.args?.request.path.extra.find(([name]) => name === 'genre')?.[1] ?? '';
+      }
+      if (model === 'library' && action.action === 'Load')
+        libraryType = (action.args as { args: { request: LibraryRequest } }).args.request.type;
+    });
   const transport: CoreTransport = {
     init: vi.fn().mockResolvedValue(undefined),
     destroy: vi.fn(),

@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import type { PlaybackSelection } from '../core/actions';
-import { useCore } from '../core/context';
+import { CoreContext } from '../core/context';
 import { connectNativePlayer, connectShellReport, nativeShellPresent } from '../native/player';
 import { useKinoSettingsStore } from '../useKinoSettings';
 import { startPlayback } from './session';
@@ -33,7 +33,9 @@ export function shellPlaybackDeps(): Pick<
 export function usePlaybackHost(
   onFinished: (outcome: PlaybackEnd, selection: PlaybackSelection) => void,
 ) {
-  const { transport } = useCore();
+  // The session is the one holder of the full transport, the only one that reaches the Player
+  // model. Every other reader gets the narrower one from useCore().
+  const { transport } = useContext(CoreContext);
   const settings = useKinoSettingsStore();
   const [session, setSession] = useState<PlaybackSession | null>(null);
   const live = useRef<PlaybackSession | null>(null);

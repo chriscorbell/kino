@@ -8,7 +8,7 @@ import { AccountDialog } from './AccountDialog';
 
 const created = vi.hoisted(() => [] as ReturnType<typeof fakeTransport>[]);
 vi.mock('../core/transport', () => ({
-  createCoreTransport: vi.fn(() => {
+  createSignInCore: vi.fn(() => {
     const transport = fakeTransport();
     created.push(transport);
     return transport;

@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
-import { connectNativePlayer, nativeShellPresent } from '../native/player';
+import { connectShellVersion, nativeShellPresent } from '../native/player';
 import { UpdateCheck } from './UpdateCheck';
 
 export function useUpdates() {
@@ -18,10 +18,10 @@ export function useUpdates() {
   useEffect(() => {
     if (!nativeShellPresent()) return;
     let active = true;
-    void connectNativePlayer()
-      .then((player) => {
-        if (!active || !player) return;
-        client.initialize(player.shellVersion);
+    void connectShellVersion()
+      .then((version) => {
+        if (!active || version === null) return;
+        client.initialize(version);
         void client.check();
       })
       .catch(() => {

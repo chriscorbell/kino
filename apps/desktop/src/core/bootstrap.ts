@@ -1,5 +1,5 @@
 import { installDescriptorAction } from './actions';
-import type { CoreTransport } from './transport';
+import type { FeatureTransport } from './transport';
 import type { DurableAction } from './writes';
 import { createAddonNetwork } from './addonNetwork';
 import { fetchNativeAddonRedirect } from '../native/player';
@@ -30,9 +30,9 @@ export class GuestCatalogError extends Error {
 // Core keeps an install in memory even when its save fails, so a retry that
 // read the profile would find the catalog and stop. It commits the same
 // install again instead.
-const unsaved = new WeakMap<CoreTransport, DurableAction>();
+const unsaved = new WeakMap<FeatureTransport, DurableAction>();
 
-export async function ensureGuestCatalog(transport: CoreTransport, signal?: AbortSignal) {
+export async function ensureGuestCatalog(transport: FeatureTransport, signal?: AbortSignal) {
   const install = unsaved.get(transport) ?? (await guestCatalogInstall(transport, signal));
   if (!install) return;
   try {
@@ -44,7 +44,7 @@ export async function ensureGuestCatalog(transport: CoreTransport, signal?: Abor
   unsaved.delete(transport);
 }
 
-async function guestCatalogInstall(transport: CoreTransport, signal?: AbortSignal) {
+async function guestCatalogInstall(transport: FeatureTransport, signal?: AbortSignal) {
   const context = await transport.getState('ctx');
   if (context.profile.addons.length > 0) return null;
 

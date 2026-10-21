@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react';
 
 import type { CoreSession } from './storage';
-import type { CoreTransport } from './transport';
+import type { CoreTransport, FeatureTransport } from './transport';
 
 export type CoreStatus = 'error' | 'loading' | 'ready' | 'unavailable';
 
@@ -21,7 +21,10 @@ export const CoreContext = createContext<CoreContextValue>({
   transport: null,
 });
 
-export function useCore() {
+/** What every screen and component reads. Only the playback session holds the full transport. */
+export function useCore(): Omit<CoreContextValue, 'transport'> & {
+  transport: FeatureTransport | null;
+} {
   return useContext(CoreContext);
 }
 

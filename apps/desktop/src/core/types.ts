@@ -326,6 +326,9 @@ export interface CoreStateMap {
 
 export type CoreModelName = keyof CoreStateMap;
 
+/** Every model but the Player model, which only the playback session reads or drives. */
+export type ModelOutsideSession = Exclude<CoreModelName, 'player'>;
+
 const coreModelNames: ReadonlySet<string> = new Set<CoreModelName>([
   'board',
   'continue_watching_preview',

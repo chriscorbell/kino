@@ -15,8 +15,14 @@ import {
 } from './storage';
 import { commitThrough } from './commit';
 import { CoreStoppedError } from './errors';
-import type { CoreAction, CoreModelName, CoreRuntimeEvent, CoreStateMap } from './types';
-import type { DurableAction, TransientAction } from './writes';
+import type {
+  CoreAction,
+  CoreModelName,
+  CoreRuntimeEvent,
+  CoreStateMap,
+  ModelOutsideSession,
+} from './types';
+import type { DurableAction, SessionOnly, TransientAction, UnloadAction } from './writes';
 
 type CoreEventListener = (event: CoreRuntimeEvent) => void;
 
@@ -26,14 +32,31 @@ export interface CoreTransport {
    * finish. Rejects with `CoreSaveError` when Core applied the action but the
    * save did not finish.
    */
-  commit(action: DurableAction, model?: CoreModelName): Promise<void>;
+  commit(action: DurableAction | SessionOnly<DurableAction>, model?: CoreModelName): Promise<void>;
   destroy(): Promise<void>;
-  dispatch(action: TransientAction, model?: CoreModelName): Promise<void>;
+  dispatch(
+    action: TransientAction | SessionOnly<TransientAction>,
+    model?: CoreModelName,
+  ): Promise<void>;
+  dispatch(action: UnloadAction, model: CoreModelName): Promise<void>;
   /** The model decides the state; callers cannot ask for a different shape. */
   getState<Model extends CoreModelName>(model: Model): Promise<CoreStateMap[Model]>;
   init(): Promise<void>;
   onBeforeDestroy(callback: () => Promise<void>): () => void;
   prepareClose(): Promise<void>;
+  subscribe(listener: CoreEventListener): () => void;
+}
+
+/**
+ * The transport every screen, component and player feature holds. Only the playback session
+ * reads or drives the Player model (ADR 0032), so this one takes no Player model and no action
+ * that reaches it.
+ */
+export interface FeatureTransport {
+  commit(action: DurableAction, model?: ModelOutsideSession): Promise<void>;
+  dispatch(action: TransientAction, model?: ModelOutsideSession): Promise<void>;
+  dispatch(action: UnloadAction, model: ModelOutsideSession): Promise<void>;
+  getState<Model extends ModelOutsideSession>(model: Model): Promise<CoreStateMap[Model]>;
   subscribe(listener: CoreEventListener): () => void;
 }
 
@@ -86,6 +109,11 @@ export async function migrateNativeAccountProfile() {
   if (!nativeShellPresent()) return;
   const local = new NamespacedStorage(window.localStorage, 'account');
   await new SecureProfileStorage(local, nativeAuthStorage()).getItem('profile');
+}
+
+/** A Core of its own for signing in. It never plays, so it gets the feature transport. */
+export function createSignInCore(): FeatureTransport & Pick<CoreTransport, 'destroy' | 'init'> {
+  return createCoreTransport('account');
 }
 
 export function createCoreTransport(

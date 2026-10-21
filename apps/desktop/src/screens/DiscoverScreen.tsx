@@ -8,7 +8,7 @@ import { useResourceStates } from '../core/useResourceStates';
 import { MediaCard } from '../components/MediaCard';
 import { LoadMore } from '../components/LoadMore';
 import { useCore } from '../core/context';
-import type { CoreTransport } from '../core/transport';
+import type { FeatureTransport } from '../core/transport';
 import { loadCatalogAction, loadNextCatalogPageAction } from '../core/actions';
 import { catalogRequestKey } from '../core/catalog';
 import type { CatalogRequest, CoreMetaPreview } from '../core/types';
@@ -37,10 +37,10 @@ export function DiscoverScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => 
   const [request, setRequest] = useBrowseState('discover');
   const result = useCoreModel('discover', loadCatalogAction(request), catalogRequestKey(request));
   const key = catalogRequestKey(request);
-  const [operation, setOperation] = useState<{ key: string; transport: CoreTransport } | null>(
+  const [operation, setOperation] = useState<{ key: string; transport: FeatureTransport } | null>(
     null,
   );
-  const [failure, setFailure] = useState<{ key: string; transport: CoreTransport } | null>(null);
+  const [failure, setFailure] = useState<{ key: string; transport: FeatureTransport } | null>(null);
   const loadingPage = Boolean(
     result.state?.paging?.loading || (operation?.key === key && operation.transport === transport),
   );

@@ -6,14 +6,14 @@ import {
 } from './settings.ts';
 
 export interface KinoSettingsStore {
-  get(): KinoSettings;
-  subscribe(listener: () => void): () => void;
+  get: () => KinoSettings;
+  subscribe: (listener: () => void) => () => void;
   /**
    * Merges the patch into the store's current value, never into a caller's copy, so two writers
    * that read at different times both keep their change. There is deliberately no whole-record
    * setter: spreading a stale snapshot over a newer one is the bug this store exists to remove.
    */
-  update(patch: Partial<KinoSettings>): void;
+  update: (patch: Partial<KinoSettings>) => void;
 }
 
 export function createKinoSettingsStore(

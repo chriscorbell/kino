@@ -1,11 +1,11 @@
 import type { PlaybackSelection } from './actions';
 import { classifySource, sourceKey } from './sources';
-import type { CoreTransport } from './transport';
+import type { FeatureTransport } from './transport';
 import type { ContinueWatchingItem, MetaDetailsState } from './types';
 
 export interface ResumeRequest {
   item: ContinueWatchingItem;
-  transport: CoreTransport | null;
+  transport: FeatureTransport | null;
 }
 
 // Only a fresh response from the remembered add-on can authorize this shortcut.

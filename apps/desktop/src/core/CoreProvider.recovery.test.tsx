@@ -18,8 +18,8 @@ const control = vi.hoisted(() => ({
   store: vi.fn(),
   transports: [] as CoreTransport[],
 }));
-vi.mock('./transport', () => ({
-  createCoreTransport: (session: CoreSession) => {
+vi.mock('./transport', () => {
+  const createCoreTransport = (session: CoreSession) => {
     const addons: CoreAddon[] = [];
     // Core keeps an install in memory even when its save fails.
     const dispatch = vi.fn(async (action: CoreAction) => {
@@ -46,8 +46,9 @@ vi.mock('./transport', () => ({
     };
     control.transports.push(transport);
     return transport;
-  },
-}));
+  };
+  return { createCoreTransport, createSignInCore: () => createCoreTransport('account') };
+});
 
 beforeEach(() => {
   window.localStorage.clear();

@@ -4,7 +4,7 @@ import styles from '../styles/browse.module.css';
 import { MediaCard } from '../components/MediaCard';
 import { LoadMore } from '../components/LoadMore';
 import { useCore } from '../core/context';
-import type { CoreTransport } from '../core/transport';
+import type { FeatureTransport } from '../core/transport';
 import { loadLibraryAction } from '../core/actions';
 import { savedTitlePreview } from '../core/preview';
 import type { CoreMetaPreview, LibraryState } from '../core/types';
@@ -34,7 +34,7 @@ export function LibraryScreen({ onOpen }: { onOpen: (item: CoreMetaPreview) => v
   );
   const [retained, setRetained] = useState<{
     filterKey: string;
-    transport: CoreTransport | null;
+    transport: FeatureTransport | null;
     state: LibraryState;
   } | null>(null);
   if (!result.loading && !result.error && result.state && retained?.state !== result.state) {

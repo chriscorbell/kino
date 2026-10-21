@@ -1,5 +1,6 @@
 import type {
   CatalogRequest,
+  CoreAction,
   CoreAddon,
   CoreMetaPreview,
   CoreProfileSettings,
@@ -8,7 +9,19 @@ import type {
   CoreVideo,
   LibraryRequest,
 } from './types';
-import { durable, transient, type DurableAction, type TransientAction } from './writes.ts';
+import type { DurableAction, SessionOnly, TransientAction, UnloadAction } from './writes.ts';
+
+// Only this module brands actions, so every action that reaches Core had its durability and its
+// reach decided by a builder here, and a hand-built one cannot pass for a builder's. The literal
+// action name survives, so a narrower type such as the Player model's is checked, not cast.
+const brand =
+  <Brand>() =>
+  <const Action extends CoreAction>(action: Action) =>
+    action as Action & Brand;
+const durable = brand<DurableAction>();
+const transient = brand<TransientAction>();
+const sessionDurable = brand<SessionOnly<DurableAction>>();
+const sessionTransient = brand<SessionOnly<TransientAction>>();
 
 export interface PlaybackSelection {
   meta: CoreMetaPreview;
@@ -82,10 +95,10 @@ export function loadMetaDetailsAction(
   });
 }
 
-export const unloadAction: TransientAction = transient({ action: 'Unload' });
+export const unloadAction: UnloadAction = brand<UnloadAction>()({ action: 'Unload' });
 
 /** Unloading the player can advance Continue Watching to the next episode, so it is a save too. */
-export const unloadPlayerAction: DurableAction = durable({ action: 'Unload' });
+export const unloadPlayerAction: SessionOnly<DurableAction> = sessionDurable({ action: 'Unload' });
 
 function present<Value>(name: string, value: Value | null) {
   return value === null ? {} : { [name]: value };
@@ -144,7 +157,9 @@ export function playerStreamPayload(source: CoreSource) {
 }
 
 /** What the Player model takes on dispatch: its Load and the progress reports, never Unload. */
-export type TransientPlayerAction = TransientAction & { readonly action: 'Load' | 'Player' };
+export type TransientPlayerAction = SessionOnly<TransientAction> & {
+  readonly action: 'Load' | 'Player';
+};
 
 /** The id Core's player and library know the selection by: the episode, or the movie itself. */
 export function playingVideoId(selection: Pick<PlaybackSelection, 'meta' | 'video'>) {
@@ -153,7 +168,7 @@ export function playingVideoId(selection: Pick<PlaybackSelection, 'meta' | 'vide
 
 export function loadPlayerAction(selection: PlaybackSelection): TransientPlayerAction {
   const videoId = playingVideoId(selection);
-  return transient({
+  return sessionTransient({
     action: 'Load',
     args: {
       model: 'Player',
@@ -282,14 +297,17 @@ export type PlayerReport =
 
 /** Reports playback to Core while it runs. The final save supersedes these reports. */
 export function playerAction(action: PlayerReport, args?: unknown): TransientPlayerAction {
-  return transient({ action: 'Player', args: { action, ...(args === undefined ? {} : { args }) } });
+  return sessionTransient({
+    action: 'Player',
+    args: { action, ...(args === undefined ? {} : { args }) },
+  });
 }
 
 /**
  * TimeChanged is throttled by Core. PausedChanged forces the current library
  * item into storage and account sync before Unload clears it.
  */
-export const finalPauseAction: DurableAction = durable({
+export const finalPauseAction: SessionOnly<DurableAction> = sessionDurable({
   action: 'Player',
   args: { action: 'PausedChanged', args: { paused: true } },
 });

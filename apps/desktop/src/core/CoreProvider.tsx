@@ -24,10 +24,10 @@ export function CoreProvider({ children }: { children: ReactNode }) {
   const [catalogAttempt, setCatalogAttempt] = useState(0);
   const retry = useCallback(() => setAttempt((value) => value + 1), []);
   const retryCatalog = useCallback(() => setCatalogAttempt((value) => value + 1), []);
-  const [catalog, setCatalog] = useState({
+  const [catalog, setCatalog] = useState<Pick<RuntimeState, 'attempt' | 'error' | 'transport'>>({
     attempt: -1,
-    error: null as string | null,
-    transport: null as CoreTransport | null,
+    error: null,
+    transport: null,
   });
   const teardown = useRef(Promise.resolve());
   const activeTransport = useRef<CoreTransport | null>(null);
