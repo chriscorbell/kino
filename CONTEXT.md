@@ -68,6 +68,10 @@ _Avoid_: Desktop skin
 Kino's remote-first interface for Android TV, built from the same design language as the desktop presentation.
 _Avoid_: Stretched desktop UI, TV skin
 
+**Intended difference**:
+A behavior in which desktop and TV differ on purpose, listed with its reason in ADR 0033. Any other difference between the clients is a defect.
+_Avoid_: Platform quirk, known divergence
+
 **Intro segment**:
 The detected time range at the start of an episode that contains recurring opening material.
 _Avoid_: Intro chapter

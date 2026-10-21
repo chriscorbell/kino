@@ -16,7 +16,10 @@
         { "season": 1, "episodes": ["tt1:1:1", "tt1:1:2"] },
         { "season": 2, "episodes": ["tt1:2:1"] },
         { "season": 10, "episodes": ["tt1:10:1"] },
-        { "season": null, "episodes": ["tt1:trailer"] }
+        {
+          "season": { "intended": "Unknown season", "desktop": null, "tv": -1 },
+          "episodes": ["tt1:trailer"]
+        }
       ]
     },
     {
@@ -39,7 +42,12 @@
     {
       "name": "Other episodes sort by video id in code unit order, whatever the locale",
       "videos": [{ "id": "tt1:x:extra-a" }, { "id": "tt1:x:Extra-b" }],
-      "expect": [{ "season": null, "episodes": ["tt1:x:Extra-b", "tt1:x:extra-a"] }]
+      "expect": [
+        {
+          "season": { "intended": "Unknown season", "desktop": null, "tv": -1 },
+          "episodes": ["tt1:x:Extra-b", "tt1:x:extra-a"]
+        }
+      ]
     }
   ]
 }

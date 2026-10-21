@@ -127,7 +127,7 @@ class ParityTest {
             val observed =
                 availableSeasons(videos).map { season ->
                     mapOf(
-                        "season" to season.takeIf { it >= 0 },
+                        "season" to season,
                         "episodes" to seasonEpisodes(videos, season).map { it.id },
                     )
                 }
@@ -205,16 +205,20 @@ private fun video(listed: JsonObject) =
     )
 
 // The Chapters payload the Matroska extractor hands to MatroskaChapters: one edition whose
-// chapters each carry one title.
+// chapters each carry one title, and an end time when the case gives one.
 private fun chaptersPayload(chapters: JsonArray): ByteArray {
     val atoms =
         chapters.mapIndexed { index, item ->
             val chapter = item.jsonObject
             val title = ebml(CHAP_STRING, chapter.string("title")!!.encodeToByteArray())
+            val end =
+                chapter["endMs"]?.let { ebml(CHAPTER_TIME_END, it.jsonPrimitive.long * 1_000_000) }
+                    ?: ByteArray(0)
             ebml(
                 CHAPTER_ATOM,
                 ebml(CHAPTER_UID, index + 1L) +
                     ebml(CHAPTER_TIME_START, chapter.long("startMs") * 1_000_000) +
+                    end +
                     ebml(CHAPTER_DISPLAY, title),
             )
         }
@@ -233,6 +237,7 @@ private const val EDITION_ENTRY = 0x45b9L
 private const val CHAPTER_ATOM = 0xb6L
 private const val CHAPTER_UID = 0x73c4L
 private const val CHAPTER_TIME_START = 0x91L
+private const val CHAPTER_TIME_END = 0x92L
 private const val CHAPTER_DISPLAY = 0x80L
 private const val CHAP_STRING = 0x85L
 
@@ -240,8 +245,28 @@ private fun cases(fixture: String): List<JsonObject> {
     val text =
         checkNotNull(ParityTest::class.java.getResource("/$fixture.json")) { "missing $fixture.json" }
             .readText()
-    return Json.parseToJsonElement(text).jsonObject.getValue("cases").jsonArray.map { it.jsonObject }
+    return Json.parseToJsonElement(text).jsonObject.getValue("cases").jsonArray.map {
+        forTv(it).jsonObject
+    }
 }
+
+// An expected value the clients differ on by design names its entry in ADR 0033 and gives each
+// platform's result. This suite takes the TV's.
+private fun forTv(value: JsonElement): JsonElement =
+    when (value) {
+        is JsonArray -> JsonArray(value.map(::forTv))
+        is JsonObject ->
+            if ("intended" !in value) JsonObject(value.mapValues { (_, item) -> forTv(item) })
+            else {
+                val desktop = value["desktop"]
+                val tv = value["tv"]
+                check(desktop != null && tv != null && desktop != tv) {
+                    "${value["intended"]} must give a different desktop and tv value"
+                }
+                tv
+            }
+        else -> value
+    }
 
 // The hand-written resources and the ones scripts/generate-tv-strings.mjs writes from en-US.ts.
 private val strings: Map<String, String> by lazy {
