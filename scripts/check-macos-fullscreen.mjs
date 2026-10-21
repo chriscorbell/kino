@@ -55,14 +55,13 @@ new QWebChannel(qt.webChannelTransport, async channel => {
   const native = channel.objects.kinoNative, lifecycle = channel.objects.kinoLifecycle;
   lifecycle.closeRequested.connect(id => lifecycle.acknowledgeClose(id, true));
   const result = { initial: native.fullscreen, changes: [] };
-  const windowed = innerWidth;
-  const resized = enabled => new Promise((resolve, reject) => {
-    const width = enabled ? screen.width : windowed;
-    const timer = setTimeout(() => reject(new Error(enabled
-      ? 'The window did not fill the screen.'
-      : 'The window did not return to its size.')), ${TRANSITION_MS});
+  const size = () => innerWidth + 'x' + innerHeight;
+  const resized = before => new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error('The window stayed ' + before + ' after the request.')),
+      ${TRANSITION_MS});
     const check = () => {
-      if (innerWidth !== width) return;
+      if (size() === before) return;
       clearTimeout(timer);
       removeEventListener('resize', check);
       resolve();
@@ -74,6 +73,7 @@ new QWebChannel(qt.webChannelTransport, async channel => {
     if (typeof native.fullscreen !== 'boolean' || !native.fullscreenChanged)
       throw new Error('Fullscreen property and change signal are required.');
     for (const [index, enabled] of [true, false, true, false].entries()) {
+      const before = size();
       await new Promise((resolve, reject) => {
         const timer = setTimeout(() => reject(new Error('Fullscreen state did not change.')), 5000);
         const changed = () => {
@@ -86,7 +86,7 @@ new QWebChannel(qt.webChannelTransport, async channel => {
         native.fullscreenChanged.connect(changed);
         native.setFullscreen(enabled);
       });
-      await resized(enabled);
+      await resized(before);
       const settled = await fetch('/settled/' + (index + 1));
       if (!settled.ok) throw new Error(await settled.text());
     }
