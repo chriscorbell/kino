@@ -8,7 +8,7 @@ Accepted
 
 Desktop and TV implement many of the same rules twice, once in TypeScript or C++ and once in Kotlin, as [ADR 0003](0003-use-separate-desktop-and-tv-stacks.md) accepted. A review of those rules in October 2026 found that most of them differed between the clients. Some differences were bugs, some were product calls nobody had made, and some were on purpose because the devices or players differ. Nothing in the repository said which was which. A shared parity case that met an intended difference had to hide it in one suite's test code, as the TV's season cases did by turning -1 back into null.
 
-Some of the review's findings closed before this record. The source bitrate label, sub-gigabyte size rounding and the episode tie-break agree on both clients since #303. Intro chapter choice agrees since #312: the desktop requires exactly one intro chapter, as the TV does. The next episode and the resume offset agree since card y7fun5gg6vfwm4: both clients take Core's next video only for a series that is neither upcoming nor the one playing (`upNextVideo`), and resume only an offset saved for the video being played (`resumeOffset`).
+Some of the review's findings closed before this record. The source bitrate label, sub-gigabyte size rounding and the episode tie-break agree on both clients since #303. Intro chapter choice agrees since #312: the desktop requires exactly one intro chapter, as the TV does. Two more closed after it. Since #327 both clients take Core's next video only for a series that is neither upcoming nor the one playing (`upNextVideo`), and resume only an offset saved for the video being played (`resumeOffset`).
 
 ## Decision
 
