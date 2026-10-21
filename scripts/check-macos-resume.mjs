@@ -3,6 +3,7 @@ import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { assertStillWithReducedMotion } from './test-support/reduced-motion.mjs';
 import { withWebEngine } from './test-support/webengine.mjs';
 
 const { build } = await import(
@@ -64,17 +65,7 @@ for (const kind of ['movie', 'series']) {
     await open();
     const screenshot = await command('Page.captureScreenshot', { format: 'png' });
     await writeFile(resolve(ui, `resume-${kind}.png`), Buffer.from(screenshot.data, 'base64'));
-    await command('Emulation.setEmulatedMedia', {
-      features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
-    });
-    assert.equal(
-      await evaluate(
-        `getComputedStyle(document.querySelector('dialog[aria-label="Loading playback"] span')).animationName`,
-      ),
-      'none',
-      'Reduced motion must stop the spinner animation',
-    );
-    await command('Emulation.setEmulatedMedia', { features: [] });
+    await assertStillWithReducedMotion({ command, evaluate }, `${kind} resume cover`);
     await key('Escape', 'Escape', 27);
     await until(
       () => evaluate(`!document.querySelector('dialog[aria-label="Loading playback"]')`),
@@ -94,6 +85,7 @@ for (const kind of ['movie', 'series']) {
         ),
       'manual sources',
     );
+    await assertStillWithReducedMotion({ command, evaluate }, `${kind} manual sources`);
     assert.equal(
       await evaluate('window.kinoResumeProbe.playerLoads'),
       0,

@@ -64,3 +64,27 @@ select:focus-visible {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* Stylesheets need no reduced-motion rules of their own. This is none rather than a near-zero
+   duration, which would still start each animation on its first keyframe, a one-frame flash for
+   anything that fades in. The second list stands apart so that an engine missing one of its
+   pseudo-elements, which drops the whole list, still runs the first. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after,
+  ::backdrop {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  ::marker,
+  ::placeholder,
+  ::file-selector-button,
+  ::-webkit-scrollbar,
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-thumb {
+    animation: none !important;
+    transition: none !important;
+  }
+}

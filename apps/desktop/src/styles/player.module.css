@@ -405,19 +405,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .skipIntro,
-  .subtitlePanel,
-  .upNext {
-    animation: none;
-  }
-
-  .playerTopbar,
-  .playerControls {
-    transition: none;
-  }
-}
-
 @keyframes enter {
   from {
     opacity: 0;

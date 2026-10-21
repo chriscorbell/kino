@@ -173,16 +173,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .accountDialog {
-    animation: none;
-  }
-
-  .secondaryButton {
-    transition: none;
-  }
-}
-
 .updateNotice {
   display: flex;
   flex-wrap: wrap;
@@ -200,12 +190,6 @@
   margin: 5px 0 0;
   color: var(--kino-text-muted);
   font-size: 12px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .updateNotice {
-    animation: none;
-  }
 }
 
 .updateSettings .settingRow {

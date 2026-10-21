@@ -167,9 +167,3 @@
     grid-column: 2;
   }
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .addonRemove {
-    transition: none;
-  }
-}

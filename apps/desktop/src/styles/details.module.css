@@ -30,12 +30,6 @@
   animation: resumeSpin 750ms linear infinite;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .resumeSpinner {
-    animation: none;
-  }
-}
-
 .detailSection h2 {
   margin: 0;
   font-size: 17px;
@@ -252,12 +246,6 @@
   font-size: clamp(24px, 3vw, 38px);
   line-height: 1.2;
   overflow-wrap: anywhere;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .episodeSourcesPage {
-    animation: none;
-  }
 }
 
 .episodeList,
@@ -668,18 +656,6 @@
 
   .sourceAction {
     justify-content: flex-start;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .libraryButton,
-  .episodeWatched,
-  .seasonWatched {
-    transition: none;
-  }
-
-  .summaryToggle {
-    transition: none;
   }
 }
 
