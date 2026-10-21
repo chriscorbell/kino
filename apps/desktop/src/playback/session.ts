@@ -353,7 +353,12 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
     },
     onState(state) {
       publish(state === 'saving' ? { exit: state, paused: true } : { exit: state });
-      if (state === 'save-failed') startLoad();
+      // The save froze loading, so replay what it skipped: a first load, or a
+      // reload for an audio output changed meanwhile.
+      if (state === 'save-failed') {
+        startLoad();
+        applySettings();
+      }
     },
     onFinished(outcome) {
       cleanups.forEach((cleanup) => cleanup());

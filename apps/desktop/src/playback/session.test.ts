@@ -297,6 +297,55 @@ it('loads a source that resolved during a save once that save fails', async () =
   await waitFor(() => expect(native.load).toHaveBeenCalledOnce());
 });
 
+it('reloads with an audio output changed during a save once that save fails', async () => {
+  const selection = movie();
+  const core = fakeCore(selection);
+  failSave(core, 'Player');
+  const native = fakeNativePlayer();
+  const settings = createKinoSettingsStore(memoryStorage());
+  const session = startPlayback(
+    selection,
+    deps(core, { settings, native: { present: true, connect: async () => native } }),
+  );
+  await waitFor(() => expect(native.load).toHaveBeenCalledOnce());
+  const release = core.holdStorage();
+
+  session.controls.leave({ kind: 'back' });
+  await waitFor(() => expect(core.commit).toHaveBeenCalled());
+  settings.update({ audioOutput: 'stereo' });
+  expect(native.load).toHaveBeenCalledOnce();
+  release();
+
+  await waitFor(() => expect(session.getSnapshot().exit).toBe('save-failed'));
+  expect(native.load.mock.calls.map(([, stereo]) => stereo)).toEqual([false, true]);
+});
+
+it('loads nothing when the platform answers after the save stopped the player', async () => {
+  const selection = movie();
+  const core = fakeCore(selection);
+  failSave(core, 'Unload');
+  let answer!: (platform: 'macos') => void;
+  const native = fakeNativePlayer();
+  const session = startPlayback(
+    selection,
+    deps(core, {
+      native: { present: true, connect: async () => native },
+      platform: new Promise((resolve) => (answer = resolve)),
+    }),
+  );
+  await waitFor(() =>
+    expect(session.getSnapshot()).toMatchObject({ loaded: true, waitingFor: { player: false } }),
+  );
+
+  session.controls.leave({ kind: 'back' });
+  await waitFor(() => expect(session.getSnapshot().exit).toBe('save-failed'));
+  expect(native.stop).toHaveBeenCalledOnce();
+  answer('macos');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  expect(native.load).not.toHaveBeenCalled();
+});
+
 it('reads the profile languages once, so a profile sync during playback reloads nothing', async () => {
   const selection = movie();
   const core = fakeCore(selection);
