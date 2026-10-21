@@ -4,7 +4,7 @@ name: Release
 # image, the Windows portable zip, the Linux Flatpak and the TV APK from that commit and publishes
 # them with their checksums. A version with a pre-release label is published as a GitHub
 # pre-release, which is what Kino calls a pre-release: unsigned by Apple and Microsoft, and
-# unannounced. Running the workflow by hand builds the same artifacts without publishing anything.
+# unannounced. Running the workflow by hand from a branch builds the same artifacts without publishing anything.
 
 on:
   push:

@@ -2,7 +2,7 @@
 
 ## Source handling
 
-Kino shows every source returned by an installed add-on and asks the user to choose. The source list exposes the add-on name and any available resolution, codec, range, audio, size, and peer information. Before loading a source, Kino refuses it only by its kind and address, as the table below sets out. After loading, it refuses a stream that needs a software video decoder or carries a Dolby Vision profile it cannot show. It attempts every other source.
+Kino shows every source returned by an installed add-on and asks the user to choose. The source list exposes the add-on name and any available resolution, codec, range, audio, size, and peer information. Before loading a source, Kino refuses it by its kind, address and request headers, as the table below sets out for kinds. After loading, it refuses a stream that needs a software video decoder or carries a Dolby Vision profile it cannot show. It attempts every other source.
 
 Core requests, manual manifest installation, and guest catalog setup require HTTPS. Development builds also allow HTTP to loopback addresses. Stored and synced add-ons follow the same policy. The macOS native transport follows HTTPS redirects for GET requests without request bodies or caller-supplied headers other than Accept. It checks each destination, rejects URL credentials and insecure destinations, and limits redirects to ten hops. Browser-only previews block redirects because browser fetch conceals the destination before following it. The Add-ons screen explains blocked transports and leaves them available for removal. <!-- planned: tv. The TV Add-ons screen gives no reason an add-on is blocked. --> Kino excludes Stremio's Local Files add-on without uninstalling it from the user's account.
 

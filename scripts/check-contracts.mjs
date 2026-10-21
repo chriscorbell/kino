@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Fails when a contract document names a gate that does not exist: a package script, a scripts/,
 // fixtures/ or workflow path, a vitest file, a TV test class or a CTest, in backticks or on a
-// line of a fenced block. It also fails on a malformed planned marker, and with --release, while a
-// public release ships a platform that a planned marker says lacks the promise. The contracts
-// promised Copy Diagnostic Summary (#55) and opening external sources (#75) before either was
-// built, and nothing said so until an audit found them.
+// line of a fenced block. It also fails on a malformed planned marker or an unclosed comment, and
+// with --release, while a public release ships a platform that a planned marker says lacks the
+// promise. The contracts promised Copy Diagnostic Summary (#55) and opening external sources (#75)
+// before either was built, and nothing said so until an audit found them.
 //
 //   node scripts/check-contracts.mjs [repository root]
 //   node scripts/check-contracts.mjs --release macos,windows,linux,tv [--dry-run] [repository root]
@@ -13,7 +13,8 @@
 // paragraph, list item or table row. With --dry-run, --release lists those promises as GitHub
 // notices instead of failing; the Release workflow passes it for a pre-release or a run by hand.
 //
-// A name introduced as an example ("such as", "for example", "e.g.") is not a gate. Left
+// A test file, TV test class or CTest introduced as an example ("such as", "for example", "e.g.")
+// is not a gate; a package script or path is checked wherever it appears. Left
 // unchecked: other repository paths, pnpm with --filter or other options than -C, Gradle tasks,
 // and a CTest named without "CTest" or "native test" after it or ctest -R before it.
 import { execFileSync } from 'node:child_process';
@@ -40,12 +41,13 @@ const PLATFORMS = {
 };
 const PLATFORM_WORDS = Object.keys(PLATFORMS).join(', ');
 const MARKER_FORM = `<!-- planned: <platforms>. <reason> --> with platforms from ${PLATFORM_WORDS}`;
-// pnpm's own commands, from `pnpm help` in pnpm 11. A same-named package script still wins.
+// pnpm's own commands, from `pnpm help` in pnpm 11, less test, t, start, stop and restart, which
+// run the package script of that name. A same-named package script still wins.
 const PNPM_COMMANDS = new Set(
   `access init recursive add install i install-test update up outdated audit change version lane
   bugs list ls ll licenses why view sbom whoami deprecate undeprecate unpublish star unstar stars
   dist-tag ping doctor search rebuild rb pack publish stage remove rm patch patch-commit
-  patch-remove peers set-script test t run exec dlx create completion start stop restart find-hash
+  patch-remove peers set-script run exec dlx create completion find-hash
   runtime env shim bin clean purge ci root prefix config get set pkg pack-app store cache cat-file
   cat-index ignored-builds approve-builds link import dedupe deploy prune fetch unlink docs repo
   self-update setup login team owner logout with help`.split(/\s+/),
@@ -123,6 +125,7 @@ const KINDS = [
   },
   {
     kind: 'vitest file',
+    example: true,
     find: (span) => (/^[\w.-]+\.test\.tsx?$/.test(span) ? [span] : []),
     resolves: (name) =>
       tracked.some((file) => file.startsWith('apps/desktop/') && basename(file) === name),
@@ -130,6 +133,7 @@ const KINDS = [
   },
   {
     kind: 'TV test class',
+    example: true,
     find: (span) =>
       span
         .split(/\s+/)
@@ -140,6 +144,7 @@ const KINDS = [
   },
   {
     kind: 'CTest',
+    example: true,
     find: (span, after) => {
       const selected = span.match(/^ctest\b.*\s-R\s+(\w+)/)?.[1];
       if (selected) return [selected];
@@ -188,7 +193,7 @@ function claimBefore(text) {
     .replace(/\s+/g, ' ')
     .trim()
     .replace(ITEM, '')
-    .replace(/^#+ /, '')
+    .replace(/^#+\s*/, '')
     .split(/(?<=[.;?!]) /)
     .at(-1);
   return plain.length > 90 ? `${plain.slice(0, 87)}...` : plain;
@@ -200,18 +205,23 @@ const planned = [];
 
 for (const block of DOCS.flatMap(blocksOf)) {
   for (const m of block.text.matchAll(/`([^`\n]+)`/g)) {
-    const before = block.text.slice(0, m.index);
-    if (EXAMPLE.test(before)) continue;
+    const isExample = EXAMPLE.test(block.text.slice(0, m.index));
     const after = block.text.slice(m.index + m[0].length);
-    for (const { kind, find, resolves, missing } of KINDS)
-      for (const name of find(m[1], after))
+    for (const { kind, example, find, resolves, missing } of KINDS)
+      for (const name of example && isExample ? [] : find(m[1], after))
         if (resolves(name)) resolved.add(`${kind} ${name}`);
         else problems.push(`${block.doc}:${block.line}: ${missing(name)}`);
   }
   const outsideCode = block.text.replace(/`[^`\n]+`/g, (span) => ' '.repeat(span.length));
+  const lineAt = (index) => block.line + block.text.slice(0, index).split('\n').length - 1;
+  const unclosed = outsideCode.search(/<!--(?![\s\S]*?-->)/);
+  if (unclosed >= 0)
+    problems.push(
+      `${block.doc}:${lineAt(unclosed)}: a comment opens with <!-- and is not closed with --> in its block`,
+    );
   for (const { 0: comment, 1: inner, index } of outsideCode.matchAll(/<!--([\s\S]*?)-->/g)) {
     if (!/plan/i.test(inner)) continue;
-    const line = block.line + block.text.slice(0, index).split('\n').length - 1;
+    const line = lineAt(index);
     const where = `${block.doc}:${line}`;
     const [, words, reason] =
       inner.match(/^ planned: ([a-z]+(?:, [a-z]+)*)\. (\S[\s\S]*?) $/) ?? [];
