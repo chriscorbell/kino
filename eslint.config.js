@@ -26,7 +26,7 @@ const playerModel = [
   "CallExpression[callee.property.name=/^(dispatch|commit)$/][arguments.1.value='player']",
 ].map((selector) => ({ selector, message: playerModelMessage }));
 const playerActions = {
-  regex: '(^|/)core/actions(\\.ts)?$|^\\./actions(\\.ts)?$',
+  regex: '(^|/)actions(\\.ts)?$',
   importNames: ['playerAction', 'loadPlayerAction', 'unloadPlayerAction', 'finalPauseAction'],
   message: playerModelMessage,
 };
@@ -57,8 +57,7 @@ export default tseslint.config(
   },
   {
     files: ['apps/desktop/src/**/*.{ts,tsx}'],
-    // The adapter test builds a Load to check the payload Core receives, and never dispatches it.
-    ignores: ['apps/desktop/src/playback/**', 'apps/desktop/src/core/adapters.test.ts'],
+    ignores: ['apps/desktop/src/playback/**'],
     rules: { 'no-restricted-imports': ['error', { patterns: [playerActions] }] },
   },
   {

@@ -11,6 +11,7 @@ import { PendingCoreWork } from '../apps/desktop/src/core/pendingWork.ts';
 import { startPlayback } from '../apps/desktop/src/playback/session.ts';
 import { createKinoSettingsStore } from '../apps/desktop/src/settingsStore.ts';
 import { memoryStorage } from '../apps/desktop/src/test/memoryStorage.ts';
+import { commitThrough } from '../apps/desktop/src/test/transport.ts';
 import { fixturePreview, fixtureSource, initializeCore } from './test-support/core-stream.mjs';
 
 const storage = new Map();
@@ -70,10 +71,7 @@ function connectCore() {
   return {
     port: {
       dispatch,
-      async commit(action, model) {
-        await dispatch(action, model);
-        await work.flush();
-      },
+      commit: commitThrough(dispatch, () => work.flush()),
       async getState(model) {
         live();
         return adaptCoreState(model, core.get_state(model));

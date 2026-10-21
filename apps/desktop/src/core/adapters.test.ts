@@ -4,7 +4,7 @@ import {
   addToLibraryAction,
   loadCatalogAction,
   loadLibraryAction,
-  loadPlayerAction,
+  playerStreamPayload,
 } from './actions';
 import {
   adaptCoreState,
@@ -271,16 +271,7 @@ describe('sources and playback', () => {
   it('sends only the Core stream shape back, with announce and proxy headers intact', () => {
     const [direct, torrent, , embedded] = sourcesOf();
     const payload = (source: CoreSource | undefined) =>
-      (
-        loadPlayerAction({
-          meta,
-          metaTransportUrl: 'https://fixture.invalid/manifest.json',
-          streamTransportUrl: 'https://fixture.invalid/manifest.json',
-          stream: source as CoreSource,
-          video: null,
-          nextVideo: null,
-        }).args as { args: { stream: Record<string, unknown> } }
-      ).args.stream;
+      playerStreamPayload(source as CoreSource) as Record<string, unknown>;
 
     expect(payload(torrent)).toEqual({
       infoHash: '0123456789abcdef0123456789abcdef01234567',
