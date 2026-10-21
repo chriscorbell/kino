@@ -37,15 +37,25 @@ const { lookupCommunityIntro, VERSION_WINDOW_MS } = await import(
 
 // The client turns every failed request into "no intro", the same answer a changed response shape
 // gets, so the requests are recorded here to tell an outage from a mismatch. Neither is retried.
+// A 200 can still fail partway through its body or carry no JSON, so the body is read here too.
 const unanswered = [];
 const serviceFetch = globalThis.fetch;
 globalThis.fetch = async (...request) => {
   try {
     const response = await serviceFetch(...request);
-    if (!response.ok) unanswered.push(`HTTP ${response.status}`);
-    return response;
+    if (!response.ok) {
+      unanswered.push(`HTTP ${response.status}`);
+      return response;
+    }
+    const text = await response.text();
+    try {
+      JSON.parse(text);
+    } catch {
+      unanswered.push('a body that is not JSON');
+    }
+    return new Response(text, response);
   } catch (error) {
-    unanswered.push(error.cause?.code ?? error.name);
+    unanswered.push(error.cause?.code ?? error.cause?.message ?? error.message);
     throw error;
   }
 };
