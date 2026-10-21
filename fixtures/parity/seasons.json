@@ -1,5 +1,5 @@
 {
-  "rule": "A series lists Specials first, then numbered seasons in order, then Other episodes for videos with no season. A season's episodes sort by number, then by video id in code unit order. A video without a season has no episode number either, as in Core.",
+  "rule": "A series lists Specials first, then numbered seasons in order, then Other episodes for videos with no season. A season's episodes sort by number, then by video id in code unit order. A video without a season has no episode number either, as in Core. The clients mark Other episodes differently, null on desktop and -1 on TV, so those cases give each platform's marker, as the Unknown season entry in ADR 0033 records.",
   "cases": [
     {
       "name": "Specials first, numbered seasons in order, Other episodes last",

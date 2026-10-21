@@ -69,7 +69,7 @@ Kino's remote-first interface for Android TV, built from the same design languag
 _Avoid_: Stretched desktop UI, TV skin
 
 **Intended difference**:
-A behavior in which desktop and TV differ on purpose, listed with its reason in ADR 0033. Any other difference between the clients is a defect.
+A way desktop and TV differ on purpose in a rule both clients implement, listed with its reason in ADR 0033. Any other difference in such a rule is a defect. A feature or setting only one platform offers is not a difference in this sense. ADR 0031 and `packages/settings/src/schema.ts` say which platforms honor each setting.
 _Avoid_: Platform quirk, known divergence
 
 **Intro segment**:

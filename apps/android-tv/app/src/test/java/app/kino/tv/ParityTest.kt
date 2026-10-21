@@ -184,6 +184,58 @@ class ParityTest {
             assertEquals(case.getValue("expect"), json(observed))
         }
     }
+
+    /**
+     * Chapter fields the TV reads from the Matroska Chapters element. The desktop sees only
+     * libmpv's chapter list, so these cases are not shared (ADR 0033, Matroska chapter fields).
+     */
+    class TvOnlyIntroChapterCases {
+        private fun discovery(introFlags: Map<String, Long> = emptyMap(), ordered: Boolean = false) =
+            MatroskaChapters.parse(
+                chaptersPayload(
+                    JsonArray(
+                        listOf(
+                            chapter("Prologue", 0),
+                            chapter("Intro", 20_000, introFlags),
+                            chapter("", 87_000),
+                        )
+                    ),
+                    ordered,
+                ),
+                2_400_000,
+            )
+
+        private fun chapter(title: String, startMs: Long, flags: Map<String, Long> = emptyMap()) =
+            JsonObject(
+                mapOf("title" to JsonPrimitive(title), "startMs" to JsonPrimitive(startMs)) +
+                    flags.mapValues { (_, value) -> JsonPrimitive(value) }
+            )
+
+        // The same chapters without flags find the intro, so each flag alone is what leaves it
+        // unknown below.
+        @Test
+        fun anIntroChapterWithoutFlagsIsFound() {
+            assertEquals(
+                IntroDiscovery.Found(TvIntroMarker(20_000, 87_000, TvIntroMarker.Source.Embedded)),
+                discovery(),
+            )
+        }
+
+        @Test
+        fun aDisabledIntroChapterLeavesTheIntroUnknown() {
+            assertEquals(IntroDiscovery.Unknown, discovery(introFlags = mapOf("enabled" to 0L)))
+        }
+
+        @Test
+        fun aHiddenIntroChapterLeavesTheIntroUnknown() {
+            assertEquals(IntroDiscovery.Unknown, discovery(introFlags = mapOf("hidden" to 1L)))
+        }
+
+        @Test
+        fun anOrderedEditionLeavesTheIntroUnknown() {
+            assertEquals(IntroDiscovery.Unknown, discovery(ordered = true))
+        }
+    }
 }
 
 // A video as Core lists it, where season and episode come together or not at all.
@@ -205,24 +257,27 @@ private fun video(listed: JsonObject) =
     )
 
 // The Chapters payload the Matroska extractor hands to MatroskaChapters: one edition whose
-// chapters each carry one title, and an end time when the case gives one.
-private fun chaptersPayload(chapters: JsonArray): ByteArray {
+// chapters each carry one title, and an end time or enabled and hidden flags when the case gives
+// them.
+private fun chaptersPayload(chapters: JsonArray, ordered: Boolean = false): ByteArray {
     val atoms =
         chapters.mapIndexed { index, item ->
             val chapter = item.jsonObject
             val title = ebml(CHAP_STRING, chapter.string("title")!!.encodeToByteArray())
-            val end =
-                chapter["endMs"]?.let { ebml(CHAPTER_TIME_END, it.jsonPrimitive.long * 1_000_000) }
-                    ?: ByteArray(0)
+            fun field(key: String, id: Long, scale: Long = 1) =
+                chapter[key]?.let { ebml(id, it.jsonPrimitive.long * scale) } ?: ByteArray(0)
             ebml(
                 CHAPTER_ATOM,
                 ebml(CHAPTER_UID, index + 1L) +
                     ebml(CHAPTER_TIME_START, chapter.long("startMs") * 1_000_000) +
-                    end +
+                    field("endMs", CHAPTER_TIME_END, 1_000_000) +
+                    field("enabled", CHAPTER_FLAG_ENABLED) +
+                    field("hidden", CHAPTER_FLAG_HIDDEN) +
                     ebml(CHAPTER_DISPLAY, title),
             )
         }
-    return ebml(EDITION_ENTRY, atoms.fold(ByteArray(0), ByteArray::plus))
+    val flags = if (ordered) ebml(EDITION_FLAG_ORDERED, 1L) else ByteArray(0)
+    return ebml(EDITION_ENTRY, atoms.fold(flags, ByteArray::plus))
 }
 
 // Every size is written as an eight-byte VINT, which the parser accepts for any length.
@@ -238,6 +293,9 @@ private const val CHAPTER_ATOM = 0xb6L
 private const val CHAPTER_UID = 0x73c4L
 private const val CHAPTER_TIME_START = 0x91L
 private const val CHAPTER_TIME_END = 0x92L
+private const val CHAPTER_FLAG_ENABLED = 0x4598L
+private const val CHAPTER_FLAG_HIDDEN = 0x98L
+private const val EDITION_FLAG_ORDERED = 0x45ddL
 private const val CHAPTER_DISPLAY = 0x80L
 private const val CHAP_STRING = 0x85L
 
