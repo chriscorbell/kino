@@ -19,6 +19,7 @@ try {
     let timeout;
     let requests = 0;
     let snapshot;
+    let settled;
     let stillOpenDuringSave = false;
     const server = createServer((request, response) => {
       if (request.url !== '/save') {
@@ -31,7 +32,7 @@ try {
         body += chunk;
       });
       request.on('end', () => {
-        snapshot = JSON.parse(body);
+        ({ snapshot, settled } = JSON.parse(body));
         setTimeout(() => {
           stillOpenDuringSave = child.exitCode === null && child.signalCode === null;
           response.setHeader('Access-Control-Allow-Origin', '*');
@@ -51,15 +52,20 @@ try {
 new QWebChannel(qt.webChannelTransport, function(channel) {
   const native = channel.objects.kinoNative, lifecycle = channel.objects.kinoLifecycle;
   let ready = false;
+  let pauseReported;
   native.playerEvent.connect(function(name, payload) {
+    if (name === 'paused' && payload.paused && pauseReported) pauseReported();
     if (!ready && name === 'time' && payload.milliseconds >= 500) {
       ready = true;
       lifecycle.setReady(true);
     }
   });
   lifecycle.closeRequested.connect(async function(id) {
+    const paused = new Promise(function(resolve) { pauseReported = resolve; });
     const snapshot = await native.pauseAndSnapshot();
-    await fetch(${JSON.stringify(origin + '/save')}, {method:'POST',body:JSON.stringify(snapshot)});
+    await paused;
+    const settled = await native.pauseAndSnapshot();
+    await fetch(${JSON.stringify(origin + '/save')}, {method:'POST',body:JSON.stringify({snapshot, settled})});
     native.stop();
     lifecycle.acknowledgeClose(id, true);
   });
@@ -90,6 +96,11 @@ new QWebChannel(qt.webChannelTransport, function(channel) {
       assert.ok(
         snapshot.time >= 500 && snapshot.duration > snapshot.time,
         'Capture the actual libmpv position before stopping.',
+      );
+      // A second read, once mpv has reported the pause, is where the player really stopped.
+      assert.ok(
+        Math.abs(snapshot.time - settled.time) <= 1,
+        `${mode} must save where the player paused, ${settled.time} ms, not ${snapshot.time} ms.`,
       );
       console.log(
         `Native ${mode} awaited the save acknowledgement with playback paused at ${snapshot.time} ms.`,

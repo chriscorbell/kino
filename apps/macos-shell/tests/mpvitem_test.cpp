@@ -5,6 +5,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QRegularExpression>
 #include <QSignalSpy>
 #include <QtTest>
 
@@ -18,10 +19,80 @@ class MpvItemTest : public QObject {
     static void sendProperty(MpvItem &player, const char *name, mpv_format format,
                              void *data) {
         mpv_event_property property{name, format, data};
+        sendEvent(player, MPV_EVENT_PROPERTY_CHANGE, &property);
+    }
+
+    static void sendEvent(MpvItem &player, mpv_event_id id, void *data = nullptr) {
         mpv_event event{};
-        event.event_id = MPV_EVENT_PROPERTY_CHANGE;
-        event.data = &property;
+        event.event_id = id;
+        event.data = data;
         player.handleEvent(&event);
+    }
+
+    static void sendTime(MpvItem &player, double seconds) {
+        sendProperty(player, "time-pos", MPV_FORMAT_DOUBLE, &seconds);
+    }
+
+    static QStringList eventNames(const QSignalSpy &events) {
+        QStringList names;
+        for (const auto &event : events) names.append(event.first().toString());
+        return names;
+    }
+
+    static QList<qlonglong> sentMilliseconds(const QSignalSpy &events, QLatin1String name) {
+        QList<qlonglong> sent;
+        for (const auto &event : events)
+            if (event.first().toString() == name)
+                sent.append(event.at(1).toMap().value("milliseconds").toLongLong());
+        return sent;
+    }
+
+    static QList<qlonglong> sentTimes(const QSignalSpy &events) {
+        return sentMilliseconds(events, QLatin1String("time"));
+    }
+
+    // What the live player holds, not what Kino last asked for.
+    static bool mpvPaused(MpvItem &player) {
+        int paused = -1;
+        if (mpv_get_property(player.handle_, "pause", MPV_FORMAT_FLAG, &paused) < 0) return false;
+        return paused == 1;
+    }
+
+    static void playWithFrameRateMatching(MpvItem &player) {
+        player.setActive(true);
+        player.setMatchFrameRate(true);
+        int playing = 0;
+        sendProperty(player, "pause", MPV_FORMAT_FLAG, &playing);
+    }
+
+    static QString mpvItemSource() {
+        QFile file(QStringLiteral(KINO_MPVITEM_SOURCE));
+        // Text mode reads a Windows checkout's CRLF line endings as LF.
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return {};
+        return QString::fromUtf8(file.readAll());
+    }
+
+    // Lines outside writePause that name mpv's pause, other than its one observation and the
+    // one branch that handles its changes.
+    static QStringList pauseNamedOutsideWritePause(QString source) {
+        // The compiler joins adjacent literals, so "pa" "use" names pause too.
+        static const QRegularExpression adjacentLiterals(QStringLiteral(R"("\s*")"));
+        source.replace(adjacentLiterals, QString());
+        const qsizetype start = source.indexOf(QLatin1String("void MpvItem::writePause("));
+        const qsizetype end = start < 0 ? -1 : source.indexOf(QLatin1String("\n}\n"), start);
+        if (end < 0) return {QStringLiteral("no writePause in the source")};
+        static const QRegularExpression pauseLiteral(QStringLiteral(R"("[^"\n]*\bpause\b[^"\n]*")"));
+        QStringList found;
+        for (const auto &rawLine : (source.left(start) + source.mid(end)).split(u'\n')) {
+            const QString line = rawLine.trimmed();
+            auto names = pauseLiteral.globalMatch(line);
+            if (!names.hasNext()) continue;
+            names.next();
+            const bool readsPause = line.startsWith(QLatin1String("mpv_observe_property(")) ||
+                                    line.startsWith(QLatin1String("} else if (name == \"pause\""));
+            if (names.hasNext() || !readsPause) found.append(line);
+        }
+        return found;
     }
 
     static void sendString(MpvItem &player, const char *name, const char *value) {
@@ -61,13 +132,133 @@ private slots:
         buffered(12.9);
         buffered(14.0);
         buffered(3.0);
-        QList<qlonglong> sent;
-        for (const auto &event : events) {
-            QCOMPARE(event.first().toString(), QStringLiteral("buffered"));
-            sent.append(event.at(1).toMap().value("milliseconds").toLongLong());
-        }
+        QCOMPARE(eventNames(events), QStringList(3, QStringLiteral("buffered")));
         // Sub-second growth is folded into the next whole second; a seek back reports at once.
-        QCOMPARE(sent, (QList<qlonglong>{12500, 14000, 3000}));
+        QCOMPARE(sentMilliseconds(events, QLatin1String("buffered")),
+                 (QList<qlonglong>{12500, 14000, 3000}));
+    }
+
+    void timeReachesTheInterfaceFourTimesASecond() {
+        MpvItem player;
+        QSignalSpy events(&player, &MpvItem::playerEvent);
+        // mpv reports the position once per frame: three seconds of 24 fps video.
+        for (int frame = 0; frame <= 72; ++frame) sendTime(player, frame / 24.0);
+        QList<qlonglong> expected;
+        for (qlonglong milliseconds = 0; milliseconds <= 3000; milliseconds += 250)
+            expected.append(milliseconds);
+        QCOMPARE(sentTimes(events), expected);
+    }
+
+    void seekPauseAndEndSendTimeAtOnce() {
+        MpvItem player;
+        QSignalSpy events(&player, &MpvItem::playerEvent);
+        sendTime(player, 10.0);
+        sendTime(player, 10.1);
+        player.setPaused(true);
+        int paused = 1;
+        sendProperty(player, "pause", MPV_FORMAT_FLAG, &paused);
+        // The pause reports the position it stopped at before it reports the pause.
+        QCOMPARE(eventNames(events), (QStringList{"time", "time", "paused"}));
+        QCOMPARE(sentTimes(events), (QList<qlonglong>{10000, 10100}));
+
+        events.clear();
+        sendEvent(player, MPV_EVENT_SEEK);
+        sendTime(player, 10.15);
+        sendTime(player, 10.2);
+        sendEvent(player, MPV_EVENT_PLAYBACK_RESTART);
+        QCOMPARE(sentTimes(events), (QList<qlonglong>{10150, 10200}));
+
+        events.clear();
+        sendTime(player, 10.3);
+        mpv_event_end_file end{};
+        end.reason = MPV_END_FILE_REASON_EOF;
+        sendEvent(player, MPV_EVENT_END_FILE, &end);
+        QCOMPARE(eventNames(events), (QStringList{"time", "ended"}));
+        QCOMPARE(sentTimes(events), (QList<qlonglong>{10300}));
+    }
+
+    void displaySwitchKeepsAPause_data() {
+        QTest::addColumn<QString>("pause");
+        QTest::addColumn<bool>("pausedAfter");
+        QTest::newRow("nothing") << QString() << false;
+        QTest::newRow("already-paused") << QStringLiteral("before") << true;
+        QTest::newRow("viewer-pause") << QStringLiteral("viewer") << true;
+        QTest::newRow("exit") << QStringLiteral("exit") << true;
+        QTest::newRow("system-sleep") << QStringLiteral("sleep") << true;
+    }
+
+    void displaySwitchKeepsAPause() {
+        QFETCH(QString, pause);
+        QFETCH(bool, pausedAfter);
+        MpvItem player;
+        playWithFrameRateMatching(player);
+        if (pause == QLatin1String("before")) {
+            player.setPaused(true);
+            QTRY_VERIFY(mpvPaused(player));
+        }
+        // No display mode is a whole multiple of a megahertz, so the hold runs and nothing
+        // switches the display the test runs on.
+        player.matchDisplayTo(1e6);
+        QVERIFY(mpvPaused(player));
+        if (pause == QLatin1String("viewer")) player.setPaused(true);
+        if (pause == QLatin1String("exit")) player.pauseAndSnapshot();
+        if (pause == QLatin1String("sleep")) player.pauseForSleep();
+        QTest::qWait(100);
+        QCOMPARE(mpvPaused(player), pausedAfter);
+    }
+
+    void togglePausedFlipsTheViewersLastChoice_data() {
+        QTest::addColumn<bool>("hold");
+        QTest::addColumn<int>("toggles");
+        QTest::addColumn<bool>("pausedAfter");
+        QTest::newRow("once") << false << 1 << true;
+        QTest::newRow("twice") << false << 2 << false;
+        // The hold shows the viewer a paused player, so a toggle resumes it.
+        QTest::newRow("during-hold") << true << 1 << false;
+        QTest::newRow("twice-during-hold") << true << 2 << true;
+    }
+
+    void togglePausedFlipsTheViewersLastChoice() {
+        QFETCH(bool, hold);
+        QFETCH(int, toggles);
+        QFETCH(bool, pausedAfter);
+        MpvItem player;
+        playWithFrameRateMatching(player);
+        if (hold) player.matchDisplayTo(1e6);
+        for (int toggle = 0; toggle < toggles; ++toggle) player.togglePaused();
+        QTest::qWait(100);
+        QCOMPARE(mpvPaused(player), pausedAfter);
+    }
+
+    // Every pause reaches mpv through writePause, which knows why it pauses and what a display
+    // switch's hold may undo. A second writer could resume playback the viewer paused.
+    void pauseHasOneWriter() {
+        const QStringList found = pauseNamedOutsideWritePause(mpvItemSource());
+        QVERIFY2(found.isEmpty(),
+                 qPrintable(QStringLiteral("mpvitem.cpp names mpv's pause outside writePause: %1. "
+                                           "Write it through writePause with a PauseReason.")
+                                .arg(found.join(QLatin1String(" | ")))));
+    }
+
+    void pauseScanCatchesAPlantedWriter_data() {
+        QTest::addColumn<QString>("planted");
+        QTest::newRow("set") << QStringLiteral(R"(mpv_set_property_string(handle_, "pause", "no");)");
+        QTest::newRow("cycle") << QStringLiteral(R"(const char *command[] = {"cycle", "pause", nullptr};)");
+        QTest::newRow("beside-a-read")
+            << QStringLiteral(R"(if (name == "pause") mpv_set_property_string(handle_, "pause", "no");)");
+        QTest::newRow("in-the-handler")
+            << QStringLiteral(R"(} else if (name == "pause") { mpv_set_property_string(handle_, "pause", "no");)");
+        QTest::newRow("split-name")
+            << QStringLiteral(R"(mpv_set_property_string(handle_, "pa" "use", "no");)");
+        QTest::newRow("split-over-lines")
+            << QStringLiteral("mpv_set_property_string(handle_, \"pa\"\n        \"use\", \"no\");");
+    }
+
+    void pauseScanCatchesAPlantedWriter() {
+        QFETCH(QString, planted);
+        const QString source =
+            mpvItemSource() + QStringLiteral("\nvoid planted() {\n    %1\n}\n").arg(planted);
+        QVERIFY(!pauseNamedOutsideWritePause(source).isEmpty());
     }
 
     // The caption style must come from Kino, not from a libmpv default that
