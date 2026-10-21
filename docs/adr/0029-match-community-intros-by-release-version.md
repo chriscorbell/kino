@@ -20,4 +20,4 @@ Checking both runtimes keeps Kino inside the service's own window whichever of t
 
 A file of the same release as the submissions gets its marker. A different cut, whose runtime differs by minutes, still does not, and neither does a runtime between two close versions.
 
-The fixtures in `pnpm intro:check` and `SkipIntroTest` now take the live service's shape, with runtimes at both edges of the window. `pnpm intro:check-live` runs the production client against the service itself; it needs the network and runs by hand. The window is the service's behavior, not a documented contract, and that check is how a change would show.
+The fixtures in `pnpm intro:check` and `SkipIntroTest` now take the live service's shape, with runtimes at both edges of the window. `pnpm intro:check-live` runs the production client against the service itself; it needs the network and runs by hand. TheIntroDB refuses GitHub-hosted runners (HTTP 403, observed 2026-10-20), so a scheduled run needs a machine the service accepts. The window is the service's behavior, not a documented contract, and that check is how a change would show.
