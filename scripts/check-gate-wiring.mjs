@@ -17,7 +17,8 @@
 // workflow, CMake and package text. It does not see a path built at run time, and the files a
 // script reads by path outside scripts/ are listed in SCRIPT_READS.
 import { execFileSync } from 'node:child_process';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, posix } from 'node:path';
 
 const [mode, ...rest] = process.argv[2]?.startsWith('--')
@@ -146,7 +147,9 @@ function readWorkflow(path) {
     else if (jobs.length) jobs.at(-1).body += line + '\n';
   }
   for (const job of jobs) {
-    const runs = filesIn(job.body);
+    // Collects every package script the job reaches, directly or through a step list.
+    job.steps = new Set();
+    const runs = filesIn(job.body, job.steps);
     const ctestLines = job.body
       .replace(/\s*\\\n\s*/g, ' ')
       .split('\n')
@@ -242,21 +245,40 @@ if (mode === '--native-inputs') {
   console.log(nativeInputs.filter((input) => /\*/.test(input) || isFile(input)).join('\n'));
   process.exit(0);
 }
+// The files head changed since it left base. Diffing from base itself also counts every file the
+// base branch changed since then, which ran the macOS job for #315, a branch behind main.
+const changedSince = (repo, base, head) =>
+  execFileSync('git', ['diff', '--name-only', '--no-renames', '-z', `${base}...${head}`], {
+    cwd: repo,
+    encoding: 'utf8',
+  })
+    .split('\0')
+    .filter(Boolean);
+
 if (mode === '--native-changed') {
   const [base, head] = rest;
   // A new branch has no base to compare, so everything may have changed.
   if (!base || /^0+$/.test(base)) {
-    console.log('native=true');
+    console.log('native=true\nprobes=');
     process.exit(0);
   }
-  const changed = execFileSync('git', ['diff', '--name-only', '--no-renames', '-z', base, head], {
-    cwd: root,
-    encoding: 'utf8',
-  })
-    .split('\0')
-    .filter((file) => file && matches(nativeInputs, file));
-  for (const file of changed) console.error(`native input changed: ${file}`);
-  console.log(`native=${changed.length > 0}`);
+  const changed = changedSince(root, base, head);
+  const native = changed.filter((file) => matches(nativeInputs, file));
+  for (const file of native) console.error(`native input changed: ${file}`);
+  // The macOS probes the native jobs run whose own scripts changed, which CI runs five times.
+  const touched = new Set(changed);
+  const steps = workflows
+    .flatMap((wf) => wf.jobs.filter((job) => job.native))
+    .flatMap((job) => [...job.steps]);
+  const rerun = [...new Set(steps)]
+    .filter((step) => step.startsWith('macos:check-') && !scripts[step].includes('run-check.mjs'))
+    .filter((step) =>
+      [...inputsOf(packageFiles(step)).keys()].some(
+        (file) => file.startsWith('scripts/') && touched.has(file),
+      ),
+    );
+  for (const step of rerun) console.error(`probe changed: ${step}`);
+  console.log(`native=${native.length > 0}\nprobes=${rerun.join(' ')}`);
   process.exit(0);
 }
 
@@ -307,6 +329,41 @@ for (const wf of workflows) {
         `${missed} is read by ${wf.path}${through}, but its ${event} paths miss it. Add ${input} to that list.`,
       );
     }
+}
+
+// A planted branch behind its base: the base changes a.txt after the fork, the branch b.txt.
+const planted = mkdtempSync(join(tmpdir(), 'kino-gate-wiring-'));
+try {
+  const config = [
+    'user.name=Kino',
+    'user.email=kino@localhost',
+    'commit.gpgsign=false',
+    'core.hooksPath=/dev/null',
+  ];
+  const git = (...args) =>
+    execFileSync('git', [...config.flatMap((pair) => ['-c', pair]), ...args], {
+      cwd: planted,
+      encoding: 'utf8',
+    }).trim();
+  const commit = (file, text) => {
+    writeFileSync(join(planted, file), text);
+    git('add', file);
+    git('commit', '-qm', file);
+    return git('rev-parse', 'HEAD');
+  };
+  git('init', '-q');
+  commit('a.txt', 'fork');
+  git('checkout', '-qb', 'branch');
+  const head = commit('b.txt', 'branch');
+  git('checkout', '-q', '-');
+  const base = commit('a.txt', 'base');
+  const seen = changedSince(planted, base, head);
+  if (seen.join() !== 'b.txt')
+    problems.push(
+      `--native-changed must count only a branch's own changes, b.txt for the planted branch behind its base, but counted: ${seen.join(', ')}.`,
+    );
+} finally {
+  rmSync(planted, { recursive: true, force: true });
 }
 
 for (const problem of problems) console.error(problem);

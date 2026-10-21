@@ -20,6 +20,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       native: ${{ steps.paths.outputs.native }}
+      probes: ${{ steps.paths.outputs.probes }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -28,7 +29,8 @@ jobs:
         with:
           node-version-file: .node-version
       # The native jobs run when a change touches a file they read, which the gate wiring check
-      # computes from what they run. It prints each changed input in the log.
+      # computes from what they run. It prints each changed input in the log, and names the macOS
+      # probes whose own scripts changed, which the native job reruns.
       - id: paths
         name: Check native build inputs
         env:
@@ -44,6 +46,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
 
       - name: Install pnpm
         uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
@@ -65,10 +69,13 @@ jobs:
     needs: changes
     if: needs.changes.outputs.native == 'true'
     runs-on: macos-26
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
       CARGO_TARGET_DIR: ${{ github.workspace }}/build/engine-target
       HOMEBREW_NO_AUTO_UPDATE: '1'
+      # The hosted runner's virtual GPU draws video a capture reads back as black, so the pixel
+      # cases run on a Mac with a real GPU; the SDR control still runs here and says so.
+      KINO_PLAYBACK_PIXELS: optional
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Match build parallelism to the runner
@@ -165,10 +172,6 @@ jobs:
           pnpm macos:check-probes
       - name: Run the playback contract matrix
         timeout-minutes: 15
-        # The hosted runner's virtual GPU draws video a capture reads back as black, so the pixel
-        # cases run on a Mac with a real GPU; the SDR control still runs here and says so.
-        env:
-          KINO_PLAYBACK_PIXELS: optional
         run: pnpm macos:check-playback
 
       # The app as a release ships it, bundle and notices, then run: from #232
@@ -179,6 +182,31 @@ jobs:
         run: |
           pnpm macos:package --no-dmg
           pnpm macos:check-package
+
+      # A gate that fails half its runs, as the TV's frame gate did in #178, passes one run half the
+      # time. Five runs catch it 97% of the time, so a new or changed probe runs five times before
+      # it merges. Every run counts; none is retried.
+      - name: Run each changed probe five times
+        if: needs.changes.outputs.probes != ''
+        timeout-minutes: 40
+        env:
+          KINO_PROBES: ${{ needs.changes.outputs.probes }}
+        run: |
+          failed=0
+          for probe in $KINO_PROBES; do
+            for run in 1 2 3 4 5; do
+              echo "::group::$probe, run $run of 5"
+              pnpm --silent "$probe" && status=ok || status=FAIL
+              echo '::endgroup::'
+              if test "$status" = ok; then
+                echo "ok   $probe, run $run of 5"
+              else
+                echo "::error::$probe failed run $run of 5"
+                failed=1
+              fi
+            done
+          done
+          exit "$failed"
 
   linux:
     name: Linux shell build
