@@ -1,0 +1,10 @@
+# A result from a build without the change says nothing about the change
+
+Read when: about to report a change as checked on the Shield, in the Mac app, or against a live service, or a device result contradicts what the code should do.
+Status: verified
+Scope: TV and desktop checks that run a built app
+Verified: 2026-10-21
+Source: #155 (commit 5dbd9f4); #275; `scripts/check-android.py`; `docs/ANDROID-TV.md` on rerunning one class; the agent-friendly program's incident record for 2026-09-27
+Recheck when: `scripts/check-android.py` changes what it installs before or after the checks.
+
+Results were reported three times from an app that did not contain the change. #155 said its Continue Watching flow was verified on the Shield, but Homebrew's `rustc`, ahead of rustup's on `PATH`, had broken the full TV build, and the Gradle-only build installed instead had no FFmpeg audio renderer, so every AC-3, E-AC-3, DTS and TrueHD source failed as an unplayable audio format. #155 fixed both causes: `scripts/build-android.py` names the pinned toolchain's own `rustc`, and Gradle's `requireFfmpegRenderer` task fails a build without `libffmpegJNI.so`. On 2026-09-27 live Skip Intro results came from a stale desktop build that still matched TheIntroDB runtimes exactly; only the program's records hold that one. The third remains: `pnpm android:check` reinstalls `build/android/Kino-TV.apk` when it finishes, so a test APK run by hand afterward runs against the distributed app, not the benchmark host it was built for. `check-android.py` does not catch this; #275 makes it refuse only a release-signed app. Use `pnpm android:check <device> --class <Class>`, or reinstall the benchmark host first as `docs/ANDROID-TV.md` shows. Before reporting any device result, rebuild from the change and confirm that the running artifact is that build, for example with `adb shell dumpsys package app.kino.tv | grep lastUpdateTime` against the build's time. Checked on 2026-10-21 against the commit, the scripts, and that command on the Shield.
