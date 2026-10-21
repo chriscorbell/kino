@@ -579,9 +579,8 @@ class TvCore(
     }
 
     fun resumePosition(videoId: String): Long {
-        val libraryItem = Core.getState<Player>(Field.PLAYER).libraryItem
-        return libraryItem?.takeIf { it.state.videoId == videoId }?.state?.timeOffset?.toLong()
-            ?: 0L
+        val saved = Core.getState<Player>(Field.PLAYER).libraryItem?.state
+        return resumeOffset(saved?.videoId, saved?.timeOffset?.toLong(), videoId)
     }
 
     fun progress(position: Long, duration: Long, paused: Boolean) {
@@ -845,10 +844,10 @@ class TvCore(
                                     playerSelection?.stream?.behaviorHints?.proxyHeaders
                         }
                         ?.nextVideo
-                        ?.takeIf {
-                            playerSelection?.streamRequest?.path?.type == "series" &&
-                                it.id != playerSelection?.streamRequest?.path?.id &&
-                                !it.upcoming
+                        .let { next ->
+                            playerSelection?.streamRequest?.path?.let {
+                                upNextVideo(it.type, it.id, next)
+                            }
                         }
             val signedIn = profile.auth != null
             if (linking && !authenticating && auth?.data?.ready != null) {

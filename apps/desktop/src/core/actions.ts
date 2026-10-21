@@ -13,7 +13,6 @@ import { durable, transient, type DurableAction, type TransientAction } from './
 export interface PlaybackSelection {
   meta: CoreMetaPreview;
   metaTransportUrl: string;
-  nextVideo: CoreVideo | null;
   stream: CoreSource;
   streamTransportUrl: string;
   video: CoreVideo | null;
@@ -147,8 +146,13 @@ export function playerStreamPayload(source: CoreSource) {
 /** What the Player model takes on dispatch: its Load and the progress reports, never Unload. */
 export type TransientPlayerAction = TransientAction & { readonly action: 'Load' | 'Player' };
 
+/** The id Core's player and library know the selection by: the episode, or the movie itself. */
+export function playingVideoId(selection: Pick<PlaybackSelection, 'meta' | 'video'>) {
+  return selection.video?.id ?? selection.meta.id;
+}
+
 export function loadPlayerAction(selection: PlaybackSelection): TransientPlayerAction {
-  const videoId = selection.video?.id ?? selection.meta.id;
+  const videoId = playingVideoId(selection);
   return transient({
     action: 'Load',
     args: {

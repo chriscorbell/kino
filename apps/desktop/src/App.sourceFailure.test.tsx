@@ -53,9 +53,11 @@ vi.mock('./screens/PlayerScreen', () => ({
       <button onClick={() => onFinished({ kind: 'back' })}>Back from playback</button>
       <button onClick={() => onFinished({ kind: 'closed' })}>Close the window</button>
       <button
-        onClick={() =>
-          selection.nextVideo && onFinished({ kind: 'upNext', video: selection.nextVideo })
-        }
+        onClick={() => {
+          const next =
+            meta.videos[meta.videos.findIndex(({ id }) => id === selection.video?.id) + 1];
+          if (next) onFinished({ kind: 'upNext', video: next });
+        }}
       >
         Up Next
       </button>

@@ -157,6 +157,42 @@ class ParityTest {
     }
 
     @RunWith(Parameterized::class)
+    class NextEpisodeCases(@Suppress("unused") private val name: String, private val case: JsonObject) {
+        companion object {
+            @JvmStatic
+            @Parameterized.Parameters(name = "{0}")
+            fun cases() = cases("next-episode").map { arrayOf(it.string("name"), it) }
+        }
+
+        @Test
+        fun matchesTheSharedCase() {
+            val next = (case["next"] as? JsonObject)?.let(::video)
+            assertEquals(
+                case.string("expect"),
+                upNextVideo(case.string("type")!!, case.string("playingId")!!, next)?.id,
+            )
+        }
+    }
+
+    @RunWith(Parameterized::class)
+    class ResumeCases(@Suppress("unused") private val name: String, private val case: JsonObject) {
+        companion object {
+            @JvmStatic
+            @Parameterized.Parameters(name = "{0}")
+            fun cases() = cases("resume").map { arrayOf(it.string("name"), it) }
+        }
+
+        @Test
+        fun matchesTheSharedCase() {
+            val saved = case["saved"] as? JsonObject
+            assertEquals(
+                case.long("expect"),
+                resumeOffset(saved?.string("videoId"), saved?.long("timeOffsetMs"), case.string("playingId")!!),
+            )
+        }
+    }
+
+    @RunWith(Parameterized::class)
     class IntroChapterCases(
         @Suppress("unused") private val name: String,
         private val case: JsonObject,
@@ -290,7 +326,7 @@ private fun video(listed: JsonObject) =
         title = "",
         seriesInfo =
             listed["season"]?.let { Video.SeriesInfo(it.jsonPrimitive.long, listed.long("episode")) },
-        upcoming = false,
+        upcoming = listed["upcoming"]?.jsonPrimitive?.boolean ?: false,
         watched = false,
         currentVideo = false,
         deepLinks =

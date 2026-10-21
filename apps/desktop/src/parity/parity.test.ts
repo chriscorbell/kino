@@ -5,7 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { availableSeasons, seasonEpisodes } from '../core/seasons';
 import { hasStructure, sizeLabel, sourceFields, withEstimatedBitrate } from '../core/sourceFields';
 import { introFromChapters, type ChapterCue } from '../intro/markers';
-import { inUpNextWindow } from '../player/upNext';
+import { resumeOffset } from '../player/resume';
+import { inUpNextWindow, upNextVideo } from '../player/upNext';
 import { hints, urlSource, video } from '../test/coreState';
 import { compareVersions } from '../updates/releases';
 
@@ -130,6 +131,44 @@ describe('Up Next window', () => {
   for (const { name, positionMs, durationMs, expect: offered } of cases<UpNextCase>('up-next')) {
     it(name, () => {
       expect(inUpNextWindow(positionMs, durationMs)).toBe(offered);
+    });
+  }
+});
+
+interface NextEpisodeCase {
+  name: string;
+  type: string;
+  playingId: string;
+  next: { id: string; upcoming: boolean } | null;
+  expect: string | null;
+}
+
+describe('next episode', () => {
+  for (const { name, type, playingId, next, expect: offered } of cases<NextEpisodeCase>(
+    'next-episode',
+  )) {
+    it(name, () => {
+      expect(upNextVideo(type, playingId, next && video(next))?.id ?? null).toBe(offered);
+    });
+  }
+});
+
+interface ResumeCase {
+  name: string;
+  playingId: string;
+  saved: { videoId: string | null; timeOffsetMs: number } | null;
+  expect: number;
+}
+
+describe('resume', () => {
+  for (const { name, playingId, saved, expect: offset } of cases<ResumeCase>('resume')) {
+    it(name, () => {
+      const progress = saved && {
+        id: 'title',
+        videoId: saved.videoId,
+        timeOffset: saved.timeOffsetMs,
+      };
+      expect(resumeOffset(progress, playingId)).toBe(offset);
     });
   }
 });

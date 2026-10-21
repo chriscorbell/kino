@@ -140,7 +140,6 @@ for (const [index, scenario] of cases.entries()) {
         streamTransportUrl: base,
         stream: state.streams[0].content.content[0],
         video: meta.videos.find((video) => video.id === videoId),
-        nextVideo: null,
       }),
       'player',
       '',

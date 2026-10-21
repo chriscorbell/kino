@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { preview, urlSource, video } from '../test/coreState';
 import { fakeNativePlayer } from '../test/nativePlayer';
-import { mountPlayback } from '../test/playback';
+import { mountPlayback, resolvedPlayer } from '../test/playback';
 import { commitThrough } from '../test/transport';
 
 const native = fakeNativePlayer();
@@ -47,15 +47,16 @@ async function mountPlayer({ upNext = true, hasNextVideo = true } = {}) {
     commit: commitThrough(dispatch, flush),
   };
   const nextVideo = video({ id: 'ep2', title: 'Episode two', season: 1, episode: 2 });
+  const selection = {
+    meta: preview({ id: 'show', name: 'Test series', type: 'series' }),
+    stream: urlSource('https://media.invalid/fixture.mp4'),
+    streamTransportUrl: 'https://addon.invalid/manifest.json',
+    metaTransportUrl: 'https://addon.invalid/manifest.json',
+    video: video({ id: 'ep1', title: 'Episode one', season: 1, episode: 1 }),
+  };
   const { onFinished, view } = await mountPlayback({
-    selection: {
-      meta: preview({ id: 'show', name: 'Test series', type: 'series' }),
-      stream: urlSource('https://media.invalid/fixture.mp4'),
-      streamTransportUrl: 'https://addon.invalid/manifest.json',
-      metaTransportUrl: 'https://addon.invalid/manifest.json',
-      video: video({ id: 'ep1', title: 'Episode one', season: 1, episode: 1 }),
-      nextVideo: hasNextVideo ? nextVideo : null,
-    },
+    selection,
+    player: () => ({ ...resolvedPlayer(selection), nextVideo: hasNextVideo ? nextVideo : null }),
     native,
     core: transport,
     settings: { upNext },

@@ -255,6 +255,8 @@ export interface MetaDetailsState {
 
 export interface PlayerState {
   libraryItem: LibraryPlaybackProgress | null;
+  /** The video after the one playing, never crossing into season 0 from another season. */
+  nextVideo: CoreVideo | null;
   selected: { stream: CoreSource } | null;
   stream: Loadable<CoreResolvedStream> | null;
   subtitles: AddonSubtitle[];

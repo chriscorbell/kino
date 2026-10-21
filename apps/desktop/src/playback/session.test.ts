@@ -22,7 +22,6 @@ const movie = (stream = urlSource('https://media.invalid/fixture.mp4')): Playbac
   stream,
   streamTransportUrl: 'https://addon.invalid/manifest.json',
   video: null,
-  nextVideo: null,
 });
 
 /** A Core transport that records each write and read by name and can hold its storage. */

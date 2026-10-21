@@ -18,6 +18,7 @@ import { renderWithSettings } from './renderWithSettings';
 export function resolvedPlayer(selection: PlaybackSelection): PlayerState {
   return {
     libraryItem: null,
+    nextVideo: null,
     selected: { stream: selection.stream },
     stream: { type: 'Ready', content: { source: selection.stream.source } },
     subtitles: [],

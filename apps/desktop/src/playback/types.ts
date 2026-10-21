@@ -57,6 +57,8 @@ export interface PlaybackSnapshot {
     readonly delayMs: number;
   };
   readonly chapters: ChapterCue[];
+  /** What Up Next offers once the ending is near. */
+  readonly nextVideo: CoreVideo | null;
   /** The shell window's fullscreen, once the native player connects. */
   readonly nativeFullscreen: NativeFullscreen | null;
 }

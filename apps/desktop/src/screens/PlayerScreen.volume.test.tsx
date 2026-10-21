@@ -62,7 +62,6 @@ const selection = {
   metaTransportUrl: 'https://addon.invalid/manifest.json',
   streamTransportUrl: 'https://addon.invalid/manifest.json',
   video: null,
-  nextVideo: null,
 };
 const renderPlayer = async (volume = 30) => {
   const { view } = await mountPlayback({

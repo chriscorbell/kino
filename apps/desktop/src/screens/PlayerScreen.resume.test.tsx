@@ -39,14 +39,13 @@ it.each([true, false])(
       metaTransportUrl: 'https://addon.invalid/manifest.json',
       streamTransportUrl: 'https://addon.invalid/manifest.json',
       video: null,
-      nextVideo: null,
     };
     const { publish, view } = await mountPlayback({
       selection,
       native: nativeShell ? fixture.native : null,
       player: () => ({
         ...resolvedPlayer(selection),
-        libraryItem: { id: 'fixture', timeOffset: fixture.progress, videoId: null },
+        libraryItem: { id: 'fixture', timeOffset: fixture.progress, videoId: 'fixture' },
       }),
     });
     if (nativeShell) await waitFor(() => expect(fixture.native.load).toHaveBeenCalledTimes(1));

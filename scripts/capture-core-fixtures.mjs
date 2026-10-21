@@ -172,7 +172,6 @@ for (const stream of streams) {
       streamTransportUrl: transportUrl,
       stream: adaptedFixtureSource(stream),
       video: meta.videos[0],
-      nextVideo: null,
     }),
     'player',
     '',

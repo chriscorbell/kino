@@ -1,5 +1,8 @@
 import { afterEach, expect, it, vi } from 'vitest';
 
+import { video } from '../test/coreState';
+import { markVideoWatchedAction, unloadAction } from './actions';
+import { coreStopped } from './errors';
 import { createCoreTransport } from './transport';
 
 const state = vi.hoisted(() => ({
@@ -61,4 +64,20 @@ it('rejects an outstanding model read when a healthy worker is destroyed', async
   await transport.destroy();
   await read;
   await expect(transport.getState('ctx')).rejects.toThrow();
+});
+
+// The playback exit leaves instead of retrying once a save fails this way.
+it('marks every call the dead worker fails as stopped, a save waiting on storage too', async () => {
+  state.call.mockImplementation(([method]: string[]) =>
+    method === 'flush' ? new Promise(() => {}) : Promise.resolve(),
+  );
+  const transport = createCoreTransport();
+  const save = transport
+    .commit(markVideoWatchedAction(video({ id: 'ep1' }), true))
+    .catch((error: unknown) => error);
+  await vi.waitFor(() => expect(state.call).toHaveBeenCalledWith(['flush'], []));
+  state.worker!.dispatchEvent(new Event('error'));
+  expect(coreStopped(await save)).toBe(true);
+  expect(coreStopped(await transport.dispatch(unloadAction).catch((e) => e))).toBe(true);
+  expect(coreStopped(new Error('Storage is full.'))).toBe(false);
 });

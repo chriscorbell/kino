@@ -44,7 +44,6 @@ core.dispatch(
     streamTransportUrl: addon.transportUrl,
     stream: fixtureSource({ url: 'https://media.invalid/fixture.mp4' }),
     video: null,
-    nextVideo: null,
   }),
   'player',
   '',

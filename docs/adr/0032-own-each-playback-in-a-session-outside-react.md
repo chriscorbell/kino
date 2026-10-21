@@ -16,7 +16,7 @@ A playback session owns one viewing of one source. `startPlayback` in `apps/desk
 
 The session is the only reader and writer of Core's Player model. It loads the model once, reads the profile's languages once, and resolves the source once. It owns the media backend, progress reports, per-title track memory and the volume it sends. A second play while a session is live is ignored.
 
-The save keeps the order the playback contract states, and every step is safe to repeat. An exit that arrives while a save runs joins it, and the first outcome wins. A failed save leaves playback open, and leaving again retries from the top.
+The save keeps the order the playback contract states, and every step is safe to repeat. An exit that arrives while a save runs joins it, and the first outcome wins. A failed save leaves playback open, and leaving again retries from the top. Once the Core worker has stopped, no save can succeed, so leaving stops the player and reports the outcome without saving rather than offering a retry that cannot work, as the plan Chris approved on 2026-10-18 decided.
 
 ## Consequences
 

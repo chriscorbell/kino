@@ -28,7 +28,7 @@ export function PlayerScreen({ session }: { session: PlaybackSession }) {
   const [settings] = useKinoSettings();
   const { controls, selection } = session;
   const playback = usePlayback(session);
-  const { buffering, ended, exit, loaded, muted, paused, waitingFor } = playback;
+  const { buffering, ended, exit, loaded, muted, nextVideo, paused, waitingFor } = playback;
   const { buffered: bufferedTime, duration, time } = playback.position;
   const hasPlayer = loaded && !waitingFor.player;
   const tracks = playback.kind === 'native' && !waitingFor.player;
@@ -190,17 +190,12 @@ export function PlayerScreen({ session }: { session: PlaybackSession }) {
         </button>
       ) : null}
 
-      {(ended || nearEnd) && settings.upNext && selection.nextVideo ? (
+      {(ended || nearEnd) && settings.upNext && nextVideo ? (
         <div className={styles.upNext} role="status">
           <span className={styles.upNextLabel}>{enUS.player.upNext}</span>
-          <strong>
-            {selection.nextVideo.title || enUS.details.episode(selection.nextVideo.episode)}
-          </strong>
+          <strong>{nextVideo.title || enUS.details.episode(nextVideo.episode)}</strong>
           <button
-            onClick={() => {
-              const next = selection.nextVideo;
-              if (next) controls.leave({ kind: 'upNext', video: next });
-            }}
+            onClick={() => controls.leave({ kind: 'upNext', video: nextVideo })}
             type="button"
           >
             {enUS.player.chooseSource}

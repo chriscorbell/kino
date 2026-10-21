@@ -10,11 +10,13 @@
 
 import type { ClientPlatform } from '@kino/settings';
 
-import { loadPlayerAction, type PlaybackSelection } from '../core/actions.ts';
+import { loadPlayerAction, playingVideoId, type PlaybackSelection } from '../core/actions.ts';
 import { coreFailureDetail } from '../core/errors.ts';
 import type { CoreResolvedStream, PlayerState } from '../core/types';
 import { t as enUS } from '../locales/index.ts';
 import type { NativePlayer } from '../native/player';
+import { resumeOffset } from '../player/resume.ts';
+import { upNextVideo } from '../player/upNext.ts';
 import { videoParams } from '../player/videoParams.ts';
 import { subtitlePositionRange, subtitleSizeRange, volumeRange } from '../settings.ts';
 import { createExit } from './exit.ts';
@@ -54,6 +56,7 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
     audioTracks: [],
     subtitles: { tracks: [], addon: [], delayMs: 0 },
     chapters: [],
+    nextVideo: null,
     nativeFullscreen: null,
   };
   const publish = ({
@@ -88,6 +91,7 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
   let loadedAudioOutput: string | null = null;
   let applied: { matchRefreshRate: boolean; size: number; position: number } | null = null;
   let inFlight: InFlightVolumes = [];
+  const playingId = playingVideoId(selection);
   let resumeAt = 0;
   let resumed = false;
 
@@ -134,10 +138,14 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
   function onPlayer(state: PlayerState | null) {
     const title = state?.title ?? selection.meta.name;
     const retitled = title !== snapshot.title;
-    publish({ title, waitingFor: { core: false } });
+    publish({
+      title,
+      nextVideo: upNextVideo(selection.meta.type, playingId, state?.nextVideo ?? null),
+      waitingFor: { core: false },
+    });
     if (retitled) nowPlaying();
     tracks.offered(state?.subtitles ?? []);
-    resumeAt = state?.libraryItem?.timeOffset ?? 0;
+    resumeAt = resumeOffset(state?.libraryItem ?? null, playingId);
     resume();
     if (state?.stream?.type === 'Err') {
       fail(enUS.player.resolveFailed);
