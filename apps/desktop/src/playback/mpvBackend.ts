@@ -5,9 +5,9 @@
 
 import type { ChapterCue } from '../intro/markers';
 import type { NativePlayer } from '../native/player';
-import { parseAudioTracks } from '../player/audio';
-import { parseSubtitleTracks } from '../player/subtitles';
-import { mediaPosition, type MediaBackend, type MediaEvent, type MediaFailure } from './media';
+import { parseAudioTracks } from '../player/audio.ts';
+import { parseSubtitleTracks } from '../player/subtitles.ts';
+import { mediaPosition, type MediaBackend, type MediaEvent, type MediaFailure } from './media.ts';
 
 export function mpvBackend(native: NativePlayer): MediaBackend {
   return {

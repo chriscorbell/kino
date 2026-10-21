@@ -3,6 +3,10 @@
 // no React, so its lifetime is the viewing's and not a component's mount.
 // StrictMode, an unmount, or a new callback identity has nothing to restart or
 // tear down out of order (#91).
+//
+// Kept loadable by Node's type stripping, because
+// scripts/check-player-session.mjs drives it over the pinned Core: value
+// imports carry `.ts`, everything else is `import type`.
 
 import type { ClientPlatform } from '@kino/settings';
 

@@ -1,4 +1,4 @@
-import { t as enUS } from '../locales';
+import { t as enUS } from '../locales/index.ts';
 import type { MediaFailure } from './media';
 
 const mediaFailureMessages: Record<MediaFailure, string> = {
