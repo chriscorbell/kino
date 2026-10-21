@@ -34,7 +34,7 @@ export type ShellCapability = (typeof shellCapabilities)[number];
 /**
  * Who applies a setting on a desktop platform: the React client, the native player every shell
  * embeds, or a capability of the shell. The web build plays in the browser's <video>, which
- * applies none of what the native player does.
+ * applies none of the native-player-only settings.
  */
 export type DesktopConsumer =
   | { readonly by: 'client' }
