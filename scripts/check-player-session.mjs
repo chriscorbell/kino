@@ -319,7 +319,7 @@ for (const [exit, kind, run] of exits) {
   const mark = shell.calls.length;
   session.controls.togglePause();
   session.controls.seek(10000);
-  assert.deepEqual(shell.since(mark), ['setPaused', 'seek'], 'The controls reach the player.');
+  assert.deepEqual(shell.since(mark), ['setPaused', 'seek'], 'Pause and seek reach the player.');
   shell.emit('time', { milliseconds: advance(20000) });
   await until(() => coreTime() === time, 'the progress report');
   shell.freezeAt(advance());
@@ -333,12 +333,23 @@ for (const [exit, kind, run] of exits) {
 
 {
   advance();
-  const { connection, outcomes, session, shell } = await play(time);
+  const { connection, outcomes, session } = await play(time);
+  let events = 0;
+  connection.port.subscribe(() => (events += 1));
   hold();
   const teardown = connection.destroy();
   await heldWrite();
   failWrites();
   await assert.rejects(teardown, 'Core teardown hears that the save failed.');
+  let lateCloses = 0;
+  connection.port.onBeforeDestroy(async () => {
+    lateCloses += 1;
+  });
+  await assert.rejects(connection.prepareClose(), 'A stopped Core refuses a second close.');
+  assert.equal(lateCloses, 0, 'A second close after Core teardown runs no save.');
+  const eventsBefore = events;
+  deliver({ name: 'NewState', args: ['player'] });
+  assert.equal(events, eventsBefore, 'A stopped Core delivers no late event.');
   assert.equal(session.getSnapshot().exit, 'save-failed', 'The teardown save failed.');
   assert.deepEqual(outcomes, [], 'A save that fails at Core teardown reports no outcome.');
   session.controls.leave({ kind: 'back' });
