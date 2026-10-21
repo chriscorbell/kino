@@ -134,23 +134,34 @@ await withWebEngine(
     );
     assert.equal((await focused()).value, 'Drama', 'The genre control reads the chosen genre');
 
-    for (const width of [720, 500, 320]) {
-      await command('Emulation.setDeviceMetricsOverride', {
-        width,
-        height: 650,
-        deviceScaleFactor: 1,
-        mobile: false,
-      });
+    for (const override of [null, 720, 500, 320]) {
+      if (override)
+        await command('Emulation.setDeviceMetricsOverride', {
+          width: override,
+          height: 650,
+          deviceScaleFactor: 1,
+          mobile: false,
+        });
+      const width = override ?? (await evaluate('innerWidth'));
       await until(() => evaluate(`innerWidth === ${width}`), `${width} px viewport`);
-      assert.equal(
-        await evaluate(`(() => {
-        const control = document.querySelector('[aria-label="${account}"]');
-        const box = control.getBoundingClientRect();
-        const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
-        return box.width > 0 && box.left >= 0 && box.right <= innerWidth && box.bottom <= innerHeight && control.contains(hit);
-      })()`),
-        true,
-        `Account access is visible and unclipped at ${width} px`,
+      // Polled because the shell fades in.
+      let hidden;
+      await until(async () => {
+        hidden = await evaluate(`(() => {
+          const control = document.querySelector('[aria-label="${account}"]');
+          const box = control.getBoundingClientRect();
+          if (box.width === 0 || box.height === 0) return 'it has no size';
+          if (box.left < 0 || box.top < 0 || box.right > innerWidth || box.bottom > innerHeight)
+            return 'it is clipped by the viewport';
+          const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+          if (!control.contains(hit)) return 'another element covers it';
+          for (let element = control; element; element = element.parentElement)
+            if (getComputedStyle(element).opacity !== '1') return 'it is transparent';
+          return '';
+        })()`);
+        return hidden === '';
+      }, `account access to be visible at ${width} px`).catch(() =>
+        assert.fail(`Account access is not visible at ${width} px: ${hidden}`),
       );
       await evaluate(`document.querySelector('a[href="#main-content"]').focus()`);
       await tabTo(account);
@@ -180,7 +191,7 @@ await withWebEngine(
     await key('Enter', 'Enter', 13);
     await until(async () => (await focused()).name === 'Email', 'sign-in form');
     console.log(
-      'Qt WebEngine: the Discover genre selector is a named combobox that Tab reaches and typing changes; account information, sign-out and sign-in stay visible and keyboard-reachable at 720, 500 and 320 px.',
+      'Qt WebEngine: the Discover genre selector is a named combobox that Tab reaches and typing changes; account information and sign-out stay visible and keyboard-reachable at the default width and at 720, 500 and 320 px; sign-out and sign-in work at 320 px.',
     );
   },
 );
