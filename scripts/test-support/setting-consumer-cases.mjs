@@ -120,6 +120,30 @@ export const cases = [
     ),
     reports: null,
   },
+  {
+    label: 'a desktop read only in the text before, between and after template expressions',
+    plant: combined(
+      noDesktopReader,
+      add(
+        player,
+        'export const d = `settings.matchFrameRate ${1} settings.matchFrameRate ${2} settings.matchFrameRate`;\n',
+      ),
+    ),
+    reports: 'matchFrameRate',
+  },
+  {
+    label: 'a desktop read only in JSX text',
+    plant: combined(
+      noDesktopReader,
+      add(player, 'export const e = <p>settings.matchFrameRate</p>;\n'),
+    ),
+    reports: 'matchFrameRate',
+  },
+  {
+    label: 'a desktop read only in a regular expression',
+    plant: combined(noDesktopReader, add(player, 'export const f = /settings.matchFrameRate/;\n')),
+    reports: 'matchFrameRate',
+  },
 
   // TV readers
   {
@@ -147,6 +171,14 @@ export const cases = [
   {
     label: 'a TV read only in string text',
     plant: combined(noTvReader, add(tvPlayer, 'val s = "settings[KinoSettings.upNext]"\n')),
+    reports: 'upNext',
+  },
+  {
+    label: 'a TV read only in string text after a raw string ending in a quote',
+    plant: combined(
+      noTvReader,
+      add(tvPlayer, 'val j = """{"a":"b""""\nval s = "settings[KinoSettings.upNext]"\n'),
+    ),
     reports: 'upNext',
   },
   {

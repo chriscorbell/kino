@@ -44,7 +44,7 @@ const generated = `${tvDir}/app/kino/tv/KinoSettings.kt`;
 
 const blank = (text) => text.replace(/[^\n]/g, ' ');
 
-const literal = new Set([
+const literalKinds = new Set([
   ts.SyntaxKind.StringLiteral,
   ts.SyntaxKind.NoSubstitutionTemplateLiteral,
   ts.SyntaxKind.TemplateHead,
@@ -61,7 +61,7 @@ function typeScriptCode(path, text) {
   const ranges = [];
   // A node's leading trivia, from its full start to its first token, holds its comments.
   const visit = (node) => {
-    ranges.push([node.pos, literal.has(node.kind) ? node.end : node.getStart(source)]);
+    ranges.push([node.pos, literalKinds.has(node.kind) ? node.end : node.getStart(source)]);
     node.getChildren(source).forEach(visit);
   };
   visit(source);
@@ -126,7 +126,10 @@ function kotlinCode(text, keepStrings) {
   }
   function string(quote) {
     keep(i + quote.length);
-    while (i < text.length && !text.startsWith(quote, i)) {
+    // A raw string closes at the last three of a run of quotes, so """a"""" holds a".
+    const closes = () =>
+      text.startsWith(quote, i) && !(quote === '"""' && text.startsWith('""""', i));
+    while (i < text.length && !closes()) {
       if (text.startsWith('${', i)) {
         keep(i + 2);
         block();
