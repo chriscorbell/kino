@@ -93,7 +93,7 @@ pnpm macos:package
 
 This builds a self-contained, ad-hoc signed disk image and its checksum in `build/dist`.
 
-To publish a release, push a tag named for the version in the root `package.json`, such as `v0.1.0-rc.5`. The Release workflow builds the macOS disk image, the TV APK, the Windows zip, and the Flatpak from that commit and publishes them with a combined `SHA256SUMS`. A version with a pre-release label becomes a GitHub pre-release. Running the workflow by hand builds everything without publishing.
+To publish a release, push a tag named for the version in the root `package.json`, such as `v0.1.0-rc.5`. The Release workflow builds the macOS disk image, the TV APK, the Windows zip, and the Flatpak from that commit and publishes them with a combined `SHA256SUMS`. A version with a pre-release label becomes a GitHub pre-release. A version without one is a public release, and the workflow refuses it while the contracts still mark a promise planned on a platform it ships. Running the workflow by hand builds everything without publishing.
 
 The TV release key lives only in the workflow's secrets. Run `scripts/setup-android-release-key.sh` once to create or choose the keystore, upload it, and write the certificate pin to commit. All other builds use the machine's development key.
 
