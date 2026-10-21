@@ -5,6 +5,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { record } from './record-notices.mjs';
+
 const root = join(import.meta.dirname, '..');
 
 function pin(path, pattern) {
@@ -15,8 +17,11 @@ function pin(path, pattern) {
 
 export function describeCorePins() {
   const web = pin('apps/desktop/package.json', /"@stremio\/stremio-core-web": "([^"]+)"/);
-  // The installed package carries no gitHead, so the desktop's Core commit comes from the review.
-  const desktop = pin('third_party/notices/reviewed.json', /"gitHead": "([0-9a-f]+)"/);
+  // The installed package carries no gitHead, so the desktop's Core commit comes from the review,
+  // which may be of an older package version than the one now pinned.
+  const review = record('reviewed.json');
+  const reviewedHead = review.coreProvenance.npm.gitHead;
+  const reviewedVersion = review.core.find((item) => item.name === 'stremio-core-web').version;
   const kotlin = pin('scripts/build-android.py', /^REVISION = "([0-9a-f]+)"/m);
   const tv = pin(
     'apps/android-tv/core/Cargo.lock',
@@ -24,7 +29,7 @@ export function describeCorePins() {
   );
   return [
     'Kino pins Stremio Core twice:',
-    `  desktop: @stremio/stremio-core-web ${web} in apps/desktop/package.json, reviewed as Core ${desktop}`,
+    `  desktop: @stremio/stremio-core-web ${web} in apps/desktop/package.json, last reviewed as Core ${reviewedHead} for ${reviewedVersion}`,
     `  TV: stremio-core-kotlin ${kotlin} in scripts/build-android.py, with Core ${tv} in apps/android-tv/core/Cargo.lock`,
     'Decide whether the other client moves too.',
   ].join('\n');

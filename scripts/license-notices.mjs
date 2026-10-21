@@ -52,32 +52,31 @@ export function noticeFiles(directory, recursive = true) {
 }
 
 export function verifyReviewedNotices() {
+  const problems = [];
   for (const group of ['core', 'engine', 'qt', 'homebrew', 'rust']) {
     for (const item of reviewed[group]) {
-      if (!item.files.length) throw new Error(`No reviewed texts for ${item.name}`);
+      if (!item.files.length) problems.push(`No reviewed texts for ${item.name}`);
       for (const file of item.files) {
         if (hash(readFileSync(join(reviewedRoot, file.path))) !== file.sha256)
-          throw new Error(`Reviewed notice changed: ${file.path}`);
+          problems.push(`Reviewed notice changed: ${file.path}`);
       }
     }
   }
   const core = createRequire(join(root, 'apps/desktop/package.json')).resolve(
     '@stremio/stremio-core-web',
   );
-  if (
+  const coreMoved =
     hash(readFileSync(join(dirname(core), 'stremio_core_web_bg.wasm'))) !==
-    reviewed.coreProvenance.wasm.sha256
-  )
-    throw Object.assign(new Error('Core WASM changed. Review its source graph and notices.'), {
-      coreMoved: true,
-    });
+    reviewed.coreProvenance.wasm.sha256;
+  if (coreMoved) problems.push('Core WASM changed. Review its source graph and notices.');
   for (const [path, expected] of [
     ['apps/stream-engine/Cargo.lock', reviewed.engineLockSha256],
     ['apps/stream-engine/engine.lock', reviewed.engineSourceSha256],
   ]) {
     if (hash(readFileSync(join(root, path))) !== expected)
-      throw new Error(`${path} changed. Review engine notice supplements.`);
+      problems.push(`${path} changed. Review engine notice supplements.`);
   }
+  if (problems.length) throw Object.assign(new Error(problems.join('\n')), { coreMoved });
 }
 
 // The pieces every desktop collector shares: texts are stored once by content hash under

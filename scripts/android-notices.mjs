@@ -89,7 +89,8 @@ export function verifyAndroidReview() {
 
   const pins = buildPins();
   const problems = [];
-  if (reviewed.pins.coreRevision !== pins.revision)
+  const coreRevisionMoved = reviewed.pins.coreRevision !== pins.revision;
+  if (coreRevisionMoved)
     problems.push(`Core moved to ${pins.revision}; review its crate graph and supplements.`);
   if (component('rust-standard-library').version !== pins.toolchain)
     problems.push(`Rust moved to ${pins.toolchain}; retain that release's COPYRIGHT-library.html.`);
@@ -136,7 +137,7 @@ export function verifyAndroidReview() {
     );
   if (problems.length)
     throw Object.assign(new Error(problems.join('\n')), {
-      coreMoved: coreLockMoved || reviewed.pins.coreRevision !== pins.revision,
+      coreMoved: coreLockMoved || coreRevisionMoved,
     });
 }
 

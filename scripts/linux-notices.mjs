@@ -40,8 +40,10 @@ const component = (name) => {
   return found;
 };
 
-// The manifest's modules and the values their sources pin. Every module is a list item at two
-// spaces of indentation, and its sources' keys sit deeper, so reading keys per block is enough.
+// The manifest's modules, the values their sources pin, and each list item's own keys. Every module
+// is a list item at two spaces of indentation, and its sources' keys sit deeper, so reading keys per
+// block is enough. An item's own keys sit two columns past its dash; deeper keys belong to a nested
+// map, which must not overwrite them.
 function flatpakModules() {
   const text = readFileSync(flatpakManifest, 'utf8');
   const modules = new Map();
@@ -49,12 +51,18 @@ function flatpakModules() {
   for (const line of text.split('\n')) {
     const start = line.match(/^ {2}- name: (\S+)$/);
     if (start) {
-      current = { name: start[1], pins: new Set() };
+      current = { name: start[1], pins: new Set(), items: [] };
       modules.set(current.name, current);
       continue;
     }
-    const pin = line.match(/^\s+-?\s*(url|commit|sha256|tag): (\S+)$/);
-    if (current && pin) current.pins.add(`${pin[1]}:${pin[2]}`);
+    const entry = line.match(/^(\s+)(- )?([\w-]+): (\S+)$/);
+    if (!current || !entry) continue;
+    const [, indent, itemStart, key, value] = entry;
+    const column = indent.length + (itemStart ? 2 : 0);
+    if (itemStart) current.items.push({ column });
+    const item = current.items.at(-1);
+    if (item?.column === column) item[key] = value;
+    if (['url', 'commit', 'sha256', 'tag'].includes(key)) current.pins.add(`${key}:${value}`);
   }
   return { text, modules };
 }
@@ -88,18 +96,22 @@ export function verifyLinuxReview() {
     if (!covered.has(name))
       problems.push(`The Flatpak module ${name} has no reviewed notices in linux.json.`);
   // The Flatpak cannot source engine.lock, so it repeats the stream-server pin. A bump to one
-  // alone would build the old revision with the new patches.
+  // alone would build the old revision with the new patches. Only the source the patches apply
+  // to counts, so another source of the same repository cannot stand in for it.
   const lock = readFileSync(join(root, 'apps/stream-engine/engine.lock'), 'utf8');
   const lockValue = (key) => lock.match(new RegExp(`^${key}=(\\S+)$`, 'm'))?.[1];
-  const engineRepository = lockValue('KINO_ENGINE_REPOSITORY');
-  const engineRevision = lockValue('KINO_ENGINE_REVISION');
-  const enginePins = modules.get('kino-stream-engine')?.pins ?? new Set();
-  if (!enginePins.has(`url:${engineRepository}`) || !enginePins.has(`commit:${engineRevision}`)) {
-    const built = [...enginePins].find((pin) => pin.startsWith('commit:'))?.slice(7) ?? 'nothing';
+  const pinned = `${lockValue('KINO_ENGINE_REPOSITORY')}@${lockValue('KINO_ENGINE_REVISION')}`;
+  const vendored = (modules.get('kino-stream-engine')?.items ?? []).filter(
+    (item) => item.dest === 'build/vendor/stream-server',
+  );
+  const built = vendored.length === 1 ? `${vendored[0].url}@${vendored[0].commit}` : null;
+  const found = built
+    ? `builds stream-server ${built}`
+    : `has ${vendored.length} kino-stream-engine sources with dest build/vendor/stream-server, not one`;
+  if (built !== pinned)
     problems.push(
-      `packaging/flatpak/com.chriscorbell.Kino.yml builds stream-server ${built}, but apps/stream-engine/engine.lock pins ${engineRevision} from ${engineRepository}. Set the kino-stream-engine module's stream-server url and commit to engine.lock's KINO_ENGINE_REPOSITORY and KINO_ENGINE_REVISION.`,
+      `packaging/flatpak/com.chriscorbell.Kino.yml ${found}, but apps/stream-engine/engine.lock pins ${pinned}. Set that source's url and commit to engine.lock's KINO_ENGINE_REPOSITORY and KINO_ENGINE_REVISION.`,
     );
-  }
   if (problems.length) throw new Error(problems.join('\n'));
 }
 
