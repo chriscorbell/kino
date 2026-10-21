@@ -1,7 +1,7 @@
 import { installAddonAction, uninstallAddonAction } from './actions';
 import { addonTransportIssue } from './addonNetwork';
 import { CoreSaveError } from './errors';
-import type { CoreTransport } from './transport';
+import type { FeatureTransport } from './transport';
 import type { CoreAddon } from './types';
 
 export function addonManifestUrl(value: string) {
@@ -34,7 +34,7 @@ export class AddonReplacementNotSavedError extends Error {
 }
 
 export async function installAddonConfiguration(
-  transport: CoreTransport,
+  transport: FeatureTransport,
   addon: CoreAddon,
   previous: CoreAddon[] = [],
 ) {

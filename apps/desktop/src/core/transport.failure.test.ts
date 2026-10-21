@@ -78,6 +78,6 @@ it('marks every call the dead worker fails as stopped, a save waiting on storage
   await vi.waitFor(() => expect(state.call).toHaveBeenCalledWith(['flush'], []));
   state.worker!.dispatchEvent(new Event('error'));
   expect(coreStopped(await save)).toBe(true);
-  expect(coreStopped(await transport.dispatch(unloadAction).catch((e) => e))).toBe(true);
+  expect(coreStopped(await transport.dispatch(unloadAction, 'board').catch((e) => e))).toBe(true);
   expect(coreStopped(new Error('Storage is full.'))).toBe(false);
 });

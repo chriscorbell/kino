@@ -232,6 +232,11 @@ export async function connectNativePlayer() {
   return (await connectNativeShell())?.player ?? null;
 }
 
+/** The shell's version, for update checks, without the player only the playback session drives. */
+export async function connectShellVersion() {
+  return (await connectNativePlayer())?.shellVersion ?? null;
+}
+
 export async function fetchNativeAddonRedirect(url: string) {
   return (await connectNativeShell())?.addonNetwork?.get(url) ?? null;
 }

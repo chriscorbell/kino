@@ -4,8 +4,8 @@ import { useCallback, useEffect, useEffectEvent, useState } from 'react';
 import { unloadAction } from './actions';
 import { useCore } from './context';
 import { coreFailureDetail, coreFailureMessage } from './errors';
-import type { CoreTransport } from './transport';
-import type { CoreModelName, CoreRuntimeEvent, CoreStateMap } from './types';
+import type { FeatureTransport } from './transport';
+import type { CoreRuntimeEvent, CoreStateMap, ModelOutsideSession } from './types';
 import type { TransientAction } from './writes';
 
 interface CoreModelResult<State> {
@@ -18,7 +18,7 @@ interface CoreModelResult<State> {
 interface CoreModelSnapshot<State> extends Omit<CoreModelResult<State>, 'retry'> {
   actionKey: string | null;
   revision: number;
-  transport: CoreTransport | null;
+  transport: FeatureTransport | null;
 }
 
 const modelFailed = t.core.modelFailed;
@@ -27,7 +27,7 @@ const failureDetail = (error: unknown) => coreFailureDetail(error, modelFailed);
 // while the model and field path stay in the log above it.
 const failureMessage = (error: unknown) => coreFailureMessage(error, modelFailed);
 
-export function useCoreModel<Model extends CoreModelName>(
+export function useCoreModel<Model extends ModelOutsideSession>(
   model: Model,
   action: TransientAction | null,
   actionKey: string,
@@ -36,9 +36,11 @@ export function useCoreModel<Model extends CoreModelName>(
   const [revision, setRevision] = useState(0);
   const retry = useCallback(() => setRevision((value) => value + 1), []);
   const { error: coreError, status, transport } = useCore();
-  const dispatchLoad = useEffectEvent(async (target: CoreTransport, targetModel: CoreModelName) => {
-    if (action) await target.dispatch(action, targetModel);
-  });
+  const dispatchLoad = useEffectEvent(
+    async (target: FeatureTransport, targetModel: ModelOutsideSession) => {
+      if (action) await target.dispatch(action, targetModel);
+    },
+  );
   const [result, setResult] = useState<CoreModelSnapshot<State>>({
     actionKey: null,
     revision: -1,

@@ -8,7 +8,7 @@ import settingsStyles from '../styles/settings.module.css';
 import { loginAction, logoutAction } from '../core/actions';
 import { useCore } from '../core/context';
 import { coreFailureMessage } from '../core/errors';
-import { createCoreTransport, type CoreTransport } from '../core/transport';
+import { createSignInCore, type FeatureTransport } from '../core/transport';
 import type { CoreRuntimeEvent } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';
@@ -18,7 +18,7 @@ function authError(event: CoreRuntimeEvent) {
   return event.name === 'CoreEvent' && event.args.event === 'Error';
 }
 
-function authenticate(transport: CoreTransport, email: string, password: string) {
+function authenticate(transport: FeatureTransport, email: string, password: string) {
   return new Promise<void>((resolve, reject) => {
     let unsubscribe: () => void = () => undefined;
     const timeout = window.setTimeout(() => {
@@ -68,7 +68,7 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
   // completed sign-in switches the app to the account profile.
   const accountCore = session === 'account';
   const formReady = !accountCore || status === 'ready';
-  const signInCore = useRef<CoreTransport | null>(null);
+  const signInCore = useRef<ReturnType<typeof createSignInCore> | null>(null);
 
   const close = useCallback(() => {
     if (accountCore && !user) selectSession('guest');
@@ -111,7 +111,7 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
       } else {
         // A separate account Core signs in and saves the session. Its
         // shutdown flushes that save before the app opens the account profile.
-        const core = createCoreTransport('account');
+        const core = createSignInCore();
         signInCore.current = core;
         await core.init();
         await authenticate(core, email, password);

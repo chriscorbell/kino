@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type RefObject } from 'react';
 
 import { t } from '../locales';
-import type { NativeFullscreen } from '../playback/types';
+import type { NativeFullscreen } from '../playback';
 
 export function useFullscreen(
   container: RefObject<HTMLElement | null>,
