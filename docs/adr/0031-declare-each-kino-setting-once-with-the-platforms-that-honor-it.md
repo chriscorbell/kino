@@ -24,4 +24,4 @@ A setting has one domain and default on every platform that lists it, unless it 
 
 Adding a setting, or offering one on another platform, starts in the schema. The schema is what later checks build on: showing a Settings control only where its platform honors it, and proving that every platform a setting lists has something that reads it.
 
-The generated Kotlin file is committed, so a schema change shows the Kotlin it produces in the same diff and the TV sources resolve without a generation step. `pnpm android:check-settings`, part of `pnpm check`, fails when the committed file differs from what the schema gives, or when a TV source reads, writes or removes one of the schema's TV preferences by its raw key.
+The generated Kotlin file is committed, so a schema change shows the Kotlin it produces in the same diff and the TV sources resolve without a generation step. `pnpm android:check-settings`, part of `pnpm check`, fails when the committed file differs from what the schema gives, and `pnpm settings:check-consumers` fails when a TV source reads, writes or removes one of the schema's TV preferences by its raw key.

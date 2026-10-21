@@ -4,19 +4,16 @@
 // not list for the TV has no entry to read.
 //
 // With --check it writes nothing, and fails when the committed file differs from what the schema
-// gives, or when a TV source reads, writes or removes one of those preferences by its raw key,
-// which would get around the entry's type and default. The scan sees a key written as a string
-// literal in the call, not one held in a variable.
+// gives.
 //
 //   node scripts/generate-tv-settings.mjs [--check]
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { settingsSchema } from '../packages/settings/src/schema.ts';
 
 const root = join(import.meta.dirname, '..');
-const sources = 'apps/android-tv/app/src/main/java';
-const target = `${sources}/app/kino/tv/KinoSettings.kt`;
+const target = 'apps/android-tv/app/src/main/java/app/kino/tv/KinoSettings.kt';
 
 const pascal = (text) => text.replace(/(?:^|[_-])([a-z0-9])/gi, (_, first) => first.toUpperCase());
 
@@ -68,31 +65,11 @@ if (!process.argv.includes('--check')) {
   process.exit(0);
 }
 
-const problems = [];
 const committed = existsSync(join(root, target)) && readFileSync(join(root, target), 'utf8');
-if (committed !== source)
-  problems.push(
+if (committed !== source) {
+  console.error(
     `${target} does not match packages/settings/src/schema.ts. Run pnpm android:settings and commit the result.`,
   );
-
-const settingFor = new Map(tvSettings.map((setting) => [setting.key, setting.name]));
-const rawKey = /\b(?:(?:get|put)(?:Boolean|String|StringSet|Int|Long|Float)|remove)\(\s*"([^"]+)"/g;
-for (const file of readdirSync(join(root, sources), { recursive: true })) {
-  const path = `${sources}/${file}`;
-  if (!path.endsWith('.kt') || path === target) continue;
-  const text = readFileSync(join(root, path), 'utf8');
-  for (const match of text.matchAll(rawKey)) {
-    const name = settingFor.get(match[1]);
-    if (!name) continue;
-    const line = text.slice(0, match.index).split('\n').length;
-    problems.push(
-      `${path}:${line} names the "${match[1]}" preference by its raw key. Read it as settings[KinoSettings.${name}] and write it with put(KinoSettings.${name}, value).`,
-    );
-  }
+  process.exit(1);
 }
-
-for (const problem of problems) console.error(problem);
-if (problems.length) process.exit(1);
-console.log(
-  `KinoSettings.kt matches the settings schema, and no TV source names its ${tvSettings.length} preferences by raw key.`,
-);
+console.log('KinoSettings.kt matches the settings schema.');
