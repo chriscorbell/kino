@@ -255,18 +255,18 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
   // Safe to call any number of times.
   function syncLoad() {
     if (!backend || !source || !profile || !platform || frozen()) return;
-    const { audioOutput, matchRefreshRate, volume } = settings.get();
+    const audioOutput = settings.get().audioOutput;
     if (audioOutput === loadedAudioOutput) return;
     if (loadedAudioOutput !== null) backend.stop();
     loadedAudioOutput = audioOutput;
     tracks.load(backend);
     progress = createProgressReporter(core, platform);
-    sendVolume(volume);
+    sendVolume(settings.get().volume);
     backend.load({
       ...source,
       stereo: audioOutput === 'stereo',
       audioLanguage: profile.audio,
-      matchRefreshRate,
+      matchRefreshRate: settings.get().matchRefreshRate,
     });
   }
 
