@@ -30,7 +30,7 @@ pnpm dev
 pnpm check
 ```
 
-`pnpm check` runs formatting, lint, type checks, unit tests, the Core and intro gates, a check that every gate is wired into CI, a check that added lines carry no em dash or term CONTEXT.md avoids, and the production build, listed in `checkSteps` in `package.json`. It runs up to four steps at a time and keeps going after a failure, then names each failed step in its last lines. CI runs it on every pull request. Native checks, the streaming engine, and packaging details are in [the desktop guide](docs/DESKTOP.md).
+`pnpm check` runs formatting, lint, type checks, unit tests, the Core and intro gates, a check that every gate is wired into CI, a check that every gate the contracts name exists, a check that added lines carry no em dash or term CONTEXT.md avoids, and the production build, listed in `checkSteps` in `package.json`. It runs up to four steps at a time and keeps going after a failure, then names each failed step in its last lines. CI runs it on every pull request. Native checks, the streaming engine, and packaging details are in [the desktop guide](docs/DESKTOP.md).
 
 ### macOS
 
@@ -91,9 +91,9 @@ pnpm android:check "$ANDROID_SERIAL"
 pnpm macos:package
 ```
 
-This builds a self-contained, ad-hoc signed disk image and its checksum in `build/dist`.
+This builds a self-contained, ad-hoc signed app in an unsigned disk image, and its checksum, in `build/dist`.
 
-To publish a release, push a tag named for the version in the root `package.json`, such as `v0.1.0-rc.5`. The Release workflow builds the macOS disk image, the TV APK, the Windows zip, and the Flatpak from that commit and publishes them with a combined `SHA256SUMS`. A version with a pre-release label becomes a GitHub pre-release. Running the workflow by hand builds everything without publishing.
+To publish a release, push a tag named for the version in the root `package.json`, such as `v0.1.0-rc.5`. The Release workflow builds the macOS disk image, the TV APK, the Windows zip, and the Flatpak from that commit and publishes them with a combined `SHA256SUMS`. A version with a pre-release label becomes a GitHub pre-release. A version without one is a public release, and its tag fails the workflow while the contracts still mark a promise planned on a platform it ships. Running the workflow by hand from a branch builds everything without publishing and lists those promises as notices.
 
 The TV release key lives only in the workflow's secrets. Run `scripts/setup-android-release-key.sh` once to create or choose the keystore, upload it, and write the certificate pin to commit. All other builds use the machine's development key.
 

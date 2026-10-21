@@ -4,7 +4,7 @@ name: Release
 # image, the Windows portable zip, the Linux Flatpak and the TV APK from that commit and publishes
 # them with their checksums. A version with a pre-release label is published as a GitHub
 # pre-release, which is what Kino calls a pre-release: unsigned by Apple and Microsoft, and
-# unannounced. Running the workflow by hand builds the same artifacts without publishing anything.
+# unannounced. Running the workflow by hand from a branch builds the same artifacts without publishing anything.
 
 on:
   push:
@@ -42,6 +42,10 @@ jobs:
             *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;;
             *) echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
           esac
+      - name: Refuse planned promises in a public release
+        run: >-
+          node scripts/check-contracts.mjs --release macos,windows,linux,tv
+          ${{ (github.ref_type != 'tag' || steps.version.outputs.prerelease == 'true') && '--dry-run' || '' }}
 
   macos:
     name: Build the macOS disk image

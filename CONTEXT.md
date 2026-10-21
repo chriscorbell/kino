@@ -112,6 +112,10 @@ _Avoid_: Build, snapshot
 The set of validations that must all pass on the release candidate before its tag is created. It covers the automated code checks, the native launch, playback, and engine probes, and a clean package build.
 _Avoid_: Validation gate, CI
 
+**Planned promise**:
+A statement in a contract of behavior a platform does not have yet, marked beside it with the platforms and the reason. A public release refuses to ship while a platform it releases still carries one.
+_Avoid_: Aspirational claim
+
 **Update notice**:
 The prompt Kino shows when a newer release exists. It offers to download the release, dismiss the notice until the next daily check, or skip that version. On the desktop, Download hands the release's disk image to the system browser. On the TV, Install downloads and checks the APK and hands it to Android's installer, which asks the viewer to confirm. Kino never installs an update on its own.
 _Avoid_: Auto-update, upgrade prompt
