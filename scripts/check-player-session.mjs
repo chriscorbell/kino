@@ -17,12 +17,26 @@ import { createKinoSettingsStore } from '../apps/desktop/src/settingsStore.ts';
 import { memoryStorage } from '../apps/desktop/src/test/memoryStorage.ts';
 import { fixturePreview, fixtureSource, initializeCore } from './test-support/core-stream.mjs';
 
-const storage = new Map();
+// Every case starts on its own Core and storage, so no case depends on what another left behind.
+let storage;
+let core;
+let work;
 // Each case's transport stands for its own worker, so only the newest one hears Core.
 let deliver = () => {};
-const initializing = initializeCore({ storage, onEvent: (event) => deliver(event) });
-const core = await initializing;
-const work = new PendingCoreWork();
+let generation = 0;
+async function freshCore() {
+  storage = new Map();
+  work = new PendingCoreWork();
+  held = null;
+  heldWrites = 0;
+  sessionLogs.length = 0;
+  const current = ++generation;
+  core = await initializeCore({
+    storage,
+    onEvent: (event) => current === generation && deliver(event),
+  });
+  globalThis.local_storage_set_item = heldStorage;
+}
 
 // Holds Core's storage writes until the case lands or fails them, counting the writes it holds.
 let held = null;
@@ -38,7 +52,7 @@ const release = (settle) => {
 };
 const land = () => release((writes) => writes.resolve());
 const failWrites = () => release((writes) => writes.reject(new Error('Storage is full.')));
-globalThis.local_storage_set_item = (key, value) =>
+const heldStorage = (key, value) =>
   work.track(
     (async () => {
       if (held) heldWrites += 1;
@@ -72,7 +86,6 @@ function connectCore() {
     await Promise.race([work.flush(), stopping.promise]);
   };
   const prepareClose = async () => {
-    await initializing.catch(() => undefined);
     live();
     await Promise.all([...beforeDestroy].map((callback) => callback()));
     await flush();
@@ -236,14 +249,16 @@ async function play(time) {
   return playback;
 }
 
-// The session logs every failure a case plants, so they show only when the gate fails.
+// The session logs every failure a case plants, so they show only when that case fails.
 const originalError = console.error;
 const sessionLogs = [];
 console.error = (...args) => {
   if (String(args[0]).startsWith('[kino:')) sessionLogs.push(args);
   else originalError(...args);
 };
-process.on('uncaughtExceptionMonitor', () => sessionLogs.forEach((args) => originalError(...args)));
+
+const cases = [];
+const gateCase = (name, run) => cases.push([name, run]);
 
 // The exit, the outcome it reports, and how the viewer or the shell takes it.
 const exits = [
@@ -258,42 +273,44 @@ const exits = [
   ['Core teardown', 'closed', ({ connection }) => connection.destroy()],
 ];
 
-// Positions only move forward across cases, because each play resumes from the last saved one
-// and Core ignores progress behind a seek until the player passes it.
-let time = 30000;
-const advance = (milliseconds = 5000) => (time += milliseconds);
 for (const [exit, kind, run] of exits) {
-  advance();
-  const playback = await play(time);
-  const { outcomes, session, shell } = playback;
-  hold();
-  const closing = run(playback);
-  await heldWrite();
-  assert.equal(session.getSnapshot().exit, 'saving', `${exit}: the save is running.`);
-  assert.deepEqual(outcomes, [], `${exit}: the outcome waits for the save to be durable.`);
-  assert.notEqual(savedTime(), time, `${exit}: nothing is durable while storage is held.`);
-  assert.deepEqual(shell.stops, [], `${exit}: the player plays until the pause is durable.`);
-  land();
-  if (closing) {
-    await closing;
-    assert.equal(savedTime(), time, `${exit}: the window closes only after the position is saved.`);
-    assert.ok(!playerLoaded(), `${exit}: the window closes only after Unload.`);
-  }
-  await until(() => outcomes.length > 0, `the ${exit} outcome`);
-  await settle();
-  assert.equal(outcomes.length, 1, `${exit}: the outcome is reported once.`);
-  assert.equal(outcomes[0].kind, kind);
-  assert.equal(savedTime(), time, `${exit}: the last position is saved.`);
-  assert.deepEqual(
-    shell.stops,
-    [{ saved: time, loaded: true }],
-    `${exit}: the player stops once, after the final pause is durable and before Unload.`,
-  );
-  assert.ok(!playerLoaded(), `${exit}: the save ends with Unload.`);
+  gateCase(`${exit} saves, stops, then unloads`, async () => {
+    const time = 35000;
+    const playback = await play(time);
+    const { outcomes, session, shell } = playback;
+    hold();
+    const closing = run(playback);
+    await heldWrite();
+    assert.equal(session.getSnapshot().exit, 'saving', `${exit}: the save is running.`);
+    assert.deepEqual(outcomes, [], `${exit}: the outcome waits for the save to be durable.`);
+    assert.notEqual(savedTime(), time, `${exit}: nothing is durable while storage is held.`);
+    assert.deepEqual(shell.stops, [], `${exit}: the player plays until the pause is durable.`);
+    land();
+    if (closing) {
+      await closing;
+      assert.equal(
+        savedTime(),
+        time,
+        `${exit}: the window closes only after the position is saved.`,
+      );
+      assert.ok(!playerLoaded(), `${exit}: the window closes only after Unload.`);
+    }
+    await until(() => outcomes.length > 0, `the ${exit} outcome`);
+    await settle();
+    assert.equal(outcomes.length, 1, `${exit}: the outcome is reported once.`);
+    assert.equal(outcomes[0].kind, kind);
+    assert.equal(savedTime(), time, `${exit}: the last position is saved.`);
+    assert.deepEqual(
+      shell.stops,
+      [{ saved: time, loaded: true }],
+      `${exit}: the player stops once, after the final pause is durable and before Unload.`,
+    );
+    assert.ok(!playerLoaded(), `${exit}: the save ends with Unload.`);
+  });
 }
 
-{
-  advance();
+gateCase('an exit during a save joins it', async () => {
+  const time = 35000;
   const { connection, outcomes, session, shell } = await play(time);
   hold();
   session.controls.leave({ kind: 'back' });
@@ -315,11 +332,10 @@ for (const [exit, kind, run] of exits) {
   );
   assert.equal(shell.stops.length, 1, 'One save stopped the player.');
   assert.equal(savedTime(), time);
-}
+});
 
-{
-  advance();
-  const { outcomes, session, shell } = await play(time);
+gateCase('a save that fails before the stop stays usable and saves from the top', async () => {
+  const { outcomes, session, shell } = await play(35000);
   hold();
   session.controls.leave({ kind: 'back' });
   await heldWrite();
@@ -332,20 +348,19 @@ for (const [exit, kind, run] of exits) {
   session.controls.togglePause();
   session.controls.seek(10000);
   assert.deepEqual(shell.since(mark), ['setPaused', 'seek'], 'Pause and seek reach the player.');
-  shell.emit('time', { milliseconds: advance(20000) });
-  await until(() => coreTime() === time, 'the progress report');
-  shell.freezeAt(advance());
+  shell.emit('time', { milliseconds: 30000 });
+  await until(() => coreTime() === 30000, 'the progress report');
+  shell.freezeAt(40000);
   session.controls.leave({ kind: 'back' });
   await until(() => outcomes.length > 0, 'the retried save');
   assert.deepEqual(outcomes, [{ kind: 'back' }]);
   assert.deepEqual(shell.since(mark + 2), ['pause', 'stop'], 'Leaving again saves from the top.');
-  assert.equal(savedTime(), time, 'Leaving again saves the position it captures.');
+  assert.equal(savedTime(), 40000, 'Leaving again saves the position it captures.');
   assert.ok(!playerLoaded());
-}
+});
 
-{
-  advance();
-  const { connection, outcomes, session, shell } = await play(time);
+gateCase('a save that fails at Core teardown fails the teardown', async () => {
+  const { connection, outcomes, session, shell } = await play(35000);
   let events = 0;
   connection.port.subscribe(() => (events += 1));
   hold();
@@ -372,11 +387,10 @@ for (const [exit, kind, run] of exits) {
     'Leaving a stopped Core leaves and reports the progress unsaved.',
   );
   assert.equal(shell.stops.length, 1, 'Leaving a stopped Core stops the player.');
-}
+});
 
-{
-  advance();
-  const { connection, outcomes, session, shell } = await play(time);
+gateCase('a worker that dies during the save leaves unsaved', async () => {
+  const { connection, outcomes, session, shell } = await play(35000);
   hold();
   session.controls.leave({ kind: 'back' });
   await heldWrite();
@@ -390,11 +404,10 @@ for (const [exit, kind, run] of exits) {
   assert.equal(shell.stops.length, 1, 'The player stops once, without Unload.');
   assert.notEqual(session.getSnapshot().exit, 'save-failed', 'No retry is offered.');
   land();
-}
+});
 
-{
-  advance();
-  const { connection, outcomes, session, shell } = await play(time);
+gateCase('leaving after the worker died leaves unsaved', async () => {
+  const { connection, outcomes, session, shell } = await play(35000);
   const saved = savedTime();
   connection.die();
   session.controls.leave({ kind: 'upNext', video: nextVideo });
@@ -417,9 +430,9 @@ for (const [exit, kind, run] of exits) {
   session.controls.leave({ kind: 'back' });
   await settle();
   assert.equal(outcomes.length, 1, 'Leaving again reports nothing more.');
-}
+});
 
-{
+gateCase('a torrent that arrives during a failed save loads once', async () => {
   const engine = Promise.withResolvers();
   const torrent = { infoHash: '0123456789abcdef0123456789abcdef01234567', fileIdx: 0 };
   let created = false;
@@ -448,11 +461,10 @@ for (const [exit, kind, run] of exits) {
     [`load ${engineUrl}/${torrent.infoHash}/0`],
     'A source that arrived during a failed save loads once.',
   );
-}
+});
 
-{
-  advance();
-  const { session, settings, shell } = await play(time);
+gateCase('an audio output changed during a failed save reloads once', async () => {
+  const { session, settings, shell } = await play(35000);
   const mark = shell.calls.length;
   hold();
   session.controls.leave({ kind: 'back' });
@@ -468,9 +480,9 @@ for (const [exit, kind, run] of exits) {
     ['pause', 'stop', `load ${fixtureUrl} stereo`],
     'An audio output changed during a failed save reloads once it fails.',
   );
-}
+});
 
-{
+gateCase('a series resumes its own episode and offers the next one', async () => {
   // Core loads the series from this add-on and lists the special last. It calls season two's
   // episode upcoming, because the series has scheduled videos and the release is still to come.
   const episode = (season, number, released) => ({
@@ -493,7 +505,6 @@ for (const [exit, kind, run] of exits) {
       episode(0, 1, '2020-01-15T00:00:00.000Z'),
     ],
   };
-  const movieFetch = globalThis.fetch;
   globalThis.fetch = async () => Response.json({ meta: series });
   const playEpisode = async (id, at) => {
     const playback = start({
@@ -529,13 +540,10 @@ for (const [exit, kind, run] of exits) {
   const last = await playEpisode('kino-series:2:1', 30000);
   assert.equal(offered(last), null, 'Up Next offers no special after a numbered season.');
   await leave(last);
-  globalThis.fetch = movieFetch;
-}
+});
 
-// Last, because an ended playback leaves an offset no later case resumes past.
-{
-  advance();
-  const { outcomes, session, shell } = await play(time);
+gateCase('a failed Unload after an ended playback leaves the player stopped', async () => {
+  const { outcomes, session, shell } = await play(35000);
   const end = 119500;
   shell.pausesAt(end);
   shell.emit('ended');
@@ -574,10 +582,35 @@ for (const [exit, kind, run] of exits) {
   await until(() => outcomes.length > 0, 'the retried Unload');
   assert.deepEqual(outcomes, [{ kind: 'back' }]);
   assert.ok(!playerLoaded());
+});
+
+// Cases run in a new order each time, so one that leans on another's leftovers fails. A failure
+// names the seed that replays its order.
+const seed = Number(process.env.KINO_SESSION_SEED ?? Math.floor(Math.random() * 2 ** 32));
+let state = seed >>> 0;
+const random = () => {
+  state = (state + 0x6d2b79f5) >>> 0;
+  let mixed = Math.imul(state ^ (state >>> 15), state | 1);
+  mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), mixed | 61);
+  return ((mixed ^ (mixed >>> 14)) >>> 0) / 2 ** 32;
+};
+for (let index = cases.length - 1; index > 0; index -= 1) {
+  const other = Math.floor(random() * (index + 1));
+  [cases[index], cases[other]] = [cases[other], cases[index]];
+}
+for (const [name, run] of cases) {
+  await freshCore();
+  try {
+    await run();
+  } catch (error) {
+    sessionLogs.forEach((args) => originalError(...args));
+    originalError(`Player session case "${name}" failed; replay with KINO_SESSION_SEED=${seed}.`);
+    throw error;
+  }
 }
 
 console.log(
-  "Pinned Core playback session: Back, Up Next, a source failure, window close and Core teardown each saved the last position, stopped, then unloaded; an exit during a save joined it; a save that failed before the stop stayed usable and saved from the top, one that failed at Core teardown reached the teardown; leaving after Core teardown, after the Core worker died, or as it died during the save stopped the player once and reported the outcome as unsaved; a source or audio output that changed during a failed save loaded once; a series resumed only its own episode's offset and offered Core's next episode, but no upcoming one and no special after a numbered season; and a failed Unload after the stop left pause, seek and progress unable to move the player.",
+  `Pinned Core playback session, ${cases.length} cases on fresh Cores in shuffled order (KINO_SESSION_SEED=${seed}): Back, Up Next, a source failure, window close and Core teardown each saved the last position, stopped, then unloaded; an exit during a save joined it; a save that failed before the stop stayed usable and saved from the top, one that failed at Core teardown reached the teardown; leaving after Core teardown, after the Core worker died, or as it died during the save stopped the player once and reported the outcome as unsaved; a source or audio output that changed during a failed save loaded once; a series resumed only its own episode's offset and offered Core's next episode, but no upcoming one and no special after a numbered season; and a failed Unload after the stop left pause, seek and progress unable to move the player.`,
 );
 // Core owns repeating runtime timers, as it does in its browser worker.
 process.exit(0);
