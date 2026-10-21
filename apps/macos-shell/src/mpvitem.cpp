@@ -42,6 +42,7 @@ constexpr double kTargetLufs = -19.0;
 constexpr double kMaxBoostDb = 12.0;
 constexpr double kMaxCutDb = -6.0;
 constexpr int kLoudnessIntervalMs = 500;
+constexpr long long kTimeIntervalMs = 250;
 // Eight 400 ms blocks, as on TV, before the measurement is trusted.
 constexpr int kLoudnessWarmupTicks = 7;
 constexpr double kRiseSeconds = 1.5;
@@ -50,6 +51,17 @@ constexpr const char *kStereoFilters =
     "@kinoloud:ebur128=metadata=1,"
     "@kinogain:volume=volume=0dB:precision=float,"
     "@kinolimit:alimiter=limit=0.8913:attack=0.1:release=150:level=false";
+
+const char *pauseReasonName(MpvItem::PauseReason reason) {
+    switch (reason) {
+    case MpvItem::PauseReason::Viewer: return "viewer";
+    case MpvItem::PauseReason::Load: return "load";
+    case MpvItem::PauseReason::Exit: return "exit";
+    case MpvItem::PauseReason::Sleep: return "sleep";
+    case MpvItem::PauseReason::DisplaySwitch: return "display-switch";
+    }
+    return "unknown";
+}
 
 QVariantMap millisecondsPayload(double seconds) {
     return {{QStringLiteral("milliseconds"), std::llround(seconds * 1000.0)}};
@@ -299,16 +311,7 @@ private:
 
 MpvItem::MpvItem(QQuickItem *parent)
     : QQuickFramebufferObject(parent), context_(std::make_shared<MpvContext>(this)),
-      handle_(context_->handle), sleepObserver_([this]() {
-          // Audio would otherwise start again by itself when the computer wakes.
-          if (!active_ || paused_) {
-              sleepObserver_.readyToSleep();
-              return;
-          }
-          qInfo("[kino:mpv] paused for system sleep");
-          pausingForSleep_ = true;
-          setPaused(true);
-      }) {
+      handle_(context_->handle), sleepObserver_([this]() { pauseForSleep(); }) {
     connect(this, &MpvItem::renderUpdateRequested, this, qOverload<>(&MpvItem::update),
             Qt::QueuedConnection);
     hardwareDecoderTimer_.setInterval(5'000);
@@ -323,6 +326,9 @@ MpvItem::MpvItem(QQuickItem *parent)
     });
     loudnessTimer_.setInterval(kLoudnessIntervalMs);
     connect(&loudnessTimer_, &QTimer::timeout, this, &MpvItem::steerLoudness);
+    displaySwitchTimer_.setSingleShot(true);
+    connect(&displaySwitchTimer_, &QTimer::timeout, this,
+            [this]() { writePause(PauseReason::DisplaySwitch, false); });
     renderContextTimer_.setInterval(5'000);
     renderContextTimer_.setSingleShot(true);
     connect(&renderContextTimer_, &QTimer::timeout, this, [this]() {
@@ -549,6 +555,8 @@ void MpvItem::load(const QString &url, bool forceStereo, const QVariantMap &head
         hlgLightRestored_ = false;
     }
     bufferedMs_ = -1;
+    timeMs_.reset();
+    timeSentMs_.reset();
     hardwareDecoderActive_ = false;
     hardwareDecoderTimer_.stop();
     paused_ = false;
@@ -574,8 +582,7 @@ void MpvItem::load(const QString &url, bool forceStereo, const QVariantMap &head
     mpv_set_property_async(handle_, 0, "sid", MPV_FORMAT_STRING, &subtitleTrackData);
     double subtitleDelay = 0;
     mpv_set_property_async(handle_, 0, "sub-delay", MPV_FORMAT_DOUBLE, &subtitleDelay);
-    int unpaused = 0;
-    mpv_set_property_async(handle_, 0, "pause", MPV_FORMAT_FLAG, &unpaused);
+    writePause(PauseReason::Load, false);
     // The captured buffers own every string the command node points at.
     auto issueLoad = [this, encodedUrl = url.toUtf8(), headerFields,
                       preferredLanguage = audioLanguage.trimmed().toUtf8()]() mutable {
@@ -646,8 +653,7 @@ void MpvItem::addSubtitles(const QString &url, const QString &title, const QStri
 
 QVariantMap MpvItem::pauseAndSnapshot() {
     if (!available()) return {};
-    int paused = 1;
-    mpv_set_property(handle_, "pause", MPV_FORMAT_FLAG, &paused);
+    writePause(PauseReason::Exit, true);
     double time = 0;
     double duration = 0;
     mpv_get_property(handle_, "time-pos", MPV_FORMAT_DOUBLE, &time);
@@ -677,10 +683,35 @@ void MpvItem::setVolume(double percent) {
     mpv_set_property_async(handle_, 0, "volume", MPV_FORMAT_DOUBLE, &value);
 }
 
+// Audio would otherwise start again by itself when the computer wakes.
+void MpvItem::pauseForSleep() {
+    if (!active_) {
+        sleepObserver_.readyToSleep();
+        return;
+    }
+    // Written even when mpv is already paused, so a display switch's hold cannot end it.
+    pausingForSleep_ = !paused_;
+    writePause(PauseReason::Sleep, true);
+    if (!pausingForSleep_) sleepObserver_.readyToSleep();
+}
+
 void MpvItem::setPaused(bool paused) {
+    writePause(PauseReason::Viewer, paused);
+}
+
+void MpvItem::writePause(PauseReason reason, bool paused) {
     if (!available()) return;
+    // Any other write replaces a display switch's hold, so its end cannot undo that write.
+    if (reason != PauseReason::DisplaySwitch) displaySwitchTimer_.stop();
+    pauseWritten_ = paused;
+    qInfo("[kino:mpv] pause write paused=%d reason=%s", paused, pauseReasonName(reason));
     int value = paused ? 1 : 0;
-    mpv_set_property_async(handle_, 0, "pause", MPV_FORMAT_FLAG, &value);
+    // The exit reads the position next, and a display switch starts next, so their pause has
+    // to land first.
+    if (paused && (reason == PauseReason::Exit || reason == PauseReason::DisplaySwitch))
+        mpv_set_property(handle_, "pause", MPV_FORMAT_FLAG, &value);
+    else
+        mpv_set_property_async(handle_, 0, "pause", MPV_FORMAT_FLAG, &value);
 }
 
 void MpvItem::setSubtitleDelay(double seconds) {
@@ -724,16 +755,13 @@ void MpvItem::matchDisplayTo(double frameRate) {
     if (!matchFrameRate_ || frameRateMatched_ || !(frameRate > 1) || !handle_) return;
     frameRateMatched_ = true;
     // The display goes dark for a moment while it changes mode; hold playback over it.
-    const bool playing = !paused_;
-    if (playing) mpv_set_property_string(handle_, "pause", "yes");
+    const bool hold = !pauseWritten_;
+    if (hold) writePause(PauseReason::DisplaySwitch, true);
     const bool switched = displayMode_.match(window(), frameRate);
     if (switched)
         emit playerEvent(QStringLiteral("refreshRate"),
                          {{QStringLiteral("hz"), DisplayModeMatcher::refreshRate(window())}});
-    if (playing)
-        QTimer::singleShot(switched ? 1500 : 0, this, [this]() {
-            if (handle_) mpv_set_property_string(handle_, "pause", "no");
-        });
+    if (hold) displaySwitchTimer_.start(switched ? 1500 : 0);
 }
 
 void MpvItem::stop() {
@@ -742,6 +770,7 @@ void MpvItem::stop() {
     // Leaving playback hands the display back its own mode.
     displayMode_.restore();
     frameRateMatched_ = false;
+    displaySwitchTimer_.stop();
     renderContextTimer_.stop();
     hardwareDecoderTimer_.stop();
     if (available()) {
@@ -752,9 +781,7 @@ void MpvItem::stop() {
 }
 
 void MpvItem::togglePaused() {
-    if (!available()) return;
-    const char *command[] = {"cycle", "pause", nullptr};
-    mpv_command_async(handle_, 0, command);
+    writePause(PauseReason::Viewer, !pauseWritten_);
 }
 
 void MpvItem::onRenderUpdate(void *context) {
@@ -794,7 +821,11 @@ void MpvItem::handleEvent(mpv_event *event) {
         mpv_set_property_string(handle_, "http-header-fields", "");
         qInfo("[kino:mpv] source metadata loaded");
         break;
+    case MPV_EVENT_SEEK:
+        timeSentMs_.reset();
+        break;
     case MPV_EVENT_PLAYBACK_RESTART:
+        sendTime();
         emit playerEvent(QStringLiteral("buffering"), {{QStringLiteral("active"), false}});
         emit playerEvent(QStringLiteral("ready"), {});
         break;
@@ -826,12 +857,13 @@ void MpvItem::handleEvent(mpv_event *event) {
             }
         } else if (!property->data) {
             break;
-        } else if ((name == "time-pos" || name == "duration") &&
-                   property->format == MPV_FORMAT_DOUBLE) {
-            const double seconds = *static_cast<double *>(property->data);
-            emit playerEvent(name == "time-pos" ? QStringLiteral("time")
-                                                : QStringLiteral("duration"),
-                             millisecondsPayload(seconds));
+        } else if (name == "time-pos" && property->format == MPV_FORMAT_DOUBLE) {
+            timeMs_ = std::llround(*static_cast<double *>(property->data) * 1000.0);
+            if (!timeSentMs_ || *timeMs_ < *timeSentMs_ || *timeMs_ - *timeSentMs_ >= kTimeIntervalMs)
+                sendTime();
+        } else if (name == "duration" && property->format == MPV_FORMAT_DOUBLE) {
+            emit playerEvent(QStringLiteral("duration"),
+                             millisecondsPayload(*static_cast<double *>(property->data)));
         } else if (name == "demuxer-cache-time" && property->format == MPV_FORMAT_DOUBLE) {
             const double seconds = *static_cast<double *>(property->data);
             if (!std::isfinite(seconds) || seconds < 0) break;
@@ -846,6 +878,9 @@ void MpvItem::handleEvent(mpv_event *event) {
         } else if (name == "pause" && property->format == MPV_FORMAT_FLAG) {
             paused_ = *static_cast<int *>(property->data) != 0;
             updatePowerGuard();
+            // The interface saves the last position it heard when playback pauses, so it hears
+            // the exact one first.
+            sendTime();
             emit playerEvent(QStringLiteral("paused"),
                              {{QStringLiteral("paused"), paused_}});
             if (paused_ && pausingForSleep_) {
@@ -903,6 +938,7 @@ void MpvItem::handleEvent(mpv_event *event) {
     }
     case MPV_EVENT_END_FILE: {
         const auto *end = static_cast<mpv_event_end_file *>(event->data);
+        sendTime();
         hardwareDecoderTimer_.stop();
         displayMode_.restore();
         frameRateMatched_ = false;
@@ -927,6 +963,12 @@ void MpvItem::handleEvent(mpv_event *event) {
     default:
         break;
     }
+}
+
+void MpvItem::sendTime() {
+    if (!timeMs_ || timeMs_ == timeSentMs_) return;
+    timeSentMs_ = timeMs_;
+    emit playerEvent(QStringLiteral("time"), {{QStringLiteral("milliseconds"), *timeMs_}});
 }
 
 void MpvItem::emitError(const QString &code) {

@@ -299,6 +299,8 @@ if(BUILD_TESTING)
   set_tests_properties(external_navigation PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
   qt_add_executable(kino_mpvitem_test tests/mpvitem_test.cpp ${KINO_PLAYER_SOURCES})
   target_include_directories(kino_mpvitem_test PRIVATE src)
+  target_compile_definitions(kino_mpvitem_test PRIVATE
+    KINO_MPVITEM_SOURCE="${CMAKE_CURRENT_SOURCE_DIR}/src/mpvitem.cpp")
   target_link_libraries(kino_mpvitem_test PRIVATE ${KINO_PLAYER_LIBRARIES} Qt6::Test)
   target_compile_definitions(kino_mpvitem_test PRIVATE
     KINO_PROXY_HEADER_CASES="${KINO_REPOSITORY_ROOT}/fixtures/parity/proxy-headers.json")

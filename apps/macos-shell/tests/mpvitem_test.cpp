@@ -5,6 +5,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QRegularExpression>
 #include <QSignalSpy>
 #include <QtTest>
 
@@ -18,10 +19,43 @@ class MpvItemTest : public QObject {
     static void sendProperty(MpvItem &player, const char *name, mpv_format format,
                              void *data) {
         mpv_event_property property{name, format, data};
+        sendEvent(player, MPV_EVENT_PROPERTY_CHANGE, &property);
+    }
+
+    static void sendEvent(MpvItem &player, mpv_event_id id, void *data = nullptr) {
         mpv_event event{};
-        event.event_id = MPV_EVENT_PROPERTY_CHANGE;
-        event.data = &property;
+        event.event_id = id;
+        event.data = data;
         player.handleEvent(&event);
+    }
+
+    static void sendTime(MpvItem &player, double seconds) {
+        sendProperty(player, "time-pos", MPV_FORMAT_DOUBLE, &seconds);
+    }
+
+    static QStringList eventNames(const QSignalSpy &events) {
+        QStringList names;
+        for (const auto &event : events) names.append(event.first().toString());
+        return names;
+    }
+
+    static QList<qlonglong> sentMilliseconds(const QSignalSpy &events, QLatin1String name) {
+        QList<qlonglong> sent;
+        for (const auto &event : events)
+            if (event.first().toString() == name)
+                sent.append(event.at(1).toMap().value("milliseconds").toLongLong());
+        return sent;
+    }
+
+    static QList<qlonglong> sentTimes(const QSignalSpy &events) {
+        return sentMilliseconds(events, QLatin1String("time"));
+    }
+
+    // What the live player holds, not what Kino last asked for.
+    static bool mpvPaused(MpvItem &player) {
+        int paused = -1;
+        if (mpv_get_property(player.handle_, "pause", MPV_FORMAT_FLAG, &paused) < 0) return false;
+        return paused == 1;
     }
 
     static void sendString(MpvItem &player, const char *name, const char *value) {
@@ -61,13 +95,103 @@ private slots:
         buffered(12.9);
         buffered(14.0);
         buffered(3.0);
-        QList<qlonglong> sent;
-        for (const auto &event : events) {
-            QCOMPARE(event.first().toString(), QStringLiteral("buffered"));
-            sent.append(event.at(1).toMap().value("milliseconds").toLongLong());
-        }
+        QCOMPARE(eventNames(events), QStringList(3, QStringLiteral("buffered")));
         // Sub-second growth is folded into the next whole second; a seek back reports at once.
-        QCOMPARE(sent, (QList<qlonglong>{12500, 14000, 3000}));
+        QCOMPARE(sentMilliseconds(events, QLatin1String("buffered")),
+                 (QList<qlonglong>{12500, 14000, 3000}));
+    }
+
+    void timeReachesTheInterfaceFourTimesASecond() {
+        MpvItem player;
+        QSignalSpy events(&player, &MpvItem::playerEvent);
+        // mpv reports the position once per frame: three seconds of 24 fps video.
+        for (int frame = 0; frame <= 72; ++frame) sendTime(player, frame / 24.0);
+        QList<qlonglong> expected;
+        for (qlonglong milliseconds = 0; milliseconds <= 3000; milliseconds += 250)
+            expected.append(milliseconds);
+        QCOMPARE(sentTimes(events), expected);
+    }
+
+    void seekPauseAndEndSendTimeAtOnce() {
+        MpvItem player;
+        QSignalSpy events(&player, &MpvItem::playerEvent);
+        sendTime(player, 10.0);
+        sendTime(player, 10.1);
+        player.setPaused(true);
+        int paused = 1;
+        sendProperty(player, "pause", MPV_FORMAT_FLAG, &paused);
+        // The pause reports the position it stopped at before it reports the pause.
+        QCOMPARE(eventNames(events), (QStringList{"time", "time", "paused"}));
+        QCOMPARE(sentTimes(events), (QList<qlonglong>{10000, 10100}));
+
+        events.clear();
+        sendEvent(player, MPV_EVENT_SEEK);
+        sendTime(player, 10.15);
+        sendTime(player, 10.2);
+        sendEvent(player, MPV_EVENT_PLAYBACK_RESTART);
+        QCOMPARE(sentTimes(events), (QList<qlonglong>{10150, 10200}));
+
+        events.clear();
+        sendTime(player, 10.3);
+        mpv_event_end_file end{};
+        end.reason = MPV_END_FILE_REASON_EOF;
+        sendEvent(player, MPV_EVENT_END_FILE, &end);
+        QCOMPARE(eventNames(events), (QStringList{"time", "ended"}));
+        QCOMPARE(sentTimes(events), (QList<qlonglong>{10300}));
+    }
+
+    void displaySwitchKeepsALaterPause_data() {
+        QTest::addColumn<QString>("during");
+        QTest::addColumn<bool>("pausedAfter");
+        QTest::newRow("nothing") << QString() << false;
+        QTest::newRow("viewer-pause") << QStringLiteral("viewer") << true;
+        QTest::newRow("exit") << QStringLiteral("exit") << true;
+        QTest::newRow("system-sleep") << QStringLiteral("sleep") << true;
+    }
+
+    void displaySwitchKeepsALaterPause() {
+        QFETCH(QString, during);
+        QFETCH(bool, pausedAfter);
+        MpvItem player;
+        player.setActive(true);
+        player.setMatchFrameRate(true);
+        int playing = 0;
+        sendProperty(player, "pause", MPV_FORMAT_FLAG, &playing);
+        // No display mode is a whole multiple of a megahertz, so the hold runs and nothing
+        // switches the display the test runs on.
+        player.matchDisplayTo(1e6);
+        QVERIFY(mpvPaused(player));
+        if (during == QLatin1String("viewer")) player.setPaused(true);
+        if (during == QLatin1String("exit")) player.pauseAndSnapshot();
+        if (during == QLatin1String("sleep")) player.pauseForSleep();
+        QTest::qWait(100);
+        QCOMPARE(mpvPaused(player), pausedAfter);
+    }
+
+    // Every pause reaches mpv through writePause, which knows why it pauses and what a display
+    // switch's hold may undo. A second writer could resume playback the viewer paused.
+    void pauseHasOneWriter() {
+        QFile file(QStringLiteral(KINO_MPVITEM_SOURCE));
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const QString source = QString::fromUtf8(file.readAll());
+        const qsizetype start = source.indexOf(QLatin1String("void MpvItem::writePause("));
+        QVERIFY(start >= 0);
+        const qsizetype end = source.indexOf(QLatin1String("\n}\n"), start);
+        QVERIFY(end > start);
+        const QString outside = source.left(start) + source.mid(end);
+        static const QRegularExpression pauseLiteral(QStringLiteral(R"(^.*"[^"\n]*\bpause\b[^"\n]*".*$)"),
+                                                     QRegularExpression::MultilineOption);
+        int reads = 0;
+        for (const auto &match : pauseLiteral.globalMatch(outside)) {
+            const QString line = match.captured().trimmed();
+            QVERIFY2(line.startsWith(QLatin1String("mpv_observe_property(")) ||
+                         line.contains(QLatin1String("name == \"pause\"")),
+                     qPrintable(QStringLiteral("mpvitem.cpp names mpv's pause outside writePause: %1. "
+                                               "Write it through writePause with a PauseReason.")
+                                    .arg(line)));
+            ++reads;
+        }
+        QCOMPARE(reads, 2);
     }
 
     // The caption style must come from Kino, not from a libmpv default that

@@ -9,6 +9,7 @@
 #include <mpv/render_gl.h>
 #include <functional>
 #include <memory>
+#include <optional>
 
 #include "displaymode.h"
 #include "powerguard.h"
@@ -24,6 +25,9 @@ class MpvItem : public QQuickFramebufferObject {
     // Switch the display to the video's frame rate while it plays. Off unless the viewer asks.
     Q_PROPERTY(bool matchFrameRate READ matchFrameRate WRITE setMatchFrameRate)
 public:
+    // Why Kino sets mpv's pause. writePause is the only code that writes it.
+    enum class PauseReason { Viewer, Load, Exit, Sleep, DisplaySwitch };
+
     explicit MpvItem(QQuickItem *parent = nullptr);
     ~MpvItem() override;
 
@@ -77,13 +81,22 @@ private:
 
     void matchDisplayTo(double frameRate);
 
+    void writePause(PauseReason reason, bool paused);
+    void pauseForSleep();
+    void sendTime();
+
     bool active_ = false;
     bool matchFrameRate_ = false;
     bool frameRateMatched_ = false;
     DisplayModeMatcher displayMode_;
     bool failed_ = false;
     bool hardwareDecoderActive_ = false;
+    // As mpv last reported it.
     bool paused_ = true;
+    // As Kino last wrote it, which mpv reports once the write lands.
+    bool pauseWritten_ = false;
+    // Runs while a display switch holds playback, and resumes it when the display is back.
+    QTimer displaySwitchTimer_;
     // The current file is an HLG base layer whose filter now sets HLG's light.
     bool hlgLightRestored_ = false;
     // Sleep waits until mpv reports the pause Kino asked for before it.
@@ -94,6 +107,10 @@ private:
     // The last cache end sent to the interface, so the timeline hears about
     // whole seconds rather than every demuxed packet.
     long long bufferedMs_ = -1;
+    // mpv reports the position once per video frame; the interface hears it four times a second,
+    // and at once on a seek, a pause, the end, and a stop.
+    std::optional<long long> timeMs_;
+    std::optional<long long> timeSentMs_;
     std::shared_ptr<MpvContext> context_;
     mpv_handle *handle_ = nullptr;
     PowerGuard powerGuard_;
