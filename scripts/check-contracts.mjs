@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// Fails when a contract document names a gate that does not exist: a package script, a scripts/,
-// fixtures/ or workflow path, a vitest file, a TV test class or a CTest, in backticks or on a
-// line of a fenced block. It also fails on a malformed planned marker or an unclosed comment, and
-// with --release, while a public release ships a platform that a planned marker says lacks the
-// promise. The contracts promised Copy Diagnostic Summary (#55) and opening external sources (#75)
-// before either was built, and nothing said so until an audit found them.
+// Fails when a contract document, or AGENTS.md, whose rule table names what enforces each rule,
+// names a gate that does not exist: a package script, a scripts/, fixtures/ or workflow path, a
+// vitest file, a TV test class or a CTest, in backticks or on a line of a fenced block. It also
+// fails on a malformed planned marker or an unclosed comment, and with --release, while a public
+// release ships a platform that a planned marker says lacks the promise. The contracts promised
+// Copy Diagnostic Summary (#55) and opening external sources (#75) before either was built, and
+// nothing said so until an audit found them.
 //
 //   node scripts/check-contracts.mjs [repository root]
 //   node scripts/check-contracts.mjs --release macos,windows,linux,tv [--dry-run] [repository root]
@@ -31,7 +32,13 @@ const {
 });
 const read = (path) => readFileSync(join(root, path), 'utf8');
 
-const DOCS = ['docs/PRODUCT.md', 'docs/PLAYBACK.md', 'docs/DESKTOP.md', 'docs/ANDROID-TV.md'];
+const DOCS = [
+  'docs/PRODUCT.md',
+  'docs/PLAYBACK.md',
+  'docs/DESKTOP.md',
+  'docs/ANDROID-TV.md',
+  'AGENTS.md',
+];
 const PLATFORMS = {
   macos: ['macos'],
   windows: ['windows'],
@@ -259,5 +266,5 @@ const counts = [...new Set(Object.values(PLATFORMS).flat())]
   .filter(([, count]) => count)
   .map(([platform, count]) => `${platform} ${count}`);
 console.log(
-  `${DOCS.length} contract documents: ${resolved.size} gate names resolve; ${planned.length} planned promise${planned.length === 1 ? '' : 's'}${counts.length ? ` (${counts.join(', ')})` : ''}`,
+  `${DOCS.length} documents: ${resolved.size} gate names resolve; ${planned.length} planned promise${planned.length === 1 ? '' : 's'}${counts.length ? ` (${counts.join(', ')})` : ''}`,
 );

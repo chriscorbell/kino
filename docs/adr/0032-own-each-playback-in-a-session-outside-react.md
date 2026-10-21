@@ -40,7 +40,7 @@ The fence is meant to stop a mistake, not a determined way around it, and these 
 - A symlink, which counts as the path it sits at.
 - Code that opens the shell's WebChannel itself.
 
-`pnpm playback:check-boundary` plants one file for each way lint or the types close, and fails when one lints and typechecks clean, or when lint reports it under another rule. It proves the planted forms and no others.
+`pnpm playback:check-boundary` lints and typechecks the planted forms, one file each, and fails when one passes clean, or when lint reports it under another rule. It proves those forms and no others.
 
 A profile change during playback applies to the next playback instead of reloading the stream. Window close and Quit show that progress is being saved while the shell waits for the save, as Back already did. Once that save is durable, App returns to the details page before the window closes. A finished session has no Back, so a stopped player left on screen would strand the viewer if the shell stopped waiting before the save landed.
 
