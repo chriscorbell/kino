@@ -16,6 +16,7 @@ function signal<Args extends unknown[]>() {
     disconnect: vi.fn<(listener: Listener) => void>((listener) => void listeners.delete(listener)),
     fire,
     emit: (...args: Args) => act(async () => fire(...args)),
+    disconnectAll: () => listeners.clear(),
   };
 }
 
@@ -26,11 +27,13 @@ function signal<Args extends unknown[]>() {
  */
 export function fakeNativePlayer<Extra extends Partial<NativePlayer>>(extra = {} as Extra) {
   const playerEvent = signal<[name: string, payload: Record<string, unknown>]>();
+  const fullscreenChanged = signal<[]>();
+  const streamingEngineChanged = signal<[url: string, error: string]>();
   const player = {
     fullscreen: false,
-    fullscreenChanged: signal<[]>(),
+    fullscreenChanged,
     playerEvent,
-    streamingEngineChanged: signal<[url: string, error: string]>(),
+    streamingEngineChanged,
     platform: 'macos',
     capabilities: [],
     shellVersion: '0.0.0',
@@ -55,7 +58,13 @@ export function fakeNativePlayer<Extra extends Partial<NativePlayer>>(extra = {}
     startStreamingEngine: vi.fn<NativePlayer['startStreamingEngine']>(),
     stop: vi.fn<NativePlayer['stop']>(),
     emit: (name: string, payload: Record<string, unknown> = {}) => playerEvent.emit(name, payload),
+    /** Cuts every listener off, so a playback session from an earlier test hears nothing. */
+    disconnectAll() {
+      [playerEvent, fullscreenChanged, streamingEngineChanged].forEach((s) => s.disconnectAll());
+    },
     ...extra,
   };
   return player satisfies NativePlayer;
 }
+
+export type FakeNativePlayer = ReturnType<typeof fakeNativePlayer>;

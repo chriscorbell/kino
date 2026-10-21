@@ -33,6 +33,7 @@ export type InterfaceScale = KinoSettings['interfaceScale'];
 
 export const subtitlePositionRange = settingsSchema.subtitlePosition.value;
 export const subtitleSizeRange = settingsSchema.subtitleSize.value;
+export const volumeRange = settingsSchema.volume.value;
 
 export const defaultSettings = Object.fromEntries(
   desktopKeys.map((key) => [key, settingsSchema[key].value.default]),

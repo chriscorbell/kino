@@ -1,12 +1,9 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 
-import {
-  finalPauseAction,
-  playerAction,
-  unloadPlayerAction,
-} from '../apps/desktop/src/core/actions.ts';
+import { playerAction } from '../apps/desktop/src/core/actions.ts';
 import { PendingCoreWork, trackCoreSync } from '../apps/desktop/src/core/pendingWork.ts';
+import { savePlayback } from '../apps/desktop/src/playback/exit.ts';
 import { initializeCore, resolveCoreStream } from './test-support/core-stream.mjs';
 
 const mode = process.argv[2];
@@ -108,30 +105,48 @@ if (!mode) {
 
   await resolveCoreStream(core, { url: 'https://media.invalid/fixture.mp4' });
   held = true;
-  progress(34567);
-  core.dispatch(finalPauseAction, 'player', '');
-  let flushed = false;
-  const flushing = work.flush().then(() => {
-    flushed = true;
+  // The client's own save, which Back, Up Next, a source failure, window close
+  // and Quit all run, over the in-process Core as the worker carries it.
+  const port = {
+    async dispatch(action, model) {
+      core.dispatch(action, model, '');
+    },
+    async commit(action, model) {
+      core.dispatch(action, model, '');
+      await work.flush();
+    },
+  };
+  let stopped = false;
+  let saved = false;
+  const saving = savePlayback(port, {
+    freeze: async () => ({ time: 34567, duration: 120000 }),
+    loaded: Promise.resolve(),
+    stop: () => {
+      stopped = true;
+    },
+    platform: () => 'macos',
+  }).then(() => {
+    saved = true;
   });
   await new Promise((resolve) => setTimeout(resolve, 30));
-  assert.equal(flushed, false, 'Flush must wait for the storage bridge acknowledgement.');
+  assert.equal(saved, false, 'The save must wait for the storage bridge acknowledgement.');
+  assert.equal(stopped, false, 'The player must not stop before the final pause is durable.');
   assert.equal(savedTime(), 30000);
   storageGate.resolve();
   if (mode === 'account') {
     await finalSyncStarted.promise;
     await new Promise((resolve) => setTimeout(resolve, 30));
-    assert.equal(flushed, false, 'Flush must wait for the account write response body.');
+    assert.equal(saved, false, 'The save must wait for the account write response body.');
+    assert.equal(stopped, false, 'The player must not stop before the account write lands.');
   }
   syncGate.resolve();
-  await flushing;
+  await saving;
+  assert.equal(stopped, true);
   assert.equal(savedTime(), 34567);
   if (mode === 'account') assert.equal(synced.at(-1).state.timeOffset, 34567);
-  core.dispatch(unloadPlayerAction, 'player', '');
-  await work.flush();
-  assert.equal(savedTime(), 34567);
+  assert.equal(core.get_state('player').selected, null, 'The save must end with Unload.');
   console.log(
-    `Pinned Core ${mode} shutdown saved 34,567 ms before unload and awaited storage${mode === 'account' ? ' and account sync' : ''}.`,
+    `Pinned Core ${mode} shutdown: the client's save kept 34,567 ms through Unload and awaited storage${mode === 'account' ? ' and account sync' : ''}.`,
   );
   // Core owns repeating runtime timers, as it does in its browser worker.
   process.exit(0);

@@ -144,7 +144,10 @@ export function playerStreamPayload(source: CoreSource) {
   };
 }
 
-export function loadPlayerAction(selection: PlaybackSelection): TransientAction {
+/** What the Player model takes on dispatch: its Load and the progress reports, never Unload. */
+export type TransientPlayerAction = TransientAction & { readonly action: 'Load' | 'Player' };
+
+export function loadPlayerAction(selection: PlaybackSelection): TransientPlayerAction {
   const videoId = selection.video?.id ?? selection.meta.id;
   return transient({
     action: 'Load',
@@ -274,7 +277,7 @@ export type PlayerReport =
   'Ended' | 'PausedChanged' | 'Seek' | 'TimeChanged' | 'VideoParamsChanged';
 
 /** Reports playback to Core while it runs. The final save supersedes these reports. */
-export function playerAction(action: PlayerReport, args?: unknown): TransientAction {
+export function playerAction(action: PlayerReport, args?: unknown): TransientPlayerAction {
   return transient({ action: 'Player', args: { action, ...(args === undefined ? {} : { args }) } });
 }
 

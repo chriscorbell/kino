@@ -107,6 +107,16 @@ it('reports a refused start as a failure', async () => {
   );
 });
 
+it('applies a volume and mute sent before the element arrived', () => {
+  const video = document.createElement('video');
+  const backend = videoBackend();
+  backend.setVolume(30);
+  backend.setMuted(true);
+  backend.attach(video);
+  expect(video.volume).toBe(0.3);
+  expect(video.muted).toBe(true);
+});
+
 it('applies a load that arrived before the element, and stops reporting once detached', () => {
   const video = document.createElement('video');
   const backend = videoBackend();

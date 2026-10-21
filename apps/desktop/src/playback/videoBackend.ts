@@ -6,8 +6,8 @@ import { mediaPosition, type MediaBackend, type MediaEvent } from './media';
 
 export interface VideoBackend extends MediaBackend {
   /**
-   * The view lends the element. A load that arrived first is applied on
-   * attach. Detaching removes the listeners and nothing else.
+   * The view lends the element. A load, volume or mute that arrived first is
+   * applied on attach. Detaching removes the listeners and nothing else.
    */
   attach(video: HTMLVideoElement): () => void;
 }
@@ -72,6 +72,8 @@ export function videoBackend(): VideoBackend {
   const emit = (event: MediaEvent) => listeners.forEach((listener) => listener(event));
   let element: HTMLVideoElement | null = null;
   let source: string | null = null;
+  let volume: number | null = null;
+  let muted: boolean | null = null;
   const play = (video: HTMLVideoElement) =>
     video.play().catch((error: unknown) =>
       emit({
@@ -85,12 +87,15 @@ export function videoBackend(): VideoBackend {
     capabilities: { tracks: false },
     attach(video) {
       element = video;
-      if (source !== null && video.getAttribute('src') !== source) video.src = source;
       const detach = Object.entries(domEvents).map(([name, read]) => {
         const onEvent = () => read(video).forEach(emit);
         video.addEventListener(name, onEvent);
         return () => video.removeEventListener(name, onEvent);
       });
+      // After the listeners, so the element's echo of a volume sent early is heard.
+      if (volume !== null) video.volume = volume / 100;
+      if (muted !== null) video.muted = muted;
+      if (source !== null && video.getAttribute('src') !== source) video.src = source;
       return () => {
         detach.forEach((remove) => remove());
         if (element === video) element = null;
@@ -113,10 +118,12 @@ export function videoBackend(): VideoBackend {
       if (element) element.currentTime = milliseconds / 1000;
     },
     setVolume(percent) {
+      volume = percent;
       if (element) element.volume = percent / 100;
     },
-    setMuted(muted) {
-      if (element) element.muted = muted;
+    setMuted(value) {
+      muted = value;
+      if (element) element.muted = value;
     },
     setAudioTrack() {},
     setSubtitleTrack() {},

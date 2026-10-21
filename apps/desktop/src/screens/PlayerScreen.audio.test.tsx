@@ -3,67 +3,41 @@ import { expect, it, vi } from 'vitest';
 
 import type { CoreSource } from '../core/types';
 import { preview } from '../test/coreState';
-import { renderWithSettings } from '../test/renderWithSettings';
-import { PlayerScreen } from './PlayerScreen';
+import { fakeNativePlayer } from '../test/nativePlayer';
+import { mountPlayback } from '../test/playback';
 
-const fixture = await vi.hoisted(async () => {
-  const { fakeNativePlayer } = await import('../test/nativePlayer');
-  return {
-    stream: {
-      description: null,
-      name: null,
-      source: { kind: 'url', url: 'https://media.invalid/fixture.mp4' },
-      hints: {
-        bingeGroup: null,
-        countryWhitelist: null,
-        filename: null,
-        notWebReady: null,
-        proxyRequestHeaders: null,
-        proxyResponseHeaders: null,
-        videoHash: null,
-        videoSize: null,
-      },
-    } satisfies CoreSource,
-    transport: { dispatch: vi.fn().mockResolvedValue(undefined) },
-    unload: vi.fn().mockResolvedValue(undefined),
-    native: fakeNativePlayer({ loadWithAudioLanguage: vi.fn(), setMatchFrameRate: vi.fn() }),
-  };
-});
-vi.mock('../native/player', () => ({
-  nativeShellPresent: () => true,
-  knownShellReport: () => ({ platform: 'macos', capabilities: new Set() }),
-  connectNativePlayer: async () => fixture.native,
-}));
-vi.mock('../core/context', () => ({
-  useCore: () => ({ transport: fixture.transport }),
-}));
-vi.mock('../core/useCoreModel', () => ({
-  useCoreModel: () => ({
-    state: { stream: { type: 'Ready', content: fixture.stream } },
-    loading: false,
-    error: null,
-    unload: fixture.unload,
-  }),
-}));
+const fixture = {
+  stream: {
+    description: null,
+    name: null,
+    source: { kind: 'url', url: 'https://media.invalid/fixture.mp4' },
+    hints: {
+      bingeGroup: null,
+      countryWhitelist: null,
+      filename: null,
+      notWebReady: null,
+      proxyRequestHeaders: null,
+      proxyResponseHeaders: null,
+      videoHash: null,
+      videoSize: null,
+    },
+  } satisfies CoreSource,
+  native: fakeNativePlayer({ loadWithAudioLanguage: vi.fn(), setMatchFrameRate: vi.fn() }),
+};
 
 it('passes the preferred language and selects native audio IDs without reloading playback', async () => {
-  renderWithSettings(
-    <PlayerScreen
-      selection={{
-        meta: preview({ id: 'fixture', name: 'Fixture', type: 'movie' }),
-        stream: fixture.stream,
-        metaTransportUrl: 'https://addon.invalid/manifest.json',
-        streamTransportUrl: 'https://addon.invalid/manifest.json',
-        video: null,
-        nextVideo: null,
-      }}
-      preferredAudioLanguage="spa"
-      preferredSubtitleLanguage={null}
-      onBack={vi.fn()}
-      onSourceFailure={vi.fn()}
-      onUpNext={vi.fn()}
-    />,
-  );
+  await mountPlayback({
+    selection: {
+      meta: preview({ id: 'fixture', name: 'Fixture', type: 'movie' }),
+      stream: fixture.stream,
+      metaTransportUrl: 'https://addon.invalid/manifest.json',
+      streamTransportUrl: 'https://addon.invalid/manifest.json',
+      video: null,
+      nextVideo: null,
+    },
+    native: fixture.native,
+    languages: { audio: 'spa' },
+  });
   const menu = await screen.findByRole('button', { name: 'Audio tracks' });
   await waitFor(() =>
     expect(fixture.native.loadWithAudioLanguage).toHaveBeenCalledExactlyOnceWith(

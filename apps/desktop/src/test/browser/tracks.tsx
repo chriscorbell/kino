@@ -1,14 +1,15 @@
 import { createRoot } from 'react-dom/client';
 import '@fontsource-variable/geist';
 import '../../global.css';
-import { CoreContext } from '../../core/context';
-import type { CoreTransport } from '../../core/transport';
 import type { CoreSource, PlayerState } from '../../core/types';
 import { connectNativePlayer } from '../../native/player';
+import { shellPlaybackDeps } from '../../playback/react';
+import { startPlayback } from '../../playback/session';
+import type { PlayerCorePort } from '../../playback/types';
 import { PlayerScreen } from '../../screens/PlayerScreen';
 import { createKinoSettingsStore } from '../../settingsStore';
 import { KinoSettingsProvider } from '../../useKinoSettings';
-import { preview, video } from '../coreState';
+import { preview, profile, video } from '../coreState';
 import { memoryStorage } from '../memoryStorage';
 
 const root = createRoot(document.getElementById('root')!);
@@ -69,49 +70,42 @@ const probe = {
         },
       ],
     };
-    const transport = {
-      init: async () => {},
-      destroy: async () => {},
+    const core: PlayerCorePort = {
       commit: async () => {},
-      prepareClose: async () => {},
       onBeforeDestroy: () => () => {},
       dispatch: async () => {},
-      getState: async () => state,
+      getState: (async (model: string) =>
+        model === 'ctx'
+          ? profile({
+              settings: { audioLanguage: language, subtitlesLanguage: language, values: {} },
+            })
+          : state) as PlayerCorePort['getState'],
       subscribe: () => () => {},
-    } as CoreTransport;
+    };
     settings.update({ subtitles: enabled });
+    const session = startPlayback(
+      {
+        meta: preview({ id, type: episode ? 'series' : 'movie', name: 'Track fixture' }),
+        video: episode ? video({ id: `${id}:1:${episode}`, season: 1, episode }) : null,
+        nextVideo: null,
+        stream,
+        metaTransportUrl: 'https://addon.invalid/manifest.json',
+        streamTransportUrl: 'https://addon.invalid/manifest.json',
+      },
+      {
+        core,
+        settings,
+        ...shellPlaybackDeps(),
+        onFinished() {
+          probe.closed = true;
+          root.render(null);
+        },
+      },
+    );
     root.render(
-      <CoreContext.Provider
-        key={++generation}
-        value={{
-          error: null,
-          status: 'ready',
-          session: 'guest',
-          transport,
-          selectSession: () => {},
-        }}
-      >
-        <KinoSettingsProvider value={settings}>
-          <PlayerScreen
-            selection={{
-              meta: preview({ id, type: episode ? 'series' : 'movie', name: 'Track fixture' }),
-              video: episode ? video({ id: `${id}:1:${episode}`, season: 1, episode }) : null,
-              nextVideo: null,
-              stream,
-              metaTransportUrl: 'https://addon.invalid/manifest.json',
-              streamTransportUrl: 'https://addon.invalid/manifest.json',
-            }}
-            preferredAudioLanguage={language}
-            preferredSubtitleLanguage={language}
-            onBack={() => {
-              probe.closed = true;
-              root.render(null);
-            }}
-            onSourceFailure={() => {}}
-            onUpNext={() => {}}
-          />
-        </KinoSettingsProvider>
-      </CoreContext.Provider>,
+      <KinoSettingsProvider value={settings}>
+        <PlayerScreen key={++generation} session={session} />
+      </KinoSettingsProvider>,
     );
   },
 };

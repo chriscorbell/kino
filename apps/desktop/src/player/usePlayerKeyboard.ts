@@ -14,21 +14,20 @@ export function usePlayerKeyboard({
   exitFullscreen,
   fullscreen,
   menuOpen,
-  onSeek,
-  seekTo,
+  seek,
   toggleFullscreen,
   toggleMuted,
   togglePlayback,
   volume,
   changeVolume,
 }: {
-  hasPlayer: () => boolean;
+  hasPlayer: boolean;
   currentTime: () => number;
   exitFullscreen: () => void;
   fullscreen: boolean;
   menuOpen: boolean;
-  onSeek: () => void;
-  seekTo: (milliseconds: number) => void;
+  /** Reports the seek to Core as well. */
+  seek: (milliseconds: number) => void;
   toggleFullscreen: () => void;
   toggleMuted: () => void;
   togglePlayback: () => void;
@@ -55,14 +54,13 @@ export function usePlayerKeyboard({
         return;
       }
       if (event.target instanceof Element && event.target.closest(ownsKeys)) return;
-      if (!hasPlayer()) return;
+      if (!hasPlayer) return;
       if (event.code === 'Space' || event.key.toLowerCase() === 'k') {
         event.preventDefault();
         togglePlayback();
       } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
         event.preventDefault();
-        seekTo(Math.max(0, currentTime() + (event.key === 'ArrowRight' ? 10_000 : -10_000)));
-        onSeek();
+        seek(Math.max(0, currentTime() + (event.key === 'ArrowRight' ? 10_000 : -10_000)));
       } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
         event.preventDefault();
         changeVolume(volume + (event.key === 'ArrowUp' ? 5 : -5));
@@ -83,8 +81,7 @@ export function usePlayerKeyboard({
     fullscreen,
     hasPlayer,
     menuOpen,
-    onSeek,
-    seekTo,
+    seek,
     toggleFullscreen,
     toggleMuted,
     togglePlayback,

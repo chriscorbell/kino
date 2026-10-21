@@ -7,11 +7,10 @@
 
 import type { ClientPlatform } from '@kino/settings';
 
-import { playerAction } from '../core/actions.ts';
-import type { CoreTransport } from '../core/transport';
-import type { TransientAction } from '../core/writes';
+import { playerAction, type TransientPlayerAction } from '../core/actions.ts';
 import type { videoParams } from '../player/videoParams';
 import { mediaPosition, type MediaPosition } from './media.ts';
+import type { PlayerCorePort } from './types';
 
 /** Core stores progress this often while playing, and after any backwards jump. */
 const progressIntervalMs = 5_000;
@@ -43,19 +42,19 @@ export const playbackDevice = (platform: ClientPlatform) => `kino-${platform}`;
 export function timeChangedAction(
   position: MediaPosition,
   platform: ClientPlatform,
-): TransientAction | null {
+): TransientPlayerAction | null {
   const known = mediaPosition(position.time, position.duration);
   return known ? playerAction('TimeChanged', { ...known, device: playbackDevice(platform) }) : null;
 }
 
 export function createProgressReporter(
-  core: Pick<CoreTransport, 'dispatch'>,
+  core: Pick<PlayerCorePort, 'dispatch'>,
   platform: ClientPlatform,
 ): ProgressReporter {
   const device = playbackDevice(platform);
   let lastReported = 0;
   let mediaReported = false;
-  const send = (action: TransientAction) => {
+  const send = (action: TransientPlayerAction) => {
     void core.dispatch(action, 'player').catch((error: unknown) => {
       console.error(
         '[kino:player] progress update failed',

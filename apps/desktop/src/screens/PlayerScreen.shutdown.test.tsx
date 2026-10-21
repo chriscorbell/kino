@@ -1,23 +1,12 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
-import { StrictMode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CoreContext } from '../core/context';
-import type { CoreTransport } from '../core/transport';
 import { preview, urlSource, video } from '../test/coreState';
+import { fakeNativePlayer } from '../test/nativePlayer';
+import { mountPlayback } from '../test/playback';
 import { commitThrough } from '../test/transport';
-import { renderWithSettings } from '../test/renderWithSettings';
-import { PlayerScreen } from './PlayerScreen';
 
-const native = await vi.hoisted(async () => {
-  const { fakeNativePlayer } = await import('../test/nativePlayer');
-  return fakeNativePlayer();
-});
-vi.mock('../native/player', () => ({
-  nativeShellPresent: () => true,
-  knownShellReport: () => ({ platform: 'macos', capabilities: new Set() }),
-  connectNativePlayer: async () => native,
-}));
+const native = fakeNativePlayer();
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -44,17 +33,7 @@ async function mountPlayer({ upNext = true, hasNextVideo = true } = {}) {
     calls.push('saved');
   });
   const transport = {
-    init: vi.fn(),
-    destroy: vi.fn(),
     dispatch,
-    getState: (async () => ({
-      libraryItem: null,
-      selected: { stream },
-      stream: { type: 'Ready', content: { source: stream.source } },
-      subtitles: [],
-      title: null,
-    })) as CoreTransport['getState'],
-    subscribe: () => () => {},
     onBeforeDestroy: (callback: () => Promise<void>) => {
       closing.add(callback);
       return () => closing.delete(callback);
@@ -62,60 +41,42 @@ async function mountPlayer({ upNext = true, hasNextVideo = true } = {}) {
     prepareClose: async () => {
       await Promise.all([...closing].map((callback) => callback()));
     },
+    // CoreProvider's teardown closes the transport the same way.
+    destroy: () => transport.prepareClose(),
     flush,
     commit: commitThrough(dispatch, flush),
   };
-  const stream = urlSource('https://media.invalid/fixture.mp4');
-  const onBack = vi.fn();
-  const onSourceFailure = vi.fn();
-  const onUpNext = vi.fn();
   const nextVideo = video({ id: 'ep2', title: 'Episode two', season: 1, episode: 2 });
-  const view = renderWithSettings(
-    <StrictMode>
-      <CoreContext.Provider
-        value={{
-          error: null,
-          status: 'ready',
-          session: 'guest',
-          transport,
-          selectSession: vi.fn(),
-        }}
-      >
-        <PlayerScreen
-          selection={{
-            meta: preview({ id: 'show', name: 'Test series', type: 'series' }),
-            stream,
-            streamTransportUrl: 'https://addon.invalid/manifest.json',
-            metaTransportUrl: 'https://addon.invalid/manifest.json',
-            video: video({ id: 'ep1', title: 'Episode one', season: 1, episode: 1 }),
-            nextVideo: hasNextVideo ? nextVideo : null,
-          }}
-          preferredSubtitleLanguage={null}
-          onBack={onBack}
-          onSourceFailure={onSourceFailure}
-          onUpNext={onUpNext}
-        />
-      </CoreContext.Provider>
-    </StrictMode>,
-    { settings: { upNext } },
-  );
+  const { onFinished, view } = await mountPlayback({
+    selection: {
+      meta: preview({ id: 'show', name: 'Test series', type: 'series' }),
+      stream: urlSource('https://media.invalid/fixture.mp4'),
+      streamTransportUrl: 'https://addon.invalid/manifest.json',
+      metaTransportUrl: 'https://addon.invalid/manifest.json',
+      video: video({ id: 'ep1', title: 'Episode one', season: 1, episode: 1 }),
+      nextVideo: hasNextVideo ? nextVideo : null,
+    },
+    native,
+    core: transport,
+    settings: { upNext },
+    strict: true,
+  });
   await waitFor(() => expect(native.load).toHaveBeenCalled());
   const { emit } = native;
   await emit('duration', { milliseconds: 120000 });
   await emit('time', { milliseconds: 30000 });
   await emit('time', { milliseconds: 34567 });
   native.pauseAndSnapshot.mockResolvedValue({ time: 34567, duration: 120000 });
-  calls.length = 0;
+  const mounted = calls.splice(0);
   holdFlush = true;
   return {
     calls,
     closing,
     emit,
     finishFlush,
+    mounted,
     nextVideo,
-    onBack,
-    onSourceFailure,
-    onUpNext,
+    onFinished,
     transport,
     view,
   };
@@ -128,12 +89,14 @@ describe('ordered playback shutdown', () => {
     player.transport.flush.mockRejectedValueOnce(new Error('Storage is full.'));
     fireEvent.click(screen.getByRole('button', { name: /Back/ }));
     await screen.findByRole('alert');
-    expect(player.onBack).not.toHaveBeenCalled();
+    expect(player.onFinished).not.toHaveBeenCalled();
     expect(player.calls).not.toContain('Unload');
     expect(native.stop).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: /Back/ }));
     await act(async () => player.finishFlush());
-    await waitFor(() => expect(player.onBack).toHaveBeenCalledOnce());
+    await waitFor(() =>
+      expect(player.onFinished).toHaveBeenCalledExactlyOnceWith({ kind: 'back' }),
+    );
     expect(player.calls.filter((call) => call === 'TimeChanged:34567')).toHaveLength(2);
     expect(native.stop).toHaveBeenCalledOnce();
   });
@@ -150,10 +113,11 @@ describe('ordered playback shutdown', () => {
     });
     expect(player.calls.filter((call) => call === 'TimeChanged:34567')).toHaveLength(1);
     expect(player.calls.filter((call) => call === 'Unload')).toHaveLength(1);
-    expect(player.onBack).toHaveBeenCalledOnce();
+    expect(player.onFinished).toHaveBeenCalledExactlyOnceWith({ kind: 'back' });
   });
 
-  it.each(['Back', 'failure', 'Up Next', 'near-end Up Next', 'native close', 'unmount'] as const)(
+  // `teardown` is CoreProvider destroying the transport, as on a Core session change.
+  it.each(['Back', 'failure', 'Up Next', 'near-end Up Next', 'native close', 'teardown'] as const)(
     'saves the latest position before unload on %s',
     async (exit) => {
       const player = await mountPlayer();
@@ -169,12 +133,10 @@ describe('ordered playback shutdown', () => {
         expect(player.closing.size).toBe(1);
         closing = player.transport.prepareClose();
       }
-      if (exit === 'unmount') player.view.unmount();
+      if (exit === 'teardown') closing = player.transport.destroy();
       await waitFor(() => expect(player.calls).toContain('TimeChanged:34567'));
       expect(player.calls).not.toContain('Unload');
-      expect(player.onBack).not.toHaveBeenCalled();
-      expect(player.onSourceFailure).not.toHaveBeenCalled();
-      expect(player.onUpNext).not.toHaveBeenCalled();
+      expect(player.onFinished).not.toHaveBeenCalled();
       await act(async () => {
         player.finishFlush();
         await closing;
@@ -183,10 +145,15 @@ describe('ordered playback shutdown', () => {
       expect(player.calls.indexOf('TimeChanged:34567')).toBeLessThan(player.calls.indexOf('saved'));
       expect(player.calls.indexOf('saved')).toBeLessThan(player.calls.indexOf('Unload'));
       expect(player.calls.filter((call) => call === 'Unload')).toHaveLength(1);
-      if (exit === 'Back') expect(player.onBack).toHaveBeenCalledOnce();
-      if (exit === 'failure') expect(player.onSourceFailure).toHaveBeenCalledOnce();
-      if (exit === 'Up Next' || exit === 'near-end Up Next')
-        expect(player.onUpNext).toHaveBeenCalledExactlyOnceWith(player.nextVideo);
+      const outcome = {
+        Back: { kind: 'back' },
+        failure: { kind: 'failed', message: expect.any(String) },
+        'Up Next': { kind: 'upNext', video: player.nextVideo },
+        'near-end Up Next': { kind: 'upNext', video: player.nextVideo },
+        'native close': { kind: 'closed' },
+        teardown: { kind: 'closed' },
+      }[exit];
+      expect(player.onFinished).toHaveBeenCalledExactlyOnceWith(outcome);
     },
   );
 });
@@ -197,10 +164,43 @@ it('tells the viewer when the native player could not start', async () => {
   await waitFor(() => expect(player.calls).toContain('TimeChanged:34567'));
   await act(async () => player.finishFlush());
   await waitFor(() =>
-    expect(player.onSourceFailure).toHaveBeenCalledExactlyOnceWith(
-      'Kino could not start the native player. Quit and reopen Kino to try again.',
-    ),
+    expect(player.onFinished).toHaveBeenCalledExactlyOnceWith({
+      kind: 'failed',
+      message: 'Kino could not start the native player. Quit and reopen Kino to try again.',
+    }),
   );
+});
+
+it('says progress is being saved while window close waits for the save', async () => {
+  const player = await mountPlayer();
+  const closing = player.transport.prepareClose();
+  expect(await screen.findByText('Saving progress…')).toBeInTheDocument();
+  expect(player.onFinished).not.toHaveBeenCalled();
+  await act(async () => {
+    player.finishFlush();
+    await closing;
+  });
+  expect(player.onFinished).toHaveBeenCalledExactlyOnceWith({ kind: 'closed' });
+});
+
+it('sends one Load and saves nothing while StrictMode mounts the view twice', async () => {
+  const { mounted } = await mountPlayer();
+  expect(mounted.filter((call) => call === 'Load')).toHaveLength(1);
+  expect(mounted).not.toContain('flush');
+  expect(mounted).not.toContain('Unload');
+  expect(native.load).toHaveBeenCalledOnce();
+  expect(native.stop).not.toHaveBeenCalled();
+});
+
+it('neither saves nor unloads when the view unmounts while playing', async () => {
+  const player = await mountPlayer();
+  player.view.unmount();
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  });
+  expect(player.calls).toEqual([]);
+  expect(native.stop).not.toHaveBeenCalled();
+  expect(player.onFinished).not.toHaveBeenCalled();
 });
 
 describe('near-end Up Next', () => {
@@ -216,7 +216,7 @@ describe('near-end Up Next', () => {
       expect(screen.queryByRole('button', { name: /Choose source/i })).not.toBeInTheDocument();
       await player.emit('time', { milliseconds: start });
       expect(screen.getByRole('button', { name: /Choose source/i })).toBeInTheDocument();
-      expect(player.onUpNext).not.toHaveBeenCalled();
+      expect(player.onFinished).not.toHaveBeenCalled();
       expect(player.calls).not.toContain('Unload');
       const loads = native.load.mock.calls.length;
       await player.emit('time', { milliseconds: start - 1 });
@@ -250,7 +250,7 @@ describe('near-end Up Next', () => {
     }
     await player.emit('ended');
     expect(screen.getByRole('button', { name: /Choose source/i })).toBeInTheDocument();
-    expect(player.onUpNext).not.toHaveBeenCalled();
+    expect(player.onFinished).not.toHaveBeenCalled();
   });
 
   it.each([{ upNext: false }, { hasNextVideo: false }])(
@@ -260,7 +260,7 @@ describe('near-end Up Next', () => {
       await player.emit('time', { milliseconds: 115000 });
       await player.emit('ended');
       expect(screen.queryByRole('button', { name: /Choose source/i })).not.toBeInTheDocument();
-      expect(player.onUpNext).not.toHaveBeenCalled();
+      expect(player.onFinished).not.toHaveBeenCalled();
     },
   );
 });

@@ -1,22 +1,12 @@
 import { waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { CoreContext } from '../core/context';
-import type { CoreTransport } from '../core/transport';
 import type { PlayerState } from '../core/types';
 import { hints, preview, urlSource } from '../test/coreState';
-import { renderWithSettings } from '../test/renderWithSettings';
-import { PlayerScreen } from './PlayerScreen';
+import { fakeNativePlayer } from '../test/nativePlayer';
+import { mountPlayback } from '../test/playback';
 
-const native = await vi.hoisted(async () => {
-  const { fakeNativePlayer } = await import('../test/nativePlayer');
-  return fakeNativePlayer();
-});
-vi.mock('../native/player', () => ({
-  nativeShellPresent: () => true,
-  knownShellReport: () => ({ platform: 'macos', capabilities: new Set() }),
-  connectNativePlayer: async () => native,
-}));
+const native = fakeNativePlayer();
 
 describe('native direct sources', () => {
   it.each(['http://127.0.0.1:11470', 'https://stale-service.invalid'])(
@@ -46,43 +36,19 @@ describe('native direct sources', () => {
         subtitles: [],
         title: null,
       };
-      const transport: CoreTransport = {
-        destroy: vi.fn(),
-        commit: vi.fn().mockResolvedValue(undefined),
-        prepareClose: vi.fn().mockResolvedValue(undefined),
-        onBeforeDestroy: () => () => {},
-        dispatch: vi.fn().mockResolvedValue(undefined),
-        getState: (async () => state) as CoreTransport['getState'],
-        init: vi.fn().mockResolvedValue(undefined),
-        subscribe: () => () => {},
-      };
       native.load.mockClear();
-      renderWithSettings(
-        <CoreContext.Provider
-          value={{
-            error: null,
-            status: 'ready',
-            session: 'guest',
-            selectSession: vi.fn(),
-            transport,
-          }}
-        >
-          <PlayerScreen
-            selection={{
-              meta: preview({ id: 'fixture', name: 'Fixture', type: 'movie' }),
-              metaTransportUrl: 'https://addon.invalid/manifest.json',
-              stream,
-              streamTransportUrl: 'https://addon.invalid/manifest.json',
-              video: null,
-              nextVideo: null,
-            }}
-            preferredSubtitleLanguage={null}
-            onBack={vi.fn()}
-            onSourceFailure={vi.fn()}
-            onUpNext={vi.fn()}
-          />
-        </CoreContext.Provider>,
-      );
+      await mountPlayback({
+        selection: {
+          meta: preview({ id: 'fixture', name: 'Fixture', type: 'movie' }),
+          metaTransportUrl: 'https://addon.invalid/manifest.json',
+          stream,
+          streamTransportUrl: 'https://addon.invalid/manifest.json',
+          video: null,
+          nextVideo: null,
+        },
+        native,
+        player: () => state,
+      });
       await waitFor(() =>
         expect(native.load).toHaveBeenCalledExactlyOnceWith(
           'https://media.invalid/video.mp4',

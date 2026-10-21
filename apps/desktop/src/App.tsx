@@ -14,7 +14,6 @@ import sharedStyles from './styles/shared.module.css';
 import styles from './styles/shell.module.css';
 import { CoreRecovery } from './components/CoreRecovery';
 import { AccountDialog } from './components/AccountDialog';
-import type { PlaybackSelection } from './core/actions';
 import { useCore } from './core/context';
 import { savedTitlePreview } from './core/preview';
 import type { ResumeRequest } from './core/resume';
@@ -30,6 +29,7 @@ import {
   type NavigationEntry,
   type UpdateBrowseState,
 } from './navigation';
+import { usePlaybackHost } from './playback';
 import { AddonsScreen } from './screens/AddonsScreen';
 import { DiscoverScreen } from './screens/DiscoverScreen';
 import { HomeScreen } from './screens/HomeScreen';
@@ -119,8 +119,32 @@ export function App() {
   );
   const [detailTransport, setDetailTransport] = useState(transport);
   const [resumeRequest, setResumeRequest] = useState<ResumeRequest | null>(null);
-  const [playback, setPlayback] = useState<PlaybackSelection | null>(null);
   const [failedSources, setFailedSources] = useState<ReadonlyMap<string, string>>(new Map());
+  // Every way playback ends arrives here once, after its progress is durable.
+  const { session: playback, play } = usePlaybackHost((outcome, selection) => {
+    switch (outcome.kind) {
+      case 'back':
+      case 'closed':
+        return;
+      case 'failed':
+        setFailedSources((previous) =>
+          new Map(previous).set(
+            sourceKey(selection.stream, selection.streamTransportUrl, selection),
+            outcome.message,
+          ),
+        );
+        return;
+      case 'upNext':
+        setDetailVideoId(outcome.video.id);
+        setDetailSeason(outcome.video.season);
+        setDetailReturn((previous) => ({
+          scrollTop: previous?.scrollTop ?? 0,
+          videoId: outcome.video.id,
+        }));
+        setFailedSources(new Map());
+        return;
+    }
+  });
   const [accountOpen, setAccountOpen] = useState(false);
   const profile = useCoreModel('ctx', null, 'app-profile');
   const [settings] = useKinoSettings();
@@ -173,7 +197,6 @@ export function App() {
     setScreen('detail');
   };
 
-  const closePlayer = useCallback(() => setPlayback(null), []);
   const selectDetailVideo = (videoId: string | null) => {
     if (videoId !== null && detailVideoId === null)
       setDetailReturn({ scrollTop: detailMain.current?.scrollTop ?? 0, videoId });
@@ -181,18 +204,6 @@ export function App() {
     setResumeRequest(null);
   };
   const cancelResume = useCallback(() => setResumeRequest(null), []);
-  // Stable across settings re-renders: an unstable identity would restart the
-  // player's load effect while a stream is playing.
-  const reportSourceFailure = useCallback(
-    (message: string) => {
-      if (playback) {
-        const key = sourceKey(playback.stream, playback.streamTransportUrl, playback);
-        setFailedSources((previous) => new Map(previous).set(key, message));
-      }
-      setPlayback(null);
-    },
-    [playback],
-  );
 
   const view = playback
     ? 'player'
@@ -406,7 +417,7 @@ export function App() {
                 // Details unmounts during playback so Up Next can select a new episode on return.
                 setDetailVideoId(selection.video?.id ?? null);
                 setResumeRequest(null);
-                setPlayback(selection);
+                play(selection);
               }}
             />
           </main>
@@ -416,27 +427,11 @@ export function App() {
       {playback ? (
         <main
           className={styles.playbackMain}
-          aria-label={playback.meta.name}
+          aria-label={playback.selection.meta.name}
           ref={playerMain}
           tabIndex={-1}
         >
-          <PlayerScreen
-            onBack={closePlayer}
-            onSourceFailure={reportSourceFailure}
-            onUpNext={(video) => {
-              setDetailVideoId(video.id);
-              setDetailSeason(video.season);
-              setDetailReturn((previous) => ({
-                scrollTop: previous?.scrollTop ?? 0,
-                videoId: video.id,
-              }));
-              setFailedSources(new Map());
-              setPlayback(null);
-            }}
-            preferredAudioLanguage={profile.state?.profile.settings.audioLanguage ?? null}
-            preferredSubtitleLanguage={profile.state?.profile.settings.subtitlesLanguage ?? null}
-            selection={playback}
-          />
+          <PlayerScreen session={playback} />
         </main>
       ) : null}
     </>

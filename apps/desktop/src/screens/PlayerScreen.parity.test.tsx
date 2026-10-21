@@ -1,70 +1,41 @@
+import type { ClientPlatform } from '@kino/settings';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import type { CoreSource } from '../core/types';
-import type { ShellReport } from '../native/player';
 import type { KinoSettings } from '../settings';
 import { preview, video } from '../test/coreState';
-import { renderWithSettings } from '../test/renderWithSettings';
-import { PlayerScreen } from './PlayerScreen';
+import { fakeNativePlayer } from '../test/nativePlayer';
+import { mountPlayback, resolvedPlayer, type MountedPlayback } from '../test/playback';
 
 // The native player and the browser's <video> must tell Core the same story.
 // Each case drives one backend through what it reports and reads back what
-// PlayerScreen sent to Core.
+// the session sent to Core.
 
-const fixture = await vi.hoisted(async () => {
-  const { fakeNativePlayer } = await import('../test/nativePlayer');
-  return {
-    nativeShell: true,
-    // Undefined answers as the backend's platform does; null is a shell that has not answered.
-    report: undefined as ShellReport | null | undefined,
-    answer: Promise.resolve({ platform: 'macos', capabilities: new Set() }) as Promise<ShellReport>,
-    resumeAt: 0,
-    stream: {
-      description: null,
-      name: null,
-      source: { kind: 'url', url: 'https://media.invalid/fixture.mp4' },
-      hints: {
-        bingeGroup: null,
-        countryWhitelist: null,
-        filename: null,
-        notWebReady: null,
-        proxyRequestHeaders: null,
-        proxyResponseHeaders: null,
-        videoHash: null,
-        videoSize: null,
-      },
-    } satisfies CoreSource,
-    transport: { dispatch: vi.fn().mockResolvedValue(undefined) },
-    native: fakeNativePlayer(),
-  };
-});
-vi.mock('../native/player', () => ({
-  nativeShellPresent: () => fixture.nativeShell,
-  knownShellReport: () =>
-    fixture.report === undefined
-      ? { platform: fixture.nativeShell ? 'macos' : 'web', capabilities: new Set() }
-      : fixture.report,
-  connectShellReport: () => fixture.answer,
-  connectNativePlayer: async () => fixture.native,
-}));
-vi.mock('../core/context', () => ({ useCore: () => ({ transport: fixture.transport }) }));
-vi.mock('../core/useCoreModel', () => ({
-  useCoreModel: () => ({
-    state: {
-      stream: { type: 'Ready', content: fixture.stream },
-      libraryItem: { id: 'show', timeOffset: fixture.resumeAt, videoId: null },
+const fixture = {
+  resumeAt: 0,
+  stream: {
+    description: null,
+    name: null,
+    source: { kind: 'url', url: 'https://media.invalid/fixture.mp4' },
+    hints: {
+      bingeGroup: null,
+      countryWhitelist: null,
+      filename: null,
+      notWebReady: null,
+      proxyRequestHeaders: null,
+      proxyResponseHeaders: null,
+      videoHash: null,
+      videoSize: null,
     },
-    loading: false,
-    error: null,
-    unload: async () => {},
-  }),
-}));
+  } satisfies CoreSource,
+  native: fakeNativePlayer(),
+};
+let playing: MountedPlayback;
 
 beforeEach(() => {
   vi.clearAllMocks();
   fixture.resumeAt = 0;
-  fixture.report = undefined;
   // jsdom does not implement playback.
   vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
 });
@@ -72,17 +43,11 @@ afterEach(() => vi.restoreAllMocks());
 
 /** What Core heard, as `Report` or `Report:time` or `Report:paused`. */
 function reports() {
-  return fixture.transport.dispatch.mock.calls.map(([action]) => {
+  return playing.reports.mock.calls.map(([action]) => {
     const report = (action as { args: { action: string; args?: Record<string, unknown> } }).args;
     const detail = report.args?.time ?? report.args?.paused;
     return detail === undefined ? report.action : `${report.action}:${String(detail)}`;
   });
-}
-
-function devices() {
-  return fixture.transport.dispatch.mock.calls.map(
-    ([action]) => (action as { args: { args?: { device?: string } } }).args.args?.device,
-  );
 }
 
 const selection = {
@@ -94,22 +59,30 @@ const selection = {
   nextVideo: video({ id: 'ep2', title: 'Episode two', season: 1, episode: 2 }),
 };
 
-function open(kind: 'native' | 'browser') {
-  fixture.nativeShell = kind === 'native';
-  const noop = () => {};
-  return renderWithSettings(
-    <PlayerScreen
-      selection={selection}
-      preferredSubtitleLanguage={null}
-      onBack={noop}
-      onSourceFailure={noop}
-      onUpNext={noop}
-    />,
+function devices() {
+  return playing.reports.mock.calls.map(
+    ([action]) => (action as { args: { args?: { device?: string } } }).args.args?.device,
   );
 }
 
-async function play(kind: 'native' | 'browser') {
-  const view = open(kind);
+async function open(
+  kind: 'native' | 'browser',
+  platform?: Promise<ClientPlatform> | ClientPlatform,
+) {
+  playing = await mountPlayback({
+    selection,
+    native: kind === 'native' ? fixture.native : null,
+    player: () => ({
+      ...resolvedPlayer(selection),
+      libraryItem: { id: 'show', timeOffset: fixture.resumeAt, videoId: null },
+    }),
+    platform,
+  });
+  return playing;
+}
+
+async function play(kind: 'native' | 'browser', platform?: ClientPlatform) {
+  const { store, view } = await open(kind, platform);
   const element = () => view.container.querySelector('video')!;
   if (kind === 'native') await waitFor(() => expect(fixture.native.load).toHaveBeenCalled());
   else await waitFor(() => expect(element().getAttribute('src')).toBe(fixture.stream.source.url));
@@ -151,7 +124,7 @@ async function play(kind: 'native' | 'browser') {
   return {
     element,
     media,
-    reload: (settings: Partial<KinoSettings>) => act(() => view.store.update(settings)),
+    reload: (settings: Partial<KinoSettings>) => act(() => store.update(settings)),
   };
 }
 
@@ -163,17 +136,16 @@ it.each(backends)('reports a pause as TimeChanged then PausedChanged (%s)', asyn
   await media.time(30_000);
   await media.time(31_000);
   expect(reports()).toEqual(['TimeChanged:30000']);
-  fixture.transport.dispatch.mockClear();
+  playing.reports.mockClear();
   await media.paused(true);
   expect(reports()).toEqual(['TimeChanged:31000', 'PausedChanged:true']);
-  fixture.transport.dispatch.mockClear();
+  playing.reports.mockClear();
   await media.paused(false);
   expect(reports()).toEqual(['PausedChanged:false']);
 });
 
 it('names the platform the shell reports as the device in progress reports', async () => {
-  fixture.report = { platform: 'windows', capabilities: new Set() };
-  const { media } = await play('native');
+  const { media } = await play('native', 'windows');
   await media.duration(120_000);
   await media.time(30_000);
   expect(reports()).toEqual(['TimeChanged:30000']);
@@ -181,13 +153,11 @@ it('names the platform the shell reports as the device in progress reports', asy
 });
 
 it('loads a source once, after the shell reports its platform', async () => {
-  let answer: (report: ShellReport) => void = () => {};
-  fixture.report = null;
-  fixture.answer = new Promise((resolve) => (answer = resolve));
-  open('native');
+  let answer: (platform: ClientPlatform) => void = () => {};
+  await open('native', new Promise((resolve) => (answer = resolve)));
   await act(async () => {});
   expect(fixture.native.load).not.toHaveBeenCalled();
-  await act(async () => answer({ platform: 'linux', capabilities: new Set() }));
+  await act(async () => answer('linux'));
   await waitFor(() => expect(fixture.native.load).toHaveBeenCalled());
   await act(async () => {});
   expect(fixture.native.load).toHaveBeenCalledTimes(1);
@@ -197,7 +167,7 @@ it.each(backends)('reports an end as TimeChanged then Ended (%s)', async (kind) 
   const { media } = await play(kind);
   await media.duration(120_000);
   await media.time(119_000);
-  fixture.transport.dispatch.mockClear();
+  playing.reports.mockClear();
   await media.ended();
   expect(reports()).toEqual(
     kind === 'native'
@@ -220,7 +190,7 @@ it("re-reads the browser's paused state when a source's metadata arrives", async
   const { element, media } = await play('browser');
   await media.paused(false);
   expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument();
-  fixture.transport.dispatch.mockClear();
+  playing.reports.mockClear();
   // Loading a new source pauses the element without a pause event.
   Object.defineProperty(element(), 'paused', { configurable: true, value: true });
   await media.ready();
@@ -264,7 +234,7 @@ it.each(backends)("reports a viewer's toggle once, from the player's answer (%s)
 it.each(backends)('reports each seek once (%s)', async (kind) => {
   const { media } = await play(kind);
   await media.duration(120_000);
-  fixture.transport.dispatch.mockClear();
+  playing.reports.mockClear();
   fireEvent.change(screen.getByRole('slider', { name: 'Playback position' }), {
     target: { value: '20000' },
   });

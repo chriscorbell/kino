@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import type { PlaybackSelection } from '../core/actions';
 import {
@@ -7,7 +7,6 @@ import {
   type ChapterCue,
   type IntroMarker,
 } from '../intro/markers';
-import type { NativePlayer } from '../native/player';
 
 function introIdentity(selection: PlaybackSelection, durationMs: number) {
   const imdbId = /^tt\d+$/.test(selection.meta.id) ? selection.meta.id : null;
@@ -26,32 +25,30 @@ function introIdentity(selection: PlaybackSelection, durationMs: number) {
  */
 export function useIntroSkip({
   automatic,
+  chapterCues,
   duration,
-  nativePlayer,
-  reportProgress,
-  seekTo,
+  hasPlayer,
+  seek,
   selection,
   time,
-  videoRef,
 }: {
   automatic: boolean;
+  chapterCues: ChapterCue[];
   duration: number;
-  nativePlayer: NativePlayer | null;
-  reportProgress: (isSeek?: boolean) => void;
-  seekTo: (milliseconds: number) => void;
+  hasPlayer: boolean;
+  /** Reports the seek to Core as well. */
+  seek: (milliseconds: number) => void;
   selection: PlaybackSelection;
   time: number;
-  videoRef: RefObject<HTMLVideoElement | null>;
 }) {
-  const [chapterCues, setChapterCues] = useState<ChapterCue[]>([]);
   const [communityLookup, setCommunityLookup] = useState<{
     selection: PlaybackSelection;
     duration: number;
     marker: IntroMarker | null;
   } | null>(null);
-  const [automaticSkipComplete, setAutomaticSkipComplete] = useState(false);
+  // Where the automatic skip went. It happens at most once, so the intro plays after Undo.
+  const [automaticSkip, setAutomaticSkip] = useState<number | null>(null);
   const [automaticNotice, setAutomaticNotice] = useState(false);
-  const autoSkipSuppressedRef = useRef(false);
   const chapterIntro = useMemo(
     () => introFromChapters(chapterCues, duration),
     [chapterCues, duration],
@@ -88,24 +85,14 @@ export function useIntroSkip({
     return () => controller.abort();
   }, [chapterIntro, duration, selection]);
 
-  useEffect(() => {
-    if (!marker || !automatic || automaticSkipComplete || autoSkipSuppressedRef.current) return;
-    if (time < marker.startMs || time >= marker.endMs) return;
-    if (!nativePlayer && !videoRef.current) return;
-    seekTo(marker.endMs);
-    setAutomaticSkipComplete(true);
+  const insideIntro = Boolean(marker && time >= marker.startMs && time < marker.endMs);
+  if (marker && insideIntro && automatic && hasPlayer && automaticSkip === null) {
+    setAutomaticSkip(marker.endMs);
     setAutomaticNotice(true);
-    reportProgress(true);
-  }, [
-    automatic,
-    automaticSkipComplete,
-    marker,
-    nativePlayer,
-    reportProgress,
-    seekTo,
-    time,
-    videoRef,
-  ]);
+  }
+  useEffect(() => {
+    if (automaticSkip !== null) seek(automaticSkip);
+  }, [automaticSkip, seek]);
 
   useEffect(() => {
     if (!automaticNotice) return;
@@ -123,22 +110,17 @@ export function useIntroSkip({
 
   return {
     automaticNotice,
-    automaticSkipComplete,
-    insideIntro: Boolean(marker && time >= marker.startMs && time < marker.endMs),
+    automaticSkipComplete: automaticSkip !== null,
+    insideIntro,
     marker,
     markerStyle,
-    setChapterCues,
     skip() {
-      if (!marker) return;
-      seekTo(marker.endMs);
-      reportProgress(true);
+      if (marker) seek(marker.endMs);
     },
     undoAutomaticSkip() {
       if (!marker) return;
-      autoSkipSuppressedRef.current = true;
-      seekTo(marker.startMs);
+      seek(marker.startMs);
       setAutomaticNotice(false);
-      reportProgress(true);
     },
   };
 }

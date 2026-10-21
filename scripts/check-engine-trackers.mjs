@@ -152,7 +152,7 @@ try {
     fileIdx: 0,
     sources: [`tracker:${trackerUrl}`],
   });
-  // The engine helpers take the adapted torrent source the Player screen holds,
+  // The engine helpers take the adapted torrent source the playback session holds,
   // so this reads the resolved stream the same way production does. Core emits
   // the add-on's peer sources as announce.
   const resolved = adaptCoreState('player', core.get_state('player')).stream;

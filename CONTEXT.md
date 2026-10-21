@@ -52,6 +52,10 @@ _Avoid_: HDR passthrough, Dolby Vision output
 A small, legally synthesized media file that exercises one declared playback behavior, such as a codec, range, audio format, subtitle format, or failure path. The native player must satisfy the playback contract against every fixture before a release.
 _Avoid_: Sample movie, test download
 
+**Playback session**:
+One viewing of one source, from the viewer choosing it until its final save is durable. It owns Core's Player model, progress reporting, and the save that every way of leaving playback runs. The desktop player view only shows a session, so closing or reopening the view ends nothing.
+_Avoid_: player screen
+
 **TV playback**:
 A playback session in the TV presentation. TV playback always occupies the full display rather than sharing space with browsing UI.
 _Avoid_: Embedded player, windowed playback

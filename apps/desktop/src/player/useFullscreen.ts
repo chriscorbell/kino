@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState, type RefObject } from 'react';
 
 import { t } from '../locales';
-import type { NativePlayer } from '../native/player';
+import type { NativeFullscreen } from '../playback/types';
 
 export function useFullscreen(
   container: RefObject<HTMLElement | null>,
-  nativePlayer: NativePlayer | null,
+  nativePlayer: NativeFullscreen | null,
 ) {
   const [fullscreen, setFullscreen] = useState(false);
   const [error, setError] = useState<string | null>(null);
