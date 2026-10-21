@@ -675,16 +675,7 @@ fun FullscreenPlayer(
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val activity = context as ComponentActivity
-    val sourceHeaders =
-        remember(source) {
-            source.stream.behaviorHints.proxyHeaders
-                ?.request
-                .orEmpty()
-                .mapNotNull { (key, value) ->
-                    if (key != null && value != null) key to value else null
-                }
-                .toMap()
-        }
+    val requestHeaders = remember(source) { source.requestHeaders }
     var position by remember(source) { mutableLongStateOf(0L) }
     var duration by remember(source) { mutableLongStateOf(C.TIME_UNSET) }
     var ended by remember(source) { mutableStateOf(false) }
@@ -738,7 +729,7 @@ fun FullscreenPlayer(
         onDispose { renderers.onToneMappedVideoSize = null }
     }
     val player =
-        remember(source) { createTvPlayer(context, renderers, sourceHeaders, introExtractors) }
+        remember(source) { createTvPlayer(context, renderers, requestHeaders.orEmpty(), introExtractors) }
     // Only when the viewer asked: a matcher attaches itself to the player, and one built and dropped
     // with the setting off still asked for modes that nothing gave back.
     val frameRate =
@@ -790,7 +781,7 @@ fun FullscreenPlayer(
                 readIndexedChapters(
                     context,
                     Uri.parse(mediaUrl),
-                    sourceHeaders,
+                    requestHeaders.orEmpty(),
                     chapterOffset,
                 )
             if (!chapterPayloadReceived && embeddedDiscovery !is IntroDiscovery.Found) {
@@ -994,6 +985,11 @@ fun FullscreenPlayer(
     }
     LaunchedEffect(player) {
         onPlayer(player)
+        if (requestHeaders == null) {
+            Log.e("KinoPlayer", "Playback failed code=invalid-request-headers")
+            close(R.string.playback_error)
+            return@LaunchedEffect
+        }
         player.setMediaItem(
             MediaItem.Builder()
                 .setUri(mediaUrl)

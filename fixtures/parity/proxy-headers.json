@@ -1,0 +1,94 @@
+{
+  "rule": "A source's proxy request headers reach the player only when every name is an HTTP token, no name is Host, Range, Content-Length, Transfer-Encoding or Connection, no two names differ only in case, no value holds a control character other than tab, there are at most 64, and the header list mpv receives, with commas escaped and headers joined by commas, is at most 64 KiB of UTF-8. Otherwise the source is refused. A fill adds headers X-Fill-1 to X-Fill-<count>, each with value repeated repeat times.",
+  "cases": [
+    { "name": "no headers", "headers": {}, "refused": false },
+    {
+      "name": "a referer and a user agent",
+      "headers": { "Referer": "https://media.invalid/", "User-Agent": "Kino fixture/1.0" },
+      "refused": false
+    },
+    {
+      "name": "every token character in a name",
+      "headers": { "!#$%&'*+.^_`|~0-9A-Za-z-": "value" },
+      "refused": false
+    },
+    { "name": "a tab inside a value", "headers": { "X-Test": "a\tb" }, "refused": false },
+    {
+      "name": "commas and a trailing backslash in values",
+      "headers": { "Cookie": "a=1, b=2", "X-Path": "C:\\" },
+      "refused": false
+    },
+    {
+      "name": "64 headers",
+      "headers": {},
+      "fill": { "count": 64, "value": "x", "repeat": 1 },
+      "refused": false
+    },
+    {
+      "name": "a header list of exactly 64 KiB",
+      "headers": {},
+      "fill": { "count": 1, "value": "x", "repeat": 65526 },
+      "refused": false
+    },
+    { "name": "an empty name", "headers": { "": "value" }, "refused": true },
+    { "name": "a space in a name", "headers": { "X Test": "value" }, "refused": true },
+    {
+      "name": "a line break in a name",
+      "headers": { "X-Test\r\nInjected": "value" },
+      "refused": true
+    },
+    {
+      "name": "a line break in a value",
+      "headers": { "X-Test": "value\r\nInjected: value" },
+      "refused": true
+    },
+    { "name": "a NUL in a value", "headers": { "X-Test": "a\u0000b" }, "refused": true },
+    {
+      "name": "a control character in a value",
+      "headers": { "X-Test": "a\u0001b" },
+      "refused": true
+    },
+    { "name": "an escape in a value", "headers": { "X-Test": "a\u001bb" }, "refused": true },
+    { "name": "a DEL in a value", "headers": { "X-Test": "a\u007fb" }, "refused": true },
+    { "name": "Host", "headers": { "Host": "another.invalid" }, "refused": true },
+    { "name": "Range", "headers": { "Range": "bytes=0-10" }, "refused": true },
+    { "name": "Content-Length", "headers": { "content-length": "10" }, "refused": true },
+    { "name": "Transfer-Encoding", "headers": { "TRANSFER-ENCODING": "chunked" }, "refused": true },
+    { "name": "Connection", "headers": { "Connection": "close" }, "refused": true },
+    {
+      "name": "two names that differ only in case",
+      "headers": { "X-Test": "one", "x-test": "two" },
+      "refused": true
+    },
+    {
+      "name": "65 headers",
+      "headers": {},
+      "fill": { "count": 65, "value": "x", "repeat": 1 },
+      "refused": true
+    },
+    {
+      "name": "a header list one byte over 64 KiB",
+      "headers": {},
+      "fill": { "count": 1, "value": "x", "repeat": 65527 },
+      "refused": true
+    },
+    {
+      "name": "escaped commas over 64 KiB",
+      "headers": {},
+      "fill": { "count": 1, "value": ",", "repeat": 32764 },
+      "refused": true
+    },
+    {
+      "name": "the separator between headers over 64 KiB",
+      "headers": {},
+      "fill": { "count": 2, "value": "x", "repeat": 32758 },
+      "refused": true
+    },
+    {
+      "name": "multibyte characters over 64 KiB",
+      "headers": {},
+      "fill": { "count": 1, "value": "é", "repeat": 32764 },
+      "refused": true
+    }
+  ]
+}

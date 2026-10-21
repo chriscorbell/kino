@@ -27,6 +27,7 @@ on:
       - scripts/record-notices.mjs
       - scripts/test-support/pe.mjs
       - third_party/notices/**
+      - fixtures/parity/proxy-headers.json
   push:
     branches:
       - main

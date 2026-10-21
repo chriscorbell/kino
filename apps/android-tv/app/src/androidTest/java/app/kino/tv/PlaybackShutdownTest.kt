@@ -18,6 +18,7 @@ import com.stremio.core.Field
 import com.stremio.core.Storage
 import com.stremio.core.models.Player as CorePlayer
 import com.stremio.core.types.resource.Stream
+import com.stremio.core.types.resource.StreamProxyHeaders
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -248,6 +249,44 @@ class PlaybackShutdownTest {
                     replacement?.finish()
                 }
             }
+        }
+    }
+
+    @Test
+    fun headersTheDesktopRefusesFailTheSourceBeforeThePlayerOpensIt() = runBlocking {
+        withFixture { activity, fixture, source ->
+            val refused =
+                source.copy(
+                    stream =
+                        source.stream.copy(
+                            behaviorHints =
+                                source.stream.behaviorHints.copy(
+                                    proxyHeaders =
+                                        StreamProxyHeaders(request = mapOf("Host" to "another.invalid"))
+                                )
+                        )
+                )
+            val failure = AtomicInteger()
+            var opened: Player? = null
+            onMain {
+                activity.setContent {
+                    KinoTheme {
+                        FullscreenPlayer(
+                            refused,
+                            fixture.media,
+                            app.core,
+                            onExit = {},
+                            onFailure = { failure.set(it) },
+                            onUpNext = {},
+                            onPlayer = { opened = it },
+                        )
+                    }
+                }
+            }
+            waitUntil("The source fails as any source that cannot play") {
+                failure.get() == R.string.playback_error
+            }
+            assertEquals("The player was never given the source", 0, onMain { opened!!.mediaItemCount })
         }
     }
 
