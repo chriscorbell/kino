@@ -108,13 +108,14 @@ export async function withWebEngine(ui, entry, check, { native = false } = {}) {
           window.__kinoInput.splice(0, window.__kinoInput.length - 8);
         }, true);
     })()`);
+    const text = key === 'Enter' ? '\r' : key.length === 1 && modifiers === 0 ? key : undefined;
     for (const type of ['keyDown', 'keyUp'])
       await command('Input.dispatchKeyEvent', {
         type,
         key,
         code,
         windowsVirtualKeyCode: virtualKey,
-        text: type === 'keyDown' && key === 'Enter' ? '\r' : undefined,
+        text: type === 'keyDown' ? text : undefined,
         modifiers,
       });
   }
