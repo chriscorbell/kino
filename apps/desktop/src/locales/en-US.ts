@@ -387,6 +387,7 @@ export const enUS = {
     exitFullscreen: 'Exit fullscreen',
     fullscreenFailed: 'Fullscreen could not be changed. Try again.',
     saveFailed: 'Progress could not be saved. Try again.',
+    progressNotSaved: 'Stremio Core had stopped, so progress was not saved.',
     savingProgress: 'Saving progress…',
     upNext: 'Up Next',
     chooseSource: 'Choose source',

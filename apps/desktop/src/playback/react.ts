@@ -5,7 +5,7 @@ import { useCore } from '../core/context';
 import { connectNativePlayer, connectShellReport, nativeShellPresent } from '../native/player';
 import { useKinoSettingsStore } from '../useKinoSettings';
 import { startPlayback } from './session';
-import type { PlaybackDeps, PlaybackOutcome, PlaybackSession, PlaybackSnapshot } from './types';
+import type { PlaybackDeps, PlaybackEnd, PlaybackSession, PlaybackSnapshot } from './types';
 
 /** The session's current snapshot. The view reads it and owns no playback state. */
 export function usePlayback(session: PlaybackSession): PlaybackSnapshot {
@@ -31,7 +31,7 @@ export function shellPlaybackDeps(): Pick<
  * read when the outcome arrives, so its identity never matters.
  */
 export function usePlaybackHost(
-  onFinished: (outcome: PlaybackOutcome, selection: PlaybackSelection) => void,
+  onFinished: (outcome: PlaybackEnd, selection: PlaybackSelection) => void,
 ) {
   const { transport } = useCore();
   const settings = useKinoSettingsStore();

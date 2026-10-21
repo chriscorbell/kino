@@ -9,12 +9,12 @@
 import assert from 'node:assert/strict';
 
 import { adaptCoreState } from '../apps/desktop/src/core/adapters.ts';
+import { commitThrough } from '../apps/desktop/src/core/commit.ts';
 import { CoreStoppedError } from '../apps/desktop/src/core/errors.ts';
 import { PendingCoreWork } from '../apps/desktop/src/core/pendingWork.ts';
 import { startPlayback } from '../apps/desktop/src/playback/session.ts';
 import { createKinoSettingsStore } from '../apps/desktop/src/settingsStore.ts';
 import { memoryStorage } from '../apps/desktop/src/test/memoryStorage.ts';
-import { commitThrough } from '../apps/desktop/src/test/transport.ts';
 import { fixturePreview, fixtureSource, initializeCore } from './test-support/core-stream.mjs';
 
 const storage = new Map();
@@ -50,13 +50,16 @@ globalThis.local_storage_set_item = (key, value) =>
 /**
  * core/transport.ts over the in-process Core, which it cannot load under Node because it imports a
  * Vite worker. Window close and Quit wait for `prepareClose`; Core teardown runs it and stops the
- * transport whether or not the save succeeded. `die` stops it as a failed worker does.
+ * transport whether or not the save succeeded. `die` stops it as a failed worker does, which also
+ * fails a flush still waiting on storage.
  */
 function connectCore() {
   const listeners = new Set();
   deliver = (event) => listeners.forEach((listener) => listener(event));
   const beforeDestroy = new Set();
   let stopped = null;
+  const stopping = Promise.withResolvers();
+  stopping.promise.catch(() => undefined);
   const live = () => {
     if (stopped) throw stopped;
   };
@@ -64,21 +67,26 @@ function connectCore() {
     live();
     core.dispatch(action, model, '');
   };
+  const flush = async () => {
+    live();
+    await Promise.race([work.flush(), stopping.promise]);
+  };
   const prepareClose = async () => {
     await initializing.catch(() => undefined);
     live();
     await Promise.all([...beforeDestroy].map((callback) => callback()));
-    await work.flush();
+    await flush();
   };
   let destroying = null;
   const stop = (message) => {
     stopped ??= new CoreStoppedError(message);
+    stopping.reject(stopped);
     listeners.clear();
   };
   return {
     port: {
       dispatch,
-      commit: commitThrough(dispatch, () => work.flush()),
+      commit: commitThrough(dispatch, flush),
       async getState(model) {
         live();
         return adaptCoreState(model, core.get_state(model));
@@ -134,7 +142,6 @@ const selection = (stream) => ({
   stream: fixtureSource(stream),
   streamTransportUrl: 'https://addon.invalid/manifest.json',
   video: null,
-  nextVideo,
 });
 
 /** The shell's player as far as the session uses it, recording what it was asked to do. */
@@ -359,8 +366,30 @@ for (const [exit, kind, run] of exits) {
   assert.deepEqual(outcomes, [], 'A save that fails at Core teardown reports no outcome.');
   session.controls.leave({ kind: 'back' });
   await until(() => outcomes.length > 0, 'leaving after Core teardown');
-  assert.deepEqual(outcomes, [{ kind: 'back' }], 'Leaving a stopped Core leaves, unsaved.');
+  assert.deepEqual(
+    outcomes,
+    [{ kind: 'back', unsaved: true }],
+    'Leaving a stopped Core leaves and reports the progress unsaved.',
+  );
   assert.equal(shell.stops.length, 1, 'Leaving a stopped Core stops the player.');
+}
+
+{
+  advance();
+  const { connection, outcomes, session, shell } = await play(time);
+  hold();
+  session.controls.leave({ kind: 'back' });
+  await heldWrite();
+  connection.die();
+  await until(() => outcomes.length > 0, 'leaving as the Core worker died during the save');
+  assert.deepEqual(
+    outcomes,
+    [{ kind: 'back', unsaved: true }],
+    'A worker that dies while the final pause waits on storage fails the save as stopped.',
+  );
+  assert.equal(shell.stops.length, 1, 'The player stops once, without Unload.');
+  assert.notEqual(session.getSnapshot().exit, 'save-failed', 'No retry is offered.');
+  land();
 }
 
 {
@@ -373,8 +402,8 @@ for (const [exit, kind, run] of exits) {
   await settle();
   assert.deepEqual(
     outcomes,
-    [{ kind: 'upNext', video: nextVideo }],
-    'Leaving after the Core worker died reports the outcome.',
+    [{ kind: 'upNext', video: nextVideo, unsaved: true }],
+    'Leaving after the Core worker died reports the outcome, unsaved.',
   );
   assert.deepEqual(
     shell.stops,
@@ -548,7 +577,7 @@ for (const [exit, kind, run] of exits) {
 }
 
 console.log(
-  'Pinned Core playback session: Back, Up Next, a source failure, window close and Core teardown each saved the last position, stopped, then unloaded; an exit during a save joined it; a save that failed before the stop stayed usable and saved from the top, one that failed at Core teardown reached the teardown, a source or audio output that changed during a failed save loaded once, and a failed Unload after the stop left pause, seek and progress unable to move the player.',
+  "Pinned Core playback session: Back, Up Next, a source failure, window close and Core teardown each saved the last position, stopped, then unloaded; an exit during a save joined it; a save that failed before the stop stayed usable and saved from the top, one that failed at Core teardown reached the teardown; leaving after Core teardown, after the Core worker died, or as it died during the save stopped the player once and reported the outcome as unsaved; a source or audio output that changed during a failed save loaded once; a series resumed only its own episode's offset and offered Core's next episode, but no upcoming one and no special after a numbered season; and a failed Unload after the stop left pause, seek and progress unable to move the player.",
 );
 // Core owns repeating runtime timers, as it does in its browser worker.
 process.exit(0);

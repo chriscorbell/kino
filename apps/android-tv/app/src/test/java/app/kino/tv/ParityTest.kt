@@ -156,6 +156,8 @@ class ParityTest {
         }
     }
 
+    // Hand-built evidence for the rule only: the pinned Kotlin bridge never sets upcoming on the
+    // Player's next video, so a device never meets the upcoming case (ADR 0033, card vaug9ghpzuywg7).
     @RunWith(Parameterized::class)
     class NextEpisodeCases(@Suppress("unused") private val name: String, private val case: JsonObject) {
         companion object {

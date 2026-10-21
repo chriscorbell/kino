@@ -120,8 +120,11 @@ export function App() {
   const [detailTransport, setDetailTransport] = useState(transport);
   const [resumeRequest, setResumeRequest] = useState<ResumeRequest | null>(null);
   const [failedSources, setFailedSources] = useState<ReadonlyMap<string, string>>(new Map());
-  // Every way playback ends arrives here once, after its progress is durable.
+  const [progressLost, setProgressLost] = useState(false);
+  // Every way playback ends arrives here once, after its progress is durable or,
+  // when Core had stopped, known to be lost.
   const { session: playback, play } = usePlaybackHost((outcome, selection) => {
+    setProgressLost(outcome.unsaved === true);
     switch (outcome.kind) {
       case 'back':
       case 'closed':
@@ -174,6 +177,7 @@ export function App() {
   );
 
   const navigate = (next: BrowseScreen) => {
+    setProgressLost(false);
     if (next !== entry.screen) {
       setEntry({ screen: next, state: initialBrowseState(), scrollTop: 0, focus: null });
     }
@@ -194,6 +198,7 @@ export function App() {
     setDetailSeason(undefined);
     setDetailReturn(null);
     setFailedSources(new Map());
+    setProgressLost(false);
     setScreen('detail');
   };
 
@@ -276,6 +281,12 @@ export function App() {
     });
     target.focus({ preventScroll: true });
   }, [detail?.type, detailReturn, detailVideoId, entry, playback, screen, view]);
+
+  const progressNotice = progressLost ? (
+    <p className={sharedStyles.loadError} role="alert">
+      {enUS.player.progressNotSaved}
+    </p>
+  ) : null;
 
   const content = (() => {
     switch (entry.screen) {
@@ -380,8 +391,13 @@ export function App() {
           ref={browseMain}
           tabIndex={-1}
         >
-          {!playback && screen !== 'detail' && !accountOpen ? <CoreRecovery /> : null}
-          {!playback && screen !== 'detail' ? <UpdateNotice updates={updates} /> : null}
+          {!playback && screen !== 'detail' ? (
+            <>
+              {!accountOpen ? <CoreRecovery /> : null}
+              {progressNotice}
+              <UpdateNotice updates={updates} />
+            </>
+          ) : null}
           <BrowseStateContext.Provider value={browseContext}>{content}</BrowseStateContext.Provider>
         </main>
         {screen === 'detail' && detail && !playback ? (
@@ -394,6 +410,7 @@ export function App() {
             tabIndex={-1}
           >
             {!accountOpen ? <CoreRecovery /> : null}
+            {progressNotice}
             <UpdateNotice updates={updates} />
             <MetaDetailsScreen
               failedSources={failedSources}
@@ -412,7 +429,10 @@ export function App() {
               item={detail}
               resumeRequest={resumeRequest}
               onCancelResume={cancelResume}
-              onBack={() => setScreen(entry.screen)}
+              onBack={() => {
+                setProgressLost(false);
+                setScreen(entry.screen);
+              }}
               onPlay={(selection) => {
                 // Details unmounts during playback so Up Next can select a new episode on return.
                 setDetailVideoId(selection.video?.id ?? null);

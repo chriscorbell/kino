@@ -13,18 +13,12 @@ import {
   type CoreSession,
   type SecureAuthStorage,
 } from './storage';
+import { commitThrough } from './commit';
 import { CoreStoppedError } from './errors';
 import type { CoreAction, CoreModelName, CoreRuntimeEvent, CoreStateMap } from './types';
 import type { DurableAction, TransientAction } from './writes';
 
 type CoreEventListener = (event: CoreRuntimeEvent) => void;
-
-/** Core applied a committed action, but its storage writes or account sync did not finish. */
-export class CoreSaveError extends Error {
-  constructor(cause: unknown) {
-    super(cause instanceof Error ? cause.message : t.core.storageFailed, { cause });
-  }
-}
 
 export interface CoreTransport {
   /**
@@ -185,12 +179,7 @@ export function createCoreTransport(
   let destroying: Promise<void> | null = null;
 
   return {
-    async commit(action, model) {
-      await dispatch(action, model);
-      await flush().catch((error: unknown) => {
-        throw new CoreSaveError(error);
-      });
-    },
+    commit: commitThrough(dispatch, flush),
     destroy() {
       destroying ??= prepareClose().finally(() => {
         stop(new CoreStoppedError(t.core.stopped));

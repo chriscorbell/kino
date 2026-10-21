@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { preview, urlSource, video } from '../test/coreState';
 import { fakeNativePlayer } from '../test/nativePlayer';
 import { mountPlayback, resolvedPlayer } from '../test/playback';
-import { commitThrough } from '../test/transport';
+import { commitThrough } from '../core/commit';
 
 const native = fakeNativePlayer();
 

@@ -1,6 +1,7 @@
 import { installAddonAction, uninstallAddonAction } from './actions';
 import { addonTransportIssue } from './addonNetwork';
-import { CoreSaveError, type CoreTransport } from './transport';
+import { CoreSaveError } from './errors';
+import type { CoreTransport } from './transport';
 import type { CoreAddon } from './types';
 
 export function addonManifestUrl(value: string) {

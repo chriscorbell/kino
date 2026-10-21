@@ -17,7 +17,7 @@ import { nativeShellPresent } from '../native/player';
 import { AddonTransportError, addonTransportIssue, createAddonNetwork } from '../core/addonNetwork';
 import { fetchNativeAddonRedirect } from '../native/player';
 import { useCore } from '../core/context';
-import { CoreSaveError } from '../core/transport';
+import { CoreSaveError } from '../core/errors';
 import type { CoreAddon } from '../core/types';
 import { useCoreModel } from '../core/useCoreModel';
 import { t as enUS } from '../locales';

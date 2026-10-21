@@ -101,6 +101,9 @@ export type PlaybackOutcome =
   /** Window close, Quit, or the Core session ending underneath playback. */
   | { kind: 'closed' };
 
+/** The outcome as App hears it. `unsaved` marks a session that left after Stremio Core stopped. */
+export type PlaybackEnd = PlaybackOutcome & { readonly unsaved?: true };
+
 /** What a session needs from Core. `CoreTransport` satisfies it. */
 export interface PlayerCorePort {
   dispatch(action: TransientPlayerAction, model: 'player'): Promise<void>;
@@ -124,5 +127,5 @@ export interface PlaybackDeps {
   fetch: typeof fetch;
   /** Per-title track memory. */
   storage: Pick<Storage, 'getItem' | 'setItem'>;
-  onFinished(outcome: PlaybackOutcome): void;
+  onFinished(outcome: PlaybackEnd): void;
 }

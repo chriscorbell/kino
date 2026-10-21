@@ -1,7 +1,8 @@
 import { afterEach, expect, it, vi } from 'vitest';
 
 import { logoutAction } from './actions';
-import { CoreSaveError, createCoreTransport } from './transport';
+import { CoreSaveError } from './errors';
+import { createCoreTransport } from './transport';
 
 const state = vi.hoisted(() => ({ call: vi.fn(), terminate: vi.fn() }));
 vi.mock('./core.worker?worker', () => ({

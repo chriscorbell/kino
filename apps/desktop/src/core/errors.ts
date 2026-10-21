@@ -1,6 +1,13 @@
 import { t as enUS } from '../locales/index.ts';
 import { isCoreContractFailure } from './adapters.ts';
 
+/** Core applied a committed action, but its storage writes or account sync did not finish. */
+export class CoreSaveError extends Error {
+  constructor(cause: unknown) {
+    super(cause instanceof Error ? cause.message : enUS.core.storageFailed, { cause });
+  }
+}
+
 /** The Core worker has stopped, so no later call to it can succeed. */
 export class CoreStoppedError extends Error {}
 
