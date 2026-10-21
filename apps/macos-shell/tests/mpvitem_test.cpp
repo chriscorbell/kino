@@ -172,7 +172,8 @@ private slots:
     // switch's hold may undo. A second writer could resume playback the viewer paused.
     void pauseHasOneWriter() {
         QFile file(QStringLiteral(KINO_MPVITEM_SOURCE));
-        QVERIFY(file.open(QIODevice::ReadOnly));
+        // Text mode reads a Windows checkout's CRLF line endings as LF.
+        QVERIFY(file.open(QIODevice::ReadOnly | QIODevice::Text));
         const QString source = QString::fromUtf8(file.readAll());
         const qsizetype start = source.indexOf(QLatin1String("void MpvItem::writePause("));
         QVERIFY(start >= 0);
