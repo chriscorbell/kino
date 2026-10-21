@@ -118,7 +118,7 @@ Only `pnpm android:check` bundles the fixtures into the test APK. Building with 
 pnpm android:check "$ANDROID_SERIAL" --class SkipIntroTest --repeat 5
 ```
 
-The fixtures, build, and installs happen once; then the class runs five times, and the command fails naming every failed run. `--class` takes a class in `app.kino.tv`, or `Class#method`. `--dry-run` prints the instrumentation commands without touching the device.
+The fixtures, build, and installs happen once; then the class runs five times, and the command fails naming every failed run. `--class` takes a class in `app.kino.tv`, or `Class#method`. `--dry-run` prints the instrumentation commands without touching the device. The instrumentation tests are gate code for `pnpm gates:check-sleeps` too, so a fixed sleep added to them needs a deadline loop around it or a `sleep-ok: <reason>`, as [the desktop document](DESKTOP.md) describes.
 
 To rerun one class after the suite restores the distributed APK, first reinstall the benchmark host:
 

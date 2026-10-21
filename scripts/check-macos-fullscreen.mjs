@@ -9,28 +9,37 @@ const binary = process.env.KINO_APP_BINARY ?? resolve('build/macos/Kino.app/Cont
 // Space, and macOS ignores a request made during that move. So each transition waits for the
 // notification macOS sends when the move is done, which Qt logs under the category this probe
 // enables. Other systems change the state without that move, and the new size is the end of it.
-const COMPLETED = /NSWindowDid(?:Enter|Exit)FullScreenNotification/;
+// Each transition must log exactly one such line: a second one for the same transition would end
+// the next wait early, before macOS finished. So each wait checks the line it takes is the one its
+// request is due, and the probe asserts the whole sequence at the end.
+const COMPLETED = /NSWindowDid(Enter|Exit)FullScreenNotification/;
 const spaces = process.platform === 'darwin';
 const TRANSITION_MS = 10000;
 let diagnostics = '';
-let completed = 0;
+const completions = [];
 const waiting = new Set();
 let report;
 const server = createServer((request, response) => {
-  const settled = request.url.match(/^\/settled\/(\d+)$/);
+  const settled = request.url.match(/^\/settled\/(\d+)\/(Enter|Exit)$/);
   if (settled) {
     const wanted = Number(settled[1]);
     const waiter = {
       check() {
-        if (spaces && completed < wanted) return;
+        if (spaces && completions.length < wanted) return;
         clearTimeout(waiter.timer);
         waiting.delete(waiter);
+        const logged = spaces && completions[wanted - 1].match(COMPLETED)[1];
+        if (logged && logged !== settled[2]) {
+          response.statusCode = 409;
+          response.end(`Transition ${wanted} logged ${logged} where ${settled[2]} was due.`);
+          return;
+        }
         response.end('settled');
       },
       timer: setTimeout(() => {
         waiting.delete(waiter);
         response.statusCode = 504;
-        response.end(`macOS finished ${completed} of ${wanted} fullscreen transitions.`);
+        response.end(`macOS finished ${completions.length} of ${wanted} fullscreen transitions.`);
       }, TRANSITION_MS),
     };
     waiting.add(waiter);
@@ -87,7 +96,7 @@ new QWebChannel(qt.webChannelTransport, async channel => {
         native.setFullscreen(enabled);
       });
       await resized(before);
-      const settled = await fetch('/settled/' + (index + 1));
+      const settled = await fetch('/settled/' + (index + 1) + (enabled ? '/Enter' : '/Exit'));
       if (!settled.ok) throw new Error(await settled.text());
     }
   } catch (error) { result.error = error.message; }
@@ -116,11 +125,11 @@ try {
     diagnostics = (diagnostics + data).slice(-8000);
     const lines = (partial + data).split('\n');
     partial = lines.pop();
-    completed += lines.filter((line) => COMPLETED.test(line)).length;
+    completions.push(...lines.filter((line) => COMPLETED.test(line)));
     for (const waiter of waiting) waiter.check();
   });
   const result = await Promise.race([
-    once(child, 'exit'),
+    once(child, 'close'),
     new Promise((_resolve, reject) => {
       timer = setTimeout(
         () => reject(new Error(`Fullscreen probe timed out: ${diagnostics}`)),
@@ -129,6 +138,16 @@ try {
     }),
   ]);
   assert.deepEqual(result, [0, null], `The native shell must close normally: ${diagnostics}`);
+  if (spaces) {
+    console.log(
+      `macOS logged ${completions.length} completed transitions:\n${completions.join('\n')}`,
+    );
+    assert.deepEqual(
+      completions.map((line) => line.match(COMPLETED)[1]),
+      ['Enter', 'Exit', 'Enter', 'Exit'],
+      'macOS must log exactly one completed transition per request.',
+    );
+  }
   assert.deepEqual(
     report,
     { initial: false, changes: [true, false, true, false] },
