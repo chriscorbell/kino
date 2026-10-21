@@ -110,12 +110,13 @@ function failSave(core: ReturnType<typeof fakeCore>, failing: 'Player' | 'Unload
 /** Holds the Unload write, which comes after the save stopped the player, until the returned function runs. */
 function holdUnload(core: ReturnType<typeof fakeCore>) {
   const save = core.commit.getMockImplementation()!;
-  const unload = Promise.withResolvers<void>();
+  let release!: () => void;
+  const unload = new Promise<void>((resolve) => (release = resolve));
   core.commit.mockImplementation(async (action: CoreAction) => {
-    if (action.action === 'Unload') await unload.promise;
+    if (action.action === 'Unload') await unload;
     await save(action);
   });
-  return unload.resolve;
+  return release;
 }
 
 afterEach(() => vi.restoreAllMocks());
@@ -456,7 +457,7 @@ it('resumes at an offset Core reports during a save once that save fails', async
   await waitFor(() => expect(core.commit).toHaveBeenCalled());
   core.state.player = {
     ...resolvedPlayer(selection),
-    libraryItem: { id: 'fixture', timeOffset: 50_000, videoId: null },
+    libraryItem: { id: 'fixture', timeOffset: 50_000, videoId: 'fixture' },
   };
   await core.publish('player');
   expect(native.seek).not.toHaveBeenCalled();

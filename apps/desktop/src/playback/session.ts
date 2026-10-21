@@ -75,9 +75,9 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
 
   // True once the exit stopped the player: nothing reads, reports or fails after it.
   let stopped = false;
-  // Stopped or saving: nothing loads, and media events and commands that move
-  // playback are dropped. A save that fails before the stop reopens playback and
-  // loads a source that arrived meanwhile; one that fails after the stop does not.
+  // Stopped or saving: no source starts or loads, the controls that drive the
+  // player do nothing, and no report moves playback. A save that fails before
+  // the stop reopens playback and catches up on what it held back.
   const frozen = () => stopped || snapshot.exit === 'saving';
   let failed = false;
   let native: NativePlayer | null = null;
@@ -160,18 +160,18 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
   core.getState('ctx').then(
     ({ profile: { settings: languages } }) => {
       profile = { audio: languages.audioLanguage ?? '', subtitles: languages.subtitlesLanguage };
-      startLoad();
+      syncLoad();
     },
     () => {
       profile = { audio: '', subtitles: null };
-      startLoad();
+      syncLoad();
     },
   );
   // A failed report fails the same connection the player needs, which reports it.
   deps.platform.then(
     (answer) => {
       platform = answer;
-      startLoad();
+      syncLoad();
     },
     () => undefined,
   );
@@ -179,7 +179,7 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
   /* The source and the backend. -------------------------------------------- */
 
   function resolveSource() {
-    if (!resolved || source || snapshot.waitingFor.peers || stopped) return;
+    if (!resolved || source || snapshot.waitingFor.peers || frozen()) return;
     if (resolved.source.kind !== 'torrent') {
       playSource(directSource(selection, resolved));
     } else if (native) {
@@ -195,18 +195,29 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
   }
 
   function playSource(next: ResolvedSource | null) {
-    if (!next || stopped) return;
+    if (!next) return;
     source = next;
-    publish({ loaded: true, waitingFor: { peers: false } });
-    startLoad();
+    showSource();
+  }
+
+  function showSource() {
+    if (!source || frozen()) return;
+    if (!snapshot.loaded) publish({ loaded: true, waitingFor: { peers: false } });
+    syncLoad();
   }
 
   function connectBackend(target: MediaBackend) {
     backend = target;
-    cleanups.push(target.subscribe(onMedia), settings.subscribe(applySettings));
+    cleanups.push(
+      target.subscribe(onMedia),
+      settings.subscribe(() => {
+        applySettings();
+        syncLoad();
+      }),
+    );
     applySettings();
     nowPlaying();
-    startLoad();
+    syncLoad();
   }
 
   const browser = deps.native.present ? null : videoBackend();
@@ -239,44 +250,54 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
     backend.setVolume(percent);
   }
 
-  function startLoad() {
-    if (loadedAudioOutput === null) load();
-  }
-
-  function load() {
+  // The one load decision: load once everything a load needs is known, and
+  // reload when the audio output differs from the one the source opened with.
+  // Safe to call any number of times.
+  function syncLoad() {
     if (!backend || !source || !profile || !platform || frozen()) return;
-    loadedAudioOutput = settings.get().audioOutput;
+    const { audioOutput, matchRefreshRate, volume } = settings.get();
+    if (audioOutput === loadedAudioOutput) return;
+    if (loadedAudioOutput !== null) backend.stop();
+    loadedAudioOutput = audioOutput;
     tracks.load(backend);
     progress = createProgressReporter(core, platform);
-    sendVolume(settings.get().volume);
+    sendVolume(volume);
     backend.load({
       ...source,
-      stereo: loadedAudioOutput === 'stereo',
+      stereo: audioOutput === 'stereo',
       audioLanguage: profile.audio,
-      matchRefreshRate: settings.get().matchRefreshRate,
+      matchRefreshRate,
     });
   }
 
-  // `load` sends the refresh-rate preference a source opens with; this sends later changes.
+  // `syncLoad` sends the refresh-rate preference a source opens with; this sends later changes.
   function applySettings() {
     if (!backend) return;
-    const { audioOutput, matchRefreshRate, subtitlePosition, subtitleSize } = settings.get();
+    const { matchRefreshRate, subtitlePosition, subtitleSize } = settings.get();
     if (applied?.matchRefreshRate !== matchRefreshRate)
       backend.setMatchRefreshRate(matchRefreshRate);
     if (applied?.size !== subtitleSize || applied.position !== subtitlePosition) {
       backend.setSubtitleStyle({ size: subtitleSize, position: subtitlePosition });
     }
     applied = { matchRefreshRate, size: subtitleSize, position: subtitlePosition };
-    if (loadedAudioOutput !== null && audioOutput !== loadedAudioOutput && !frozen()) {
-      backend.stop();
-      load();
-    }
   }
 
   /* What the player reports. ---------------------------------------------- */
 
+  // The save captured the position and paused the player, so reports that would
+  // move either are dropped while it runs. What the player describes still
+  // applies, so playback a failed save reopens is as the player has it.
+  const movesPlayback = new Set<MediaEvent['type']>([
+    'time',
+    'buffered',
+    'paused',
+    'buffering',
+    'ended',
+    'volume',
+  ]);
+
   function onMedia(event: MediaEvent) {
-    if (frozen()) return;
+    if (stopped || (snapshot.exit === 'saving' && movesPlayback.has(event.type))) return;
     const { position } = snapshot;
     switch (event.type) {
       case 'time':
@@ -335,11 +356,11 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
     }
   }
 
-  // Seeks once, when a stored offset and the duration are first both known,
-  // so no Core snapshot after that moves the viewer.
+  // Seeks once, when a stored offset and the duration are first both known and
+  // the seek can reach the player, so no Core snapshot after that moves the viewer.
   function resume() {
     const { duration } = snapshot.position;
-    if (resumed || duration <= 0 || resumeAt <= 0 || resumeAt >= duration) return;
+    if (resumed || frozen() || duration <= 0 || resumeAt <= 0 || resumeAt >= duration) return;
     resumed = true;
     controls.seek(resumeAt);
   }
@@ -365,11 +386,10 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
     },
     onState(state) {
       publish(state === 'saving' ? { exit: state, paused: true } : { exit: state });
-      // The save froze loading, so replay what it skipped: a first load, or a
-      // reload for an audio output changed meanwhile.
       if (state === 'save-failed') {
-        startLoad();
-        applySettings();
+        resolveSource();
+        showSource();
+        resume();
       }
     },
     onFinished(outcome) {
@@ -395,7 +415,7 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
       progress?.seek(snapshot.position);
     },
     setVolume(percent) {
-      if (!Number.isFinite(percent)) return;
+      if (frozen() || !Number.isFinite(percent)) return;
       const volume = clamp(percent, volumeRange);
       settings.update({ volume });
       sendVolume(volume);
@@ -405,18 +425,22 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
       }
     },
     toggleMute() {
+      if (frozen()) return;
       const muted = !snapshot.muted;
       publish({ muted });
       backend?.setMuted(muted);
     },
-    selectAudio: (id) => tracks.selectAudio(id),
+    selectAudio(id) {
+      if (!frozen()) tracks.selectAudio(id);
+    },
     selectSubtitle(id) {
-      if (tracks.selectSubtitle(id)) settings.update({ subtitles: id !== null });
+      if (!frozen() && tracks.selectSubtitle(id)) settings.update({ subtitles: id !== null });
     },
     addAddonSubtitle(subtitle) {
-      if (tracks.addAddon(subtitle)) settings.update({ subtitles: true });
+      if (!frozen() && tracks.addAddon(subtitle)) settings.update({ subtitles: true });
     },
     adjustSubtitleDelay(deltaMs) {
+      if (frozen()) return;
       const delayMs = clamp(snapshot.subtitles.delayMs + deltaMs, { min: -60_000, max: 60_000 });
       publish({ subtitles: { ...snapshot.subtitles, delayMs } });
       if (backend?.capabilities.tracks) backend.setSubtitleDelay(delayMs);

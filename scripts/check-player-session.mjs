@@ -383,7 +383,7 @@ gateCase('a save that fails at Core teardown fails the teardown', async () => {
   await until(() => outcomes.length > 0, 'leaving after Core teardown');
   assert.deepEqual(
     outcomes,
-    [{ kind: 'back', unsaved: true }],
+    [{ kind: 'back', unsaved: 'core-stopped' }],
     'Leaving a stopped Core leaves and reports the progress unsaved.',
   );
   assert.equal(shell.stops.length, 1, 'Leaving a stopped Core stops the player.');
@@ -398,7 +398,7 @@ gateCase('a worker that dies during the save leaves unsaved', async () => {
   await until(() => outcomes.length > 0, 'leaving as the Core worker died during the save');
   assert.deepEqual(
     outcomes,
-    [{ kind: 'back', unsaved: true }],
+    [{ kind: 'back', unsaved: 'core-stopped' }],
     'A worker that dies while the final pause waits on storage fails the save as stopped.',
   );
   assert.equal(shell.stops.length, 1, 'The player stops once, without Unload.');
@@ -415,7 +415,7 @@ gateCase('leaving after the worker died leaves unsaved', async () => {
   await settle();
   assert.deepEqual(
     outcomes,
-    [{ kind: 'upNext', video: nextVideo, unsaved: true }],
+    [{ kind: 'upNext', video: nextVideo, unsaved: 'core-stopped' }],
     'Leaving after the Core worker died reports the outcome, unsaved.',
   );
   assert.deepEqual(

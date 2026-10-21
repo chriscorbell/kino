@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted. [ADR 0035](0035-leave-without-retrying-once-unload-failed-after-the-stop.md) adds a second save that ends instead of retrying, one whose Unload failed after the player stopped.
 
 ## Context
 
@@ -12,7 +12,7 @@ It cannot once the desktop's Core transport has stopped. The transport stops whe
 
 ## Decision
 
-When a save fails because Stremio Core stopped, the exit gives up on saving. `coreStopped` in `apps/desktop/src/core/errors.ts` recognizes the failure, either the stop itself or a failed save caused by it. The exit in `playback/exit.ts` then stops the player and reports the outcome the viewer asked for, marked `unsaved`, and any later exit does nothing. App goes where the viewer asked, as after any exit, and says there that progress was not saved. A save that fails for any other reason keeps ADR 0032's rule.
+When a save fails because Stremio Core stopped, the exit gives up on saving. `coreStopped` in `apps/desktop/src/core/errors.ts` recognizes the failure, either the stop itself or a failed save caused by it. The exit in `playback/exit.ts` then stops the player and reports the outcome the viewer asked for, marked `unsaved: 'core-stopped'`, and any later exit does nothing. App goes where the viewer asked, as after any exit, and says there that progress was not saved. A save that fails for any other reason keeps ADR 0032's rule.
 
 ## Consequences
 

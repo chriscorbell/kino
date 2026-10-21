@@ -101,8 +101,12 @@ export type PlaybackOutcome =
   /** Window close, Quit, or the Core session ending underneath playback. */
   | { kind: 'closed' };
 
-/** The outcome as App hears it. `unsaved` marks a session that left after Stremio Core stopped. */
-export type PlaybackEnd = PlaybackOutcome & { readonly unsaved?: true };
+/**
+ * The outcome as App hears it. `unsaved` marks a session that left without a
+ * durable save, and why: Stremio Core had stopped, or the writes Unload caused
+ * failed after the player stopped.
+ */
+export type PlaybackEnd = PlaybackOutcome & { readonly unsaved?: 'core-stopped' | 'unload-failed' };
 
 /** What a session needs from Core. `CoreTransport` satisfies it. */
 export interface PlayerCorePort {
