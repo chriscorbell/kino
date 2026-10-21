@@ -226,6 +226,9 @@ it('names every setting a desktop platform lists, as a playback case or outside 
   expect([...Object.keys(cases), ...Object.keys(outsidePlayback)].sort()).toEqual(
     Object.keys(defaultSettings).sort(),
   );
+  expect(new Set(runs.map(([key]) => key)), 'each case runs on some backend').toEqual(
+    new Set(Object.keys(cases)),
+  );
 });
 
 it.each(playbackCases)('expects a different playback at each value of %s', (_key, entry) => {
