@@ -30,7 +30,7 @@ pnpm dev
 pnpm check
 ```
 
-`pnpm check` runs formatting, lint, type checks, unit tests, the Core and intro gates, a check that every gate is wired into CI, a check that every gate the contracts name exists, a check that added lines carry no em dash or term CONTEXT.md avoids, a check that added gate code carries no unexplained fixed sleep, a check that lint or tsc refuses each planted way around the playback session to Core's Player model, and the production build, listed in `checkSteps` in `package.json`. It runs up to four steps at a time and keeps going after a failure, then names each failed step in its last lines. CI runs it on every pull request. Native checks, the streaming engine, and packaging details are in [the desktop guide](docs/DESKTOP.md).
+`pnpm check` runs formatting, lint, type checks, unit tests, the Core and intro gates, a check that every gate is wired into CI, a check that every gate the contracts and `AGENTS.md` name exists, a check that added lines carry no em dash or term CONTEXT.md avoids, a check that added gate code carries no unexplained fixed sleep, a check that lint or tsc refuses each planted way around the playback session to Core's Player model, and the production build, listed in `checkSteps` in `package.json`. It runs up to four steps at a time and keeps going after a failure, then names each failed step in its last lines. CI runs it on every pull request. Native checks, the streaming engine, and packaging details are in [the desktop guide](docs/DESKTOP.md).
 
 ### macOS
 
