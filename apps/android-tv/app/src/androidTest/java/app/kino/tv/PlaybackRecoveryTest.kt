@@ -17,6 +17,7 @@ import com.stremio.core.types.resource.PosterShape
 import com.stremio.core.types.resource.Stream
 import com.stremio.core.types.resource.StreamBehaviorHints
 import com.stremio.core.types.resource.StreamDeepLinks
+import com.stremio.core.types.resource.StreamProxyHeaders
 import java.net.InetAddress
 import java.net.ServerSocket
 import java.util.Collections
@@ -194,20 +195,28 @@ class PlaybackRecoveryTest {
 
     @Test
     fun theSourceThatFailedIsMarkedOnTheDetailsPage() {
-        fun source(name: String, url: String) =
+        fun source(name: String, url: String, headers: Map<String?, String?>? = null) =
             Source(
                 "Fixture provider",
                 Stream(
                     source = Stream.Source.Url(Stream.Url(url)),
                     name = name,
-                    behaviorHints = StreamBehaviorHints(notWebReady = false),
+                    behaviorHints =
+                        StreamBehaviorHints(
+                            notWebReady = false,
+                            proxyHeaders = headers?.let { StreamProxyHeaders(request = it) },
+                        ),
                     deepLinks =
                         StreamDeepLinks(player = "", externalPlayer = StreamDeepLinks.ExternalPlayerLink()),
                 ),
                 ResourceRequest("https://addon.invalid/manifest.json", ResourcePath("stream", "movie", "tt1")),
             )
         val sources =
-            listOf(source("First fixture source", "https://media.invalid/1.mp4"), source("Second fixture source", "https://media.invalid/2.mp4"))
+            listOf(
+                // Headers the player refuses fail the source like any other failure.
+                source("First fixture source", "https://media.invalid/1.mp4", mapOf("Host" to "another.invalid")),
+                source("Second fixture source", "https://media.invalid/2.mp4"),
+            )
         val meta =
             MetaItem(
                 id = "tt1",
@@ -248,8 +257,10 @@ class PlaybackRecoveryTest {
             remote.waitFor(context.getString(R.string.playback_gone))
             remote.waitFor("First fixture source")
             val failed = context.getString(R.string.source_failed)
+            val unsupported = context.getString(R.string.source_unsupported)
             val marks = remote.visible().filter { it.text?.toString() == failed }
             assertEquals("Only the failed source is marked", 1, marks.size)
+            assertTrue("No source reads as unsupported", remote.visible().none { it.text?.toString() == unsupported })
             var row = marks.single()
             while (row.parent != null && !row.isFocusable) row = row.parent
             assertTrue(

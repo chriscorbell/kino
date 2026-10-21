@@ -30,6 +30,7 @@ on:
       - scripts/check-windows-icon.mjs
       - scripts/test-support/**
       - third_party/notices/**
+      - fixtures/parity/proxy-headers.json
       - package.json
       - pnpm-lock.yaml
       - pnpm-workspace.yaml

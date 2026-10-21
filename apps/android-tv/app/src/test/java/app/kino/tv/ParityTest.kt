@@ -1,8 +1,11 @@
 package app.kino.tv
 
+import com.stremio.core.types.addon.ResourcePath
+import com.stremio.core.types.addon.ResourceRequest
 import com.stremio.core.types.resource.Stream
 import com.stremio.core.types.resource.StreamBehaviorHints
 import com.stremio.core.types.resource.StreamDeepLinks
+import com.stremio.core.types.resource.StreamProxyHeaders
 import com.stremio.core.types.resource.Video
 import com.stremio.core.types.resource.VideoDeepLinks
 import java.io.File
@@ -23,13 +26,14 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
 import kotlinx.serialization.json.longOrNull
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.experimental.runners.Enclosed
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 /**
- * The shared cases in fixtures/parity, which the desktop's vitest suite reads too, so a rule both
+ * The shared cases in fixtures/parity, which the desktop's tests read too, so a rule both
  * clients implement cannot change on one side without the same case failing on the other.
  */
 @RunWith(Enclosed::class)
@@ -234,6 +238,47 @@ class ParityTest {
         @Test
         fun anOrderedEditionLeavesTheIntroUnknown() {
             assertEquals(IntroDiscovery.Unknown, discovery(ordered = true))
+        }
+    }
+
+    @RunWith(Parameterized::class)
+    class ProxyHeaderCases(@Suppress("unused") private val name: String, private val case: JsonObject) {
+        companion object {
+            @JvmStatic
+            @Parameterized.Parameters(name = "{0}")
+            fun cases() = cases("proxy-headers").map { arrayOf(it.string("name"), it) }
+        }
+
+        @Test
+        fun matchesTheSharedCase() {
+            val headers = case.getValue("headers").jsonObject.mapValues { it.value.jsonPrimitive.content }
+            val fill =
+                case["fill"]?.jsonObject?.let { fill ->
+                    val value = fill.string("value")!!.repeat(fill.long("repeat").toInt())
+                    (1..fill.long("count")).associate { "X-Fill-$it" to value }
+                }
+            val filled = headers + fill.orEmpty()
+            fun source(stream: Stream.Source<*>) =
+                Source(
+                    "Fixture provider",
+                    Stream(
+                        source = stream,
+                        behaviorHints =
+                            StreamBehaviorHints(
+                                notWebReady = false,
+                                proxyHeaders = StreamProxyHeaders(request = filled.toMap<String?, String?>()),
+                            ),
+                        deepLinks =
+                            StreamDeepLinks(player = "", externalPlayer = StreamDeepLinks.ExternalPlayerLink()),
+                    ),
+                    ResourceRequest("https://addon.invalid/manifest.json", ResourcePath("stream", "movie", "tt1")),
+                )
+            val refused = case.getValue("refused").jsonPrimitive.boolean
+            val direct = source(Stream.Source.Url(Stream.Url("https://media.invalid/v.mkv")))
+            assertEquals(if (refused) null else filled, direct.requestHeaders)
+            assertTrue("A direct source stays playable, to fail as it starts", direct.playable)
+            val torrent = source(Stream.Source.Tramvai(Stream.Tramvai(infoHash = "0".repeat(40))))
+            assertEquals("A torrent sends no add-on headers", emptyMap<String, String>(), torrent.requestHeaders)
         }
     }
 }

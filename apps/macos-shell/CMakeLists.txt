@@ -300,6 +300,8 @@ if(BUILD_TESTING)
   qt_add_executable(kino_mpvitem_test tests/mpvitem_test.cpp ${KINO_PLAYER_SOURCES})
   target_include_directories(kino_mpvitem_test PRIVATE src)
   target_link_libraries(kino_mpvitem_test PRIVATE ${KINO_PLAYER_LIBRARIES} Qt6::Test)
+  target_compile_definitions(kino_mpvitem_test PRIVATE
+    KINO_PROXY_HEADER_CASES="${KINO_REPOSITORY_ROOT}/fixtures/parity/proxy-headers.json")
   add_test(NAME mpvitem_properties COMMAND kino_mpvitem_test)
   set_tests_properties(mpvitem_properties PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 

@@ -62,15 +62,45 @@ data class Source(val provider: String, val stream: Stream, val request: Resourc
         get() = stream.tramvai?.takeIf { it.infoHash.matches(Regex("[0-9a-fA-F]{40}")) }
 
     val playable: Boolean
+        get() = torrent != null || secureUrl(stream.url?.url)
+
+    /**
+     * The add-on's headers for the media request, or null when the desktop's player would refuse
+     * them. A torrent plays through the engine, which takes none, as on desktop.
+     */
+    val requestHeaders: Map<String, String>?
         get() =
-            torrent != null ||
-                secureUrl(stream.url?.url) &&
-                stream.behaviorHints.proxyHeaders?.request.orEmpty().all { (key, value) ->
-                    key != null &&
-                        value != null &&
-                        key.matches(Regex("[!#$%&'*+.^_`|~0-9A-Za-z-]+")) &&
-                        value.none { it == '\r' || it == '\n' || it == '\u0000' }
-                }
+            if (torrent != null) emptyMap()
+            else proxyRequestHeaders(stream.behaviorHints.proxyHeaders?.request.orEmpty())
+}
+
+private val headerName = Regex("[!#$%&'*+.^_`|~0-9A-Za-z-]+")
+
+private val reservedHeaders =
+    setOf("host", "range", "content-length", "transfer-encoding", "connection")
+
+/** The rule in mpvitem.cpp's MpvItem::load, with cases shared in fixtures/parity/proxy-headers.json. */
+internal fun proxyRequestHeaders(headers: Map<String?, String?>): Map<String, String>? {
+    val names = mutableSetOf<String>()
+    val accepted =
+        headers.entries.associate { (name, value) ->
+            if (
+                name == null ||
+                    value == null ||
+                    !name.matches(headerName) ||
+                    value.any { it < ' ' && it != '\t' || it == '\u007f' } ||
+                    name.lowercase() in reservedHeaders ||
+                    !names.add(name.lowercase())
+            )
+                return null
+            name to value
+        }
+    // Desktop measures the size of the option string mpv takes.
+    val option =
+        accepted.entries.joinToString(",") { (name, value) ->
+            "$name: $value".replace(",", "\\,").let { if (it.endsWith('\\')) "$it " else it }
+        }
+    return accepted.takeIf { it.size <= 64 && option.toByteArray().size <= 64 * 1024 }
 }
 
 data class Details(

@@ -1,9 +1,14 @@
 #include "mpvitem.h"
 #include "platform.h"
 
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QSignalSpy>
 #include <QtTest>
 
+#include <algorithm>
 #include <clocale>
 #include <cstring>
 
@@ -158,27 +163,45 @@ private slots:
         QCOMPARE(item.value("hearingImpaired").toBool(), flag);
     }
 
-    void invalidRequestHeaders_data() {
+    // The TV's ParityTest reads the same cases, so both clients refuse the same header sets.
+    void requestHeaders_data() {
         QTest::addColumn<QVariantMap>("headers");
-        QTest::newRow("header-name-injection") << QVariantMap{{"X-Test\r\nInjected", "value"}};
-        QTest::newRow("header-value-injection") << QVariantMap{{"X-Test", "value\r\nInjected: value"}};
-        QTest::newRow("non-string") << QVariantMap{{"X-Test", 42}};
-        QTest::newRow("host-override") << QVariantMap{{"Host", "another.invalid"}};
-        QTest::newRow("range-override") << QVariantMap{{"Range", "bytes=0-10"}};
-        QTest::newRow("duplicate-name") << QVariantMap{{"X-Test", "one"}, {"x-test", "two"}};
-        QTest::newRow("oversized") << QVariantMap{{"X-Test", QString(65537, QLatin1Char('x'))}};
+        QTest::addColumn<bool>("refused");
+        QFile file(QStringLiteral(KINO_PROXY_HEADER_CASES));
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const auto cases = QJsonDocument::fromJson(file.readAll()).object().value("cases").toArray();
+        QVERIFY(!cases.isEmpty());
+        for (const auto &entry : cases) {
+            const auto item = entry.toObject();
+            auto headers = item.value("headers").toObject().toVariantMap();
+            const auto fill = item.value("fill").toObject();
+            const auto value = fill.value("value").toString().repeated(fill.value("repeat").toInt());
+            for (int index = 1; index <= fill.value("count").toInt(); ++index) {
+                headers.insert(QStringLiteral("X-Fill-%1").arg(index), value);
+            }
+            QTest::newRow(qPrintable(item.value("name").toString()))
+                << headers << item.value("refused").toBool();
+        }
+        // Core holds header values as strings, so only the desktop bridge can pass anything else.
+        QTest::newRow("non-string") << QVariantMap{{"X-Test", 42}} << true;
     }
 
-    void invalidRequestHeaders() {
+    void requestHeaders() {
         QFETCH(QVariantMap, headers);
+        QFETCH(bool, refused);
         MpvItem player;
         QSignalSpy events(&player, &MpvItem::playerEvent);
         player.load(QStringLiteral("https://media.invalid/fixture.mp4"), false, headers);
-        QVERIFY(!player.active());
-        QCOMPARE(events.size(), 1);
-        QCOMPARE(events.first().at(0).toString(), QStringLiteral("error"));
-        QCOMPARE(events.first().at(1).toMap().value("code").toString(),
-                 QStringLiteral("invalid-request-headers"));
+        QCOMPARE(player.active(), !refused);
+        const bool refusal = std::any_of(events.cbegin(), events.cend(), [](const QList<QVariant> &event) {
+            return event.at(0).toString() == QStringLiteral("error") &&
+                   event.at(1).toMap().value("code").toString() ==
+                       QStringLiteral("invalid-request-headers");
+        });
+        QCOMPARE(refusal, refused);
+        if (refused) {
+            QCOMPARE(events.size(), 1);
+        }
     }
 
     void requestHeaderLogsStayPrivateAfterStop() {
