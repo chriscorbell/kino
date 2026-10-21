@@ -12,7 +12,7 @@ import type { ClientPlatform } from '@kino/settings';
 
 import { loadPlayerAction, playingVideoId, type PlaybackSelection } from '../core/actions.ts';
 import { coreFailureDetail } from '../core/errors.ts';
-import type { CoreResolvedStream, PlayerState } from '../core/types';
+import type { AddonSubtitle, CoreResolvedStream, PlayerState } from '../core/types';
 import { t as enUS } from '../locales/index.ts';
 import type { NativePlayer } from '../native/player';
 import { resumeOffset } from '../player/resume.ts';
@@ -399,23 +399,29 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
   });
   cleanups.push(core.onBeforeDestroy(() => exit({ kind: 'closed' })));
 
+  // Each command that drives the player does nothing once the session froze it.
+  const unlessFrozen =
+    <Args extends unknown[]>(command: (...args: Args) => void) =>
+    (...args: Args) => {
+      if (!frozen()) command(...args);
+    };
+
   const controls: PlaybackSession['controls'] = {
     // Core hears the change from the player's own pause event, not from here.
-    togglePause() {
-      if (frozen() || !backend) return;
+    togglePause: unlessFrozen(() => {
+      if (!backend) return;
       const paused = !snapshot.paused;
       publish({ paused });
       backend.setPaused(paused);
-    },
-    seek(milliseconds) {
-      if (frozen()) return;
+    }),
+    seek: unlessFrozen((milliseconds: number) => {
       const time = Math.max(0, milliseconds);
       publish({ ended: false, position: { ...snapshot.position, time } });
       backend?.seek(time);
       progress?.seek(snapshot.position);
-    },
-    setVolume(percent) {
-      if (frozen() || !Number.isFinite(percent)) return;
+    }),
+    setVolume: unlessFrozen((percent: number) => {
+      if (!Number.isFinite(percent)) return;
       const volume = clamp(percent, volumeRange);
       settings.update({ volume });
       sendVolume(volume);
@@ -423,28 +429,24 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
         publish({ muted: false });
         backend?.setMuted(false);
       }
-    },
-    toggleMute() {
-      if (frozen()) return;
+    }),
+    toggleMute: unlessFrozen(() => {
       const muted = !snapshot.muted;
       publish({ muted });
       backend?.setMuted(muted);
-    },
-    selectAudio(id) {
-      if (!frozen()) tracks.selectAudio(id);
-    },
-    selectSubtitle(id) {
-      if (!frozen() && tracks.selectSubtitle(id)) settings.update({ subtitles: id !== null });
-    },
-    addAddonSubtitle(subtitle) {
-      if (!frozen() && tracks.addAddon(subtitle)) settings.update({ subtitles: true });
-    },
-    adjustSubtitleDelay(deltaMs) {
-      if (frozen()) return;
+    }),
+    selectAudio: unlessFrozen((id: number) => tracks.selectAudio(id)),
+    selectSubtitle: unlessFrozen((id: number | null) => {
+      if (tracks.selectSubtitle(id)) settings.update({ subtitles: id !== null });
+    }),
+    addAddonSubtitle: unlessFrozen((subtitle: AddonSubtitle) => {
+      if (tracks.addAddon(subtitle)) settings.update({ subtitles: true });
+    }),
+    adjustSubtitleDelay: unlessFrozen((deltaMs: number) => {
       const delayMs = clamp(snapshot.subtitles.delayMs + deltaMs, { min: -60_000, max: 60_000 });
       publish({ subtitles: { ...snapshot.subtitles, delayMs } });
       if (backend?.capabilities.tracks) backend.setSubtitleDelay(delayMs);
-    },
+    }),
     adjustSubtitleSize(delta) {
       settings.update({
         subtitleSize: clamp(settings.get().subtitleSize + delta, subtitleSizeRange),
