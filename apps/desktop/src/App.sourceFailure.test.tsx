@@ -191,7 +191,7 @@ it.each(['Back from playback', 'Fail playback', 'Up Next', 'Close the window'])(
   },
 );
 
-it('tells the viewer that progress was not saved when playback left after Core stopped', async () => {
+async function leaveAfterCoreStopped() {
   mountApp();
   fireEvent.click(screen.getByRole('button', { name: 'Open test series' }));
   fireEvent.click(await screen.findByRole('button', { name: /^\d.*Episode one/ }));
@@ -202,9 +202,26 @@ it('tells the viewer that progress was not saved when playback left after Core s
   expect(await screen.findByRole('alert')).toHaveTextContent(
     'Stremio Core had stopped, so progress was not saved.',
   );
+}
 
+it('tells the viewer that progress was not saved when playback left after Core stopped', async () => {
+  await leaveAfterCoreStopped();
   fireEvent.click(screen.getByRole('button', { name: /Pack file 0/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Back from playback' }));
   await screen.findByRole('heading', { name: 'Episode one', level: 1 });
+  expect(screen.queryByText(/progress was not saved/)).not.toBeInTheDocument();
+});
+
+it.each([
+  { by: 'Back', buttons: ['Back', 'Back'] },
+  { by: 'the sidebar', buttons: ['Kino home'] },
+])('leaves the progress notice with the title after leaving by $by', async ({ buttons }) => {
+  await leaveAfterCoreStopped();
+  for (const name of buttons) fireEvent.click(await screen.findByRole('button', { name }));
+  await screen.findByRole('button', { name: 'Open test series' });
+  expect(screen.queryByText(/progress was not saved/)).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Open test series' }));
+  await screen.findByRole('heading', { name: 'Test series', level: 1 });
   expect(screen.queryByText(/progress was not saved/)).not.toBeInTheDocument();
 });

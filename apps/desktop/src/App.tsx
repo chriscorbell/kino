@@ -177,7 +177,6 @@ export function App() {
   );
 
   const navigate = (next: BrowseScreen) => {
-    setProgressLost(false);
     if (next !== entry.screen) {
       setEntry({ screen: next, state: initialBrowseState(), scrollTop: 0, focus: null });
     }
@@ -281,12 +280,6 @@ export function App() {
     });
     target.focus({ preventScroll: true });
   }, [detail?.type, detailReturn, detailVideoId, entry, playback, screen, view]);
-
-  const progressNotice = progressLost ? (
-    <p className={sharedStyles.loadError} role="alert">
-      {enUS.player.progressNotSaved}
-    </p>
-  ) : null;
 
   const content = (() => {
     switch (entry.screen) {
@@ -394,7 +387,6 @@ export function App() {
           {!playback && screen !== 'detail' ? (
             <>
               {!accountOpen ? <CoreRecovery /> : null}
-              {progressNotice}
               <UpdateNotice updates={updates} />
             </>
           ) : null}
@@ -410,7 +402,11 @@ export function App() {
             tabIndex={-1}
           >
             {!accountOpen ? <CoreRecovery /> : null}
-            {progressNotice}
+            {progressLost ? (
+              <p className={sharedStyles.loadError} role="alert">
+                {enUS.player.progressNotSaved}
+              </p>
+            ) : null}
             <UpdateNotice updates={updates} />
             <MetaDetailsScreen
               failedSources={failedSources}
@@ -429,10 +425,7 @@ export function App() {
               item={detail}
               resumeRequest={resumeRequest}
               onCancelResume={cancelResume}
-              onBack={() => {
-                setProgressLost(false);
-                setScreen(entry.screen);
-              }}
+              onBack={() => setScreen(entry.screen)}
               onPlay={(selection) => {
                 // Details unmounts during playback so Up Next can select a new episode on return.
                 setDetailVideoId(selection.video?.id ?? null);
