@@ -69,7 +69,8 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
   // True once the exit stopped the player: nothing reads, reports or fails after it.
   let stopped = false;
   // Stopped or saving: nothing loads, and media events and commands that move
-  // playback are dropped. A save that fails after the stop does not reopen it.
+  // playback are dropped. A save that fails before the stop reopens playback and
+  // loads a source that arrived meanwhile; one that fails after the stop does not.
   const frozen = () => stopped || snapshot.exit === 'saving';
   let failed = false;
   let native: NativePlayer | null = null;
@@ -232,16 +233,15 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
 
   function load() {
     if (!backend || !source || !profile || !platform || frozen()) return;
-    const current = settings.get();
-    loadedAudioOutput = current.audioOutput;
+    loadedAudioOutput = settings.get().audioOutput;
     tracks.load(backend);
     progress = createProgressReporter(core, platform);
-    sendVolume(current.volume);
+    sendVolume(settings.get().volume);
     backend.load({
       ...source,
-      stereo: current.audioOutput === 'stereo',
+      stereo: loadedAudioOutput === 'stereo',
       audioLanguage: profile.audio,
-      matchRefreshRate: current.matchRefreshRate,
+      matchRefreshRate: settings.get().matchRefreshRate,
     });
   }
 
@@ -353,6 +353,7 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
     },
     onState(state) {
       publish(state === 'saving' ? { exit: state, paused: true } : { exit: state });
+      if (state === 'save-failed') startLoad();
     },
     onFinished(outcome) {
       cleanups.forEach((cleanup) => cleanup());

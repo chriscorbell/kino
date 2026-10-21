@@ -95,6 +95,19 @@ function deps(core: ReturnType<typeof fakeCore>, overrides: Partial<PlaybackDeps
   } satisfies PlaybackDeps;
 }
 
+/** Fails the final pause (Player) or Unload once its write settles, until the returned function runs. */
+function failSave(core: ReturnType<typeof fakeCore>, failing: 'Player' | 'Unload') {
+  const save = core.commit.getMockImplementation()!;
+  let fails = true;
+  core.commit.mockImplementation(async (action: CoreAction) => {
+    await save(action);
+    if (fails && action.action === failing) throw new Error('Storage is full.');
+  });
+  return () => {
+    fails = false;
+  };
+}
+
 afterEach(() => vi.restoreAllMocks());
 
 it('ignores a second play while a session is live, and starts one once it ends', async () => {
@@ -179,11 +192,7 @@ it('names the platform the shell reports in the save window close runs', async (
 it('reports and moves nothing once the save stopped the player, even when Unload then fails', async () => {
   const selection = movie();
   const core = fakeCore(selection);
-  const save = core.commit.getMockImplementation()!;
-  core.commit.mockImplementation(async (action: CoreAction) => {
-    if (action.action === 'Unload') throw new Error('Storage is full.');
-    await save(action);
-  });
+  failSave(core, 'Unload');
   const native = fakeNativePlayer();
   native.pauseAndSnapshot.mockResolvedValue({ time: 34567, duration: 120000 });
   const session = startPlayback(
@@ -228,6 +237,64 @@ it('loads nothing into the player when the source resolves during a save', async
 
   await waitFor(() => expect(onFinished).toHaveBeenCalledExactlyOnceWith({ kind: 'back' }));
   expect(native.load).not.toHaveBeenCalled();
+});
+
+it('keeps the player working when a save fails before it stopped the player, and a retry finishes', async () => {
+  const selection = movie();
+  const core = fakeCore(selection);
+  const succeed = failSave(core, 'Player');
+  const native = fakeNativePlayer();
+  const onFinished = vi.fn();
+  const session = startPlayback(
+    selection,
+    deps(core, { native: { present: true, connect: async () => native }, onFinished }),
+  );
+  await waitFor(() => expect(native.load).toHaveBeenCalled());
+  await native.emit('duration', { milliseconds: 120_000 });
+
+  session.controls.leave({ kind: 'back' });
+  await waitFor(() => expect(session.getSnapshot().exit).toBe('save-failed'));
+  expect(native.stop).not.toHaveBeenCalled();
+  const written = core.written.length;
+  await native.emit('time', { milliseconds: 45_000 });
+  session.controls.togglePause();
+  session.controls.seek(60_000);
+
+  expect(native.setPaused).toHaveBeenLastCalledWith(false);
+  expect(native.seek).toHaveBeenCalledExactlyOnceWith(60);
+  expect(session.getSnapshot().position.time).toBe(60_000);
+  expect(core.written.slice(written)).toContain('Seek');
+
+  succeed();
+  session.controls.leave({ kind: 'back' });
+  await waitFor(() => expect(onFinished).toHaveBeenCalledExactlyOnceWith({ kind: 'back' }));
+  expect(native.stop).toHaveBeenCalledOnce();
+});
+
+it('loads a source that resolved during a save once that save fails', async () => {
+  const selection = movie();
+  const core = fakeCore(selection);
+  core.state.player = { ...resolvedPlayer(selection), stream: null };
+  failSave(core, 'Player');
+  const native = fakeNativePlayer();
+  const session = startPlayback(
+    selection,
+    deps(core, { native: { present: true, connect: async () => native } }),
+  );
+  await waitFor(() =>
+    expect(session.getSnapshot().waitingFor).toEqual({ core: false, player: false, peers: false }),
+  );
+  const release = core.holdStorage();
+
+  session.controls.leave({ kind: 'back' });
+  await waitFor(() => expect(core.commit).toHaveBeenCalled());
+  core.state.player = resolvedPlayer(selection);
+  await core.publish('player');
+  expect(native.load).not.toHaveBeenCalled();
+  release();
+
+  await waitFor(() => expect(session.getSnapshot().exit).toBe('save-failed'));
+  await waitFor(() => expect(native.load).toHaveBeenCalledOnce());
 });
 
 it('reads the profile languages once, so a profile sync during playback reloads nothing', async () => {
