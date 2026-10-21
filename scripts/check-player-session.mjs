@@ -2,7 +2,8 @@
 // ends, with a scripted native player standing in for the shell. Each exit must save the player's
 // last position, stop the player, then Unload, and report its outcome only once that save is
 // durable. A save that fails before the stop leaves playback usable and starts over when the
-// viewer leaves again; one that fails after the stop leaves nothing able to move the player.
+// viewer leaves again; one that fails after the stop leaves pause, seek and progress unable to
+// move the player.
 import assert from 'node:assert/strict';
 
 import { adaptCoreState } from '../apps/desktop/src/core/adapters.ts';
@@ -12,81 +13,87 @@ import { createKinoSettingsStore } from '../apps/desktop/src/settingsStore.ts';
 import { memoryStorage } from '../apps/desktop/src/test/memoryStorage.ts';
 import { fixturePreview, fixtureSource, initializeCore } from './test-support/core-stream.mjs';
 
-const listeners = new Set();
 const storage = new Map();
-const core = await initializeCore({
-  storage,
-  onEvent: (event) => listeners.forEach((listener) => listener(event)),
-});
+// Each case's transport stands for its own worker, so only the newest one hears Core.
+let deliver = () => {};
+const initializing = initializeCore({ storage, onEvent: (event) => deliver(event) });
+const core = await initializing;
 const work = new PendingCoreWork();
 
-// Holds Core's storage writes until the case lands or fails them.
+// Holds Core's storage writes until the case lands or fails them, counting the writes it holds.
 let held = null;
+let heldWrites = 0;
 const hold = () => {
   held = Promise.withResolvers();
   held.promise.catch(() => undefined);
 };
-const land = () => {
-  held.resolve();
+const release = (settle) => {
+  settle(held);
   held = null;
+  heldWrites = 0;
 };
-const failWrites = () => {
-  held.reject(new Error('Storage is full.'));
-  held = null;
-};
+const land = () => release((writes) => writes.resolve());
+const failWrites = () => release((writes) => writes.reject(new Error('Storage is full.')));
 globalThis.local_storage_set_item = (key, value) =>
   work.track(
     (async () => {
+      if (held) heldWrites += 1;
       await held?.promise;
       storage.set(key, value);
     })(),
   );
 
-// Neither the final pause after a progress report nor Unload writes anything, so a commit that
-// fails with nothing written fails here, as the worker's flush does when storage or account sync
-// times out.
-let flushAnswer = null;
-
-/** The transport's Player half over the in-process Core, as core.worker.ts carries it. */
+/**
+ * core/transport.ts over the in-process Core, which it cannot load under Node because it imports a
+ * Vite worker. Window close and Quit wait for `prepareClose`; Core teardown runs it and stops the
+ * transport whether or not the save succeeded.
+ */
 function connectCore() {
-  const closers = new Set();
-  const subscriptions = new Set();
-  let destroyed = false;
+  const listeners = new Set();
+  deliver = (event) => listeners.forEach((listener) => listener(event));
+  const beforeDestroy = new Set();
+  let stopped = null;
+  const live = () => {
+    if (stopped) throw stopped;
+  };
+  const dispatch = async (action, model) => {
+    live();
+    core.dispatch(action, model, '');
+  };
   const prepareClose = async () => {
-    await Promise.all([...closers].map((close) => close()));
+    await initializing.catch(() => undefined);
+    live();
+    await Promise.all([...beforeDestroy].map((callback) => callback()));
     await work.flush();
   };
+  let destroying = null;
   return {
     port: {
-      async dispatch(action, model) {
-        if (destroyed) throw new Error('Core stopped.');
-        core.dispatch(action, model, '');
-      },
+      dispatch,
       async commit(action, model) {
-        if (destroyed) throw new Error('Core stopped.');
-        core.dispatch(action, model, '');
+        await dispatch(action, model);
         await work.flush();
-        await flushAnswer?.(action);
       },
       async getState(model) {
+        live();
         return adaptCoreState(model, core.get_state(model));
       },
       subscribe(listener) {
         listeners.add(listener);
-        subscriptions.add(listener);
         return () => listeners.delete(listener);
       },
       onBeforeDestroy(callback) {
-        closers.add(callback);
-        return () => closers.delete(callback);
+        beforeDestroy.add(callback);
+        return () => beforeDestroy.delete(callback);
       },
     },
-    // Window close and Quit wait for this; Core teardown runs it and then stops the transport.
     prepareClose,
-    async destroy() {
-      await prepareClose();
-      destroyed = true;
-      subscriptions.forEach((listener) => listeners.delete(listener));
+    destroy() {
+      destroying ??= prepareClose().finally(() => {
+        stopped ??= new Error('Stremio Core has stopped.');
+        listeners.clear();
+      });
+      return destroying;
     },
   };
 }
@@ -96,13 +103,16 @@ const savedTime = () =>
     .timeOffset;
 const playerLoaded = () => core.get_state('player').selected !== null;
 const coreTime = () => adaptCoreState('player', core.get_state('player')).libraryItem?.timeOffset;
+// sleep-ok: gives work that must not happen a chance to, before a negative assertion.
 const settle = () => new Promise((resolve) => setTimeout(resolve, 30));
 async function until(condition, what) {
   for (let waited = 0; !condition(); waited += 5) {
     assert.ok(waited < 5000, `Timed out waiting for ${what}.`);
+    // sleep-ok: the poll interval of a 5 s deadline.
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
 }
+const heldWrite = () => until(() => heldWrites > 0, 'the held write');
 
 const fixtureUrl = 'https://media.invalid/fixture.mp4';
 const engineUrl = 'http://engine.invalid';
@@ -216,10 +226,14 @@ async function play(time) {
   return playback;
 }
 
+// The session logs every failure a case plants, so they show only when the gate fails.
 const originalError = console.error;
+const sessionLogs = [];
 console.error = (...args) => {
-  if (!String(args[0]).startsWith('[kino:')) originalError(...args);
+  if (String(args[0]).startsWith('[kino:')) sessionLogs.push(args);
+  else originalError(...args);
 };
+process.on('uncaughtExceptionMonitor', () => sessionLogs.forEach((args) => originalError(...args)));
 
 // The exit, the outcome it reports, and how the viewer or the shell takes it.
 const exits = [
@@ -244,7 +258,7 @@ for (const [exit, kind, run] of exits) {
   const { outcomes, session, shell } = playback;
   hold();
   const closing = run(playback);
-  await settle();
+  await heldWrite();
   assert.equal(session.getSnapshot().exit, 'saving', `${exit}: the save is running.`);
   assert.deepEqual(outcomes, [], `${exit}: the outcome waits for the save to be durable.`);
   assert.notEqual(savedTime(), time, `${exit}: nothing is durable while storage is held.`);
@@ -273,7 +287,7 @@ for (const [exit, kind, run] of exits) {
   const { connection, outcomes, session, shell } = await play(time);
   hold();
   session.controls.leave({ kind: 'back' });
-  await settle();
+  await heldWrite();
   let closed = false;
   const closing = connection.prepareClose().then(() => {
     closed = true;
@@ -298,7 +312,7 @@ for (const [exit, kind, run] of exits) {
   const { outcomes, session, shell } = await play(time);
   hold();
   session.controls.leave({ kind: 'back' });
-  await settle();
+  await heldWrite();
   failWrites();
   await until(() => session.getSnapshot().exit === 'save-failed', 'the failed save');
   assert.deepEqual(outcomes, [], 'A save that fails before the stop keeps playback open.');
@@ -321,34 +335,25 @@ for (const [exit, kind, run] of exits) {
 
 {
   advance();
-  const { outcomes, session, shell } = await play(time);
-  flushAnswer = (action) => {
-    if (action.action !== 'Unload') return;
-    flushAnswer = null;
-    throw new Error('Storage is full.');
-  };
+  const { connection, outcomes, session, shell } = await play(time);
+  hold();
+  const teardown = connection.destroy();
+  await heldWrite();
+  failWrites();
+  await assert.rejects(teardown, 'Core teardown hears that the save failed.');
+  assert.equal(session.getSnapshot().exit, 'save-failed', 'The teardown save failed.');
+  assert.deepEqual(outcomes, [], 'A save that fails at Core teardown reports no outcome.');
   session.controls.leave({ kind: 'back' });
-  await until(() => session.getSnapshot().exit === 'save-failed', 'the failed Unload');
-  assert.deepEqual(outcomes, [], 'A failed Unload reports no outcome.');
-  assert.deepEqual(shell.stops, [{ saved: time, loaded: true }]);
-  const mark = shell.calls.length;
-  const { position } = session.getSnapshot();
-  session.controls.togglePause();
-  session.controls.seek(10000);
-  shell.emit('time', { milliseconds: time + 5000 });
-  assert.deepEqual(shell.since(mark), [], 'No control reaches a stopped player.');
-  assert.deepEqual(session.getSnapshot().position, position, 'A stopped player moves nothing.');
-  session.controls.leave({ kind: 'back' });
-  await until(() => outcomes.length > 0, 'the retried Unload');
-  assert.deepEqual(outcomes, [{ kind: 'back' }]);
-  assert.equal(savedTime(), time, 'The retry keeps the position the first attempt saved.');
-  assert.ok(!playerLoaded());
+  await until(() => session.getSnapshot().exit !== 'saving' || outcomes.length > 0, 'the retry');
+  assert.equal(session.getSnapshot().exit, 'save-failed', 'A stopped Core takes no retry.');
+  assert.deepEqual(outcomes, []);
 }
 
 {
   const engine = Promise.withResolvers();
   const torrent = { infoHash: '0123456789abcdef0123456789abcdef01234567', fileIdx: 0 };
   let created = false;
+  hold();
   const { session, shell } = start({
     stream: torrent,
     fetch: async () => {
@@ -358,8 +363,6 @@ for (const [exit, kind, run] of exits) {
     },
   });
   await until(() => created, 'the engine request');
-  const flushed = Promise.withResolvers();
-  flushAnswer = () => flushed.promise;
   session.controls.leave({ kind: 'back' });
   await settle();
   engine.resolve();
@@ -367,8 +370,7 @@ for (const [exit, kind, run] of exits) {
   const loads = () => shell.calls.filter((call) => call.startsWith('load '));
   assert.ok(session.getSnapshot().loaded, 'The source arrived during the save.');
   assert.deepEqual(loads(), [], 'Nothing loads while a save runs.');
-  flushAnswer = null;
-  flushed.reject(new Error('Storage is full.'));
+  failWrites();
   await until(() => session.getSnapshot().exit === 'save-failed', 'the failed save');
   await settle();
   assert.deepEqual(
@@ -384,7 +386,7 @@ for (const [exit, kind, run] of exits) {
   const mark = shell.calls.length;
   hold();
   session.controls.leave({ kind: 'back' });
-  await settle();
+  await heldWrite();
   settings.update({ audioOutput: 'stereo' });
   await settle();
   assert.deepEqual(shell.since(mark), ['pause'], 'Nothing reloads while a save runs.');
@@ -398,8 +400,52 @@ for (const [exit, kind, run] of exits) {
   );
 }
 
+// Last, because an ended playback leaves an offset no later case resumes past.
+{
+  advance();
+  const { outcomes, session, shell } = await play(time);
+  const end = 119500;
+  shell.pausesAt(end);
+  shell.emit('ended');
+  // After an ended playback Unload writes, so its write is the one that fails.
+  const stop = shell.player.stop;
+  shell.player.stop = () => {
+    stop();
+    hold();
+  };
+  session.controls.leave({ kind: 'back' });
+  await heldWrite();
+  failWrites();
+  await until(
+    () => session.getSnapshot().exit !== 'saving' || outcomes.length > 0,
+    'the failed Unload',
+  );
+  assert.deepEqual(outcomes, [], 'A failed Unload reports no outcome.');
+  assert.equal(session.getSnapshot().exit, 'save-failed', 'A failed Unload fails the save.');
+  assert.deepEqual(
+    shell.stops,
+    [{ saved: end, loaded: true }],
+    'The Unload failed after the stop.',
+  );
+  const mark = shell.calls.length;
+  const { position } = session.getSnapshot();
+  session.controls.togglePause();
+  session.controls.seek(10000);
+  shell.emit('time', { milliseconds: end - 1000 });
+  assert.deepEqual(shell.since(mark), [], 'Pause and seek do not reach a stopped player.');
+  assert.deepEqual(
+    session.getSnapshot().position,
+    position,
+    'Progress from a stopped player moves nothing.',
+  );
+  session.controls.leave({ kind: 'back' });
+  await until(() => outcomes.length > 0, 'the retried Unload');
+  assert.deepEqual(outcomes, [{ kind: 'back' }]);
+  assert.ok(!playerLoaded());
+}
+
 console.log(
-  'Pinned Core playback session: Back, Up Next, a source failure, window close and Core teardown each saved the last position, stopped, then unloaded; an exit during a save joined it; a save that failed before the stop stayed usable and saved from the top, one that failed after it left the player inert, and a source or audio output that changed during a failed save loaded once.',
+  'Pinned Core playback session: Back, Up Next, a source failure, window close and Core teardown each saved the last position, stopped, then unloaded; an exit during a save joined it; a save that failed before the stop stayed usable and saved from the top, one that failed at Core teardown reached the teardown, a source or audio output that changed during a failed save loaded once, and a failed Unload after the stop left pause, seek and progress unable to move the player.',
 );
 // Core owns repeating runtime timers, as it does in its browser worker.
 process.exit(0);
