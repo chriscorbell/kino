@@ -18,7 +18,7 @@ The first public macOS package will be a signed and notarized universal build fo
 ## Version-one experience
 
 - Sign in with Stremio or continue with a device-local guest profile.
-- Open account creation in the system browser. Send passwords only to Stremio during authentication and store only the resulting auth token, in device-local storage readable by the signed-in user account alone.
+- Open account creation in the system browser. <!-- planned: tv. The TV welcome screen offers only Sign in and Guest. --> Send passwords only to Stremio during authentication and store only the resulting auth token, in device-local storage readable by the signed-in user account alone.
 - On TV, prefer a QR or device-link flow rather than remote-entered passwords.
 - Keep guest state separate from account state. Never merge or overwrite it implicitly.
 - Provide Home, Discover, Search, Library, media details, source selection, playback, add-on management, and Settings.
@@ -49,13 +49,13 @@ Kino requests community markers only after the service lists exactly one release
 
 ## Privacy and diagnostics
 
-Kino sends no product analytics, crash reports, or diagnostic telemetry. Verbose local logging is enabled by default, sanitized, and rotated across five files of at most 10 MB each. Logs must never contain credentials, authentication tokens, complete stream URLs, or other embedded secrets.
+Kino sends no product analytics, crash reports, or diagnostic telemetry. Verbose local logging is enabled by default and sanitized. On the desktop it rotates across five files of at most 10 MB each. Logs must never contain credentials, authentication tokens, complete stream URLs, or other embedded secrets.
 
 Desktop Settings provides Open Log Folder and Copy Diagnostic Summary. TV Settings can copy app, system and playback versions and capabilities to the Android clipboard. The TV summary excludes account information, media identifiers, source URLs, device identifiers, paths and log contents; the Shield Settings check verifies the copied fields. Android local logs use Logcat and remain observable over network ADB on the test Shield.
 
 ## Distribution and updates
 
-Official releases are published through GitHub with signatures and checksums, built by the Release workflow from a version tag. <!-- planned: desktop. Only the TV APK is signed; the disk image is ad-hoc signed, and the Windows zip and the Flatpak carry no signature. --> The TV APK is signed with Kino's release key, whose certificate the repository pins, so every release installs over the last. Kino checks once daily, prompts when an update exists, and never installs silently. Kino settings remain device-local and do not sync.
+Official releases are published through GitHub with signatures and checksums, built by the Release workflow from a version tag. <!-- planned: desktop. Only the TV APK is signed; the macOS app is ad-hoc signed inside an unsigned disk image, and the Windows zip and the Flatpak carry no signature. --> The TV APK is signed with Kino's release key, whose certificate the repository pins, so every release installs over the last. Kino checks once daily, prompts when an update exists, and never installs silently. Kino settings remain device-local and do not sync.
 
 Update discovery, on the desktop and the TV, uses the packaged release version and the public GitHub releases feed for `chriscorbell/kino`. A private repository or a channel without a published release reports "No public release is available yet." Stable builds check GitHub's latest published release; preview builds compare the most recent 100 releases, including previews. A check runs at launch if the last attempt was at least 24 hours ago, then once the next daily interval expires while the app is running. Failed automatic attempts use the same daily limit. Settings can request a manual check at any time.
 

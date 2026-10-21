@@ -43,7 +43,9 @@ jobs:
             *) echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
           esac
       - name: Refuse planned promises in a public release
-        run: node scripts/check-contracts.mjs --release macos,windows,linux,tv
+        run: >-
+          node scripts/check-contracts.mjs --release macos,windows,linux,tv
+          ${{ (github.ref_type != 'tag' || steps.version.outputs.prerelease == 'true') && '--dry-run' || '' }}
 
   macos:
     name: Build the macOS disk image

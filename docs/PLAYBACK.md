@@ -2,20 +2,20 @@
 
 ## Source handling
 
-Kino shows every source returned by an installed add-on and asks the user to choose. The source list exposes the add-on name and any available resolution, codec, range, audio, size, and peer information. It preflights clear incompatibilities when the metadata is sufficient but may attempt unknown sources.
+Kino shows every source returned by an installed add-on and asks the user to choose. The source list exposes the add-on name and any available resolution, codec, range, audio, size, and peer information. Before loading a source, Kino refuses it only by its kind and address, as the table below sets out. After loading, it refuses a stream that needs a software video decoder or carries a Dolby Vision profile it cannot show. It attempts every other source.
 
 Core requests, manual manifest installation, and guest catalog setup require HTTPS. Development builds also allow HTTP to loopback addresses. Stored and synced add-ons follow the same policy. The macOS native transport follows HTTPS redirects for GET requests without request bodies or caller-supplied headers other than Accept. It checks each destination, rejects URL credentials and insecure destinations, and limits redirects to ten hops. Browser-only previews block redirects because browser fetch conceals the destination before following it. The Add-ons screen explains blocked transports and leaves them available for removal. <!-- planned: tv. The TV Add-ons screen gives no reason an add-on is blocked. --> Kino excludes Stremio's Local Files add-on without uninstalling it from the user's account.
 
 `pnpm core:check-addon-transports` verifies the policy with the pinned Core WASM. `pnpm macos:check-addon-transports` checks actual Qt WebEngine requests against local HTTP and HTTPS fixtures, including a redirect to HTTP whose destination must receive no request.
 
-| Source                               | Version-one behavior                                                                       |
-| ------------------------------------ | ------------------------------------------------------------------------------------------ |
-| HTTPS direct media                   | Play internally                                                                            |
-| HLS and DASH                         | Play internally                                                                            |
-| Torrent `infoHash`                   | Required for 1.0 through an approved local streaming engine                                |
-| External web URL                     | Open in the system browser after confirmation <!-- planned: tv. The TV has no browser. --> |
-| YouTube ID, FTP, RTMP, NZB, archives | Show as unsupported                                                                        |
-| Live or DRM-protected source         | Show as unsupported                                                                        |
+| Source                               | Version-one behavior                                                                                      |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| HTTPS direct media                   | Play internally                                                                                           |
+| HLS and DASH                         | Play internally                                                                                           |
+| Torrent `infoHash`                   | Required for 1.0 through an approved local streaming engine                                               |
+| External web URL                     | Open in the system browser after confirmation <!-- planned: tv. The TV has no browser. -->                |
+| YouTube ID, FTP, RTMP, NZB, archives | Show as unsupported                                                                                       |
+| Live or DRM-protected source         | Show as unsupported <!-- planned: desktop, tv. Neither client detects a live or DRM-protected source. --> |
 
 If initialization, decoding, or streaming fails, Kino saves progress, records a sanitized diagnostic, marks that source failed for the current selection session, and returns to the source list. It never switches to another source automatically. On desktop, a libmpv that cannot start leaves the shell running: every source reports that the player is unavailable, and the diagnostic summary shows the mpv version as unavailable. The `mpv_unavailable_create` and `mpv_unavailable_initialize` native tests make libmpv refuse to start and drive the item through loads, controls, and rendering.
 
