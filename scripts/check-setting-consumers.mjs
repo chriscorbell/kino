@@ -15,8 +15,9 @@
 // It matches source text after blanking comments and the text of string literals, so a mention
 // in either counts for nothing; the raw-key scan blanks only comments. It does not see a read
 // through destructuring, a setting or raw key held in a variable or alias, or TV source outside
-// .kt files. A read in source does not prove the value is applied. The shell_capabilities CTest
-// holds what each shell reports to the schema.
+// .kt files. A read in source does not prove the value is applied; PlayerScreen.settings.test.tsx
+// proves that for desktop playback. The shell_capabilities CTest holds what each shell reports to
+// the schema.
 //
 // Before the real tree, it runs the planted cases in test-support/setting-consumer-cases.mjs and
 // fails when it gets one wrong.
