@@ -6,42 +6,29 @@ Kino is a Stremio-compatible media client with an original interface. Desktop is
 
 ## Rules and what enforces them
 
-Each rule a check enforces, whether this file states it below or only the check does, with the check that fails when the rule is broken. Run the named check rather than re-deriving the rule. A check runs in `pnpm check` unless its row says otherwise, and `pnpm contracts:check` fails when this table names a gate that does not exist.
+Each rule a check enforces, whether this file states it below or only the check does, with the check that fails when the rule is broken. Run the named check rather than re-deriving the rule. A check runs in `pnpm check` unless its row says otherwise. `pnpm contracts:check` fails when this table names a gate that does not exist; its header lists what it counts as a gate and what it leaves unchecked.
 
-| Rule                                                                          | Enforced by                                                                                                     |
-| ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Use `CONTEXT.md`'s vocabulary, not its `_Avoid_` terms                        | `pnpm prose:check` on added lines, for the terms it can match without judgment                                  |
-| Use periods and commas where an em dash would go                              | `pnpm prose:check` on added lines                                                                               |
-| A contract names only gates that exist                                        | `pnpm contracts:check`                                                                                          |
-| A promise not built yet carries a planned marker                              | `pnpm contracts:check` checks its form and fails a public release that ships one                                |
-| Every gate runs, has a package script, and is inside its CI job's path filter | `pnpm gates:check-wiring`                                                                                       |
-| Gate code waits for a condition, not a fixed sleep                            | `pnpm gates:check-sleeps` on added gate code; CI's native job reruns each changed probe 5 times                 |
-| Visible desktop text goes through `en-US.ts`                                  | `completeness.test.ts`                                                                                          |
-| TV text that matches a desktop message comes from `en-US.ts` through `tv.ts`  | `tv.test.ts` for mapped messages; a new hand-written copy is prose only                                         |
-| A Kino setting is declared once, in `packages/settings`                       | `pnpm android:check-settings` and `pnpm settings:check-consumers`                                               |
-| Desktop and TV differ only where ADR 0033 records it                          | `fixtures/parity` cases in vitest, and in the TV's `ParityTest` in android.yml (not required)                   |
-| Only the playback session reaches Core's Player model                         | The types and `eslint.config.js`, proved by `pnpm playback:check-boundary`                                      |
-| Leaving playback keeps the save order ADRs 0032, 0034 and 0035 fix            | `pnpm core:check-player-session`                                                                                |
-| `build/` is generated, and upstream changes are patch files                   | `.gitignore`; `pnpm engine:check-vendor` for the engine's patches                                               |
-| Native logs and diagnostics carry sanitized fields only                       | The `diagnostic_logging` and `diagnostic_summary` CTests and `pnpm macos:check-web-console`, in CI's native job |
-| One pull request per validated chunk, squash-merged once CI is green          | `main`'s rulesets merge only by squash, after `Validate` passes                                                 |
-| Use Node 24                                                                   | `.node-version` in CI; the `engines` field makes `pnpm install` refuse an older Node                            |
-| The acceptance command exits zero                                             | CI's web job runs it, and `Validate` requires it                                                                |
+| Rule                                                                              | Enforced by                                                                                                                             |
+| --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Use `CONTEXT.md`'s vocabulary, not its `_Avoid_` terms                            | `pnpm prose:check` on added lines, for the terms it can match without judgment                                                          |
+| Use periods and commas where an em dash would go                                  | `pnpm prose:check` on added lines                                                                                                       |
+| A contract names only gates that exist                                            | `pnpm contracts:check`                                                                                                                  |
+| A planned marker is well formed, and no public release ships a platform one names | `pnpm contracts:check`; the Release workflow runs it with `--release`                                                                   |
+| Every gate runs, has a package script, and is inside its CI job's path filter     | `pnpm gates:check-wiring`                                                                                                               |
+| Gate code waits for a condition, not a fixed sleep                                | `pnpm gates:check-sleeps` on added gate code; CI's native job reruns each changed probe 5 times                                         |
+| Visible desktop text goes through `en-US.ts`                                      | `completeness.test.ts`, for literal JSX text and literal label, title and placeholder attributes; text held in a variable is prose only |
+| TV text that matches a desktop message comes from `en-US.ts` through `tv.ts`      | `tv.test.ts` for mapped messages; a new hand-written copy is prose only                                                                 |
+| A Kino setting is declared once, in `packages/settings`                           | `pnpm android:check-settings` and `pnpm settings:check-consumers`                                                                       |
+| Desktop and TV differ only where ADR 0033 records it                              | For the rules `fixtures/parity` covers, its cases in vitest, and in the TV's `ParityTest` in android.yml (not required)                 |
+| Only the playback session reaches Core's Player model                             | The types and `eslint.config.js`, proved by `pnpm playback:check-boundary`                                                              |
+| Leaving playback keeps the save order ADRs 0032, 0034 and 0035 fix                | `pnpm core:check-player-session`                                                                                                        |
+| `build/` is generated, and upstream changes are patch files                       | `.gitignore`; `pnpm engine:check-vendor` for the engine's patches                                                                       |
+| Native logs and diagnostics carry sanitized fields only                           | The `diagnostic_logging` and `diagnostic_summary` CTests and `pnpm macos:check-web-console`, in CI's native job                         |
+| `main` changes only through a squash merge, after `Validate` passes               | `main`'s rulesets; admins can bypass the squash-only rule but not `Validate`                                                            |
+| Use Node 24                                                                       | `.node-version` in CI; `engines` with `engineStrict` makes `pnpm install` refuse an older Node                                          |
+| The acceptance command exits zero                                                 | CI's web job runs it, and `Validate` requires it                                                                                        |
 
-Nothing checks these rules, so each holds only while you follow it:
-
-- Avoided terms the prose check leaves alone (`scripts/check-prose.mjs` lists them).
-- Plain prose with sentence case headings, straight quotes, and no emoji.
-- Adding a planned marker to a promise not built yet.
-- Changing behavior an ADR fixed only through a new ADR.
-- A gate for each change to what Kino does, asserting the observable result.
-- Saying which gate you could not run, and why.
-- Comments that explain why.
-- Keeping the task's kardboard card true to the work.
-- Updating every document a change makes wrong, apart from the gate names `pnpm contracts:check` resolves.
-- Working on a branch inside this checkout, one chunk per pull request, and deleting the branch after merging.
-- Running the acceptance command without a pipe and reading its exit code.
-- The memory steps, and keeping `CLAUDE.md` a relative symlink to `AGENTS.md`.
+Nothing checks the other rules in this file, so each holds only while you follow it. Two gaps sit beside checked rules. The prose check leaves some avoided terms alone, and `scripts/check-prose.mjs` lists them. Nothing makes you add a planned marker to a promise not built yet.
 
 ## Read the contracts
 
@@ -75,7 +62,7 @@ Editing a document includes removing what it no longer needs: a limitation now f
 
 ## Conventions
 
-- Visible text goes through `apps/desktop/src/locales/en-US.ts`. `completeness.test.ts` fails on a gap. TV text that means the same as a desktop message stays out of `strings.xml`: map its resource name to the message in `apps/desktop/src/locales/tv.ts`, and the TV build generates it under `build/`.
+- Visible text goes through `apps/desktop/src/locales/en-US.ts`. TV text that means the same as a desktop message stays out of `strings.xml`: map its resource name to the message in `apps/desktop/src/locales/tv.ts`, and the TV build generates it under `build/`.
 - A Kino setting is declared once, in `packages/settings/src/schema.ts`, with the platforms that honor it (ADR 0031). The TV reads it through `KinoSettings.kt`, which `pnpm android:settings` writes from the schema and which is committed, unlike the generated TV strings.
 - Everything under `build/` is generated and disposable, vendored upstream checkouts included. Upstream changes live as patch files next to the pinned revision and lock file, under `apps/stream-engine/patches` or `apps/android-tv/core/patches`. ADR 0008 explains why.
 - Native logs and diagnostics carry stable event names and sanitized fields only. Source URLs, request headers, credentials, media titles, and filesystem paths stay out of them, as `docs/PRODUCT.md` promises.
@@ -88,13 +75,13 @@ Work on this project is tracked on the kardboard board [`kino`](https://kardboar
 
 ## Shipping
 
-Work on a branch inside this checkout, never in a separate worktree, so `main` here stays what `main` is. If the tree holds unrelated uncommitted work, stash it or ask; branching around it hides it. Ship each validated chunk as its own pull request rather than accumulating several. Squash-merge once CI is green, delete the branch, and fast-forward `main` to `origin/main` before starting the next.
+Work on a branch inside this checkout, never in a separate worktree, so `main` here stays what `main` is. If the tree holds unrelated uncommitted work, stash it or ask; branching around it hides it. Ship each validated chunk as its own pull request rather than accumulating several. After it merges, delete the branch and fast-forward `main` to `origin/main` before starting the next.
 
 `pnpm check` is the local equivalent of CI's web job. CI's native and Linux jobs run only when a change touches a file they read, so a green pull request that touched none of those files rebuilt no app bundle.
 
 ## Acceptance command
 
-Use Node 24, as pinned in `.node-version`. Before opening a pull request, run this acceptance command from the repository root:
+Before opening a pull request, run this acceptance command from the repository root:
 
 ```sh
 pnpm install --frozen-lockfile && pnpm check

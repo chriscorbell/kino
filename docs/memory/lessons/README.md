@@ -12,7 +12,7 @@ Threshold: 12 entries. Past it, the bounded review in [maintenance](../maintenan
 - [A TV playback test's progress resumes the next test on that episode](2026-09-28-tv-test-progress-resumes-next-test-v4t.md): a Shield playback test fails only in a class or suite run and passes alone.
 - [An incremental tsc -b misses a change only in a workspace package](2026-10-19-incremental-tsc-misses-workspace-package-t5w.md): `pnpm typecheck` passes locally on a `packages/` type error that CI reports.
 - [A piped check reports the pipe's exit code](2026-09-25-piped-check-hides-failure-q4n.md): running a check before a commit, push, or pull request, or a pull request claims a pass that CI fails.
-- [A result from a build without the change says nothing about the change](2026-09-06-result-from-stale-build-h7x.md): about to report a change as checked on the Shield, the Mac app, or a live service.
+- [A device result counts only for the build that ran](2026-09-06-result-from-stale-build-h7x.md): about to report a change as checked on the Shield, the Mac app, or a live service.
 - [A probe kills only the process it started](2026-09-26-probe-leftover-processes-z2c.md): looping a desktop probe, running Kino under a debugger or wrapper, or memory runs low after native checks.
 - [The Shield keeps only minutes of log](2026-09-28-shield-log-buffer-minutes-b5r.md): Chris is about to test on the Shield, or his reported failure needs its log.
 - [Deleting or force-pushing a branch can close a pull request for good](2026-09-25-gh-branch-and-draft-hazards-w3j.md): merging a stack's base, deleting a branch, merging a draft, or force-pushing a branch with a pull request.
