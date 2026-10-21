@@ -287,6 +287,7 @@ class PlaybackShutdownTest {
                 failure.get() == R.string.playback_error
             }
             assertEquals("The player was never given the source", 0, onMain { opened!!.mediaItemCount })
+            assertNull("Core no longer holds the source", Core.getState<CorePlayer>(Field.PLAYER).selected)
         }
     }
 

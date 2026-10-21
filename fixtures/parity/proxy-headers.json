@@ -1,5 +1,5 @@
 {
-  "rule": "A source's proxy request headers reach the player only when every name is an HTTP token, no name is Host, Range, Content-Length, Transfer-Encoding or Connection, no two names differ only in case, no value holds a control character other than tab, there are at most 64, and the header list mpv receives, with commas escaped and headers joined by commas, is at most 64 KiB of UTF-8. Otherwise the source is refused. A fill adds headers X-Fill-1 to X-Fill-<count>, each with value repeated repeat times.",
+  "rule": "A source's proxy request headers reach the player only when every name is an HTTP token, no name is Host, Range, Content-Length, Transfer-Encoding or Connection, no two names differ only in case, no value holds a control character other than tab, there are at most 64, and the header list mpv receives, with commas escaped, a space after a trailing backslash, and headers joined by commas, is at most 64 KiB of UTF-8. Otherwise the source is refused. A fill adds headers X-Fill-1 to X-Fill-<count>, each with value repeated repeat times.",
   "cases": [
     { "name": "no headers", "headers": {}, "refused": false },
     {
@@ -13,6 +13,7 @@
       "refused": false
     },
     { "name": "a tab inside a value", "headers": { "X-Test": "a\tb" }, "refused": false },
+    { "name": "an empty value", "headers": { "X-Test": "" }, "refused": false },
     {
       "name": "commas and a trailing backslash in values",
       "headers": { "Cookie": "a=1, b=2", "X-Path": "C:\\" },
@@ -30,8 +31,25 @@
       "fill": { "count": 1, "value": "x", "repeat": 65526 },
       "refused": false
     },
+    {
+      "name": "escaped commas filling exactly 64 KiB",
+      "headers": {},
+      "fill": { "count": 1, "value": ",", "repeat": 32763 },
+      "refused": false
+    },
+    {
+      "name": "three-byte characters filling exactly 64 KiB",
+      "headers": {},
+      "fill": { "count": 1, "value": "€", "repeat": 21842 },
+      "refused": false
+    },
     { "name": "an empty name", "headers": { "": "value" }, "refused": true },
     { "name": "a space in a name", "headers": { "X Test": "value" }, "refused": true },
+    {
+      "name": "a trailing line feed in a name",
+      "headers": { "X-Test\n": "value" },
+      "refused": true
+    },
     {
       "name": "a line break in a name",
       "headers": { "X-Test\r\nInjected": "value" },
@@ -76,6 +94,12 @@
       "name": "escaped commas over 64 KiB",
       "headers": {},
       "fill": { "count": 1, "value": ",", "repeat": 32764 },
+      "refused": true
+    },
+    {
+      "name": "the space after a trailing backslash over 64 KiB",
+      "headers": {},
+      "fill": { "count": 1, "value": "\\", "repeat": 65526 },
       "refused": true
     },
     {

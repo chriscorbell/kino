@@ -199,6 +199,9 @@ private slots:
                        QStringLiteral("invalid-request-headers");
         });
         QCOMPARE(refusal, refused);
+        if (refused) {
+            QCOMPARE(events.size(), 1);
+        }
     }
 
     void requestHeaderLogsStayPrivateAfterStop() {

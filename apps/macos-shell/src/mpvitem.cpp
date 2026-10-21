@@ -497,7 +497,9 @@ void MpvItem::load(const QString &url, bool forceStereo, const QVariantMap &head
     // mpv can log arbitrary header values. Keep its free-form messages private
     // for the rest of this instance, including late events from an earlier load.
     suppressMpvLogDetails_ = suppressMpvLogDetails_ || !headers.isEmpty();
-    static const QRegularExpression headerName(QStringLiteral("^[!#$%&'*+.^_`|~0-9A-Za-z-]+$"));
+    // An anchored pattern, since $ would also match before a final line feed.
+    static const QRegularExpression headerName(
+        QRegularExpression::anchoredPattern(QStringLiteral("[!#$%&'*+.^_`|~0-9A-Za-z-]+")));
     static const QRegularExpression control(QStringLiteral("[\\x00-\\x08\\x0a-\\x1f\\x7f]"));
     static const QSet<QString> reserved{
         QStringLiteral("host"), QStringLiteral("range"), QStringLiteral("content-length"),
