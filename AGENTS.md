@@ -6,7 +6,7 @@ Kino is a Stremio-compatible media client with an original interface. Desktop is
 
 ## Rules and what enforces them
 
-Each rule in this file that a check enforces, with the check that fails when the rule is broken. Run the named check rather than re-deriving the rule. A check runs in `pnpm check` unless its row says otherwise, and `pnpm contracts:check` fails when this table names a gate that does not exist.
+Each rule a check enforces, whether this file states it below or only the check does, with the check that fails when the rule is broken. Run the named check rather than re-deriving the rule. A check runs in `pnpm check` unless its row says otherwise, and `pnpm contracts:check` fails when this table names a gate that does not exist.
 
 | Rule                                                                          | Enforced by                                                                                                     |
 | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -17,10 +17,11 @@ Each rule in this file that a check enforces, with the check that fails when the
 | Every gate runs, has a package script, and is inside its CI job's path filter | `pnpm gates:check-wiring`                                                                                       |
 | Gate code waits for a condition, not a fixed sleep                            | `pnpm gates:check-sleeps` on added gate code; CI's native job reruns each changed probe 5 times                 |
 | Visible desktop text goes through `en-US.ts`                                  | `completeness.test.ts`                                                                                          |
-| TV text that matches a desktop message comes from `en-US.ts` through `tv.ts`  | `tv.test.ts`                                                                                                    |
+| TV text that matches a desktop message comes from `en-US.ts` through `tv.ts`  | `tv.test.ts` for mapped messages; a new hand-written copy is prose only                                         |
 | A Kino setting is declared once, in `packages/settings`                       | `pnpm android:check-settings` and `pnpm settings:check-consumers`                                               |
 | Desktop and TV differ only where ADR 0033 records it                          | `fixtures/parity` cases in vitest, and in the TV's `ParityTest` in android.yml (not required)                   |
 | Only the playback session reaches Core's Player model                         | The types and `eslint.config.js`, proved by `pnpm playback:check-boundary`                                      |
+| Leaving playback keeps the save order ADRs 0032, 0034 and 0035 fix            | `pnpm core:check-player-session`                                                                                |
 | `build/` is generated, and upstream changes are patch files                   | `.gitignore`; `pnpm engine:check-vendor` for the engine's patches                                               |
 | Native logs and diagnostics carry sanitized fields only                       | The `diagnostic_logging` and `diagnostic_summary` CTests and `pnpm macos:check-web-console`, in CI's native job |
 | One pull request per validated chunk, squash-merged once CI is green          | `main`'s rulesets merge only by squash, after `Validate` passes                                                 |
