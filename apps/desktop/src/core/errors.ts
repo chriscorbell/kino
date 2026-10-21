@@ -1,5 +1,5 @@
-import { t as enUS } from '../locales';
-import { isCoreContractFailure } from './adapters';
+import { t as enUS } from '../locales/index.ts';
+import { isCoreContractFailure } from './adapters.ts';
 
 /**
  * The text for a log. A contract failure keeps its model and field path here,

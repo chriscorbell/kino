@@ -22,7 +22,7 @@ The save keeps the order the playback contract states, and every step is safe to
 
 The view's lifecycle is no longer an exit path. A test asserts that unmounting the view while playing dispatches no save and no Unload, and the shutdown test's former unmount case closes the transport instead.
 
-`pnpm core:check-shutdown` runs `savePlayback` itself against the pinned Core, so it checks the client's own order rather than a copy written into the gate. The modules it loads keep explicit `.ts` value imports so plain Node can load them.
+`pnpm core:check-shutdown` runs `savePlayback` itself against the pinned Core, so it checks the client's own order rather than a copy written into the gate, and `pnpm core:check-player-session` drives the session itself through every exit. The modules they load keep explicit `.ts` value imports so plain Node can load them. Lint fails a read of the Player model, a Player report, or a dispatch or commit to the model outside `apps/desktop/src/playback/`.
 
 A profile change during playback applies to the next playback instead of reloading the stream. Window close and Quit show that progress is being saved while the shell waits for the save, as Back already did. Once that save is durable, App returns to the details page before the window closes. A finished session has no Back, so a stopped player left on screen would strand the viewer if the shell stopped waiting before the save landed.
 

@@ -3,7 +3,7 @@ import {
   loadSettings,
   normalizeSettings,
   SETTINGS_STORAGE_KEY,
-} from './settings';
+} from './settings.ts';
 
 export interface KinoSettingsStore {
   get(): KinoSettings;

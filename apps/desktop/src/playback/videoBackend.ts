@@ -2,7 +2,7 @@
 // attaches the element's media listeners itself and reports them as
 // MediaEvent, the same events the native player sends.
 
-import { mediaPosition, type MediaBackend, type MediaEvent } from './media';
+import { mediaPosition, type MediaBackend, type MediaEvent } from './media.ts';
 
 export interface VideoBackend extends MediaBackend {
   /**
