@@ -468,6 +468,13 @@ gateCase('a torrent that arrives during a failed save loads once', async () => {
   );
 });
 
+gateCase('the progress a session reports never moves its viewer', async () => {
+  const { shell } = await play(35000);
+  await until(() => coreTime() > 0, 'the progress report');
+  await settle();
+  assert.ok(!shell.calls.includes('seek'), 'A title with no saved offset never seeks to its own.');
+});
+
 gateCase('an audio output changed during a failed save reloads once', async () => {
   const { session, settings, shell } = await play(35000);
   const mark = shell.calls.length;
@@ -636,7 +643,7 @@ for (const [name, run] of cases) {
 }
 
 console.log(
-  `Pinned Core playback session, ${cases.length} cases on fresh Cores in shuffled order (KINO_SESSION_SEED=${seed}): Back, Up Next, a source failure, window close and Core teardown each saved the last position, stopped, then unloaded; an exit during a save joined it; a save that failed before the stop stayed usable and saved from the top, one that failed at Core teardown reached the teardown; leaving after Core teardown, after the Core worker died, or as it died during the save stopped the player once and reported the outcome as unsaved; a source that arrived during a save waited for it, and it or an audio output that changed during a failed save loaded once; a series resumed only its own episode's offset and offered Core's next episode, but no upcoming one and no special after a numbered season; and after an ended playback, a stopped player ignored pause, seek, the subtitle style and progress, and an Unload whose write failed or did not finish in time after the stop left at once and reported which.`,
+  `Pinned Core playback session, ${cases.length} cases on fresh Cores in shuffled order (KINO_SESSION_SEED=${seed}): Back, Up Next, a source failure, window close and Core teardown each saved the last position, stopped, then unloaded; an exit during a save joined it; a save that failed before the stop stayed usable and saved from the top, one that failed at Core teardown reached the teardown; leaving after Core teardown, after the Core worker died, or as it died during the save stopped the player once and reported the outcome as unsaved; a source that arrived during a save waited for it, and it or an audio output that changed during a failed save loaded once; a title never sought to progress it reported itself; a series resumed only its own episode's offset and offered Core's next episode, but no upcoming one and no special after a numbered season; and after an ended playback, a stopped player ignored pause, seek, the subtitle style and progress, and an Unload whose write failed or did not finish in time after the stop left at once and reported which.`,
 );
 // Core owns repeating runtime timers, as it does in its browser worker.
 process.exit(0);
