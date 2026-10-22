@@ -96,6 +96,7 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
   const playingId = playingVideoId(selection);
   let resumeAt = 0;
   let resumed = false;
+  let reportedOffset = false;
 
   const tracks = createTracks({
     title: selection.meta,
@@ -147,7 +148,9 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
     });
     if (retitled) nowPlaying();
     tracks.offered(state?.subtitles ?? []);
-    resumeAt = resumeOffset(state?.libraryItem ?? null, playingId);
+    // Saved progress can reach the session after the source loads. Once this session has reported
+    // an offset, Core's may be that report, and resuming to it would jump the viewer back a moment.
+    if (!reportedOffset) resumeAt = resumeOffset(state?.libraryItem ?? null, playingId);
     resume();
     if (state?.stream?.type === 'Err') {
       fail(enUS.player.resolveFailed);
@@ -262,7 +265,9 @@ export function startPlayback(selection: PlaybackSelection, deps: PlaybackDeps):
     if (loadedAudioOutput !== null) backend.stop();
     loadedAudioOutput = audioOutput;
     tracks.load(backend);
-    progress = createProgressReporter(core, platform);
+    progress = createProgressReporter(core, platform, () => {
+      reportedOffset = true;
+    });
     sendVolume(settings.get().volume);
     backend.load({
       ...source,

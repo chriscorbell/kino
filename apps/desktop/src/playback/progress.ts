@@ -47,9 +47,11 @@ export function timeChangedAction(
   return known ? playerAction('TimeChanged', { ...known, device: playbackDevice(platform) }) : null;
 }
 
+/** `onOffset` runs as each report that moves Core's stored offset is sent. */
 export function createProgressReporter(
   core: Pick<PlayerCorePort, 'dispatch'>,
   platform: ClientPlatform,
+  onOffset: () => void = () => {},
 ): ProgressReporter {
   const device = playbackDevice(platform);
   let lastReported = 0;
@@ -64,7 +66,9 @@ export function createProgressReporter(
   };
   const reportTime = (position: MediaPosition) => {
     const action = timeChangedAction(position, platform);
-    if (action) send(action);
+    if (!action) return;
+    onOffset();
+    send(action);
   };
 
   return {
@@ -76,7 +80,9 @@ export function createProgressReporter(
     },
     seek(position) {
       const known = mediaPosition(position.time, position.duration);
-      if (known) send(playerAction('Seek', { ...known, device }));
+      if (!known) return;
+      onOffset();
+      send(playerAction('Seek', { ...known, device }));
     },
     paused(paused, position) {
       if (paused) reportTime(position);
