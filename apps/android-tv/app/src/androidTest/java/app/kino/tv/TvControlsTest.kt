@@ -141,6 +141,27 @@ class TvControlsTest {
     }
 
     @Test
+    fun theRemoteSeeksAFileIndexedFromASecondSeekHead() {
+        // Media3 alone finds no Cues in this layout and plays it unseekable, which disables the
+        // seek bar and leaves Left and Right nothing to move.
+        withPlayingSurface("intro-chained-index-long.mkv") { surface ->
+            val player = surface.player
+            assertTrue(
+                "The second SeekHead's Cues must make the file seekable",
+                onMain { player.isCurrentMediaItemSeekable },
+            )
+            waitUntil("controls must auto-hide") { !surface.view.isControllerFullyVisible }
+            val start = onMain { player.currentPosition }
+            instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_RIGHT)
+            waitUntil("Right must focus the seek bar") { timeBar(surface).hasFocus() }
+            waitUntil("Right must land ten seconds on from $start") {
+                surface.layout.pendingSeek == C.TIME_UNSET &&
+                    player.currentPosition >= start + 9_000
+            }
+        }
+    }
+
+    @Test
     fun downAndUpMoveBetweenTheSeekBarAndTheButtons() {
         withPlayingSurface { surface ->
             val player = surface.player
@@ -292,10 +313,13 @@ class TvControlsTest {
         val view: PlayerView = layout.playerView
     }
 
-    private fun withPlayingSurface(block: (Surface) -> Unit) {
-        // Five minutes, so there is room to seek either way.
+    // Five minutes, so there is room to seek either way.
+    private fun withPlayingSurface(
+        asset: String = "intro-no-chapters-long.mkv",
+        block: (Surface) -> Unit,
+    ) {
         val fixture = File(context.cacheDir, "controls-fixture.mkv")
-        instrumentation.context.assets.open("intro-no-chapters-long.mkv").use { input ->
+        instrumentation.context.assets.open(asset).use { input ->
             fixture.outputStream().use { input.copyTo(it) }
         }
         val activity =
@@ -330,7 +354,10 @@ class TvControlsTest {
                     }
                 }
                 created.setMediaSource(
-                    ProgressiveMediaSource.Factory(FileDataSource.Factory())
+                    ProgressiveMediaSource.Factory(
+                            FileDataSource.Factory(),
+                            IntroExtractorsFactory(IntroDiscoverySession({}, {}, {})),
+                        )
                         .createMediaSource(MediaItem.fromUri(Uri.fromFile(fixture)))
                 )
                 created.prepare()

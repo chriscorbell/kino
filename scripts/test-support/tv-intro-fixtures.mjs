@@ -192,7 +192,7 @@ function layout(original, suffix = '') {
       return { id: value(idField), position: value(positionField) };
     });
 
-  return function fixture(name, block, tail = false, indexed = true) {
+  return function fixture(name, block, tail = false, indexed = true, chained = false) {
     const bytes = Buffer.from(original);
     const header = top[0];
     const version = children(bytes, header.content, header.end).find(
@@ -209,7 +209,20 @@ function layout(original, suffix = '') {
         return [element(0x4dbb, element(0x53ab, number(entry.id)), integer(0x53ac, position))];
       }),
     );
-    Buffer.concat([nextIndex, voidBytes(indexLength - nextIndex.length)]).copy(bytes, index.start);
+    const appended = tail && block ? block : Buffer.alloc(0);
+    // Some mkvmerge files keep the full index in a second SeekHead at the end, and the first names
+    // only that one.
+    const headIndex = chained
+      ? element(
+          0x114d9b74,
+          element(
+            0x4dbb,
+            element(0x53ab, number(0x114d9b74)),
+            integer(0x53ac, bytes.length + appended.length - segment.content),
+          ),
+        )
+      : nextIndex;
+    Buffer.concat([headIndex, voidBytes(indexLength - headIndex.length)]).copy(bytes, index.start);
     const inHead = block && !tail ? block : Buffer.alloc(0);
     if (inHead.length > existing.end - existing.start)
       throw new Error('Chapter fixture is too large');
@@ -217,7 +230,7 @@ function layout(original, suffix = '') {
       bytes,
       existing.start,
     );
-    const result = tail && block ? Buffer.concat([bytes, block]) : bytes;
+    const result = Buffer.concat([bytes, appended, chained ? nextIndex : Buffer.alloc(0)]);
     encodedSize(result.length - segment.content, segment.sizeWidth).copy(
       result,
       segment.content - segment.sizeWidth,
@@ -287,5 +300,6 @@ const longFixture = layout(readFileSync(longSource), '-long');
 const numbered = chapters(atom(1, 0, 60_000, 'Chapter 1'), atom(2, 60_000, 300_000, 'Chapter 2'));
 longFixture('generic', numbered);
 longFixture('generic-tail', numbered, true);
+longFixture('chained-index', null, false, true, true);
 rmSync(temporary, { recursive: true, force: true });
 console.log('Wrote bounded Matroska intro fixtures');

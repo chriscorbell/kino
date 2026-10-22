@@ -11,6 +11,7 @@ import androidx.media3.extractor.ExtractorInput
 import androidx.media3.extractor.ExtractorOutput
 import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.extractor.ForwardingExtractor
+import androidx.media3.extractor.ForwardingExtractorInput
 import androidx.media3.extractor.PositionHolder
 import androidx.media3.extractor.mkv.EbmlProcessor
 import androidx.media3.extractor.mkv.MatroskaExtractor
@@ -73,9 +74,9 @@ internal class IntroExtractorsFactory(private val session: IntroDiscoverySession
                         matroskaFlags or
                             if (transcodeText) 0 else MatroskaExtractor.FLAG_EMIT_RAW_SUBTITLE_DATA
                     val intro = IntroMatroskaExtractor(parser, flags, session)
-                    SelectedExtractor(intro, true, session, intro::endOfInput)
+                    SelectedExtractor(intro, intro, session)
                 } else {
-                    SelectedExtractor(extractor, false, session)
+                    SelectedExtractor(extractor, null, session)
                 }
             }
             .toTypedArray()
@@ -127,6 +128,57 @@ private class IntroMatroskaExtractor(
     private var trackType = -1L
     private var defaultDurationNs = -1L
     private var reportedFrameRate = false
+    private var seekHeadEnd = -1L
+    private var indexesCues = false
+    private var chainedIndex = -1L
+    private var reachedCluster = false
+    private var detour: Detour? = null
+
+    /** Whether the input may still have to end early, at a boundary where a [Detour] seeks. */
+    val mayDetour: Boolean
+        get() = if (detour == null) !reachedCluster else detour != Detour.Done
+
+    fun stopsAt(position: Long): Boolean =
+        when (val step = detour) {
+            is Detour.Leaving -> position == step.stopAt
+            is Detour.Returning -> position == step.stopAt
+            else -> false
+        }
+
+    /**
+     * Where to seek when the input ended during a detour. Anything but its planned stops ends it
+     * where it started, so a broken index leaves the file playing as Media3 would have played it.
+     */
+    fun afterEndOfInput(position: Long): Long? =
+        when (val step = detour) {
+            is Detour.Leaving ->
+                if (position != step.stopAt) null
+                else {
+                    detour = Detour.Arriving(step.target, step.stopAt)
+                    step.target
+                }
+            is Detour.Arriving -> step.returnTo.also { detour = Detour.Done }
+            is Detour.Inside -> step.returnTo.also { detour = Detour.Done }
+            is Detour.Returning -> step.returnTo.also { detour = Detour.Done }
+            else -> null
+        }
+
+    /** Where to go back to when the detour arrived somewhere other than a SeekHead. */
+    fun arrive(input: ExtractorInput): Long? {
+        val step = detour as? Detour.Arriving ?: return null
+        val id = ByteArray(4)
+        val found =
+            input.position == step.target &&
+                input.peekFully(id, 0, id.size, true) &&
+                id.fold(0) { value, byte -> (value shl 8) or (byte.toInt() and 0xff) } == SEEK_HEAD
+        input.resetPeekPosition()
+        if (found) {
+            detour = Detour.Inside(step.returnTo)
+            return null
+        }
+        detour = Detour.Done
+        return step.returnTo
+    }
 
     override fun getElementType(id: Int): Int =
         if (id == CHAPTERS) EbmlProcessor.ELEMENT_TYPE_BINARY else super.getElementType(id)
@@ -135,6 +187,8 @@ private class IntroMatroskaExtractor(
 
     override fun startMasterElement(id: Int, contentPosition: Long, contentSize: Long) {
         if (id == SEGMENT) segmentContent = contentPosition
+        if (id == SEEK_HEAD) seekHeadEnd = contentPosition + contentSize
+        if (id == CLUSTER) reachedCluster = true
         if (id == TRACK_ENTRY) {
             trackType = -1L
             defaultDurationNs = -1L
@@ -164,13 +218,29 @@ private class IntroMatroskaExtractor(
             reportedFrameRate = true
         }
         if (id == SEEK) {
+            val target =
+                if (segmentContent >= 0 && seekPosition >= 0)
+                    runCatching { Math.addExact(segmentContent, seekPosition) }.getOrNull()
+                else null
             if (seekId == CHAPTERS && segmentContent >= 0 && seekPosition >= 0) {
                 hasIndexedChapters = true
-                runCatching { Math.addExact(segmentContent, seekPosition) }
-                    .getOrNull()
-                    ?.let(session::chapterOffset)
+                target?.let(session::chapterOffset)
             }
+            if (seekId == CUES) indexesCues = true
+            if (seekId == SEEK_HEAD && target != null) chainedIndex = target
             inSeek = false
+        }
+        // Some mkvmerge files index their Cues only from a second SeekHead near the end, which the
+        // first one points at. Media3 never follows that pointer (androidx/media#1143), so it finds
+        // no Cues at the first cluster and plays the whole file unseekable. Reading the second
+        // SeekHead before then, and coming back, lets Media3 find the Cues as usual.
+        if (id == SEEK_HEAD) {
+            val step = detour
+            if (step is Detour.Inside) {
+                detour = Detour.Returning(seekHeadEnd, step.returnTo)
+            } else if (step == null && !indexesCues && chainedIndex >= 0 && !reachedCluster) {
+                detour = Detour.Leaving(seekHeadEnd, chainedIndex)
+            }
         }
     }
 
@@ -209,8 +279,24 @@ private class IntroMatroskaExtractor(
         if (!hasChapters && !hasIndexedChapters && !reportedAbsent) session.chapters(ByteArray(0))
     }
 
+    /** A read of a second SeekHead, made between two elements before the first cluster. */
+    private sealed interface Detour {
+        /** Reading on to the end of the first SeekHead, the boundary it comes back to. */
+        class Leaving(val stopAt: Long, val target: Long) : Detour
+
+        class Arriving(val target: Long, val returnTo: Long) : Detour
+
+        class Inside(val returnTo: Long) : Detour
+
+        class Returning(val stopAt: Long, val returnTo: Long) : Detour
+
+        object Done : Detour
+    }
+
     companion object {
         private const val CHAPTERS = 0x1043a770
+        private const val CUES = 0x1c53bb6b
+        private const val SEEK_HEAD = 0x114d9b74
         private const val SEGMENT = 0x18538067
         private const val CLUSTER = 0x1f43b675
         private const val SEEK = 0x4dbb
@@ -226,17 +312,47 @@ private class IntroMatroskaExtractor(
 
 private class SelectedExtractor(
     extractor: Extractor,
-    private val matroska: Boolean,
+    private val matroska: IntroMatroskaExtractor?,
     private val session: IntroDiscoverySession,
-    private val onEndOfInput: () -> Unit = {},
 ) : ForwardingExtractor(extractor) {
     override fun init(output: ExtractorOutput) {
-        session.selected(matroska)
+        session.selected(matroska != null)
         super.init(output)
     }
 
-    override fun read(input: ExtractorInput, seekPosition: PositionHolder): Int =
-        super.read(input, seekPosition).also { result ->
-            if (result == Extractor.RESULT_END_OF_INPUT) onEndOfInput()
+    override fun read(input: ExtractorInput, seekPosition: PositionHolder): Int {
+        if (matroska?.mayDetour != true) {
+            return super.read(input, seekPosition).also { result ->
+                if (result == Extractor.RESULT_END_OF_INPUT) matroska?.endOfInput()
+            }
         }
+        matroska.arrive(input)?.let { back ->
+            seekPosition.position = back
+            return Extractor.RESULT_SEEK
+        }
+        val result = super.read(EndAtDetour(input, matroska), seekPosition)
+        if (result != Extractor.RESULT_END_OF_INPUT) return result
+        matroska.afterEndOfInput(input.position)?.let { target ->
+            seekPosition.position = target
+            return Extractor.RESULT_SEEK
+        }
+        matroska.endOfInput()
+        return result
+    }
+}
+
+/**
+ * Ends the input where the extractor needs a seek. MatroskaExtractor's read only returns a seek of
+ * its own making, but it returns at the end of the input, between two elements.
+ */
+private class EndAtDetour(input: ExtractorInput, private val matroska: IntroMatroskaExtractor) :
+    ForwardingExtractorInput(input) {
+    override fun readFully(
+        target: ByteArray,
+        offset: Int,
+        length: Int,
+        allowEndOfInput: Boolean,
+    ): Boolean =
+        if (allowEndOfInput && matroska.stopsAt(position)) false
+        else super.readFully(target, offset, length, allowEndOfInput)
 }
